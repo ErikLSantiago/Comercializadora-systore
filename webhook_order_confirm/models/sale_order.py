@@ -16,10 +16,18 @@ class SaleOrder(models.Model):
         return res
 
     def _trigger_endpoint(self, order, state):
+        _logger.debug("sale.order")
+        _logger.debug(order)
+        
+        if order.x_studio_many2one_field_hmqu2:
+                mkp_value = order.x_studio_many2one_field_hmqu2.name
+        else:
+                mkp_value = 'doto'
+
         endpoint_url = 'https://odoo.doto.com.mx/api/v1/vtex/invoice/order'
         headers = {
             'Content-Type': 'application/json',
-            'mkp': 'dotomxqa'
+            'mkp': mkp_value
         }
         data = {
             'order_id': order.id,
