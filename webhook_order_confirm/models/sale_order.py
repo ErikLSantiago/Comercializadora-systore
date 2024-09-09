@@ -16,8 +16,8 @@ class SaleOrder(models.Model):
         return res
 
     def _trigger_endpoint(self, order, state):
-        _logger.debug("sale.order")
-        _logger.debug(order)
+        _logger.info("sale.order")
+        _logger.info(order)
         
         if order.x_studio_many2one_field_hmqu2:
                 mkp_value = order.x_studio_many2one_field_hmqu2.name
