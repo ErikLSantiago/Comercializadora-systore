@@ -36,4 +36,4 @@ class SaleOrder(models.Model):
         response = requests.post(endpoint_url, json=data, headers=headers)
         if response.status_code != 200:
             _logger.error(
-                'Failed to trigger endpoint for sale order %s', order.name)
+                'Failed to trigger endpoint for sale order %s', order)
