@@ -9,14 +9,14 @@ class SaleOrder(models.Model):
     _inherit = 'sale.order'
 
     def action_confirm(self):
+        _logger.info(f"sale.order se ejecuta")
+        _logger.info(f"Sale order successfully sent to endpoint.",self)
         res = super(SaleOrder, self).action_confirm()
         for order in self:
             self._trigger_endpoint(order, 'confirmed')
         return res
 
     def _trigger_endpoint(self, order, state):
-        _logger.info(f"sale.order")
-        _logger.info(f"Sale order successfully sent to endpoint.",order)
         
         if order.x_studio_many2one_field_hmqu2:
                 mkp_value = order.x_studio_many2one_field_hmqu2.name
