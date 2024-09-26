@@ -1,7 +1,6 @@
 from odoo import models, api
 import requests
 import logging
-import re
 
 _logger = logging.getLogger(__name__)
 
@@ -34,31 +33,15 @@ class StockPicking(models.Model):
     def _send_sale_order_to_endpoint(self, state):
         for picking in self:
             if picking.sale_id:
+                sale_order_data = {
+                    'order_id': picking.sale_id.id,
+                    'state': state
+                }
+                endpoint = "https://odoo.doto.com.mx/api/v1/vtex/invoice/order"
+                headers = {'Content-Type': 'application/json', 'mkp': 'doto'}
                 try:
-                    sale_order_name = picking.sale_id.name
-                    if "ELK" in sale_order_name or re.match(r"^\d{12}-\d{2}$", sale_order_name):
-                        sale_order_data = {
-                            'order_id': picking.sale_id.id,
-                            'state': state
-                        }
-                        endpoint = "https://odoo.doto.com.mx/api/v1/vtex/invoice/order"
-                        headers = {'Content-Type': 'application/json', 'mkp': 'doto'}
-                        try:
-                            response = requests.post(endpoint, json=sale_order_data, headers=headers)
-                            response.raise_for_status()
-                            _logger.info(f"Sale order {picking.sale_id.id} successfully sent to endpoint.")
-                        except requests.exceptions.RequestException as e:
-                            _logger.error(f"Error sending sale order {picking.sale_id.id} to endpoint: {e}")
-                except:
-                    sale_order_data = {
-                        'order_id': picking.sale_id.id,
-                        'state': state
-                    }
-                    endpoint = "https://odoo.doto.com.mx/api/v1/vtex/invoice/order"
-                    headers = {'Content-Type': 'application/json', 'mkp': 'doto'}
-                    try:
-                        response = requests.post(endpoint, json=sale_order_data, headers=headers)
-                        response.raise_for_status()
-                        _logger.info(f"Sale order {picking.sale_id.id} successfully sent to endpoint.")
-                    except requests.exceptions.RequestException as e:
-                        _logger.error(f"Error sending sale order {picking.sale_id.id} to endpoint: {e}")
+                    response = requests.post(endpoint, json=sale_order_data, headers=headers)
+                    response.raise_for_status()
+                    _logger.info(f"Sale order {picking.sale_id.id} successfully sent to endpoint.")
+                except requests.exceptions.RequestException as e:
+                    _logger.error(f"Error sending sale order {picking.sale_id.id} to endpoint: {e}")
