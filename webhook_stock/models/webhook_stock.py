@@ -17,12 +17,17 @@ class StockWebhook(models.Model):
         return res
 
     def _trigger_webhook(self, record):
+        if record.location_id.id != 28:
+            return 
         webhook_url = "https://webhook.site/d7046384-354e-4e1a-b780-bdb946747ca1"
         payload = {
             "product_id": record.product_id.id,
             "product_sku": record.product_id.default_code,
             "stock": record.quantity,
+            "location_id": record.location_id.id
         }
+        
+        
         headers = {'Content-Type': 'application/json'}
         try:
             requests.post(webhook_url, json=payload, headers=headers)
