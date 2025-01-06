@@ -5,10 +5,10 @@ class StockWebhook(models.Model):
     _inherit = 'stock.quant'
 
     @api.model
-    def create(self, vals):
-        record = super(StockWebhook, self).create(vals)
-        self._trigger_webhook(record)
-        return record
+    # def create(self, vals):
+    #     record = super(StockWebhook, self).create(vals)
+    #     self._trigger_webhook(record)
+    #     return record
 
     def write(self, vals):
         res = super(StockWebhook, self).write(vals)
