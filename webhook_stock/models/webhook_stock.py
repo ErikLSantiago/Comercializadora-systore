@@ -17,7 +17,7 @@ class StockWebhook(models.Model):
         return res
 
     def _trigger_webhook(self, record):
-        webhook_url = "https://webhook.site/2f3f2332-1ed8-4389-b88c-62052d49bbfd"
+        webhook_url = "https://webhook.site/d7046384-354e-4e1a-b780-bdb946747ca1"
         payload = {
             "product_id": record.product_id.id,
             "product_sku": record.product_id.default_code,
