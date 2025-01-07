@@ -12,15 +12,14 @@ class StockWebhook(models.Model):
 
     def write(self, vals):
         res = super(StockWebhook, self).write(vals)
-        for record in self:
+        records_to_trigger = self.filtered(lambda r: r.location_id.id == 28 and 'quantity' in vals)
+        for record in records_to_trigger:
             self._trigger_webhook(record)
         return res
 
     def _trigger_webhook(self, record):
         
-        if record.location_id.id != 28:
-            return 
-        webhook_url = "https://webhook.site/54b5e6c8-2d37-439c-8a30-0cc04a8df2d0"
+        webhook_url = "https://webhook.site/f938beda-7b83-4c7e-9d74-4ef36909f29c"
         payload = {
             "product_id": record.product_id.id,
             "product_sku": record.product_id.default_code,
