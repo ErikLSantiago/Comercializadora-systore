@@ -34,7 +34,6 @@ class StockWebhook(models.Model):
         try:
             requests.post(webhook_url, json=payload, headers=headers)
         except Exception as e:
-            pass
             self.env['ir.logging'].create({
                 'name': 'Webhook Error',
                 'type': 'server',
