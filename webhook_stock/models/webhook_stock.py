@@ -39,5 +39,6 @@ class StockWebhook(models.Model):
                 'type': 'server',
                 'level': 'error',
                 'message': str(e),
-                'path': 'stock.quant._trigger_webhook'
+                'path': 'stock.quant._trigger_webhook',
+                'func': '_trigger_webhook'
             })
