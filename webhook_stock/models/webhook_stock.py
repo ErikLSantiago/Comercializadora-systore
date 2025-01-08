@@ -1,5 +1,6 @@
 from odoo import models, fields, api
 import requests
+import inspect
 
 class StockWebhook(models.Model):
     _inherit = 'stock.quant'
@@ -40,5 +41,6 @@ class StockWebhook(models.Model):
                 'level': 'error',
                 'message': str(e),
                 'path': 'stock.quant._trigger_webhook',
-                'func': '_trigger_webhook'
+                'func': '_trigger_webhook',
+                'line': inspect.currentframe().f_lineno,
             })
