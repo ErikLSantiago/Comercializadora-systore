@@ -18,7 +18,7 @@ class StockWebhook(models.Model):
 
     def _trigger_webhook(self, record):
         
-        if record.location_id.id != 28:
+        if record.location_id.id != 28 and record.quantity == 0:
             return 
         webhook_url = "https://webhook.site/feaf9695-e0c6-4044-9929-2faee5199d96"
         payload = {
@@ -27,7 +27,6 @@ class StockWebhook(models.Model):
             "stock": record.quantity,
             "location_id": record.location_id.id,
             "record_id" : record.id,
-            "quantity" : record.quantity
         }
         
         
@@ -35,9 +34,11 @@ class StockWebhook(models.Model):
         try:
             requests.post(webhook_url, json=payload, headers=headers)
         except Exception as e:
+            pass
             self.env['ir.logging'].create({
                 'name': 'Webhook Error',
                 'type': 'server',
                 'level': 'error',
                 'message': str(e),
+                'path': 'stock.quant._trigger_webhook'
             })
