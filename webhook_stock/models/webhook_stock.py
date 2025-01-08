@@ -10,8 +10,8 @@ class StockWebhook(models.Model):
     #     self._trigger_webhook(record)
     #     return record
 
-    def write(self, vals):
-        res = super(StockWebhook, self).write(vals)
+    def write(self, vals, *args, **kwargs):
+        res = super(StockWebhook, self).write(vals, *args, **kwargs)
         for record in self:
             self._trigger_webhook(record)
         return res
