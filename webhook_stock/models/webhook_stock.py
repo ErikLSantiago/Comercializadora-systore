@@ -18,16 +18,15 @@ class StockWebhook(models.Model):
 
     def _trigger_webhook(self, record):
         
-        if record.location_id.id != 28:
+        if record.location_id.id != 28 or record.quantity == 0:
             return 
-        webhook_url = "https://webhook.site/feaf9695-e0c6-4044-9929-2faee5199d96"
+        webhook_url = "https://webhook.site/0e1a78e1-73a1-41cc-bb06-a738a2dfb9bc"
         payload = {
             "product_id": record.product_id.id,
             "product_sku": record.product_id.default_code,
             "stock": record.quantity,
             "location_id": record.location_id.id,
             "record_id" : record.id,
-            "quantity" : record.quantity
         }
         
         
@@ -40,4 +39,5 @@ class StockWebhook(models.Model):
                 'type': 'server',
                 'level': 'error',
                 'message': str(e),
+                'path': 'stock.quant._trigger_webhook'
             })
