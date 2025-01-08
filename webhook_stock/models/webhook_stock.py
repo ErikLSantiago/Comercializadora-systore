@@ -18,7 +18,7 @@ class StockWebhook(models.Model):
 
     def _trigger_webhook(self, record):
         
-        if record.location_id.id != 28 and record.quantity == 0:
+        if record.location_id.id != 28 or record.quantity == 0:
             return 
         webhook_url = "https://webhook.site/0e1a78e1-73a1-41cc-bb06-a738a2dfb9bc"
         payload = {
