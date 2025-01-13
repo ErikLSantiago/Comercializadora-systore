@@ -21,7 +21,7 @@ class StockWebhook(models.Model):
         
         if record.location_id.id != 28 or record.quantity == 0:
             return 
-        webhook_url = "https://webhook.site/0e1a78e1-73a1-41cc-bb06-a738a2dfb9bc"
+        webhook_url = "https://odoo.doto.com.mx/api/v2/odoo/hook/products/sync"
         payload = {
             "product_id": record.product_id.id,
             "product_sku": record.product_id.default_code,
