@@ -11,11 +11,12 @@ class StockWebhook(models.Model):
     #     self._trigger_webhook(record)
     #     return record
 
-    def write(self, vals, *args, **kwargs):
-        res = super(StockWebhook, self).write(vals, *args, **kwargs)
+    def write(self, vals):
+        res = super(StockWebhook, self).write(vals)  # Only pass `vals` to super()
         for record in self:
-            self._trigger_webhook(record)
+            self._trigger_webhook(record)  # Trigger the webhook for each updated record
         return res
+
 
     def _trigger_webhook(self, record):
         
