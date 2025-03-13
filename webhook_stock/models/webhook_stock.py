@@ -19,8 +19,8 @@ class StockWebhook(models.Model):
 
 
     def _trigger_webhook(self, record):
-        
-        if record.location_id.id not in [28, 1610, 1869, 1876]:
+        #Locations Existencias / Remates / Phone Depot / Orange Control
+        if record.location_id.id not in [28, 1610, 1867, 1836]:
             return
         webhook_url = "https://odoo.doto.com.mx/api/v2/odoo/hook/products/sync"
         payload = {
