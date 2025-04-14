@@ -1,6 +1,0 @@
-<?xml version="1.0"?>
-<odoo>
-   <record id="group_type_user_res" model="res.groups">
-      <field name="name">Product Manager</field>
-   </record>
-</odoo>
