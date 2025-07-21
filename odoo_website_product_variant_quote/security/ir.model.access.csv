@@ -1,6 +1,0 @@
-id,name,model_id:id,group_id:id,perm_read,perm_write,perm_create,perm_unlink
-access_quote_order_line,access_quote_order_line,odoo_website_product_variant_quote.model_quote_order_line,base.group_user,1,1,1,1
-access_quote_order,access_quote_order,odoo_website_product_variant_quote.model_quote_order,base.group_user,1,1,1,1
-access_uom_uom,access_uom_uom,uom.model_uom_uom,base.group_user,1,1,1,1
-access_product_template,access_product_template,product.model_product_template,base.group_user,1,1,1,1
-access_product_product,access_product_product,product.model_product_product,base.group_user,1,1,1,1
