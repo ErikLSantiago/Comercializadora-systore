@@ -1,0 +1,16 @@
+<odoo>
+    <data>
+        <record id="view_partner_form_inherit_wholesale_access" model="ir.ui.view">
+            <field name="name">res.partner.form.acc_mayoristas</field>
+            <field name="model">res.partner</field>
+            <field name="inherit_id" ref="base.view_partner_form"/>
+            <field name="arch" type="xml">
+                <xpath expr="//sheet/group[1]" position="after">
+                    <group string="Sitio Web">
+                        <field name="is_wholesale_access"/>
+                    </group>
+                </xpath>
+            </field>
+        </record>
+    </data>
+</odoo>
