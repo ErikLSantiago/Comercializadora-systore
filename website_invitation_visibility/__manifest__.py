@@ -2,7 +2,7 @@
 {
     "name": "Website Page Visibility - Invitation",
     "summary": "Adds 'Por invitación' to website page visibility and authorizes users whose contact has 'Acceso Mayoristas' checkbox.",
-    "version": "18.0.3.1.0",
+    "version": "18.0.3.2.0",
     "author": "ChatGPT",
     "website": "https://example.com",
     "license": "LGPL-3",

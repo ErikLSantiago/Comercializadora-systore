@@ -12,7 +12,6 @@ class IrUiView(models.Model):
     )
 
     def _is_visible(self, website=False, **kwargs):
-        # default result from core
         res = super()._is_visible(website=website, **kwargs)
         for view in self:
             if getattr(view, 'visibility', None) == 'invitation':
