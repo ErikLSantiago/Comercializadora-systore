@@ -17,11 +17,9 @@ class WholesaleHomeController(http.Controller):
 
         view = page.view_id.sudo() if page.view_id else None
         if view and getattr(view, 'visibility', False) == 'invitation':
-            # Require login
             if request.env.user._is_public():
                 return request.redirect('/web/login?redirect=%s' % path)
 
-            # Check partner/company flag
             p = request.env.user.partner_id.sudo()
             allowed = bool(
                 getattr(p, 'is_wholesale_access', False) or
@@ -29,7 +27,7 @@ class WholesaleHomeController(http.Controller):
                 (p.commercial_partner_id and getattr(p.commercial_partner_id, 'is_wholesale_access', False))
             )
             if not allowed:
-                return request.render('website.403')
+                return http.Response('403 Forbidden', status=403)
 
         key = (page.view_id and page.view_id.key) or page.key
         if key:
