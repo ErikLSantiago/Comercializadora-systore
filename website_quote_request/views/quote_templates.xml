@@ -1,0 +1,198 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+  <!-- Página principal de solicitud de cotización con filtros y buscador -->
+  <record id="quote_page" model="ir.ui.view">
+    <field name="name">website_quote_request.quote_page</field>
+    <field name="key">website_quote_request.quote_page</field>
+    <field name="type">qweb</field>
+    <field name="arch" type="xml">
+      <t t-name="website_quote_request.quote_page">
+        <t t-call="website.layout">
+          <div class="container mt-4 mb-5">
+            <div class="d-flex justify-content-between align-items-end mb-3 flex-wrap gap-2">
+              <div>
+                <h1 class="mb-0">Solicitar cotización</h1>
+                <p class="text-muted mb-0">Selecciona productos y arma tu solicitud.</p>
+              </div>
+              <div class="d-flex gap-2">
+                <a href="/quote/cart" target="_blank" class="btn btn-outline-primary">Ver solicitud</a>
+              </div>
+            </div>
+
+            <!-- Filtros superiores: Categoría + Buscador -->
+            <form action="/quote" method="get" class="row g-2 mb-3">
+              <div class="col-12 col-md-4">
+                <select class="form-select" name="cat">
+                  <option value="0">Todas las categorías</option>
+                  <t t-foreach="facets_categories" t-as="c">
+                    <option t-att-value="c['id']" t-att-selected="str(state.get('cat') or 0) == str(c['id'])"><t t-esc="c['name']"/></option>
+                  </t>
+                </select>
+              </div>
+              <div class="col-12 col-md-6">
+                <input type="search" name="search" class="form-control" placeholder="Buscar productos..." t-att-value="state.get('search') or ''"/>
+              </div>
+              <div class="col-12 col-md-2">
+                <button class="btn btn-primary w-100" type="submit">Filtrar</button>
+              </div>
+            </form>
+
+            <div class="row">
+              <!-- Grid de productos -->
+              <div class="col-12 col-lg-9">
+                <div class="row" id="wqr-products">
+                  <t t-foreach="products" t-as="p">
+                    <div class="col-12 col-sm-6 col-md-4 mb-4">
+                      <div class="card h-100">
+                        <t t-if="p.image_1920">
+                          <img t-att-src="'/web/image/product.template/%d/image_1920' % p.id" class="card-img-top" t-att-alt="p.name or ''"/>
+                        </t>
+                        <div class="card-body d-flex flex-column">
+                          <h6 class="card-title" t-esc="p.display_name"/>
+                          <t t-if="not p.quote_hide_price">
+                            <div class="mb-2">
+                              <span t-esc="p.list_price"/> <span t-esc="p.currency_id.symbol or ''"/>
+                            </div>
+                          </t>
+
+                          <t t-if="added_ids and p.id in added_ids">
+                            <div class="badge bg-success align-self-start mb-2">Agregado</div>
+                          </t>
+
+                          <form action="/quote/add" method="post" class="mt-auto d-flex gap-2 align-items-center">
+                            <input type="hidden" name="csrf_token" t-att-value="request.csrf_token()"/>
+                            <input type="hidden" name="product_id" t-att-value="p.id"/>
+                            <input type="number" name="qty" t-att-value="int(template_qtys.get(p.id) or 1)" min="1" step="1" class="form-control" style="max-width: 90px;"/>
+                            <button type="submit" class="btn btn-primary">Añadir</button>
+                          </form>
+                        </div>
+                      </div>
+                    </div>
+                  </t>
+                  <t t-if="not products">
+                    <div class="col-12">
+                      <div class="alert alert-info">No hay productos que coincidan con los filtros.</div>
+                    </div>
+                  </t>
+                </div>
+              </div>
+
+              <!-- Columna derecha: Variantes (atributos) -->
+              <div class="col-12 col-lg-3">
+                <div class="card">
+                  <div class="card-header">Variantes</div>
+                  <div class="card-body">
+                    <form action="/quote" method="get" class="d-flex flex-column gap-3">
+                      <input type="hidden" name="cat" t-att-value="state.get('cat') or 0"/>
+                      <input type="hidden" name="search" t-att-value="state.get('search') or ''"/>
+                      <t t-foreach="facets_attributes" t-as="bucket">
+                        <div>
+                          <div class="fw-bold mb-2" t-esc="bucket['name']"/>
+                          <t t-foreach="bucket['values']" t-as="val">
+                            <div class="form-check">
+                              <input class="form-check-input" type="checkbox" t-att-name="'av_%s' % val['id']" t-att-checked="val['id'] in (state.get('selected_av') or [])"/>
+                              <label class="form-check-label" t-att-for="'av_%s' % val['id']"><t t-esc="val['name']"/></label>
+                            </div>
+                          </t>
+                        </div>
+                      </t>
+                      <button class="btn btn-outline-primary mt-2" type="submit">Aplicar variantes</button>
+                    </form>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+          </div>
+        </t>
+      </t>
+    </field>
+  </record>
+
+  <!-- Carrito / Resumen de solicitud con contador de piezas -->
+  <record id="quote_cart" model="ir.ui.view">
+    <field name="name">website_quote_request.quote_cart</field>
+    <field name="key">website_quote_request.quote_cart</field>
+    <field name="type">qweb</field>
+    <field name="arch" type="xml">
+      <t t-name="website_quote_request.quote_cart">
+        <t t-call="website.layout">
+          <div class="container my-4">
+            <div class="d-flex justify-content-between align-items-center mb-3 flex-wrap gap-2">
+              <div>
+                <h1 class="mb-0">Tu solicitud de cotización</h1>
+                <p class="text-muted mb-0"><t t-esc="total_qty"/> pieza(s)</p>
+              </div>
+              <a href="/quote" class="btn btn-outline-secondary">&#8592; Volver al catálogo</a>
+            </div>
+
+            <t t-if="order and order.order_line">
+              <div class="table-responsive">
+                <table class="table align-middle">
+                  <thead>
+  <tr>
+    <th style="width:60px;"></th>
+    <th>Producto</th>
+    <th style="width:120px;">Piezas</th>
+    <th style="width:220px;">Actualizar</th>
+  </tr>
+</thead>
+                  <tbody>
+                    <t t-foreach="order.order_line" t-as="l">
+                      <tr>
+                        <td>
+                          <img t-att-src="'/web/image/product.product/%d/image_128' % l.product_id.id" class="img-thumbnail" style="width:52px;height:52px;object-fit:cover;"/>
+                        </td>
+                        <td>
+                          <div t-esc="l.product_id.display_name"/>
+                          <small class="text-muted" t-esc="l.name or ''"/>
+                        </td>
+                        <td class="align-middle"><strong t-esc="int(l.product_uom_qty)"/></td>
+                        <td>
+                          <form action="/quote/update" method="post" class="d-flex gap-2">
+                            <input type="hidden" name="csrf_token" t-att-value="request.csrf_token()"/>
+                            <input type="hidden" name="line_id" t-att-value="l.id"/>
+                            <input type="number" name="qty" t-att-value="int(l.product_uom_qty)" min="0" step="1" class="form-control" style="max-width:120px;"/>
+                            <button type="submit" class="btn btn-outline-primary">Actualizar</button>
+                          </form>
+                        </td>
+                      </tr>
+                    </t>
+                  </tbody>
+                </table>
+              </div>
+
+              <form action="/quote/submit" method="post" class="mt-3">
+                <input type="hidden" name="csrf_token" t-att-value="request.csrf_token()"/>
+                <button type="submit" class="btn btn-success">Enviar cotización</button>
+              </form>
+            </t>
+            <t t-else="">
+              <div class="alert alert-info">Aún no has agregado productos. <a href="/quote">Ir al catálogo</a></div>
+            </t>
+          </div>
+        </t>
+      </t>
+    </field>
+  </record>
+
+  <!-- Página de agradecimiento mostrando el número de cotización -->
+  <record id="quote_thanks" model="ir.ui.view">
+    <field name="name">website_quote_request.quote_thanks</field>
+    <field name="key">website_quote_request.quote_thanks</field>
+    <field name="type">qweb</field>
+    <field name="arch" type="xml">
+      <t t-name="website_quote_request.quote_thanks">
+        <t t-call="website.layout">
+          <div class="container my-5">
+            <div class="text-center">
+              <h1>¡Tu solicitud fue enviada!</h1>
+              <p class="text-muted">Número de cotización: <strong t-esc="order.name"/></p>
+              <a href="/quote" class="btn btn-primary mt-3">Crear otra solicitud</a>
+            </div>
+          </div>
+        </t>
+      </t>
+    </field>
+  </record>
+</odoo>
