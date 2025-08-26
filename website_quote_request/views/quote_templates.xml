@@ -1,21 +1,120 @@
 <odoo>
-  <template id="quote_form" name="Solicitar cotización">
+  <!-- Listado de productos con filtro por categorias publicas -->
+  <template id="quote_list" name="Solicitar cotización (Listado)">
     <t t-call="website.layout">
       <div class="container mt-5 mb-5">
-        <h1>Solicitar cotización</h1>
-        <p class="text-muted">Arma tu solicitud y envíanosla.</p>
-        <form action="/quote/submit" method="post" class="mt-4">
-          <input type="hidden" name="csrf_token" t-att-value="request.csrf_token()"/>
-          <div class="mb-3">
-            <label class="form-label">Comentarios</label>
-            <textarea class="form-control" name="comments" rows="4" placeholder="Escribe aquí tus comentarios adicionales"></textarea>
+        <div class="d-flex justify-content-between align-items-center mb-3">
+          <h1 class="m-0">Solicitar cotización</h1>
+          <a href="/quote/cart" class="btn btn-outline-primary">Ver solicitud (<t t-esc="cart_count or 0"/>)</a>
+        </div>
+
+        <div class="row">
+          <div class="col-md-3">
+            <h6 class="text-uppercase text-muted mb-2">Categorías</h6>
+            <ul class="list-unstyled">
+              <li><a t-attf-href="/quote" t-att-class="'fw-bold' if not selected_cat else ''">Todas</a></li>
+              <t t-foreach="categories" t-as="cat">
+                <li>
+                  <a t-attf-href="/quote?c=#{cat.id}" t-att-class="'fw-bold' if selected_cat and selected_cat.id == cat.id else ''">
+                    <t t-esc="cat.complete_name or cat.name"/>
+                  </a>
+                </li>
+              </t>
+            </ul>
           </div>
-          <button class="btn btn-primary" type="submit">Enviar cotización</button>
-        </form>
+          <div class="col-md-9">
+            <div class="row g-3">
+              <t t-if="not products">
+                <div class="col-12 text-center text-muted">No hay productos publicados en esta categoría.</div>
+              </t>
+              <t t-foreach="products" t-as="p">
+                <div class="col-md-4">
+                  <div class="card h-100">
+                    <div class="card-body">
+                      <h5 class="card-title"><t t-esc="p.name"/></h5>
+                      <p class="card-text">
+                        <small class="text-muted"><t t-esc="p.public_categ_ids and ', '.join(p.public_categ_ids.mapped('name')) or ''"/></small>
+                      </p>
+                      <form action="/quote/add" method="post" class="d-flex gap-2">
+                        <input type="hidden" name="csrf_token" t-att-value="request.csrf_token()"/>
+                        <input type="hidden" name="product_id" t-att-value="p.id"/>
+                        <input class="form-control" type="number" name="qty" value="1" min="1" style="max-width:100px"/>
+                        <button class="btn btn-primary" type="submit">Añadir</button>
+                      </form>
+                    </div>
+                  </div>
+                </div>
+              </t>
+            </div>
+          </div>
+        </div>
       </div>
     </t>
   </template>
 
+  <!-- Carrito / Ver solicitud -->
+  <template id="quote_cart" name="Ver solicitud">
+    <t t-call="website.layout">
+      <div class="container mt-5 mb-5">
+        <h1>Ver solicitud</h1>
+        <t t-if="not items">
+          <div class="alert alert-info mt-3">Tu solicitud está vacía. Agrega productos desde <a href="/quote">Solicitar cotización</a>.</div>
+        </t>
+        <t t-if="items">
+          <form action="/quote/update" method="post" class="mb-4">
+            <input type="hidden" name="csrf_token" t-att-value="request.csrf_token()"/>
+            <table class="table align-middle">
+              <thead>
+                <tr>
+                  <th>Producto</th>
+                  <th style="width:150px">Cantidad</th>
+                </tr>
+              </thead>
+              <tbody>
+                <t t-foreach="items" t-as="it">
+                  <tr>
+                    <td><t t-esc="it['product'].name"/></td>
+                    <td>
+                      <input class="form-control" t-att-name="'qty_%s' % it['product'].id" t-att-value="it['qty']" type="number" min="0"/>
+                    </td>
+                  </tr>
+                </t>
+              </tbody>
+            </table>
+            <button class="btn btn-outline-secondary" type="submit">Actualizar cantidades</button>
+          </form>
+
+          <form action="/quote/submit" method="post">
+            <input type="hidden" name="csrf_token" t-att-value="request.csrf_token()"/>
+            <div class="row g-3">
+              <div class="col-md-4">
+                <label class="form-label">Nombre</label>
+                <input class="form-control" type="text" name="name" t-att-value="prefill.get('name')"/>
+              </div>
+              <div class="col-md-4">
+                <label class="form-label">Correo</label>
+                <input class="form-control" type="email" name="email" t-att-value="prefill.get('email')"/>
+              </div>
+              <div class="col-md-4">
+                <label class="form-label">Teléfono</label>
+                <input class="form-control" type="text" name="phone" t-att-value="prefill.get('phone')"/>
+              </div>
+              <div class="col-12">
+                <label class="form-label">Comentarios</label>
+                <textarea class="form-control" name="comments" rows="4" placeholder="Escribe aquí tus comentarios adicionales"></textarea>
+              </div>
+            </div>
+            <div class="mt-3">
+              <button class="btn btn-primary" type="submit">Enviar cotización</button>
+              <a href="/quote" class="btn btn-link">Seguir agregando productos</a>
+            </div>
+          </form>
+        </t>
+      </div>
+    </t>
+  </template>
+
+  <!-- Gracias -->
   <template id="quote_thanks" name="Gracias">
     <t t-call="website.layout">
       <div class="container mt-5 mb-5 text-center">

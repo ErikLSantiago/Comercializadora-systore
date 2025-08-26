@@ -1,14 +1,15 @@
+
 # -*- coding: utf-8 -*-
 {
     'name': 'Website Quote Request',
-    'version': '18.0.6.3.2',
+    'version': '18.0.6.3.3',
     'summary': 'Permite armar y enviar solicitudes de cotización desde el sitio web sin afectar el flujo nativo.',
-    'description': 'Formulario de cotización desde Website que crea oportunidades en CRM y permite adjuntos. Incluye campo Comentarios que se publica en Notas de la cotización y soporte a categorías públicas.',
+    'description': 'Flujo completo para armar solicitudes de cotización desde el Website con productos publicados, filtro por categorías públicas (public_categ_id), carrito propio, página "Ver solicitud" con campo Comentarios y creación de cotización (sale.order). Los comentarios se publican en Notas de la cotización.',
     'author': 'ChatGPT Assist',
     'website': 'https://example.com',
     'license': 'OPL-1',
     'category': 'Website/CRM',
-    'depends': ['website', 'crm', 'mail', 'website_sale'],
+    'depends': ['website', 'website_sale', 'sale_management', 'crm', 'mail'],
     'data': [
         'views/quote_templates.xml',
     ],
