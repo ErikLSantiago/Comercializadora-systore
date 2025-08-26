@@ -1,0 +1,19 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+  <record id="view_product_template_quote_flags" model="ir.ui.view">
+    <field name="name">product.template.form.quote.flags</field>
+    <field name="model">product.template</field>
+    <field name="inherit_id" ref="product.product_template_only_form_view"/>
+    <field name="arch" type="xml">
+      <xpath expr="//sheet/notebook" position="inside">
+        <page string="Cotización Web">
+          <group>
+            <field name="quote_publish"/>
+            <field name="quote_hide_price"/>
+          </group>
+          <label class="o_form_label" for="quote_publish" string="Usa 'Publicar para cotización' para listar este producto en /quote."/>
+        </page>
+      </xpath>
+    </field>
+  </record>
+</odoo>
