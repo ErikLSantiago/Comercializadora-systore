@@ -11,14 +11,65 @@
 
         <div class="row">
           <div class="col-md-3">
-            <form method="get" action="/quote" class="mb-3">
+            <form method="get" action="/quote" class="mb-2">
               <div class="input-group">
                 <input type="text" class="form-control" name="q" t-att-value="q" placeholder="Buscar productos..." />
                 <button class="btn btn-outline-secondary" type="submit">Buscar</button>
               </div>
             </form>
+            <div class="d-grid gap-2 mb-3">
+              <a href="/quote" class="btn btn-sm btn-outline-secondary">Limpiar filtros</a>
+            </div>
 
-            <t t-foreach="grouped_attrs" t-as="grp">
+            <!-- 1) Bloque principal de variantes (p.ej., Marca) -->
+            <t t-if="primary_attr">
+              <div class="mb-3">
+                <div class="fw-semibold"><t t-esc="primary_attr.name"/></div>
+                <form method="get" action="/quote">
+                  <input type="hidden" name="q" t-att-value="q"/>
+                  <t t-foreach="selected_cat_ids" t-as="cid">
+                    <input type="hidden" name="c" t-att-value="cid"/>
+                  </t>
+                  <t t-foreach="selected_av_ids" t-as="avid">
+                    <input type="hidden" name="av" t-att-value="avid"/>
+                  </t>
+                  <t t-foreach="primary_vals" t-as="v">
+                    <div class="form-check">
+                      <input class="form-check-input" type="checkbox" name="av" t-att-value="v.id"
+                             t-att-checked="'checked' if v.id in selected_av_ids else None"
+                             onchange="this.form.submit()"/>
+                      <label class="form-check-label"><t t-esc="v.name"/></label>
+                    </div>
+                  </t>
+                </form>
+              </div>
+            </t>
+
+            <!-- 2) Categorías en segundo lugar -->
+            <div class="mb-3">
+              <div class="fw-semibold">Categorías</div>
+              <form method="get" action="/quote">
+                <input type="hidden" name="q" t-att-value="q"/>
+                <t t-foreach="selected_av_ids" t-as="avid">
+                  <input type="hidden" name="av" t-att-value="avid"/>
+                </t>
+                <div class="form-check">
+                  <input class="form-check-input" type="checkbox" name="c" value="" onchange="this.form.submit()" t-att-checked="'checked' if not selected_cat_ids else None"/>
+                  <label class="form-check-label">Todas</label>
+                </div>
+                <t t-foreach="categories" t-as="cat">
+                  <div class="form-check">
+                    <input class="form-check-input" type="checkbox" name="c" t-att-value="cat.id"
+                           t-att-checked="'checked' if cat.id in selected_cat_ids else None"
+                           onchange="this.form.submit()"/>
+                    <label class="form-check-label"><t t-esc="cat.display_name"/></label>
+                  </div>
+                </t>
+              </form>
+            </div>
+
+            <!-- 3) Resto de atributos -->
+            <t t-foreach="other_attr_groups" t-as="grp">
               <t t-set="attr" t-value="grp[0]"/>
               <t t-set="vals" t-value="grp[1]"/>
               <div class="mb-3">
@@ -42,28 +93,6 @@
                 </form>
               </div>
             </t>
-
-            <div class="mb-3">
-              <div class="fw-semibold">Categorías</div>
-              <form method="get" action="/quote">
-                <input type="hidden" name="q" t-att-value="q"/>
-                <t t-foreach="selected_av_ids" t-as="avid">
-                  <input type="hidden" name="av" t-att-value="avid"/>
-                </t>
-                <div class="form-check">
-                  <input class="form-check-input" type="checkbox" name="c" value="" onchange="this.form.submit()" t-att-checked="'checked' if not selected_cat_ids else None"/>
-                  <label class="form-check-label">Todas</label>
-                </div>
-                <t t-foreach="categories" t-as="cat">
-                  <div class="form-check">
-                    <input class="form-check-input" type="checkbox" name="c" t-att-value="cat.id"
-                           t-att-checked="'checked' if cat.id in selected_cat_ids else None"
-                           onchange="this.form.submit()"/>
-                    <label class="form-check-label"><t t-esc="cat.display_name"/></label>
-                  </div>
-                </t>
-              </form>
-            </div>
           </div>
 
           <div class="col-md-9">
@@ -74,14 +103,14 @@
               <t t-foreach="products" t-as="p">
                 <div class="col-md-4">
                   <div class="card h-100 position-relative">
-                    <t t-if="cart.get(p.id)">
-                      <span class="badge bg-success position-absolute top-0 end-0 m-2">Agregado</span>
-                    </t>
                     <div class="ratio ratio-4x3">
                       <img t-att-src="'/web/image/product.template/%s/image_512' % p.id" class="card-img-top object-fit-contain p-2" t-att-alt="p.name"/>
                     </div>
                     <div class="card-body">
                       <h5 class="card-title mb-1"><t t-esc="p.name"/></h5>
+                      <t t-if="cart.get(p.id)">
+                        <span class="badge bg-success mb-2">Agregado</span>
+                      </t>
                       <p class="card-text mb-3">
                         <small class="text-muted">
                           <t t-foreach="p.public_categ_ids" t-as="pc" t-join=", "><t t-esc="pc.name"/></t>

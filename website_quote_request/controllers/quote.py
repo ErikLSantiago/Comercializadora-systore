@@ -82,6 +82,14 @@ class WebsiteQuoteRequest(http.Controller):
         for attr, vals in grouped_attrs:
             vals.sort(key=lambda x: (x.attribute_id.sequence, x.sequence, (x.name or '').lower()))
 
+        # Split primary (e.g., Marca) and the rest to place Categories in second slot
+        primary_attr = None
+        primary_vals = []
+        other_attr_groups = []
+        if grouped_attrs:
+            primary_attr, primary_vals = grouped_attrs[0]
+            other_attr_groups = grouped_attrs[1:]
+
         cart = _get_cart()
         cart_count = sum(cart.values())
 
@@ -89,7 +97,9 @@ class WebsiteQuoteRequest(http.Controller):
             'products': products,
             'categories': categories,
             'selected_cat_ids': selected_cat_ids,
-            'grouped_attrs': grouped_attrs,
+            'primary_attr': primary_attr,
+            'primary_vals': primary_vals,
+            'other_attr_groups': other_attr_groups,
             'selected_av_ids': selected_av_ids,
             'q': q,
             'cart': cart,
@@ -189,7 +199,6 @@ class WebsiteQuoteRequest(http.Controller):
             body += "<br/><br/><b>%s</b><br/>%s" % (_('Comentarios del cliente:'), html_sanitize(comments))
         order.message_post(body=body)
 
-        # Save/order name for Thanks page and clear cart
         request.session[LAST_ORDER_NAME_KEY] = order.name
         _set_cart({})
 
