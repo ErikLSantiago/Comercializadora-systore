@@ -4,38 +4,89 @@
       <div class="container mt-5 mb-5">
         <div class="d-flex justify-content-between align-items-center mb-3">
           <h1 class="m-0">Solicitar cotización</h1>
-          <a href="/quote/cart" class="btn btn-outline-primary">Ver solicitud (<t t-esc="cart_count or 0"/>)</a>
+          <a href="/quote/cart" class="btn btn-outline-primary">
+            Ver solicitud (<t t-esc="cart_count or 0"/>)
+          </a>
         </div>
+
         <div class="row">
           <div class="col-md-3">
-            <h6 class="text-uppercase text-muted mb-2">Categorías</h6>
-            <ul class="list-unstyled">
-              <li><a t-attf-href="/quote" t-att-class="'fw-bold' if not selected_cat else ''">Todas</a></li>
-              <t t-foreach="categories" t-as="cat">
-                <li>
-                  <a t-attf-href="/quote?c=#{cat.id}" t-att-class="'fw-bold' if selected_cat and selected_cat.id == cat.id else ''">
-                    <t t-esc="cat.display_name"/>
-                  </a>
-                </li>
-              </t>
-            </ul>
+            <form method="get" action="/quote" class="mb-3">
+              <div class="input-group">
+                <input type="text" class="form-control" name="q" t-att-value="q" placeholder="Buscar productos..." />
+                <button class="btn btn-outline-secondary" type="submit">Buscar</button>
+              </div>
+            </form>
+
+            <t t-foreach="grouped_attrs" t-as="grp">
+              <t t-set="attr" t-value="grp[0]"/>
+              <t t-set="vals" t-value="grp[1]"/>
+              <div class="mb-3">
+                <div class="fw-semibold"><t t-esc="attr.name"/></div>
+                <form method="get" action="/quote">
+                  <input type="hidden" name="q" t-att-value="q"/>
+                  <t t-foreach="selected_cat_ids" t-as="cid">
+                    <input type="hidden" name="c" t-att-value="cid"/>
+                  </t>
+                  <t t-foreach="selected_av_ids" t-as="avid">
+                    <input type="hidden" name="av" t-att-value="avid"/>
+                  </t>
+                  <t t-foreach="vals" t-as="v">
+                    <div class="form-check">
+                      <input class="form-check-input" type="checkbox" name="av" t-att-value="v.id"
+                             t-att-checked="'checked' if v.id in selected_av_ids else None"
+                             onchange="this.form.submit()"/>
+                      <label class="form-check-label">
+                        <t t-esc="v.name"/>
+                      </label>
+                    </div>
+                  </t>
+                </form>
+              </div>
+            </t>
+
+            <div class="mb-3">
+              <div class="fw-semibold">Categorías</div>
+              <form method="get" action="/quote">
+                <input type="hidden" name="q" t-att-value="q"/>
+                <t t-foreach="selected_av_ids" t-as="avid">
+                  <input type="hidden" name="av" t-att-value="avid"/>
+                </t>
+                <div class="form-check">
+                  <input class="form-check-input" type="checkbox" name="c" value="" onchange="this.form.submit()" t-att-checked="'checked' if not selected_cat_ids else None"/>
+                  <label class="form-check-label">Todas</label>
+                </div>
+                <t t-foreach="categories" t-as="cat">
+                  <div class="form-check">
+                    <input class="form-check-input" type="checkbox" name="c" t-att-value="cat.id"
+                           t-att-checked="'checked' if cat.id in selected_cat_ids else None"
+                           onchange="this.form.submit()"/>
+                    <label class="form-check-label"><t t-esc="cat.display_name"/></label>
+                  </div>
+                </t>
+              </form>
+            </div>
           </div>
+
           <div class="col-md-9">
             <div class="row g-3">
               <t t-if="not products">
-                <div class="col-12 text-center text-muted">No hay productos publicados en esta categoría.</div>
+                <div class="col-12 text-center text-muted">No hay productos que coincidan con los filtros.</div>
               </t>
               <t t-foreach="products" t-as="p">
                 <div class="col-md-4">
-                  <div class="card h-100">
+                  <div class="card h-100 position-relative">
+                    <t t-if="cart.get(str(p.id))">
+                      <span class="badge bg-success position-absolute top-0 end-0 m-2">Agregado</span>
+                    </t>
                     <div class="card-body">
-                      <h5 class="card-title"><t t-esc="p.name"/></h5>
-                      <p class="card-text">
+                      <h5 class="card-title mb-1"><t t-esc="p.name"/></h5>
+                      <p class="card-text mb-3">
                         <small class="text-muted">
                           <t t-foreach="p.public_categ_ids" t-as="pc" t-join=", "><t t-esc="pc.name"/></t>
                         </small>
                       </p>
-                      <form action="/quote/add" method="post" class="d-flex gap-2">
+                      <form action="/quote/add" method="post" class="d-flex gap-2 align-items-center">
                         <input type="hidden" name="csrf_token" t-att-value="request.csrf_token()"/>
                         <input type="hidden" name="product_id" t-att-value="p.id"/>
                         <input class="form-control" type="number" name="qty" value="1" min="1" style="max-width:100px"/>
@@ -55,7 +106,11 @@
   <template id="quote_cart" name="Ver solicitud">
     <t t-call="website.layout">
       <div class="container mt-5 mb-5">
-        <h1>Ver solicitud</h1>
+        <div class="d-flex justify-content-between align-items-center mb-3">
+          <h1 class="m-0">Ver solicitud</h1>
+          <div class="text-muted">Total de productos: <b><t t-esc="total_qty"/></b></div>
+        </div>
+
         <t t-if="not items">
           <div class="alert alert-info mt-3">Tu solicitud está vacía. Agrega productos desde <a href="/quote">Solicitar cotización</a>.</div>
         </t>
@@ -64,19 +119,24 @@
             <input type="hidden" name="csrf_token" t-att-value="request.csrf_token()"/>
             <table class="table align-middle">
               <thead>
-                <tr><th>Producto</th><th style="width:150px">Cantidad</th></tr>
+                <tr><th>Producto</th><th style="width:220px">Cantidad solicitada</th></tr>
               </thead>
               <tbody>
                 <t t-foreach="items" t-as="it">
                   <tr>
                     <td><t t-esc="it['product'].name"/></td>
-                    <td><input class="form-control" t-att-name="'qty_%s' % it['product'].id" t-att-value="it['qty']" type="number" min="0"/></td>
+                    <td>
+                      <div class="d-flex gap-2 align-items-center">
+                        <input class="form-control" t-att-name="'qty_%s' % it['product'].id" t-att-value="it['qty']" type="number" min="0" style="max-width:120px"/>
+                        <button class="btn btn-outline-secondary btn-sm" type="submit">Actualizar</button>
+                      </div>
+                    </td>
                   </tr>
                 </t>
               </tbody>
             </table>
-            <button class="btn btn-outline-secondary" type="submit">Actualizar cantidades</button>
           </form>
+
           <form action="/quote/submit" method="post">
             <input type="hidden" name="csrf_token" t-att-value="request.csrf_token()"/>
             <div class="row g-3">
