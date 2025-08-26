@@ -1,0 +1,35 @@
+<odoo>
+  <data>
+    <!-- Inherited template that injects the Website Category filter and recomputes products based on pcid -->
+    <template id="quote_page_public_category_filter" inherit_id="website_quote_request.quote_page">
+      <!-- Recompute products and helper vars at the top of the page (before products grid) -->
+      <xpath expr="//*[@id='wqr-products']" position="before">
+        <!-- Get selected pcid from querystring -->
+        <t t-set="selected_pcid" t-value="int(request.params.get('pcid')) if request.params.get('pcid') else False"/>
+        <!-- Build categories list -->
+        <t t-set="categories" t-value="request.env['product.public.category'].sudo().search([], order='sequence, name')"/>
+        <!-- If pcid provided, recompute products with child_of logic on public_categ_ids -->
+        <t t-if="selected_pcid">
+          <t t-set="cat_ids" t-value="request.env['product.public.category'].sudo().search([('id','child_of', selected_pcid)]).ids"/>
+          <t t-set="products"
+             t-value="request.env['product.template'].sudo().search([('sale_ok','=',True), ('wqr_is_quotable','=',True), ('website_published','=',True), ('public_categ_ids','in', cat_ids)], order='name asc')"/>
+        </t>
+
+        <!-- UI: Website Category filter -->
+        <form method="get" action="/quote" class="row g-2 align-items-end mb-3" id="wqr-filters">
+          <div class="col-12 col-md-4">
+            <label class="form-label">Categoría del sitio web</label>
+            <select class="form-select" name="pcid" onchange="this.form.submit()">
+              <option value="" t-att-selected="not selected_pcid and 'selected' or None">Todas</option>
+              <t t-foreach="categories" t-as="c">
+                <option t-att-value="c.id"
+                        t-att-selected="(selected_pcid and c.id == selected_pcid) and 'selected' or None"
+                        t-esc="c.name"/>
+              </t>
+            </select>
+          </div>
+        </form>
+      </xpath>
+    </template>
+  </data>
+</odoo>
