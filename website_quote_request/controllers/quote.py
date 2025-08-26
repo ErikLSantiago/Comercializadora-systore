@@ -39,8 +39,12 @@ class WebsiteQuoteRequest(http.Controller):
         return order
 
     def _collect_facets(self, products):
-        # Build category (product.category) and attribute value facets from given templates
-        categories = products.mapped('categ_id')
+        # Build website public categories (product.public.category) and attribute value facets from given templates
+        # Aggregate all public categories used by the given products
+        pub_cats = request.env['product.public.category'].sudo()
+        for t in products:
+            pub_cats |= t.public_categ_ids
+        categories = pub_cats
         # attribute values present
         attr_values = request.env['product.attribute.value'].sudo()
         for t in products:
@@ -60,7 +64,7 @@ class WebsiteQuoteRequest(http.Controller):
                 'values': [{'id': v.id, 'name': v.name} for v in vals.sorted(key=lambda r: r.sequence)],
             })
         attr_buckets.sort(key=lambda a: a['name'].lower())
-        cat_list = [{'id': c.id, 'name': c.display_name} for c in categories.sorted(key=lambda r: r.complete_name)]
+        cat_list = [{'id': c.id, 'name': getattr(c, 'complete_name', c.display_name)} for c in categories.sorted(key=lambda r: getattr(r, 'complete_name', r.display_name))]
         return cat_list, attr_buckets
 
     def _filter_products(self, base_domain, kw):
@@ -85,9 +89,9 @@ class WebsiteQuoteRequest(http.Controller):
         if search:
             products = products.filtered(lambda p: (search.lower() in (p.name or '').lower()) or (search.lower() in (p.default_code or '').lower()))
 
-        # Apply category
+        # Apply website public category
         if cat:
-            products = products.filtered(lambda p: p.categ_id and p.categ_id.id == cat)
+            products = products.filtered(lambda p: p.public_categ_ids and (cat in p.public_categ_ids.ids))
 
         # Apply attribute values (must match ALL selected)
         if selected_av:
@@ -198,7 +202,9 @@ class WebsiteQuoteRequest(http.Controller):
         if not order.exists() or not order.order_line:
             return request.redirect('/quote')
         order.sudo().write({'wqr_submitted': True})
-        order.message_post(body="Solicitud de cotización enviada desde el sitio web.")
+        comments = (post.get('comments') or '').strip()
+        body = "Solicitud de cotización enviada desde el sitio web." + ("<br/><br/><b>Comentarios del cliente:</b><br/>%s" % request.env['ir.qweb.field.html']._sanitize_html(comments) if comments else '')
+        order.message_post(body=body)
         # Keep order in context for thanks page but clear session for a new cycle
         request.session.pop('wqr_order_id', None)
         return request.render('website_quote_request.quote_thanks', {'order': order})
