@@ -1,12 +1,9 @@
-
-<?xml version="1.0" encoding="UTF-8"?>
 <odoo>
-  <template id="quote_form" name="Solicitar cotización (v3.3.2)">
+  <template id="quote_form" name="Solicitar cotización">
     <t t-call="website.layout">
       <div class="container mt-5 mb-5">
         <h1>Solicitar cotización</h1>
         <p class="text-muted">Arma tu solicitud y envíanosla.</p>
-
         <form action="/quote/submit" method="post" class="mt-4">
           <input type="hidden" name="csrf_token" t-att-value="request.csrf_token()"/>
           <div class="mb-3">
@@ -19,7 +16,7 @@
     </t>
   </template>
 
-  <template id="quote_thanks" name="Gracias (v3.3.2)">
+  <template id="quote_thanks" name="Gracias">
     <t t-call="website.layout">
       <div class="container mt-5 mb-5 text-center">
         <h1>¡Gracias!</h1>

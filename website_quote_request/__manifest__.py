@@ -1,10 +1,9 @@
-
 # -*- coding: utf-8 -*-
 {
-    'name': 'Website Quote Request (v3.3.2)',
+    'name': 'Website Quote Request',
     'version': '18.0.6.3.2',
     'summary': 'Permite armar y enviar solicitudes de cotización desde el sitio web sin afectar el flujo nativo.',
-    'description': 'Módulo de solicitud de cotización desde Website que crea oportunidades en CRM y permite adjuntos. Filtro por categoría pública y comentarios que se agregan como notas en la cotización.',
+    'description': 'Formulario de cotización desde Website que crea oportunidades en CRM y permite adjuntos. Incluye campo Comentarios que se publica en Notas de la cotización y soporte a categorías públicas.',
     'author': 'ChatGPT Assist',
     'website': 'https://example.com',
     'license': 'OPL-1',
