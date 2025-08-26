@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*-
 {
     "name": "Website Quote Request",
-    "version": "18.0.6.2.1",
+    "version": "18.0.6.2.2",
     "summary": "Permite a visitantes armar y enviar solicitudes de cotización desde el sitio web sin afectar el flujo nativo.",
     "category": "Website",
     "author": "ChatGPT Assist",
