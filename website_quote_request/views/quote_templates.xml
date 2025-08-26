@@ -77,6 +77,9 @@
                     <t t-if="cart.get(p.id)">
                       <span class="badge bg-success position-absolute top-0 end-0 m-2">Agregado</span>
                     </t>
+                    <div class="ratio ratio-4x3">
+                      <img t-att-src="'/web/image/product.template/%s/image_512' % p.id" class="card-img-top object-fit-contain p-2" t-att-alt="p.name"/>
+                    </div>
                     <div class="card-body">
                       <h5 class="card-title mb-1"><t t-esc="p.name"/></h5>
                       <p class="card-text mb-3">
@@ -157,7 +160,10 @@
     <t t-call="website.layout">
       <div class="container mt-5 mb-5 text-center">
         <h1>¡Gracias!</h1>
-        <p>Hemos recibido tu solicitud. Te contactaremos pronto.</p>
+        <p>Hemos recibido tu solicitud de cotización.</p>
+        <t t-if="order_name">
+          <p class="lead">Número de cotización: <b><t t-esc="order_name"/></b></p>
+        </t>
         <a href="/" class="btn btn-secondary mt-3">Volver al inicio</a>
       </div>
     </t>

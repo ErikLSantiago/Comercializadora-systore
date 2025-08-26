@@ -4,16 +4,15 @@ from odoo.http import request
 from odoo.tools import html_sanitize
 
 SESSION_KEY = 'wqr_cart'
+LAST_ORDER_NAME_KEY = 'wqr_last_order_name'
 
 def _get_cart():
     cart = request.session.get(SESSION_KEY)
     if not isinstance(cart, dict):
         cart = {}
-    # keys as ints
     return {int(k): int(v) for k, v in cart.items()} if cart else {}
 
 def _set_cart(cart):
-    # ensure ints
     request.session[SESSION_KEY] = {int(k): int(v) for k, v in cart.items()}
     request.session.modified = True
 
@@ -169,6 +168,7 @@ class WebsiteQuoteRequest(http.Controller):
                 partner = Partner.create({'name': name or _('Cliente Website'), 'email': email or False, 'phone': phone or False})
 
         order = env['sale.order'].sudo().create({'partner_id': partner.id, 'origin': 'Website Quote Request'})
+
         SOL = env['sale.order.line'].sudo()
         products = Product.browse(list(cart.keys()))
         for p in products:
@@ -188,9 +188,17 @@ class WebsiteQuoteRequest(http.Controller):
         if comments:
             body += "<br/><br/><b>%s</b><br/>%s" % (_('Comentarios del cliente:'), html_sanitize(comments))
         order.message_post(body=body)
+
+        # Save/order name for Thanks page and clear cart
+        request.session[LAST_ORDER_NAME_KEY] = order.name
         _set_cart({})
-        return request.redirect('/quote/thanks')
+
+        return request.redirect('/quote/thanks?o=%s' % (order.name or ''))
 
     @http.route(['/quote/thanks'], type='http', auth='public', website=True, sitemap=False)
     def quote_thanks(self, **kwargs):
-        return request.render('website_quote_request.quote_thanks', {})
+        order_name = request.httprequest.args.get('o') or request.session.get(LAST_ORDER_NAME_KEY) or ''
+        if request.session.get(LAST_ORDER_NAME_KEY):
+            request.session.pop(LAST_ORDER_NAME_KEY, None)
+            request.session.modified = True
+        return request.render('website_quote_request.quote_thanks', {'order_name': order_name})
