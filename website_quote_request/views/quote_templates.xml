@@ -1,5 +1,4 @@
 <odoo>
-  <!-- Listado de productos con filtro por categorias publicas -->
   <template id="quote_list" name="Solicitar cotización (Listado)">
     <t t-call="website.layout">
       <div class="container mt-5 mb-5">
@@ -7,7 +6,6 @@
           <h1 class="m-0">Solicitar cotización</h1>
           <a href="/quote/cart" class="btn btn-outline-primary">Ver solicitud (<t t-esc="cart_count or 0"/>)</a>
         </div>
-
         <div class="row">
           <div class="col-md-3">
             <h6 class="text-uppercase text-muted mb-2">Categorías</h6>
@@ -16,7 +14,7 @@
               <t t-foreach="categories" t-as="cat">
                 <li>
                   <a t-attf-href="/quote?c=#{cat.id}" t-att-class="'fw-bold' if selected_cat and selected_cat.id == cat.id else ''">
-                    <t t-esc="cat.complete_name or cat.name"/>
+                    <t t-esc="getattr(cat, 'display_name', None) or cat.name"/>
                   </a>
                 </li>
               </t>
@@ -33,7 +31,7 @@
                     <div class="card-body">
                       <h5 class="card-title"><t t-esc="p.name"/></h5>
                       <p class="card-text">
-                        <small class="text-muted"><t t-esc="p.public_categ_ids and ', '.join(p.public_categ_ids.mapped('name')) or ''"/></small>
+                        <small class="text-muted"><t t-esc="', '.join(p.public_categ_ids.mapped('name')) if p.public_categ_ids else ''"/></small>
                       </p>
                       <form action="/quote/add" method="post" class="d-flex gap-2">
                         <input type="hidden" name="csrf_token" t-att-value="request.csrf_token()"/>
@@ -52,7 +50,6 @@
     </t>
   </template>
 
-  <!-- Carrito / Ver solicitud -->
   <template id="quote_cart" name="Ver solicitud">
     <t t-call="website.layout">
       <div class="container mt-5 mb-5">
@@ -65,25 +62,19 @@
             <input type="hidden" name="csrf_token" t-att-value="request.csrf_token()"/>
             <table class="table align-middle">
               <thead>
-                <tr>
-                  <th>Producto</th>
-                  <th style="width:150px">Cantidad</th>
-                </tr>
+                <tr><th>Producto</th><th style="width:150px">Cantidad</th></tr>
               </thead>
               <tbody>
                 <t t-foreach="items" t-as="it">
                   <tr>
                     <td><t t-esc="it['product'].name"/></td>
-                    <td>
-                      <input class="form-control" t-att-name="'qty_%s' % it['product'].id" t-att-value="it['qty']" type="number" min="0"/>
-                    </td>
+                    <td><input class="form-control" t-att-name="'qty_%s' % it['product'].id" t-att-value="it['qty']" type="number" min="0"/></td>
                   </tr>
                 </t>
               </tbody>
             </table>
             <button class="btn btn-outline-secondary" type="submit">Actualizar cantidades</button>
           </form>
-
           <form action="/quote/submit" method="post">
             <input type="hidden" name="csrf_token" t-att-value="request.csrf_token()"/>
             <div class="row g-3">
@@ -114,7 +105,6 @@
     </t>
   </template>
 
-  <!-- Gracias -->
   <template id="quote_thanks" name="Gracias">
     <t t-call="website.layout">
       <div class="container mt-5 mb-5 text-center">

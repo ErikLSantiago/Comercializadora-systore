@@ -3,7 +3,7 @@ from odoo import http, _
 from odoo.http import request
 from odoo.tools import html_sanitize
 
-SESSION_KEY = 'wqr_cart'  # product_id -> qty
+SESSION_KEY = 'wqr_cart'
 
 def _get_cart():
     return request.session.get(SESSION_KEY, {})
@@ -21,14 +21,11 @@ def _ensure_positive_int(val, default=1):
 
 class WebsiteQuoteRequest(http.Controller):
 
-    # Listado de productos con filtro por categorias publicas
     @http.route(['/quote'], type='http', auth='public', website=True, sitemap=True)
     def quote_list(self, **kwargs):
         env = request.env
         Product = env['product.template'].sudo()
         PubCat = env['product.public.category'].sudo()
-
-        # Filtro por categoría pública (param 'c')
         c = kwargs.get('c')
         domain = [('website_published', '=', True)]
         selected_cat = False
@@ -40,16 +37,10 @@ class WebsiteQuoteRequest(http.Controller):
                     domain.append(('public_categ_ids', 'in', [c_id]))
             except Exception:
                 pass
-
         products = Product.search(domain, limit=24, order='name asc')
-
-        # Categorías para el facet (todas publicadas)
         categories = PubCat.search([], order='sequence, name')
-
-        # Carrito actual
         cart = _get_cart()
         cart_count = sum(cart.values())
-
         values = {
             'products': products,
             'categories': categories,
@@ -59,7 +50,6 @@ class WebsiteQuoteRequest(http.Controller):
         }
         return request.render('website_quote_request.quote_list', values)
 
-    # Agregar producto al carrito de cotizacion
     @http.route(['/quote/add'], type='http', auth='public', methods=['POST'], website=True, csrf=True)
     def quote_add(self, **post):
         product_id = int(post.get('product_id', 0) or 0)
@@ -70,15 +60,13 @@ class WebsiteQuoteRequest(http.Controller):
             _set_cart(cart)
         return request.redirect('/quote')
 
-    # Ver carrito / ver solicitud
     @http.route(['/quote/cart'], type='http', auth='public', website=True, sitemap=False)
     def quote_cart(self, **kwargs):
         env = request.env
         Product = env['product.template'].sudo()
         cart = _get_cart()
 
-        items = []
-        total_qty = 0
+        items, total_qty = [], 0
         product_ids = [int(pid) for pid in cart.keys()]
         products = Product.browse(product_ids)
         for p in products:
@@ -97,11 +85,9 @@ class WebsiteQuoteRequest(http.Controller):
         }
         return request.render('website_quote_request.quote_cart', values)
 
-    # Actualizar cantidades en el carrito
     @http.route(['/quote/update'], type='http', auth='public', methods=['POST'], website=True, csrf=True)
     def quote_update(self, **post):
         cart = _get_cart()
-        # post keys like qty_<product_id>
         for key, val in post.items():
             if key.startswith('qty_'):
                 pid = key[4:]
@@ -113,27 +99,22 @@ class WebsiteQuoteRequest(http.Controller):
         _set_cart(cart)
         return request.redirect('/quote/cart')
 
-    # Enviar cotizacion -> crear sale.order con lineas
     @http.route(['/quote/submit'], type='http', auth='public', methods=['POST'], website=True, csrf=True)
     def quote_submit(self, **post):
         env = request.env
         cart = _get_cart()
         Product = env['product.template'].sudo()
-
         if not cart:
             return request.redirect('/quote')
 
-        # Datos de contacto
         name = (post.get('name') or '').strip()
         email = (post.get('email') or '').strip()
         phone = (post.get('phone') or '').strip()
         comments = (post.get('comments') or '').strip()
 
-        # Partner
         if request.env.user and not request.env.user._is_public():
             partner = request.env.user.partner_id.sudo()
         else:
-            # Si no está logueado, crear/usar partner por email o nombre
             Partner = env['res.partner'].sudo()
             partner = False
             if email:
@@ -141,15 +122,9 @@ class WebsiteQuoteRequest(http.Controller):
             if not partner:
                 partner = Partner.create({'name': name or _('Cliente Website'), 'email': email or False, 'phone': phone or False})
 
-        # Crear orden
         Order = env['sale.order'].sudo()
-        order_vals = {
-            'partner_id': partner.id,
-            'origin': 'Website Quote Request',
-        }
-        order = Order.create(order_vals)
+        order = Order.create({'partner_id': partner.id, 'origin': 'Website Quote Request'})
 
-        # Agregar lineas por cada product.template del carrito (usar product_variant_id)
         SOL = env['sale.order.line'].sudo()
         product_ids = [int(pid) for pid in cart.keys()]
         products = Product.browse(product_ids)
@@ -166,21 +141,14 @@ class WebsiteQuoteRequest(http.Controller):
                 'name': p.name,
             })
 
-        # Publicar comentarios sanitizados
+        body = _("Solicitud de cotización enviada desde el sitio web.")
         if comments:
             safe_comments = html_sanitize(comments)
-            body = _("Solicitud de cotización enviada desde el sitio web.")
             body += "<br/><br/><b>%s</b><br/>%s" % (_('Comentarios del cliente:'), safe_comments)
-        else:
-            body = _("Solicitud de cotización enviada desde el sitio web.")
         order.message_post(body=body)
-
-        # Vaciar carrito de sesión
         _set_cart({})
-
         return request.redirect('/quote/thanks')
 
-    # Gracias
     @http.route(['/quote/thanks'], type='http', auth='public', website=True, sitemap=False)
     def quote_thanks(self, **kwargs):
         return request.render('website_quote_request.quote_thanks', {})
