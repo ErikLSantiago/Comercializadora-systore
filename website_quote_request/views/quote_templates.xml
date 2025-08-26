@@ -1,0 +1,31 @@
+
+<?xml version="1.0" encoding="UTF-8"?>
+<odoo>
+  <template id="quote_form" name="Solicitar cotización (v3.3.2)">
+    <t t-call="website.layout">
+      <div class="container mt-5 mb-5">
+        <h1>Solicitar cotización</h1>
+        <p class="text-muted">Arma tu solicitud y envíanosla.</p>
+
+        <form action="/quote/submit" method="post" class="mt-4">
+          <input type="hidden" name="csrf_token" t-att-value="request.csrf_token()"/>
+          <div class="mb-3">
+            <label class="form-label">Comentarios</label>
+            <textarea class="form-control" name="comments" rows="4" placeholder="Escribe aquí tus comentarios adicionales"></textarea>
+          </div>
+          <button class="btn btn-primary" type="submit">Enviar cotización</button>
+        </form>
+      </div>
+    </t>
+  </template>
+
+  <template id="quote_thanks" name="Gracias (v3.3.2)">
+    <t t-call="website.layout">
+      <div class="container mt-5 mb-5 text-center">
+        <h1>¡Gracias!</h1>
+        <p>Hemos recibido tu solicitud. Te contactaremos pronto.</p>
+        <a href="/" class="btn btn-secondary mt-3">Volver al inicio</a>
+      </div>
+    </t>
+  </template>
+</odoo>
