@@ -1,9 +1,9 @@
 # -*- coding: utf-8 -*-
 {
     'name': 'Website Quote Request',
-    'version': '18.0.6.3.6',
-    'summary': 'Catálogo /quote con buscador, filtros por categorías y variantes, carrito de solicitud y comentarios a Notas.',
-    'description': 'Incluye checkbox en Productos para publicar en /quote; buscador, filtros multi-categoría (checkbox) y variantes (prioriza Marca), tag "Agregado" en tarjetas; en Ver solicitud muestra total y edición en línea de cantidades.',
+    'version': '18.0.6.3.7',
+    'summary': 'Catálogo /quote con buscador, filtros, carrito y comentarios a Notas.',
+    'description': 'Incluye checkbox en Productos para publicar en /quote; buscador, filtros multi-categoría y por variantes (Marca primero); tag Agregado; Ver solicitud con total y edición inline. Vista robusta que añade un tab propio en el formulario de producto.',
     'author': 'ChatGPT Assist',
     'website': 'https://example.com',
     'license': 'OPL-1',

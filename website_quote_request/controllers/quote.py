@@ -6,10 +6,15 @@ from odoo.tools import html_sanitize
 SESSION_KEY = 'wqr_cart'
 
 def _get_cart():
-    return request.session.get(SESSION_KEY, {})
+    cart = request.session.get(SESSION_KEY)
+    if not isinstance(cart, dict):
+        cart = {}
+    # keys as ints
+    return {int(k): int(v) for k, v in cart.items()} if cart else {}
 
 def _set_cart(cart):
-    request.session[SESSION_KEY] = cart
+    # ensure ints
+    request.session[SESSION_KEY] = {int(k): int(v) for k, v in cart.items()}
     request.session.modified = True
 
 def _ensure_positive_int(val, default=1):
@@ -61,7 +66,7 @@ class WebsiteQuoteRequest(http.Controller):
         cat_ids = set()
         for p in facet_products:
             cat_ids.update(p.public_categ_ids.ids)
-        categories = PubCat.browse(list(cat_ids)).sorted(key=lambda c: (c.sequence, c.name.lower()))
+        categories = PubCat.browse(list(cat_ids)).sorted(key=lambda c: (c.sequence, (c.name or '').lower()))
 
         av_ids = set()
         for p in facet_products:
@@ -81,7 +86,7 @@ class WebsiteQuoteRequest(http.Controller):
         cart = _get_cart()
         cart_count = sum(cart.values())
 
-        values = {
+        return request.render('website_quote_request.quote_list', {
             'products': products,
             'categories': categories,
             'selected_cat_ids': selected_cat_ids,
@@ -90,8 +95,7 @@ class WebsiteQuoteRequest(http.Controller):
             'q': q,
             'cart': cart,
             'cart_count': cart_count,
-        }
-        return request.render('website_quote_request.quote_list', values)
+        })
 
     @http.route(['/quote/add'], type='http', auth='public', methods=['POST'], website=True, csrf=True)
     def quote_add(self, **post):
@@ -99,7 +103,7 @@ class WebsiteQuoteRequest(http.Controller):
         qty = _ensure_positive_int(post.get('qty', 1), 1)
         if product_id:
             cart = _get_cart()
-            cart[str(product_id)] = cart.get(str(product_id), 0) + qty
+            cart[product_id] = cart.get(product_id, 0) + qty
             _set_cart(cart)
         return request.redirect('/quote')
 
@@ -110,14 +114,14 @@ class WebsiteQuoteRequest(http.Controller):
         cart = _get_cart()
 
         items, total_qty = [], 0
-        product_ids = [int(pid) for pid in cart.keys()]
+        product_ids = list(cart.keys())
         products = Product.browse(product_ids)
         for p in products:
-            q = cart.get(str(p.id), 0)
+            q = cart.get(p.id, 0)
             items.append({'product': p, 'qty': q})
             total_qty += q
 
-        values = {
+        return request.render('website_quote_request.quote_cart', {
             'items': items,
             'total_qty': total_qty,
             'prefill': {
@@ -125,15 +129,14 @@ class WebsiteQuoteRequest(http.Controller):
                 'email': request.env.user.email if request.env.user and not request.env.user._is_public() else '',
                 'phone': request.env.user.phone if request.env.user and not request.env.user._is_public() else '',
             }
-        }
-        return request.render('website_quote_request.quote_cart', values)
+        })
 
     @http.route(['/quote/update'], type='http', auth='public', methods=['POST'], website=True, csrf=True)
     def quote_update(self, **post):
         cart = _get_cart()
         for key, val in post.items():
             if key.startswith('qty_'):
-                pid = key[4:]
+                pid = int(key[4:])
                 qty = _ensure_positive_int(val, 0)
                 if qty > 0:
                     cart[pid] = qty
@@ -165,14 +168,11 @@ class WebsiteQuoteRequest(http.Controller):
             if not partner:
                 partner = Partner.create({'name': name or _('Cliente Website'), 'email': email or False, 'phone': phone or False})
 
-        Order = env['sale.order'].sudo()
-        order = Order.create({'partner_id': partner.id, 'origin': 'Website Quote Request'})
-
+        order = env['sale.order'].sudo().create({'partner_id': partner.id, 'origin': 'Website Quote Request'})
         SOL = env['sale.order.line'].sudo()
-        product_ids = [int(pid) for pid in cart.keys()]
-        products = Product.browse(product_ids)
+        products = Product.browse(list(cart.keys()))
         for p in products:
-            qty = int(cart.get(str(p.id)) or 0)
+            qty = int(cart.get(p.id) or 0)
             if qty <= 0:
                 continue
             product_product = p.product_variant_id
@@ -186,8 +186,7 @@ class WebsiteQuoteRequest(http.Controller):
 
         body = _("Solicitud de cotización enviada desde el sitio web.")
         if comments:
-            safe_comments = html_sanitize(comments)
-            body += "<br/><br/><b>%s</b><br/>%s" % (_('Comentarios del cliente:'), safe_comments)
+            body += "<br/><br/><b>%s</b><br/>%s" % (_('Comentarios del cliente:'), html_sanitize(comments))
         order.message_post(body=body)
         _set_cart({})
         return request.redirect('/quote/thanks')

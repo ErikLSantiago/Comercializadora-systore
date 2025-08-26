@@ -36,9 +36,7 @@
                       <input class="form-check-input" type="checkbox" name="av" t-att-value="v.id"
                              t-att-checked="'checked' if v.id in selected_av_ids else None"
                              onchange="this.form.submit()"/>
-                      <label class="form-check-label">
-                        <t t-esc="v.name"/>
-                      </label>
+                      <label class="form-check-label"><t t-esc="v.name"/></label>
                     </div>
                   </t>
                 </form>
@@ -76,7 +74,7 @@
               <t t-foreach="products" t-as="p">
                 <div class="col-md-4">
                   <div class="card h-100 position-relative">
-                    <t t-if="cart.get(str(p.id))">
+                    <t t-if="cart.get(p.id)">
                       <span class="badge bg-success position-absolute top-0 end-0 m-2">Agregado</span>
                     </t>
                     <div class="card-body">
