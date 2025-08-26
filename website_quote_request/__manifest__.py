@@ -11,6 +11,7 @@
         "security/ir.model.access.csv",
         "views/product_views.xml",
         "views/quote_templates.xml"
+        "views/public_categ_filter.xml"
     ],
     "installable": True,
     "application": False,
