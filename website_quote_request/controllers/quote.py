@@ -41,14 +41,13 @@ class WebsiteQuoteRequest(http.Controller):
         categories = PubCat.search([], order='sequence, name')
         cart = _get_cart()
         cart_count = sum(cart.values())
-        values = {
+        return request.render('website_quote_request.quote_list', {
             'products': products,
             'categories': categories,
             'selected_cat': selected_cat,
             'cart': cart,
             'cart_count': cart_count,
-        }
-        return request.render('website_quote_request.quote_list', values)
+        })
 
     @http.route(['/quote/add'], type='http', auth='public', methods=['POST'], website=True, csrf=True)
     def quote_add(self, **post):
@@ -74,7 +73,7 @@ class WebsiteQuoteRequest(http.Controller):
             items.append({'product': p, 'qty': q})
             total_qty += q
 
-        values = {
+        return request.render('website_quote_request.quote_cart', {
             'items': items,
             'total_qty': total_qty,
             'prefill': {
@@ -82,8 +81,7 @@ class WebsiteQuoteRequest(http.Controller):
                 'email': request.env.user.email if request.env.user and not request.env.user._is_public() else '',
                 'phone': request.env.user.phone if request.env.user and not request.env.user._is_public() else '',
             }
-        }
-        return request.render('website_quote_request.quote_cart', values)
+        })
 
     @http.route(['/quote/update'], type='http', auth='public', methods=['POST'], website=True, csrf=True)
     def quote_update(self, **post):
@@ -106,12 +104,10 @@ class WebsiteQuoteRequest(http.Controller):
         Product = env['product.template'].sudo()
         if not cart:
             return request.redirect('/quote')
-
         name = (post.get('name') or '').strip()
         email = (post.get('email') or '').strip()
         phone = (post.get('phone') or '').strip()
         comments = (post.get('comments') or '').strip()
-
         if request.env.user and not request.env.user._is_public():
             partner = request.env.user.partner_id.sudo()
         else:
@@ -121,10 +117,7 @@ class WebsiteQuoteRequest(http.Controller):
                 partner = Partner.search([('email', '=', email)], limit=1)
             if not partner:
                 partner = Partner.create({'name': name or _('Cliente Website'), 'email': email or False, 'phone': phone or False})
-
-        Order = env['sale.order'].sudo()
-        order = Order.create({'partner_id': partner.id, 'origin': 'Website Quote Request'})
-
+        order = env['sale.order'].sudo().create({'partner_id': partner.id, 'origin': 'Website Quote Request'})
         SOL = env['sale.order.line'].sudo()
         product_ids = [int(pid) for pid in cart.keys()]
         products = Product.browse(product_ids)
@@ -140,7 +133,6 @@ class WebsiteQuoteRequest(http.Controller):
                 'price_unit': product_product.lst_price,
                 'name': p.name,
             })
-
         body = _("Solicitud de cotización enviada desde el sitio web.")
         if comments:
             safe_comments = html_sanitize(comments)

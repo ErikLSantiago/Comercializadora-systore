@@ -1,9 +1,9 @@
 # -*- coding: utf-8 -*-
 {
     'name': 'Website Quote Request',
-    'version': '18.0.6.3.4',
+    'version': '18.0.6.3.5',
     'summary': 'Permite armar y enviar solicitudes de cotización desde el sitio web sin afectar el flujo nativo.',
-    'description': 'Fix: cat.complete_name -> cat.display_name/name en template. Mantiene filtro por categorías públicas y Comentarios -> Notas de la cotización.',
+    'description': 'Patch: QWeb fix (replace getattr with cat.display_name). Mantiene filtro por categorías públicas, carrito, y Comentarios -> Notas.',
     'author': 'ChatGPT Assist',
     'website': 'https://example.com',
     'license': 'OPL-1',

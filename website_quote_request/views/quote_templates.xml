@@ -14,7 +14,7 @@
               <t t-foreach="categories" t-as="cat">
                 <li>
                   <a t-attf-href="/quote?c=#{cat.id}" t-att-class="'fw-bold' if selected_cat and selected_cat.id == cat.id else ''">
-                    <t t-esc="getattr(cat, 'display_name', None) or cat.name"/>
+                    <t t-esc="cat.display_name"/>
                   </a>
                 </li>
               </t>
@@ -31,7 +31,9 @@
                     <div class="card-body">
                       <h5 class="card-title"><t t-esc="p.name"/></h5>
                       <p class="card-text">
-                        <small class="text-muted"><t t-esc="', '.join(p.public_categ_ids.mapped('name')) if p.public_categ_ids else ''"/></small>
+                        <small class="text-muted">
+                          <t t-foreach="p.public_categ_ids" t-as="pc" t-join=", "><t t-esc="pc.name"/></t>
+                        </small>
                       </p>
                       <form action="/quote/add" method="post" class="d-flex gap-2">
                         <input type="hidden" name="csrf_token" t-att-value="request.csrf_token()"/>
@@ -78,22 +80,10 @@
           <form action="/quote/submit" method="post">
             <input type="hidden" name="csrf_token" t-att-value="request.csrf_token()"/>
             <div class="row g-3">
-              <div class="col-md-4">
-                <label class="form-label">Nombre</label>
-                <input class="form-control" type="text" name="name" t-att-value="prefill.get('name')"/>
-              </div>
-              <div class="col-md-4">
-                <label class="form-label">Correo</label>
-                <input class="form-control" type="email" name="email" t-att-value="prefill.get('email')"/>
-              </div>
-              <div class="col-md-4">
-                <label class="form-label">Teléfono</label>
-                <input class="form-control" type="text" name="phone" t-att-value="prefill.get('phone')"/>
-              </div>
-              <div class="col-12">
-                <label class="form-label">Comentarios</label>
-                <textarea class="form-control" name="comments" rows="4" placeholder="Escribe aquí tus comentarios adicionales"></textarea>
-              </div>
+              <div class="col-md-4"><label class="form-label">Nombre</label><input class="form-control" type="text" name="name" t-att-value="prefill.get('name')"/></div>
+              <div class="col-md-4"><label class="form-label">Correo</label><input class="form-control" type="email" name="email" t-att-value="prefill.get('email')"/></div>
+              <div class="col-md-4"><label class="form-label">Teléfono</label><input class="form-control" type="text" name="phone" t-att-value="prefill.get('phone')"/></div>
+              <div class="col-12"><label class="form-label">Comentarios</label><textarea class="form-control" name="comments" rows="4" placeholder="Escribe aquí tus comentarios adicionales"></textarea></div>
             </div>
             <div class="mt-3">
               <button class="btn btn-primary" type="submit">Enviar cotización</button>
