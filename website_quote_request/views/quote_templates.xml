@@ -1,14 +1,11 @@
 
 <?xml version="1.0" encoding="UTF-8"?>
 <odoo>
-  <template id="quote_form" name="Solicitar cotización (v3.3.1)">
+  <template id="quote_form" name="Solicitar cotización (v3.3.2)">
     <t t-call="website.layout">
       <div class="container mt-5 mb-5">
         <h1>Solicitar cotización</h1>
         <p class="text-muted">Arma tu solicitud y envíanosla.</p>
-
-        <!-- Aquí iría tu listado de productos con filtro por categorías públicas (public_categ_id).
-             Este snippet es ilustrativo y mantiene IDs compatibles. -->
 
         <form action="/quote/submit" method="post" class="mt-4">
           <input type="hidden" name="csrf_token" t-att-value="request.csrf_token()"/>
@@ -22,7 +19,7 @@
     </t>
   </template>
 
-  <template id="quote_thanks" name="Gracias (v3.3.1)">
+  <template id="quote_thanks" name="Gracias (v3.3.2)">
     <t t-call="website.layout">
       <div class="container mt-5 mb-5 text-center">
         <h1>¡Gracias!</h1>
