@@ -1,4 +1,3 @@
-
 from odoo import http, _
 from odoo.http import request
 from odoo.tools import html_sanitize
