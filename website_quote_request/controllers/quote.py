@@ -82,7 +82,6 @@ class WebsiteQuoteRequest(http.Controller):
         for attr, vals in grouped_attrs:
             vals.sort(key=lambda x: (x.attribute_id.sequence, x.sequence, (x.name or '').lower()))
 
-        # Split primary (e.g., Marca) and the rest to place Categories in second slot
         primary_attr = None
         primary_vals = []
         other_attr_groups = []
@@ -180,11 +179,13 @@ class WebsiteQuoteRequest(http.Controller):
         order = env['sale.order'].sudo().create({'partner_id': partner.id, 'origin': 'Website Quote Request'})
 
         SOL = env['sale.order.line'].sudo()
+        total_pieces = 0
         products = Product.browse(list(cart.keys()))
         for p in products:
             qty = int(cart.get(p.id) or 0)
             if qty <= 0:
                 continue
+            total_pieces += qty
             product_product = p.product_variant_id
             SOL.create({
                 'order_id': order.id,
@@ -193,6 +194,8 @@ class WebsiteQuoteRequest(http.Controller):
                 'price_unit': product_product.lst_price,
                 'name': p.name,
             })
+
+        order.wqr_total_pieces = total_pieces
 
         body = _("Solicitud de cotización enviada desde el sitio web.")
         if comments:
