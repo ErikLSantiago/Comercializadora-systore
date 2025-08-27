@@ -1,4 +1,17 @@
 <odoo>
+  <template id="quote_no_access" name="Acceso restringido a /quote">
+    <t t-call="website.layout">
+      <div class="container mt-5 mb-5 text-center">
+        <h2>Parece que no tienes acceso, registrate con nosotros</h2>
+        <p class="text-muted">Para ver el catálogo y solicitar cotizaciones necesitas autorización.</p>
+        <div class="d-flex justify-content-center gap-2 mt-3">
+          <a href="/contacus" class="btn btn-outline-secondary">Contactar</a>
+          <a href="/bussines" class="btn btn-primary">Soy empresa</a>
+        </div>
+      </div>
+    </t>
+  </template>
+
   <template id="quote_list" name="Solicitar cotización (Listado)">
     <t t-call="website.layout">
       <div class="container mt-5 mb-5">

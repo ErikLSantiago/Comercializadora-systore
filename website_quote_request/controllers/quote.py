@@ -22,7 +22,19 @@ def _ensure_positive_int(val, default=1):
     except Exception:
         return default
 
+def _has_partner_access():
+    user = request.env.user
+    if user and not user._is_public():
+        partner = user.partner_id.sudo()
+        return bool(partner and partner.wqr_quote_access)
+    return False
+
 class WebsiteQuoteRequest(http.Controller):
+
+    def _guard_or_render(self, template, values):
+        if not _has_partner_access():
+            return request.render('website_quote_request.quote_no_access', {})
+        return request.render(template, values)
 
     @http.route(['/quote'], type='http', auth='public', website=True, sitemap=True)
     def quote_list(self, **kwargs):
@@ -91,7 +103,7 @@ class WebsiteQuoteRequest(http.Controller):
         cart = _get_cart()
         cart_count = sum(cart.values())
 
-        return request.render('website_quote_request.quote_list', {
+        values = {
             'products': products,
             'categories': categories,
             'selected_cat_ids': selected_cat_ids,
@@ -102,10 +114,13 @@ class WebsiteQuoteRequest(http.Controller):
             'q': q,
             'cart': cart,
             'cart_count': cart_count,
-        })
+        }
+        return self._guard_or_render('website_quote_request.quote_list', values)
 
     @http.route(['/quote/add'], type='http', auth='public', methods=['POST'], website=True, csrf=True)
     def quote_add(self, **post):
+        if not _has_partner_access():
+            return request.render('website_quote_request.quote_no_access', {})
         product_id = int(post.get('product_id', 0) or 0)
         qty = _ensure_positive_int(post.get('qty', 1), 1)
         if product_id:
@@ -116,6 +131,8 @@ class WebsiteQuoteRequest(http.Controller):
 
     @http.route(['/quote/cart'], type='http', auth='public', website=True, sitemap=False)
     def quote_cart(self, **kwargs):
+        if not _has_partner_access():
+            return request.render('website_quote_request.quote_no_access', {})
         env = request.env
         Product = env['product.template'].sudo()
         cart = _get_cart()
@@ -140,6 +157,8 @@ class WebsiteQuoteRequest(http.Controller):
 
     @http.route(['/quote/update'], type='http', auth='public', methods=['POST'], website=True, csrf=True)
     def quote_update(self, **post):
+        if not _has_partner_access():
+            return request.render('website_quote_request.quote_no_access', {})
         cart = _get_cart()
         for key, val in post.items():
             if key.startswith('qty_'):
@@ -154,6 +173,8 @@ class WebsiteQuoteRequest(http.Controller):
 
     @http.route(['/quote/submit'], type='http', auth='public', methods=['POST'], website=True, csrf=True)
     def quote_submit(self, **post):
+        if not _has_partner_access():
+            return request.render('website_quote_request.quote_no_access', {})
         env = request.env
         cart = _get_cart()
         Product = env['product.template'].sudo()
@@ -208,6 +229,8 @@ class WebsiteQuoteRequest(http.Controller):
 
     @http.route(['/quote/thanks'], type='http', auth='public', website=True, sitemap=False)
     def quote_thanks(self, **kwargs):
+        if not _has_partner_access():
+            return request.render('website_quote_request.quote_no_access', {})
         order_name = request.httprequest.args.get('o') or request.session.get(LAST_ORDER_NAME_KEY) or ''
         if request.session.get(LAST_ORDER_NAME_KEY):
             request.session.pop(LAST_ORDER_NAME_KEY, None)
