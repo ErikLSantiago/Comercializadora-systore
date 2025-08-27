@@ -2,8 +2,8 @@
 {
     'name': 'Website Quote Request',
     'version': '18.0.6.3.11',
-    'summary': 'Catálogo /quote con imágenes, filtros mejorados, piezas en cotización y botones alineados a la derecha en /quote/cart.',
-    'description': 'Alinea “Enviar cotización” y “Seguir agregando productos” al lado inferior derecho en /quote/cart.',
+    'summary': 'Catálogo /quote con imágenes, filtros mejorados, piezas en cotización y botones alineados a la derecha.',
+    'description': 'Publicación de productos en /quote, imágenes, buscador, filtros (Marca primero, Categorías segundo), tag Agregado, carrito con edición de cantidades y total de piezas, número de cotización en Gracias.',
     'author': 'ChatGPT Assist',
     'website': 'https://example.com',
     'license': 'OPL-1',
