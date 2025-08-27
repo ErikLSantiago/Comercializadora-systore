@@ -1,9 +1,8 @@
 # -*- coding: utf-8 -*-
 {
     'name': 'Website Quote Request',
-    'version': '18.0.6.3.13',
-    'summary': 'Catálogo /quote con filtros, imágenes y acceso controlado por contacto.',
-    'description': 'Solo usuarios con el checkbox en Contactos pueden acceder a /quote. Mensaje de no acceso con botones a /contacus y /bussines.',
+    'version': '18.0.6.3.15',
+    'summary': 'Acceso por contacto y mejoras en /quote (buscador arriba, limpiar filtros, qty persistente).',
     'author': 'ChatGPT Assist',
     'website': 'https://example.com',
     'license': 'OPL-1',

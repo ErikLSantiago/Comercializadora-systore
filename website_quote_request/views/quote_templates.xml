@@ -5,8 +5,8 @@
         <h2>Parece que no tienes acceso, registrate con nosotros</h2>
         <p class="text-muted">Para ver el catálogo y solicitar cotizaciones necesitas autorización.</p>
         <div class="d-flex justify-content-center gap-2 mt-3">
-          <a href="/contacus" class="btn btn-outline-secondary">Contactar</a>
-          <a href="/bussines" class="btn btn-primary">Soy empresa</a>
+          <a href="/contactus" class="btn btn-outline-secondary">Contactar</a>
+          <a href="/web/login" class="btn btn-primary">Soy socio</a>
         </div>
       </div>
     </t>
@@ -14,9 +14,20 @@
 
   <template id="quote_list" name="Solicitar cotización (Listado)">
     <t t-call="website.layout">
-      <div class="container mt-5 mb-5">
-        <div class="d-flex justify-content-between align-items-center mb-3">
-          <h1 class="m-0">Solicitar cotización</h1>
+      <div class="container mt-5 mb-4">
+        <h1 class="mb-3">Solicitar cotización</h1>
+        <div class="d-flex justify-content-between align-items-center mb-3 flex-wrap gap-2">
+          <form method="get" action="/quote" class="d-flex align-items-center gap-2">
+            <input type="text" class="form-control" name="q" t-att-value="q" placeholder="Buscar productos..." style="min-width:260px"/>
+            <t t-foreach="selected_cat_ids" t-as="cid">
+              <input type="hidden" name="c" t-att-value="cid"/>
+            </t>
+            <t t-foreach="selected_av_ids" t-as="avid">
+              <input type="hidden" name="av" t-att-value="avid"/>
+            </t>
+            <button class="btn btn-outline-secondary" type="submit">Buscar</button>
+            <a href="/quote" class="btn btn-outline-secondary">Limpiar filtros</a>
+          </form>
           <a href="/quote/cart" class="btn btn-outline-primary">
             Ver solicitud (<t t-esc="cart_count or 0"/>)
           </a>
@@ -25,15 +36,6 @@
         <div class="row">
           <div class="col-md-3">
             <div class="card shadow-sm border-0 mb-3">
-              <div class="card-header bg-white border-0 pb-0">
-                <form method="get" action="/quote" class="mb-2">
-                  <div class="input-group">
-                    <input type="text" class="form-control" name="q" t-att-value="q" placeholder="Buscar productos..." />
-                    <button class="btn btn-outline-secondary" type="submit">Buscar</button>
-                  </div>
-                </form>
-                <a href="/quote" class="small text-decoration-none">Limpiar filtros</a>
-              </div>
               <div class="card-body">
                 <t t-if="primary_attr">
                   <div class="mb-3 pb-3 border-bottom">
@@ -138,7 +140,7 @@
                       <form action="/quote/add" method="post" class="d-flex gap-2 align-items-center">
                         <input type="hidden" name="csrf_token" t-att-value="request.csrf_token()"/>
                         <input type="hidden" name="product_id" t-att-value="p.id"/>
-                        <input class="form-control" type="number" name="qty" value="1" min="1" style="max-width:100px"/>
+                        <input class="form-control" type="number" name="qty" t-att-value="cart.get(p.id) or 1" min="1" style="max-width:100px"/>
                         <button class="btn btn-primary" type="submit">Añadir</button>
                       </form>
                     </div>
