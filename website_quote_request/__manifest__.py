@@ -1,9 +1,9 @@
 # -*- coding: utf-8 -*-
 {
     'name': 'Website Quote Request',
-    'version': '18.0.6.3.11',
-    'summary': 'Catálogo /quote con imágenes, filtros mejorados, piezas en cotización y botones alineados a la derecha.',
-    'description': 'Publicación de productos en /quote, imágenes, buscador, filtros (Marca primero, Categorías segundo), tag Agregado, carrito con edición de cantidades y total de piezas, número de cotización en Gracias.',
+    'version': '18.0.6.3.10',
+    'summary': 'Catálogo /quote con imágenes, filtros mejorados y conteo de piezas en cotización.',
+    'description': 'Publicar productos en /quote, buscador y filtros (Marca primero, Categorías segundo), badge Agregado, edición de cantidades y total de piezas; número de cotización en pantalla de Gracias.',
     'author': 'ChatGPT Assist',
     'website': 'https://example.com',
     'license': 'OPL-1',
