@@ -8,7 +8,7 @@
 
 {
     'name': 'Odoo Connector Api',
-    'version': '15.0.23.3',
+    'version': '18.0.25.3',
     'author': 'Moldeo Interactive',
     'website': 'https://www.moldeointeractive.com',
     "category": "Sales",
@@ -24,7 +24,7 @@
         'views/notification_view.xml',
         'views/product_view.xml',
         'views/sale_view.xml',
-        'views/wizards_view.xml',
+        #'views/wizards_view.xml',
     	#'views/category_view.xml',
     	#'views/banner_view.xml',
         'views/warning_view.xml',
@@ -38,6 +38,14 @@
 	    #'views/shipment_view.xml',
 	    #'views/notifications_view.xml'
     ],
+    'assets': {
+        'web._assets_primary_variables': [],
+        'web.assets_frontend': [],
+        'web.assets_backend': [
+            'odoo_connector_api/static/src/css/odoo_connector_api.css',
+            'odoo_connector_api/static/src/js/odoo_connector_api.js',
+        ]
+    },
     'price': '1.00',
     'currency': 'USD',
     'license': 'GPL-3',

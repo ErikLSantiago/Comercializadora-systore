@@ -10,12 +10,16 @@
 					<field name="arch" type="xml">
 							<data>
 									<notebook>
-											<page string="Producteca" attrs="{'invisiblex':[('producteca_order_binding_id', '=', False)]}">
+											<page string="Producteca" invisible="producteca_order_binding_id == False">
 													<div class="oe_button_box" name="button_box_mel" style="width: auto;">
 														<button name='enviar_factura_producteca' type="object"
 															string="Enviar a producteca"
 															class="oe_stat_button"
 															icon="fa-paper-plane"/>
+                              <button name='conciliar_factura_producteca' type="object"
+  															string="Conciliar factura producteca"
+  															class="oe_stat_button"
+  															icon="fa-paper-plane"/>
 													</div>
 													<group>
 														<group>

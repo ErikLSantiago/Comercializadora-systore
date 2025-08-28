@@ -1,7 +1,7 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <odoo>
     <data>
-<!-- #domain="[('id', 'in', (bom_product_ids and bom_product_ids[0][2] or False ))]" -->      
+<!-- #domain="[('id', 'in', (bom_product_ids and bom_product_ids[0][2] or False ))]" -->
 <!-- PRODUCT TEMPLATE -->
 
       <!-- View wizard - Remove from Connector: Producteca-->
@@ -39,9 +39,9 @@
           view_id="view_product_template_remove_from_producteca"
     			binding_views="list,form"
           target="new"/-->
-          
-          
-      <!-- View wizard  - Add to Connector: Producteca-->      
+
+
+      <!-- View wizard  - Add to Connector: Producteca-->
       <record id="view_product_template_add_to_producteca" model="ir.ui.view">
             <field name="name">Add Product To Producteca / Bind</field>
             <field name="model">producteca.binder.wiz</field>
@@ -57,7 +57,7 @@
               </form>
             </field>
       </record>
-      <!-- Action wizard - Add to Connector: Producteca-->      
+      <!-- Action wizard - Add to Connector: Producteca-->
       <record id="action_product_template_add_to_producteca" model="ir.actions.act_window">
           <field name="name">Add Product To Producteca / Bind</field>
           <field name="type">ir.actions.act_window</field>
@@ -78,9 +78,9 @@
           target="new"
           /-->
 
-      
+
 <!-- PRODUCT PRODUCT -->
-      
+
       <!-- View wizard - Remove Variant from Connector: Producteca-->
       <record id="view_product_product_remove_from_producteca" model="ir.ui.view">
             <field name="name">Remove Product Variant From Producteca / Unbind</field>
@@ -118,8 +118,8 @@
           target="new"
           /-->
 
-          
-      <!-- View wizard  - Add to Connector: Producteca-->      
+
+      <!-- View wizard  - Add to Connector: Producteca-->
       <record id="view_product_product_add_to_producteca" model="ir.ui.view">
             <field name="name">Add Product Variant To Producteca / Bind</field>
             <field name="model">producteca.variant.binder.wiz</field>
@@ -135,7 +135,7 @@
               </form>
             </field>
       </record>
-      <!-- Action wizard - Add to Connector: Producteca-->      
+      <!-- Action wizard - Add to Connector: Producteca-->
       <record id="action_product_product_add_to_producteca" model="ir.actions.act_window">
           <field name="name">Add Product Variant To Producteca / Bind</field>
           <field name="type">ir.actions.act_window</field>
@@ -156,9 +156,9 @@
           target="new"
           /-->
 
-  
+
 <!-- STOCK QUANT -->
-      
+
       <!-- View wizard - Remove Variant from Connector: Producteca-->
       <record id="view_stock_quant_remove_from_producteca" model="ir.ui.view">
             <field name="name">Remove Product Variant From Producteca / Unbind</field>
@@ -196,8 +196,8 @@
           target="new"
           /-->
 
-          
-      <!-- View wizard  - Add to Connector: Producteca-->      
+
+      <!-- View wizard  - Add to Connector: Producteca-->
       <record id="view_stock_quant_add_to_producteca" model="ir.ui.view">
             <field name="name">Add Product Variant To Producteca / Bind</field>
             <field name="model">producteca.stock.quant.binder.wiz</field>
@@ -213,7 +213,7 @@
               </form>
             </field>
       </record>
-      <!-- Action wizard - Add to Connector: Producteca-->      
+      <!-- Action wizard - Add to Connector: Producteca-->
       <record id="action_stock_quant_add_to_producteca" model="ir.actions.act_window">
           <field name="name">Add Product Variant To Producteca / Bind</field>
           <field name="type">ir.actions.act_window</field>
@@ -233,9 +233,9 @@
     			binding_views="list,form"
           target="new"
           /-->
-          
-          
-          
+
+
+
           <!-- NOTIFICATIONS -->
           <!-- View wizard FORM  - Notifications Process-->
           <record id="view_producteca_notification_wiz" model="ir.ui.view">
@@ -277,8 +277,8 @@
               view_mode="form"
               binding_views="list,form"
               target="new"/-->
-              
-              
+
+
               <!-- PRODUCTECA SALE ORDER WIZARD -->
               <!-- View wizard FORM  - Producteca Sale Order Process-->
               <record id="view_producteca_sale_order_wiz" model="ir.ui.view">
@@ -291,6 +291,16 @@
                           <group>
                             <group>
                               <field name="connection_account"/>
+
+                              <!-- limpiar pagos no conciliados sin facturas asignadas-->
+                              <field name="actualizar_venta"/>
+                              <field name="limpiar_pagos"/>
+
+                              <field name="comentario_factura"/>
+                              <field name="validar_factura"/>
+                              <field name="reenviar_a_producteca"/>
+
+                              <field name="actualizar_channel_binding"/>
                             </group>
                           </group>
                           <footer>
@@ -300,7 +310,7 @@
                       </form>
                     </field>
               </record>
-              <!-- Action wizard - Add to Connector: MercadoLibre-->
+              <!-- Action wizard - Actualizar ventas de producteca en Ventas Producteca-->
               <record id="action_producteca_sale_order_wiz" model="ir.actions.act_window">
                   <field name="name">Actualizar Ventas de Producteca</field>
                   <field name="type">ir.actions.act_window</field>
@@ -312,6 +322,48 @@
                   <field name="view_mode">form</field>
                   <field name="target">new</field>
               </record>
+
+              <!-- Action wizard - Actualizar ventas de Producteca en Ordenes de Entrega-->
+              <record id="action_producteca_stock_picking_wiz" model="ir.actions.act_window">
+                  <field name="name">Actualizar Ventas de Producteca</field>
+                  <field name="type">ir.actions.act_window</field>
+                  <field name="binding_model_id" ref="model_stock_picking" />
+                  <field name="view_id" ref="view_producteca_sale_order_wiz"/>
+                  <field name="binding_type">action</field>
+                  <field name="binding_view_types">list,form</field>
+                  <field name="res_model">producteca.sale_order.wiz</field>
+                  <field name="view_mode">form</field>
+                  <field name="target">new</field>
+              </record>
+
+              <!-- Action wizard - Actualizar ventas de producteca en Ventas-->
+              <record id="action_sale_order_producteca_wiz" model="ir.actions.act_window">
+                  <field name="name">Actualizar Ventas de Producteca</field>
+                  <field name="type">ir.actions.act_window</field>
+                  <field name="binding_model_id" ref="model_sale_order" />
+                  <field name="view_id" ref="view_producteca_sale_order_wiz"/>
+                  <field name="binding_type">action</field>
+                  <field name="binding_view_types">list,form</field>
+                  <field name="res_model">producteca.sale_order.wiz</field>
+                  <field name="view_mode">form</field>
+                  <field name="target">new</field>
+              </record>
+
+
+              <!-- Action wizard - Actualizar ventas de producteca en Facturas-->
+              <record id="action_account_move_producteca_wiz" model="ir.actions.act_window">
+                  <field name="name">Actualizar Ventas de Producteca</field>
+                  <field name="type">ir.actions.act_window</field>
+                  <field name="binding_model_id" ref="model_account_move" />
+                  <field name="view_id" ref="view_producteca_sale_order_wiz"/>
+                  <field name="binding_type">action</field>
+                  <field name="binding_view_types">list,form</field>
+                  <field name="res_model">producteca.sale_order.wiz</field>
+                  <field name="view_mode">form</field>
+                  <field name="target">new</field>
+              </record>
+
+
               <!--act_window id="action_producteca_sale_order_wiz"
                   name="Actualizar Ventas de Producteca"
                   binding_model="producteca.sale_order"
@@ -320,6 +372,6 @@
                   view_mode="form"
                   binding_views="list,form"
                   target="new"/-->
-  
+
     </data>
 </odoo>

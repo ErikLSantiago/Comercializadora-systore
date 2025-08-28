@@ -74,7 +74,10 @@ class ProductecaConnectionBindingProductTemplate(models.Model):
         #for plitem in product.item_ids:
         for pl in account.configuration.publish_price_lists:
             for variant in product_tpl.product_variant_ids:
+
                 plprice = get_price_from_pl( pl, variant, quantity=1.0 )[pl.id]
+                plprice = account.ocapi_price_unit( variant, float(plprice), False, invert=True )
+
                 price = {
                     "priceListId": pl.id,
                     "priceList": pl.name,
@@ -82,7 +85,7 @@ class ProductecaConnectionBindingProductTemplate(models.Model):
                     "currency": pl.currency_id.name
                 }
                 #prices.append(price)
-                prices_str+= str(price["priceList"])+str(": ")+str(price["amount"])
+                prices_str+= str(price["priceList"])+str(": ")+str(price["amount"])+str(" ")
                 prices.append(plprice)
 
         if not prices:
@@ -98,39 +101,193 @@ class ProductecaConnectionBindingProductTemplate(models.Model):
             bindT.price_resume_tmpl = price_resume_tmpl
             bindT.price = prices[0]
 
+    def get_stocks( self ):
 
-    def get_stock_str_tmpl(self):
         stocks = []
-        stocks_str = ""
-        #ss = variant._product_available()
 
-        product_tmpl = self.product_tmpl_id
-        account = self.connection_account
-        if not product_tmpl or not account:
-            return stocks_str
+        bindingT = self
+        if not bindingT:
+            return stocks
 
-        #_logger.info("account.configuration.publish_stock_locations")
-        #_logger.info(account.configuration.publish_stock_locations.mapped("id"))
+        product_tmpl = bindingT.product_tmpl_id
+
+        if not product_tmpl:
+            return stocks
+
+        account = bindingT.connection_account
+
+        if not account:
+            return stocks
+
+        company = account.company_id or self.env.user.company_id
+
+        if not company:
+            return stocks
+
         locids = account.configuration.publish_stock_locations.mapped("id")
-        #sq = self.env["stock.quant"].search([('product_tmpl_id','=',product_tmpl.id),('location_id','in',locids)],order="location_id asc")
+
         qty_available_op = 0
         for locid in locids:
+
             locid_obj = self.env['stock.location'].browse(locid)
+
             sq = []
-            for p in product_tmpl.product_variant_ids:
-                sq+= self.env['stock.quant']._gather( p, location_id=locid_obj )
+            sqbom = []
+
+            #Iterate on variants
+            for variant in product_tmpl.product_variant_ids:
+
+                sq+= self.env['stock.quant']._gather( variant, location_id=locid_obj )
+
+                if (1==1 and 'mrp.bom' in self.env):
+                    #_logger.info("search bom:"+str(product.default_code))
+                    bom_id = self.env['mrp.bom'].search([('product_id','=',variant.id)],limit=1)
+
+                    if not bom_id:
+                        bom_id = self.env['mrp.bom'].search([('product_tmpl_id','=',product_tmpl.id)],limit=1)
+
+                    if bom_id and bom_id.type == 'phantom':
+                        #_logger.info(bom_id.type)
+                        #_logger.info("bom_id:"+str(bom_id))
+                        #chequear si el componente principal es fabricable
+                        stock_material_max = 100000
+                        stock_material = 0
+
+                        stock_material_max_hand = 100000
+                        stock_material_hand = 0
+
+                        new_quantity = 0
+                        new_quantity_hand = 0
+
+                        for bom_line in bom_id.bom_line_ids:
+                            #if (bom_line.product_id.default_code.find(product_tmpl.code_prefix)==0):
+                            if (bom_line.product_id):
+                                #_logger.info(product_tmpl.code_prefix)
+                                #_logger.info("bom product: " + str(bom_line.product_id.default_code) )
+                                #for route in product.route_ids:
+                                    #if (route.name in ['Fabricar','Manufacture']):
+                                        #_logger.info("Fabricar")
+                                    #    new_meli_available_quantity = 1
+                                    #if (route.name in ['Comprar','Buy'] or route.name in ['Fabricar','Manufacture']):
+                                    #_logger.info("Comprar")
+                                quants = self.env['stock.quant']._gather( bom_line.product_id, location_id=locid_obj )
+
+                                virtual_comp_av_qty = (quants and sum([(quant.quantity) for quant in quants])) or 0
+                                virtual_comp_av_reserved = (quants and sum([(quant.reserved_quantity) for quant in quants])) or 0
+                                virtual_comp_av = virtual_comp_av_qty - virtual_comp_av_reserved
+                                #_logger.info("bom component stock: " + str(virtual_comp_av) )
+
+                                stock_material = virtual_comp_av / bom_line.product_qty
+                                stock_material_hand = virtual_comp_av_qty / bom_line.product_qty
+
+                                if stock_material>=0 and stock_material<=stock_material_max:
+                                    stock_material_max = stock_material
+                                    new_quantity = stock_material_max
+                                    #_logger.info("stock based on minimum material available / " +str(bom_line.product_qty)+ ": " + str(new_quantity))
+
+                                if stock_material_hand>=0 and stock_material_hand<=stock_material_max_hand:
+                                    stock_material_max_hand = stock_material_hand
+                                    new_quantity_hand = stock_material_max_hand
+                                    #_logger.info("stock in hand based on minimum material available / " +str(bom_line.product_qty)+ ": " + str(new_quantity_hand))
+
+                        sqbom.append({
+                            "location_id": locid_obj,
+                            "quantity": new_quantity_hand,
+                            "reserved_quantity": new_quantity_hand-new_quantity,
+                        })
+
+                ## odoo_connector_api_fulfillment
+
+                if "fulfillment_channel_binding" in locid_obj._fields:
+
+                    ff_channel = locid_obj.fulfillment_channel_binding and locid_obj.fulfillment_channel_binding[0]
+                    if ff_channel:
+
+                        #fields = self.env["fulfillment.stock.line"].prepare( self, data )
+                        record = self.env["fulfillment.stock.line"].search(
+                                            [('channel_binding','=',ff_channel.id),
+                                             ('sku','=ilike',variant.default_code),
+                                             #('barcode','=ilike',variant.barcode)
+                                             ])
+                        quantity = 0
+                        reserved_quantity = 0
+                        if record and len(record)==1:
+                            quantity = record.stock_on_hand
+                            reserved_quantity = record.stock_reserved
+                            sjson = {
+                                "warehouseId": str(locid)+"[OCAF]/Existencias",
+                                "warehouse": "Cubbo[OCAF]/Existencias",
+                                "quantity": quantity,
+                                "reserved": reserved_quantity,
+                                "available": quantity - reserved_quantity
+                            }
+                            stocks.append(sjson)
+                        else:
+                            sjson = {
+                                "warehouseId": str(locid)+"[OCAF]/Existencias",
+                                "warehouse": "Cubbo[OCAF]/Existencias",
+                                "quantity": quantity,
+                                "reserved": reserved_quantity,
+                                "available": quantity - reserved_quantity
+                            }
+                            stocks.append(sjson)
+
+            if (sqbom):
+                sq = []
+                #_logger.info( sqbom.name )
+                quants = sqbom
+                quantity = (quants and sum([(quant["quantity"]) for quant in quants])) or 0
+                reserved_quantity = (quants and sum([(quant["reserved_quantity"]) for quant in quants])) or 0
+
+                for s in sqbom:
+                    #TODO: filtrar por configuration.locations
+                    #TODO: merge de stocks
+                    #TODO: solo publicar available
+                    if ( s["location_id"].usage == "internal"):
+                        #_logger.info( s )
+                        sjson = {
+                            "warehouseId": locid,
+                            "warehouse": s["location_id"].display_name,
+                            "quantity": quantity,
+                            "reserved": reserved_quantity,
+                            "available": quantity - reserved_quantity
+                        }
+                        stocks.append(sjson)
+                continue;
+
             if (sq):
                 #_logger.info( sq )
                 #_logger.info( sq.name )
-                quants = sq
+                sqfiltered = []
+                for s in sq:
+                    filtered = False
+                    if "stock_filter_rules" in account.configuration._fields and account.configuration.stock_filter_rules:
+                        for stock_filter_rule in account.configuration.stock_filter_rules:
+                            if stock_filter_rule.filtering_type == 'apply_on_lote':
+                                if s.lot_id and s.lot_id.name and stock_filter_rule.filtering_text:
+                                    if stock_filter_rule.filtering_text in s.lot_id.name:
+                                        filtered = True
+                            if stock_filter_rule.filtering_type == 'apply_on_location':
+                                if s.location_id and s.location_id.name and stock_filter_rule.filtering_text:
+                                    if stock_filter_rule.filtering_text in s.location_id.name:
+                                        filtered = True
+                            if stock_filter_rule.filtering_type == 'apply_on_warehouse':
+                                if s.location_id and s.location_id.name and stock_filter_rule.filtering_text:
+                                    if stock_filter_rule.filtering_text in s.location_id.name:
+                                        filtered = True
+                    if not filtered:
+                        sqfiltered.append(s)
+
+                quants = sqfiltered
                 quantity = (quants and sum([(quant.quantity) for quant in quants])) or 0
                 reserved_quantity = (quants and sum([(quant.reserved_quantity) for quant in quants])) or 0
                 for s in sq:
                     #TODO: filtrar por configuration.locations
                     #TODO: merge de stocks
                     #TODO: solo publicar available
+
                     if ( s.location_id.usage == "internal"):
-                        _logger.info( s )
+                        #_logger.info( s )
                         sjson = {
                             "warehouseId": locid,
                             "warehouse": s.location_id.display_name,
@@ -138,9 +295,38 @@ class ProductecaConnectionBindingProductTemplate(models.Model):
                             "reserved": reserved_quantity,
                             "available": quantity - reserved_quantity
                         }
-                        #stocks.append(sjson)
-                        stocks_str+= str(sjson["warehouse"])+str(": ")+str(sjson["quantity"])+str("/")+str(str(sjson["available"]))
-                        stocks_str+= " "
+                        stocks.append(sjson)
+            else:
+                sjson = {
+                    "warehouseId": locid,
+                    "warehouse": locid_obj.display_name,
+                    "quantity": 0,
+                    "reserved": 0,
+                    "available": 0
+                }
+                stocks.append(sjson)
+        return stocks
+
+    def get_stock_str_tmpl(self):
+
+        stocks = []
+        stocks_str = ""
+
+        bindingT = self
+
+        product_tmpl = self.product_tmpl_id
+        account = self.connection_account
+
+        if not product_tmpl or not account:
+            return stocks_str
+
+        stocks = bindingT.get_stocks()
+
+        if stocks:
+            for sjson in stocks:
+                stocks_str+= str(sjson["warehouse"])+str(": ")+str(sjson["quantity"])+str("/")+str(str(sjson["available"]))
+                stocks_str+= " "
+
         return stocks_str
 
     def _calculate_stock_resume_tmpl(self):
@@ -148,7 +334,6 @@ class ProductecaConnectionBindingProductTemplate(models.Model):
         for bindT in self:
             bindT.stock_resume_tmpl = "LOEC: 5, MFULL: 3"
             bindT.stock_resume_tmpl = bindT.get_stock_str_tmpl()
-
 
     stock_resume_tmpl = fields.Char(string="Stock Resumen Tmpl", compute="_calculate_stock_resume_tmpl", store=False )
     price_resume_tmpl = fields.Char(string="Price Resumen Tmpl", compute="_calculate_price_resume_tmpl", store=False )
@@ -177,6 +362,7 @@ class ProductecaConnectionBindingProductVariant(models.Model):
         #for plitem in product.item_ids:
         for pl in account.configuration.publish_price_lists:
             plprice = get_price_from_pl(pl, variant, quantity=1.0)[pl.id]
+            plprice = account.ocapi_price_unit( variant, float(plprice), False, invert=True )
             price = {
                 "priceListId": pl.id,
                 "priceList": pl.name,
@@ -184,7 +370,7 @@ class ProductecaConnectionBindingProductVariant(models.Model):
                 "currency": pl.currency_id.name
             }
             #prices.append(price)
-            prices_str+= str(price["priceList"])+str(": ")+str(price["amount"])
+            prices_str+= str(price["priceList"])+str(": ")+str(price["amount"])+str(" ")
             self.price = plprice
             prices.append(plprice)
 
@@ -201,6 +387,238 @@ class ProductecaConnectionBindingProductVariant(models.Model):
             var.price_resume = price_resume
             var.price = prices[0]
 
+    # returns array of
+    #   {
+    #       "warehouseId": id de la ubicacion,
+    #       "warehouse": nombre de la ubicacion,
+    #       "quantity": cantidad en mano,
+    #       "reserved": reservada,
+    #       "available": disopnible
+    #   }
+    def get_stocks( self ):
+
+        stocks = []
+
+        binding = self
+        if not binding:
+            return stocks
+
+        variant = binding.product_id
+
+        if not variant:
+            return stocks
+
+        account = binding.connection_account
+
+        if not account:
+            return stocks
+
+        company = account.company_id or self.env.user.company_id
+
+        if not company:
+            return stocks
+
+        locids = account.configuration.publish_stock_locations.mapped("id")
+
+        for locid in locids:
+            locid_obj = self.env['stock.location'].browse(locid)
+            sq = self.env['stock.quant']._gather( variant, location_id=locid_obj )
+            sqbom = []
+
+            p = variant
+            if (1==1 and 'mrp.bom' in self.env):
+                #_logger.info("search bom:"+str(product.default_code))
+                bom_id = self.env['mrp.bom'].search([('product_id','=',p.id)],limit=1)
+
+                if not bom_id:
+                    product_tmpl = p.product_tmpl_id
+                    bom_id = self.env['mrp.bom'].search([('product_tmpl_id','=',product_tmpl.id)],limit=1)
+
+                if bom_id and bom_id.type == 'phantom':
+                    #_logger.info(bom_id.type)
+                    #_logger.info("bom_id:"+str(bom_id))
+                    #chequear si el componente principal es fabricable
+                    stock_material_max = 100000
+                    stock_material = 0
+
+                    stock_material_max_hand = 100000
+                    stock_material_hand = 0
+
+                    new_quantity = 0
+                    new_quantity_hand = 0
+
+                    for bom_line in bom_id.bom_line_ids:
+                        #if (bom_line.product_id.default_code.find(product_tmpl.code_prefix)==0):
+                        if (bom_line.product_id):
+                            #_logger.info(product_tmpl.code_prefix)
+                            #_logger.info("bom product: " + str(bom_line.product_id.default_code) )
+                            #for route in product.route_ids:
+                                #if (route.name in ['Fabricar','Manufacture']):
+                                    #_logger.info("Fabricar")
+                                #    new_meli_available_quantity = 1
+                                #if (route.name in ['Comprar','Buy'] or route.name in ['Fabricar','Manufacture']):
+                                #_logger.info("Comprar")
+                            quants = self.env['stock.quant']._gather( bom_line.product_id, location_id=locid_obj )
+
+                            #_logger.info("bom component stock: " + str(virtual_comp_av_sq) )
+                            #_logger.info("bom component stock: " + str(virtual_comp_av) )
+                            virtual_comp_av_qty = (quants and sum([(quant.quantity) for quant in quants])) or 0
+                            virtual_comp_av_reserved = (quants and sum([(quant.reserved_quantity) for quant in quants])) or 0
+                            virtual_comp_av = virtual_comp_av_qty - virtual_comp_av_reserved
+
+                            stock_material = virtual_comp_av / bom_line.product_qty
+                            stock_material_hand = virtual_comp_av_qty / bom_line.product_qty
+
+                            if stock_material>=0 and stock_material<=stock_material_max:
+                                stock_material_max = stock_material
+                                new_quantity = stock_material_max
+                                #_logger.info("stock based on minimum material available / " +str(bom_line.product_qty)+ ": " + str(new_quantity))
+
+                            if stock_material_hand>=0 and stock_material_hand<=stock_material_max_hand:
+                                stock_material_max_hand = stock_material_hand
+                                new_quantity_hand = stock_material_max_hand
+                                #_logger.info("stock in hand based on minimum material available / " +str(bom_line.product_qty)+ ": " + str(new_quantity_hand))
+
+                    sqbom.append({
+                        "location_id": locid_obj,
+                        "quantity": new_quantity_hand,
+                        "reserved_quantity": new_quantity_hand-new_quantity,
+                    })
+
+
+
+            if (sqbom):
+                sq = []
+                #_logger.info( sqbom.name )
+                quants = sqbom
+                quantity = (quants and sum([(quant["quantity"]) for quant in quants])) or 0
+                reserved_quantity = (quants and sum([(quant["reserved_quantity"]) for quant in quants])) or 0
+
+                for s in sqbom:
+                    #TODO: filtrar por configuration.locations
+                    #TODO: merge de stocks
+                    #TODO: solo publicar available
+                    if ( s["location_id"].usage == "internal"):
+                        #_logger.info( s )
+                        sjson = {
+                            "warehouseId": locid,
+                            "warehouse": s["location_id"].display_name,
+                            "quantity": quantity,
+                            "reserved": reserved_quantity,
+                            "available": quantity - reserved_quantity
+                        }
+                        stocks.append(sjson)
+                continue;
+
+            if "fulfillment_channel_binding" in locid_obj._fields:
+
+                ff_channel = locid_obj.fulfillment_channel_binding and locid_obj.fulfillment_channel_binding[0]
+                if ff_channel:
+
+                    #fields = self.env["fulfillment.stock.line"].prepare( self, data )
+                    record = self.env["fulfillment.stock.line"].search(
+                                        [('channel_binding','=',ff_channel.id),
+                                         ('sku','=ilike',variant.default_code),
+                                         #('barcode','=ilike',variant.barcode)
+                                         ])
+                    quantity = 0
+                    reserved_quantity = 0
+                    if record and len(record)==1:
+                        quantity = record.stock_on_hand
+                        reserved_quantity = record.stock_reserved
+                        sjson = {
+                            "warehouseId": str(locid)+"[OCAF]/Existencias",
+                            "warehouse": "Cubbo[OCAF]/Existencias",
+                            "quantity": quantity,
+                            "reserved": reserved_quantity,
+                            "available": quantity - reserved_quantity
+                        }
+                        stocks.append(sjson)
+                    else:
+                        sjson = {
+                            "warehouseId": str(locid)+"[OCAF]/Existencias",
+                            "warehouse": "Cubbo[OCAF]/Existencias",
+                            "quantity": quantity,
+                            "reserved": reserved_quantity,
+                            "available": quantity - reserved_quantity
+                        }
+                        stocks.append(sjson)
+
+            if (sq):
+                #_logger.info( sq )
+                #_logger.info( sq.name )
+                #_logger.info( sq )
+                sqfiltered = []
+                for s in sq:
+                    #_logger.info( str(s ))
+                    #_logger.info( "lot "+str(s and s.lot_id and s.lot_id.name ))
+                    #_logger.info( "loc "+str(s and s.location_id and s.location_id.name ))
+                    filtered = False
+                    if "stock_filter_rules" in account.configuration._fields and account.configuration.stock_filter_rules:
+                        for stock_filter_rule in account.configuration.stock_filter_rules:
+                            #_logger.info( "stock_filter_rule "+str(stock_filter_rule.name)+" "+str(stock_filter_rule.filtering_type)+" "+str(stock_filter_rule.filtering_text))
+                            if stock_filter_rule.filtering_type == 'apply_on_lote':
+                                if s.lot_id and s.lot_id.name and stock_filter_rule.filtering_text:
+                                    if stock_filter_rule.filtering_text in s.lot_id.name:
+                                        #_logger.info( "filtering: "+str(stock_filter_rule.filtering_text))
+                                        filtered = True
+                            if stock_filter_rule.filtering_type == 'apply_on_location':
+                                if s.location_id and s.location_id.name and stock_filter_rule.filtering_text:
+                                    if stock_filter_rule.filtering_text in s.location_id.name:
+                                        #_logger.info( "filtering: "+str(stock_filter_rule.filtering_text))
+                                        filtered = True
+                            if stock_filter_rule.filtering_type == 'apply_on_warehouse':
+                                if s.location_id and s.location_id.name and stock_filter_rule.filtering_text:
+                                    if stock_filter_rule.filtering_text in s.location_id.name:
+                                        #_logger.info( "filtering: "+str(stock_filter_rule.filtering_text))
+                                        filtered = True
+                    if not filtered:
+                        sqfiltered.append(s)
+
+
+                quants = sqfiltered
+                quantity = (quants and sum([(quant.quantity) for quant in quants])) or 0
+                reserved_quantity = (quants and sum([(quant.reserved_quantity) for quant in quants])) or 0
+                if 1==2: #desagregado por sub lote
+                    for s in sq:
+                        #TODO: filtrar por configuration.locations
+                        #TODO: merge de stocks
+                        #TODO: solo publicar available
+                        if ( s.location_id.usage == "internal"):
+                            #_logger.info( s )
+                            sjson = {
+                                "warehouseId": locid,
+                                "warehouse": s.location_id.display_name,
+                                "quantity": quantity,
+                                "reserved": reserved_quantity,
+                                "available": quantity - reserved_quantity
+                            }
+                            stocks.append(sjson)
+
+                if 1==1:
+                    sjson = {
+                        "warehouseId": locid,
+                        "warehouse": locid_obj.display_name,
+                        "quantity": quantity,
+                        "reserved": reserved_quantity,
+                        "available": quantity - reserved_quantity
+                    }
+                    stocks.append(sjson)
+
+                continue;
+            else:
+                sjson = {
+                    "warehouseId": locid,
+                    "warehouse": locid_obj.display_name,
+                    "quantity": 0,
+                    "reserved": 0,
+                    "available": 0
+                }
+                stocks.append(sjson)
+                continue;
+
+        return stocks
+
     def get_stock_str(self):
         stocks = []
         stocks_str = ""
@@ -213,39 +631,14 @@ class ProductecaConnectionBindingProductVariant(models.Model):
         if not variant or not account:
             return stocks_str, stocks_on_hand, stocks_available
 
-        #_logger.info("account.configuration.publish_stock_locations")
-        #_logger.info(account.configuration.publish_stock_locations.mapped("id"))
-        locids = account.configuration.publish_stock_locations.mapped("id")
-        #sq = self.env["stock.quant"].search([('product_tmpl_id','=',product_tmpl.id),('location_id','in',locids)],order="location_id asc")
-        qty_available_op = 0
-        for locid in locids:
-            locid_obj = self.env['stock.location'].browse(locid)
-            sq = self.env['stock.quant']._gather( variant, location_id=locid_obj )
-            if (sq):
-                #_logger.info( sq )
-                #_logger.info( sq.name )
-                quants = sq
-                quantity = (quants and sum([(quant.quantity) for quant in quants])) or 0
-                reserved_quantity = (quants and sum([(quant.reserved_quantity) for quant in quants])) or 0
-                for s in sq:
-                    #TODO: filtrar por configuration.locations
-                    #TODO: merge de stocks
-                    #TODO: solo publicar available
-                    if ( s.location_id.usage == "internal"):
-                        _logger.info( s )
-                        sjson = {
-                            "warehouseId": locid,
-                            "warehouse": sq.location_id.display_name,
-                            "quantity": quantity,
-                            "reserved": reserved_quantity,
-                            "available": quantity - reserved_quantity
-                        }
-                        #stocks.append(sjson)
-                        stocks_str+= str(sjson["warehouse"])+str(": ")+str(sjson["quantity"])+str("/")+str(str(sjson["available"]))
-                        stocks_str+= " "
-                        stocks_on_hand+= quantity
-                        stocks_available+= sjson["available"]
-                    #variant.stock = sjson["available"]
+        stocks = self.get_stocks()
+
+        if stocks:
+            for sjson in stocks:
+                stocks_str+= str(sjson["warehouse"])+str(": ")+str(sjson["quantity"])+str("/")+str(str(sjson["available"]))
+                stocks_str+= " "
+                stocks_on_hand+= sjson["quantity"]
+                stocks_available+= sjson["available"]
 
         return stocks_str, stocks_on_hand, stocks_available
 
@@ -357,8 +750,8 @@ class ProductecaConnectionBindingProductVariant(models.Model):
             b.product_color = None
             b.product_gender = None
             p = b.product_id
-            if p and p.attribute_value_ids:
-                for attval in p.attribute_value_ids:
+            if p and att_value_ids(p):
+                for attval in att_value_ids(p):
                     if attval.attribute_id.name=="Size":
                         b.product_size = attval.id
                     if attval.attribute_id.name=="Color":

@@ -27,6 +27,9 @@ import pdb
 from .warning import warning
 import requests
 
+from . import versions
+from .versions import *
+
 class product_template(models.Model):
 
     _inherit = "product.template"
@@ -40,13 +43,15 @@ class product_template(models.Model):
         return self.virtual_available
 
     def producteca_image_url_principal(self):
-        return "/ocapi/producteca/img/%s/%s/%s" % (str(self.id), str(self.default_code), str("default") )
+        #return "/ocapi/producteca/img/%s/%s/%s" % (str(self.id), str(self.default_code), str("default") )
+        return "/web/image/product.product/%s/image_1920" % (str(self.id))
 
     def producteca_image_id_principal(self):
         return "%s" % ( str(self.id) )
 
     def producteca_image_url(self, image):
-        return "/ocapi/producteca/img/%s/%s/%s" % (str(self.id), str(self.default_code), str(image.id) )
+        #return "/ocapi/producteca/img/%s/%s/%s" % (str(self.id), str(self.default_code), str(image.id) )
+        return "/web/image/product.image/%s/image_1920" % (str(image.id))
 
     def producteca_image_id(self, image):
         return "%s" % ( str(image.id) )
@@ -77,7 +82,7 @@ class product_template(models.Model):
                                                                                    ("connection_account","=",account.id)])
                 if len(pt_bind):
                     pt_bind = pt_bind[0]
-                    self.env["producteca.binding.product_template"].write([prod_binding])
+                    pt_bind.write(prod_binding)
                 else:
                     pt_bind = self.env["producteca.binding.product_template"].create([prod_binding])
 
@@ -163,14 +168,18 @@ class product_product(models.Model):
 
     def producteca_image_url_principal(self):
         code = self.barcode or self.default_code
-        return "/ocapi/producteca/img/%s/%s/%s" % (str(self.id), str(code), str("default") )
+        #return "/ocapi/producteca/img/%s/%s/%s" % (str(self.id), str(code), str("default") )
+        return "/web/image/product.product/%s/image_1920" % (str(self.id))
+
 
     def producteca_image_id_principal(self):
         return "%s" % ( str(self.id) )
 
     def producteca_image_url(self, image):
         code = self.barcode or self.default_code
-        return "/ocapi/producteca/img/%s/%s/%s" % (str(self.id), str(code), str(image.id) )
+        #return "/ocapi/producteca/img/%s/%s/%s" % (str(self.id), str(code), str(image.id) )
+        return "/web/image/product.image/%s/image_1920" % (str(image.id))
+
 
     def producteca_image_id(self, image):
         return "%s" % ( str(image.id) )
@@ -256,6 +265,74 @@ class product_product(models.Model):
 
         return pv_bind
 
+
+    def producteca_post_stock( self, account = None, stock_move=None ):
+        _logger.info("producteca_post_stock: "+str(self and self.name)+" account:"+str(account and account.name))
+        realtime_post_stock = account and account.configuration.publish_stock and account.configuration.publish_stock_endpoint
+        if not realtime_post_stock:
+            product = self
+            if self:
+                product.message_post(body=str("Producteca no sera notificado en tiempo real del movimiento de stock. Revise la configuración."))
+
+        if (realtime_post_stock):
+            #_logger.info(("producteca_post_stock: " + str(self.default_code) )
+            sale_order = None
+            picking_id = None
+
+            if (stock_move):
+                picking_id = stock_move.picking_id
+                sale_order = picking_id and ("sale_id" in picking_id._fields) and picking_id.sale_id
+
+            for product in self:
+
+                if (not product.producteca_bindings):
+                    product.message_post(body=str("Producteca no sera notificado en tiempo real de los movimientos de stock de este producto. Revise la vinculación de este producto a Producteca."))
+
+                for binding in product.producteca_bindings:
+                    if account.id!=binding.connection_account.id:
+                        break;
+
+                    url = account.configuration.publish_stock_endpoint
+
+                    var = {
+                        'sku': product.default_code or "",
+                        'barcode': product.barcode or "",
+                    }
+
+                    stocks = binding.get_stocks()
+
+                    var["stocks"] = stocks
+
+
+                    prices = []
+                    for pl in account.configuration.publish_price_lists:
+                        #plprice = variant.with_context(pricelist=pl.id).price
+                        plprice = get_price_from_pl(pricelist=pl, product=product, quantity=1 )[pl.id]
+                        price = {
+                            "priceListId": pl.id,
+                            "priceList": pl.name,
+                            "amount": plprice,
+                            "currency": pl.currency_id.name
+                        }
+                        prices.append(price)
+                    var["prices"] = prices
+
+                    mensaje_post_stock = str("Notificando Producteca de movimiento de stock: ")+str(var)
+                    if (sale_order):
+                        sale_order.message_post(body=mensaje_post_stock)
+                        product.message_post(body=mensaje_post_stock)
+                        picking_id.message_post(body=mensaje_post_stock)
+
+                    #_logger.info("var:"+str(var))
+                    res = requests.post(url=url, json=dict(var))
+                    mensaje_post_stock = str("Notificando Producteca de movimiento de stock, resultado: ")+str(res)
+                    if (sale_order):
+                        sale_order.message_post(body=mensaje_post_stock)
+                        product.message_post(body=mensaje_post_stock)
+                        picking_id.message_post(body=mensaje_post_stock)
+                    if res:
+                        _logger.info(mensaje_post_stock)
+
 #class product_image(models.Model):
 
 #    _inherit = "ocapi.image"
@@ -286,8 +363,8 @@ class ProductPricelistItem(models.Model):
             b.product_size = None
             b.product_color = None
             p = b.product_id
-            if p and p.attribute_value_ids:
-                for attval in p.attribute_value_ids:
+            if p and att_value_ids(p):
+                for attval in att_value_ids(p):
                     if attval.attribute_id.name=="Size":
                         b.product_size = attval.id
                     if attval.attribute_id.name=="Color":

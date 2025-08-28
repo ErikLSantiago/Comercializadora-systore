@@ -41,13 +41,13 @@ class OcapiConnectionNotification(models.Model):
     _description = "Ocapi Connection Notification"
 
     #Connection reference defining mkt place credentials
-    connection_account = fields.Many2one( "ocapi.connection.account", string="Odoo Connector Api Connection Account" )
+    connection_account = fields.Many2one( "ocapi.connection.account", string="Odoo Connector Api Connection Account",index=True )
 
     notification_id = fields.Char(string='Notification Id',required=True,index=True)
     application_id = fields.Char(string='Application Id', index=True)
     user_id = fields.Char('User Id')
     topic = fields.Char('Topic', index=True)
-    sent = fields.Datetime('Sent')
+    sent = fields.Datetime('Sent', index=True)
     received = fields.Datetime('Received', index=True)
     resource = fields.Char("Resource", index=True)
     attempts = fields.Integer('Attempts')
@@ -62,8 +62,8 @@ class OcapiConnectionNotification(models.Model):
     processing_ended = fields.Datetime( string="Processing ended" )
     processing_errors = fields.Text( string="Processing errors log" )
     processing_logs = fields.Text( string="Processing Logs" )
-    company_id = fields.Many2one("res.company",string="Company")
-    seller_id = fields.Many2one("res.users",string="Seller")
+    company_id = fields.Many2one("res.company",string="Company",index=True)
+    seller_id = fields.Many2one("res.users",string="Seller",index=True)
 
 
     def _prepare_values(self, values):
@@ -100,6 +100,7 @@ class OcapiConnectionNotification(models.Model):
     def start_internal_notification(self, internals):
 
         date_time = ml_datetime( str( datetime.now() ) )
+
         base_str = str(internals["application_id"]) + str(internals["user_id"]) + str(date_time)
 
         hash = hashlib.md5()
@@ -112,6 +113,9 @@ class OcapiConnectionNotification(models.Model):
         internals["sent"] = date_time
         internals["attempts"] = 1
         internals["state"] = "RECEIVED"
+
+        #_logger.info("start_internal_notification base_str: "+str(base_str))
+        #_logger.info("start_internal_notification internals: "+str(internals))
 
         vals = self._prepare_values(values=internals)
         noti = self.create(vals)

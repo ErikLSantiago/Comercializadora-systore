@@ -58,7 +58,24 @@ class ProductecaConnectionNotification(models.Model):
                 account = noti.connection_account
                 if noti.topic == "sales" and noti.processing_logs:
                     #sales = json.loads(noti.processing_logs)
-                    sales = literal_eval(noti.processing_logs)
+                    #dumps = json.dumps(noti.processing_logs)
+                    try:
+                        sales_js = noti.processing_logs.replace('"','`')
+                        sales_js = sales_js.replace("'",'"')
+                        sales_js = sales_js.replace("False","false")
+                        sales_js = sales_js.replace("True","true")
+                        sales_js = sales_js.replace("None","false")
+
+                        sales = json.loads(sales_js)
+                    except Exception as E:
+                        _logger.error("No se pudo convertir logs a json")
+                        _logger.error(E)
+                        try:
+                            sales = literal_eval(noti.processing_logs)
+                        except Exception as E:
+                            _logger.error("No se pudo convertir logs por literal")
+                            _logger.error(E)
+                            return False
 
                     _logger.info("Re Processing sales " + str(sales))
 

@@ -31,9 +31,9 @@
         <record model="ir.ui.view" id="view_ocapi_orders_tree">
             <field name="name">ocapi.binding.sale_order.tree</field>
             <field name="model">ocapi.binding.sale_order</field>
-            <field name="type">tree</field>
+            <field name="type">list</field>
             <field name="arch" type="xml">
-                <tree string="Orders" default_order="date_created desc">
+                <list string="Orders" default_order="date_created desc">
                     <field name="conn_id"/>
                     <field name="name"/>
                     <field name="date_created"/>
@@ -48,7 +48,7 @@
                     <field name="tags" invisible="1"/>
                     <field name="pack_order" string="Es Carrito"/>
                     <field name="catalog_order" string="Es de Catalogo"/-->
-                </tree>
+                </list>
             </field>
         </record>
 
@@ -106,15 +106,15 @@
         <record model="ir.ui.view" id="view_ocapi_clients_tree">
             <field name="name">ocapi.binding.client.tree</field>
             <field name="model">ocapi.binding.client</field>
-            <field name="type">tree</field>
+            <field name="type">list</field>
             <field name="arch" type="xml">
-                <tree string="Clientes" >
+                <list string="Clientes" >
                     <field name="name"/>
                     <field name="partner_id"/>
                     <!--field name="buyer_id"/>
                     <field name="nickname"/>
                     <field name="email"/-->
-                </tree>
+                </list>
             </field>
         </record>
 
@@ -137,7 +137,7 @@
                   <div class="oe_button_box" name="button_box_mel" style="width: auto;">
                     <button name='orders_update_order' type="object"
                       string="Actualizar"
-                      attrs="{'invisible':[('order_id','=',False)]}"
+                      invisible="order_id == False"
                       class="oe_stat_button"
                       icon="fa-refresh"/>
                   </div>
@@ -274,7 +274,7 @@
             <field name="type">ir.actions.act_window</field>
             <field name="res_model">ocapi.binding.sale_order</field>
             <!--field name="view_type">form</field-->
-            <field name="view_mode">tree,form</field>
+            <field name="view_mode">list,form</field>
             <!--<field name="search_view_id" ref="ocapi_orders_search_view"/>-->
         </record>
 
@@ -283,7 +283,7 @@
             <field name="type">ir.actions.act_window</field>
             <field name="res_model">ocapi.binding.client</field>
             <!--field name="view_type">form</field-->
-            <field name="view_mode">tree,form</field>
+            <field name="view_mode">list,form</field>
             <!--<field name="search_view_id" ref="ocapi_clients_search_view"/>-->
         </record>
 

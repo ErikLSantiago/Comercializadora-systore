@@ -8,9 +8,9 @@
         <field name="arch" type="xml">
             <field name="barcode" position="after">
                 <field name="barcode_ids">
-                    <tree editable="bottom">
+                    <list editable="bottom">
                         <field name="name" />
-                    </tree>
+                    </list>
                 </field>
             </field>
         </field>
@@ -23,9 +23,9 @@
         <field name="arch" type="xml">
             <field name="default_code" position="after">
                 <field name="barcode_ids">
-                    <tree editable="bottom">
+                    <list editable="bottom">
                         <field name="name" />
-                    </tree>
+                    </list>
                 </field>
             </field>
         </field>
@@ -77,8 +77,8 @@
         <field name="inherit_id" ref="product.product_template_only_form_view"/>
         <field name="arch" type="xml">
                 <field name="barcode" position="replace">
-                    <label for="barcode" attrs="{'invisible': [('product_variant_count', '&gt;', 1)]}" />
-                    <div attrs="{'invisible': [('product_variant_count', '&gt;', 1)]}" >
+                    <label for="barcode" invisible="product_variant_count > 1"/>
+                    <div invisible="product_variant_count > 1">
                         <field name="barcode"
                                string=""
                                class="oe_inline" />
@@ -86,12 +86,12 @@
                             name="%(product_multiple_barcodes.action_multiply_barcode_wizard)d"
                             class="oe_inline"
                             icon="fa-arrow-right"
-                            attrs="{'invisible': [('product_variant_count', '!=', 1)]}"/>
+                            invisible="product_variant_count != 1"/>
                     </div>
-                    <field name="barcode_ids" attrs="{'invisible': [('product_variant_count', '!=', 1)]}">
-                        <tree editable="bottom">
+                    <field name="barcode_ids" invisible="product_variant_count != 1">
+                        <list editable="bottom">
                             <field name="name" />
-                        </tree>
+                        </list>
                     </field>
                 </field>
         </field>

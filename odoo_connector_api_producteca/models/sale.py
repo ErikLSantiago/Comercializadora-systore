@@ -36,34 +36,64 @@ class SaleOrder(models.Model):
     producteca_bindings = fields.Many2many( "producteca.sale_order", string="Producteca Connection Bindings" )
     producteca_update_forbidden = fields.Boolean(string="Bloqueado para actualizar desde Producteca",default=False, index=True)
 
+    @api.depends('producteca_bindings')
     def _producteca_binding( self ):
         for so in self:
             so.producteca_binding = so.producteca_bindings and so.producteca_bindings[0]
 
-    producteca_binding = fields.Many2one( "producteca.sale_order", string="Producteca Sale Order",compute=_producteca_binding )
+    def _search_producteca_binding(self, operator, value):
+        #today = fields.Date.today()
+        #records = self.env['sale.order'].search([('validity_date', '<', today)])
+        records = self.env['producteca.sale_order'].search([('name', '=ilike', str(self.name))])
+        return [('id', 'in', records.ids)]
+
+    producteca_binding = fields.Many2one( "producteca.sale_order", string="Producteca Sale Order Binding",compute=_producteca_binding,
+                                search="_search_producteca_binding",
+                                store=False,
+                                index=True )
 
 
     @api.depends('producteca_bindings')
     def _producteca_sale_order( self ):
         for so in self:
             so.producteca_sale_order = (so.producteca_bindings and so.producteca_bindings[0]) or None
-    producteca_sale_order = fields.Many2one( "producteca.sale_order", string="Producteca Sale Order", compute=_producteca_sale_order, store=True, index=True )
+
+    def _search_producteca_sale_order(self, operator, value):
+        #today = fields.Date.today()
+        #records = self.env['sale.order'].search([('validity_date', '<', today)])
+        records = self.env['producteca.sale_order'].search([('name', '=ilike', str(self.name))])
+        return [('id', 'in', records.ids)]
+
+    producteca_sale_order = fields.Many2one( "producteca.sale_order",
+            string="Producteca Sale Order",
+            search="_search_producteca_sale_order",
+            compute=_producteca_sale_order,
+            store=False,
+            index=True )
 
     @api.depends('producteca_bindings')
     def _producteca_channel_binding( self ):
         for so in self:
             so.producteca_sale_order = (so.producteca_bindings and so.producteca_bindings[0]) or None
             so.producteca_channel_binding = (so.producteca_sale_order and so.producteca_sale_order.channel_binding_id) or None
-            
-    producteca_channel_binding = fields.Many2one( "producteca.channel.binding", string="Channel", compute=_producteca_channel_binding, store=True, index=True  )
-    
+
+    producteca_channel_binding = fields.Many2one( "producteca.channel.binding",
+            string="Channel",
+            compute=_producteca_channel_binding,
+            store=True,
+            index=True  )
+
     @api.depends('producteca_bindings')
     def _producteca_sale_order_account( self ):
         for so in self:
             so.producteca_sale_order = (so.producteca_bindings and so.producteca_bindings[0]) or None
             so.producteca_channel_binding = (so.producteca_sale_order and so.producteca_sale_order.channel_binding_id) or None
             so.producteca_sale_order_account = (so.producteca_sale_order and so.producteca_sale_order.connection_account) or None
-    producteca_sale_order_account = fields.Many2one( "producteca.account", string="Producteca Account", compute=_producteca_sale_order_account, store=True, index=True  )
+    producteca_sale_order_account = fields.Many2one( "producteca.account",
+            string="Producteca Account",
+            compute=_producteca_sale_order_account,
+            store=False,
+            index=True  )
 
     def _producteca_update_needed(self):
         for so in self:
@@ -71,8 +101,10 @@ class SaleOrder(models.Model):
             if (so.producteca_bindings and (not so.producteca_sale_order or not so.producteca_channel_binding or not so.producteca_sale_order_account)):
                 so._producteca_sale_order_account()
                 so.producteca_update_needed = False
-                
+
     producteca_update_needed = fields.Boolean(string="Test Update Needed",compute=_producteca_update_needed)
+
+    producteca_invoice_status = fields.Selection(string="Producteca Invoice Status",related='producteca_sale_order.invoice_status')
 
     #etiqueta analitica con etiqueta (asociada al canal)
     #cuenta analitica > se asocia la cuenta (producteca.account)
@@ -87,6 +119,7 @@ class SaleOrder(models.Model):
         )
 
     producteca_logistic_type = fields.Char(string="Logistic Type (Producteca)",related="producteca_sale_order.logisticType", index=True)
+    producteca_shippingLink_attachment_ok = fields.Boolean(string="Ok",default=False)
 
     def producteca_update( self, context=None ):
         _logger.info("producteca_update:"+str(self))
@@ -117,19 +150,19 @@ class SaleOrder(models.Model):
         res= {}
         if self.picking_ids:
             for spick in self.picking_ids:
-                _logger.info(spick)
+                #_logger.info(spick)
 
                 _logger.info("producteca_deliver > validating")
                 try:
                     _logger.info("producteca_deliver > button_validate")
-                    _logger.info(spick.move_line_ids)
+                    #_logger.info(spick.move_line_ids)
                     if (spick.move_line_ids):
-                        _logger.info(spick.move_line_ids)
+                        #_logger.info(spick.move_line_ids)
                         if (len(spick.move_line_ids)>=1):
                             for pop in spick.move_line_ids:
                                 _logger.info(pop)
-                                if (pop.qty_done==0.0 and pop.product_qty>=0.0):
-                                    pop.qty_done = pop.product_qty
+                                if (pop.qty_done==0.0 and pop.reserved_uom_qty>=0.0):
+                                    pop.qty_done = pop.reserved_uom_qty
                     res = spick.sudo().button_validate()
                     #res = spick.sudo()._action_done()
                     _logger.info("producteca_deliver > button_validate res: "+str(res))
@@ -140,36 +173,52 @@ class SaleOrder(models.Model):
                     pass;
 
                 try:
-                    _logger.info("producteca_deliver > action_assign")
+                    _logger.info("producteca_deliver 2 > action_assign")
                     spick.sudo().action_assign()
-                    _logger.info("producteca_deliver > button_validate")
+                    _logger.info("producteca_deliver 2 > button_validate")
                     _logger.info(spick.move_line_ids)
                     if (spick.move_line_ids):
                         _logger.info(spick.move_line_ids)
                         if (len(spick.move_line_ids)>=1):
                             for pop in spick.move_line_ids:
                                 _logger.info(pop)
-                                if (pop.qty_done==0.0 and pop.product_qty>=0.0):
-                                    pop.qty_done = pop.product_qty
+                                if (pop.qty_done==0.0 and pop.reserved_qty>=0.0):
+                                    pop.qty_done = pop.reserved_qty
                     res = spick.sudo().button_validate()
                     #spick.sudo()._action_done()
-                    _logger.info("producteca_deliver > button_validate res: "+str(res))
+                    _logger.info("producteca_deliver 2 > button_validate res: "+str(res)+" state: "+str(spick.state))
                     continue;
                 except Exception as e:
-                    _logger.error("stock pick action_assign/button_validate/action_done error >> "+str(e))
+                    _logger.error("stock pick action_assign/button_validate/action_done error >> "+str(e)+" state: "+str(spick.state))
                     res = { 'error': str(e) }
                     pass;
         return res
 
+    def producteca_invoice( self ):
+        for so in self:
+            _logger.info("Creando factura borrador desde Producteca invoice button para..."+str(so and so.name))
+            if so.producteca_bindings:
+                pso = so.producteca_bindings[0]
+                if pso:
+                    pso.create_invoices()
+
     def action_invoice_create(self, grouped=False, final=False):
         order = self
+        _logger.info("action_invoice_create producteca")
+        default_journal_id = False
+        if self.producteca_channel_binding and self.producteca_channel_binding.journal_id:
+            default_journal_id = self.producteca_channel_binding.journal_id.id
 
         #simulate invoice creation
         invoice_vals_list = []
         invoice_vals = order._prepare_invoice()
+
+        #real creation
+        invoice_vals["journal_id"] = default_journal_id
+
         invoiceable_lines = order._get_invoiceable_lines(final=False)
-        _logger.info("_prepare_invoice:"+str(invoice_vals))
-        _logger.info("_get_invoiceable_lines:"+str(invoiceable_lines))
+        #_logger.info("_prepare_invoice:"+str(invoice_vals))
+        #_logger.info("_get_invoiceable_lines:"+str(invoiceable_lines))
         invoice_line_vals = []
         invoice_item_sequence = 0
         for line in invoiceable_lines:
@@ -181,15 +230,14 @@ class SaleOrder(models.Model):
             invoice_item_sequence += 1
         invoice_vals['invoice_line_ids'] += invoice_line_vals
         #invoice_vals_list.append(invoice_vals)
-        _logger.info("invoice_line_vals:"+str(invoice_line_vals))
+        #_logger.info("invoice_line_vals:"+str(invoice_line_vals))
 
         invoice_vals_list.append(invoice_vals)
-        _logger.info("invoice_vals_list:"+str(invoice_vals_list))
-        invoice_vals_list = self.env["account.move"]._move_autocomplete_invoice_lines_create(invoice_vals_list)
-        _logger.info("invoice_vals_list:"+str(invoice_vals_list))
+        #_logger.info("invoice_vals_list:"+str(invoice_vals_list))
+        #invoice_vals_list = self.env["account.move"]._move_autocomplete_invoice_lines_create(invoice_vals_list)
+        #_logger.info("invoice_vals_list:"+str(invoice_vals_list))
 
-        #real creation
-        _invoices = order_create_invoices( super(SaleOrder,self).with_context({'default_journal_id': invoice_vals['journal_id'] }), grouped=grouped, final=final )
+        _invoices = order_create_invoices( super(SaleOrder,self).with_context({'default_journal_id': default_journal_id }), grouped=grouped, final=final )
 
         return _invoices
 
@@ -208,7 +256,7 @@ class ResPartner(models.Model):
     #besides, is there a way to identify duplicates other than integration ids
     producteca_bindings = fields.Many2many( "producteca.client", string="Producteca Connection Bindings" )
 
-#Odoo 15.0 Only
+#Odoo >=15.0 Only
 class AccountPaymentMethod(models.Model):
     _inherit = 'account.payment.method'
 

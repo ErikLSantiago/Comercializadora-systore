@@ -5,52 +5,51 @@
       <record id="producteca_invoice_email_template" model="mail.template">
           <field name="name">Envío Factura Producteca</field>
           <field name="use_default_to" eval="False"/>
-          <field name="email_to">${object.producteca_mail}</field>
-          <field name="subject">${object.company_id.name};</field>
+          <field name="email_to">{{object.producteca_mail}}</field>
+          <field name="subject">{{object.company_id.name}};</field>
           <field name="model_id" ref="account.model_account_move"/>
-          <field name="partner_to" >${object.partner_id.id}</field>
-          <field name="report_name">${object.display_name}</field>
+          <field name="partner_to" >{{object.partner_id.id}}</field>
+          <field name="description">{{object.display_name}}</field>
           <field name="auto_delete" eval="False"/>
-          <field name="body_html"><![CDATA[
-              <style>
-                  <link rel='stylesheet' href='${object.get_base_url()}/web/static/lib/bootstrap/css/bootstrap.css'/>
-              </style>
-              <div style="background:#F0F0F0;color:#515166;padding:10px 0px;font-family:Arial,Helvetica,sans-serif;font-size:14px;">
-                  % set access_token = object.access_token
-                  % set document_name = object.type
-                  % set debit = object.es_nota_debito
-                  <table style="width:600px;margin:5px auto;">
-                      <tbody>
-                          <tr>
-                              <td>
-                                Odoo Connector Api Producteca
-                              </td>
-                          </tr>
-                      </tbody>
-                  </table>
-                  <table style="width:600px;margin:0px auto;background:white;border:1px solid #e1e1e1;">
-                      <tbody>
-                          <tr>
-                              <td style="padding:15px 20px 10px 20px;">
-                              </td>
-                          </tr>
-                          <tr>
-                              <td style="padding:10px 20px">
-                              </td>
-                          </tr>
-                      </tbody>
-                  </table>
-                  <table style="width:600px;margin:auto;text-align:center;font-size:12px;">
-                      <tbody>
-                          <tr>
-                              <td style="padding-top:10px;color:#afafaf;">
-                                  <p>Email automatically sent by <a target="_blank" href="https://www.odoo.com/page/project-management" style="color:#875A7B;text-decoration:none;">Odoo Project</a> for <a href="${object.company_id.website}" style="color:#875A7B;text-decoration:none;">${object.company_id.name}</a></p>
-                              </td>
-                          </tr>
-                      </tbody>
-                  </table>
-              </div>
-          ]]>
+          <field name="body_html" type="html">
+<style>
+    <link rel="stylesheet" href="{{object.get_base_url()}}/web/static/lib/bootstrap/css/bootstrap.css"/>
+</style>
+<div style="background:#F0F0F0;color:#515166;padding:10px 0px;font-family:Arial,Helvetica,sans-serif;font-size:14px;">
+
+    <table style="width:600px;margin:5px auto;">
+        <tbody>
+            <tr>
+                <td>
+                  Odoo Connector Api Producteca
+                </td>
+            </tr>
+        </tbody>
+    </table>
+    <table style="width:600px;margin:0px auto;background:white;border:1px solid #e1e1e1;">
+        <tbody>
+            <tr>
+                <td style="padding:15px 20px 10px 20px;">
+                </td>
+            </tr>
+            <tr>
+                <td style="padding:10px 20px">
+                </td>
+            </tr>
+        </tbody>
+    </table>
+    <table style="width:600px;margin:auto;text-align:center;font-size:12px;">
+        <tbody>
+            <tr>
+                <td style="padding-top:10px;color:#afafaf;">
+                  <p>
+                      Email automatically sent by <a target="_blank" href="https://www.odoo.com/page/project-management" style="color:#875A7B;text-decoration:none;">Odoo Project</a> for <a href="{{object.company_id.website}}" style="color:#875A7B;text-decoration:none;">{{object.company_id.name}}</a>
+                  </p>
+                </td>
+            </tr>
+        </tbody>
+    </table>
+</div>
           </field>
       </record>
       <!--

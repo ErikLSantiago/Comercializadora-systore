@@ -12,13 +12,13 @@
 										<page string="Producteca">
 											<field name="producteca_connections" invisible="0" groups="odoo_connector_api_producteca.group_producteca_connectors_manager"
                               domain="['|',('company_id','=',False),('company_id','=',id)]">
-                          <tree>
+                          <list>
                             <field name="company_id"/>
                             <field name="name"/>
                             <field name="client_id"/>
                             <!--field name="state"/-->
                             <field name="type"/>
-                          </tree>
+                          </list>
                       </field>
 										</page>
 								</notebook>

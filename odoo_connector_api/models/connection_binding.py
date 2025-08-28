@@ -45,9 +45,9 @@ class OcapiConnectionBinding(models.Model):
     #Connection Object Class Name to identify object
     class_id = fields.Char(string="Connector Class Id", index=True)
 
-    active = fields.Boolean(string="Active",default=True,index=True)
+    is_active = fields.Boolean(string="Is Active",default=True,index=True)
 
-    def fetch( self, force_update=False ):
+    def ocapi_fetch( self, force_update=False ):
         data = {}
         #retreive data from remote database ( Meli: api.mercadolibre.com ; Producteca: last data notification update based on resource value /import_sale/[PR-ID] )
         #Producteca: search last conn_id related to this resource in the notifications
@@ -55,11 +55,11 @@ class OcapiConnectionBinding(models.Model):
         #MercadoLibre: search last conn_id related to this resource using the REST API (Meli)
         return data
 
-    def refresh( self, data={} ):
+    def ocapi_refresh( self, data={} ):
         res = {}
         #reprocess the data
         if not (data):
-            data = self.fetch()
+            data = self.ocapi_fetch()
 
         #code here...
         #...
@@ -106,6 +106,8 @@ class OcapiConnectionBindingProductTemplate(models.Model):
 
     image_bindings = fields.One2many('ocapi.product.image', "binding_product_tmpl_id", string="Product Template Images")
 
+    active = fields.Boolean(string="Active",related="product_tmpl_id.active")
+
     _sql_constraints = [
         ('unique_conn_id_product_tmpl', 'unique(connection_account,conn_id,conn_variation_id,product_tmpl_id)', 'Binding exists for this item: product_tmpl_id!')
     ]
@@ -125,6 +127,7 @@ class OcapiConnectionBindingProductVariant(models.Model):
         ('unique_conn_id_variant', 'unique(connection_account,conn_id,conn_variation_id,product_id)', 'Binding exists for this item: product_id!')
     ]
 
+    active = fields.Boolean(string="Active",related="product_id.active")
 
 
 

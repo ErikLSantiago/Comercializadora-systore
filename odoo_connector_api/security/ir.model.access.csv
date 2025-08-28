@@ -15,3 +15,4 @@ access_ocapi_binding_shipment_item,ocapi.binding.shipment.item manager,model_oca
 access_ocapi_product_image,ocapi.product.image manager,model_ocapi_product_image,odoo_connector_api.group_ocapi_connectors_manager,1,1,1,1
 access_ocapi_binder_wiz,ocapi.binder.wiz manager,model_ocapi_binder_wiz,odoo_connector_api.group_ocapi_connectors_manager,1,1,1,1
 access_ocapi_warning,ocapi warning manager,model_ocapi_warning,odoo_connector_api.group_ocapi_connectors_manager,1,1,1,1
+access_ocapi_connection_credential,ocapi.connection.credential manager,model_ocapi_connection_credential,odoo_connector_api.group_ocapi_connectors_manager,1,1,1,1

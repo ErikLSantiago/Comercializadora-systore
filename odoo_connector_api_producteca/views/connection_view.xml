@@ -29,6 +29,8 @@
                 <page string="Credentials">
                   <group>
                   	<group>
+                      <field name="connector_version" />
+                      <field name="ocapi_version" />
                       <field name="configuration" />
                       <field name="type" />
                   		<field name="company_id" />
@@ -44,33 +46,33 @@
                 </page>
                 <page string="Product Bindings">
                   <field name="producteca_product_template_bindings">
-                     <tree>
+                     <list>
                        <field name="name"/>
                        <field name="conn_id"/>
                        <field name="sku"/>
                        <field name="barcode"/>
-                     </tree>
+                     </list>
                   </field>
                 </page>
                 <page string="Variant Bindings">
                    <field name="producteca_product_bindings">
-                       <tree>
+                       <list>
                          <field name="name"/>
                          <field name="conn_id"/>
                          <field name="conn_variation_id"/>
                          <field name="sku"/>
                          <field name="barcode"/>
-                       </tree>
+                       </list>
                    </field>
                 </page>
                 <page string="Orders">
                    <field name="producteca_orders">
-                       <tree>
+                       <list>
                          <field name="name"/>
                          <field name="sale_order"/>
                          <field name="status"/>
                          <!--field name="shipment_status"/-->
-                       </tree>
+                       </list>
                    </field>
                 </page>
               </notebook>
@@ -106,9 +108,23 @@
                 </group>
                 <group string="Configuración básica">
                   <group>
-                    <field name="producteca_channels"/>
-                    <field name="producteca_channels_bindings"/>
+                    <field name="producteca_channels">
+                      <list>
+                        <field name="app_id"/>
+                        <field name="name"/>
+                      </list>
+                    </field>
+                    <field name="producteca_channels_bindings">
+                      <list>
+                        <field name="name"/>
+                        <field name="channel_id"/>
+                        <field name="code"/>
+                        <field name="app_id"/>
+                        <field name="seller_user"/>
+                      </list>
+                    </field>
                     <field name="doc_undefined"/>
+                    <field name="add_tracking_number"/>
                     <field name="import_payments_shipment"/>
                   </group>
                   <group>
@@ -135,16 +151,16 @@
                   </group>
                   <group>
                     <field name="import_price_lists">
-                      <tree>
+                      <list>
                         <field name="name"/>
                         <field name="currency_id"/>
-                      </tree>
+                      </list>
                     </field>
                     <field name="import_stock_locations">
-                      <tree>
+                      <list>
                         <field name="name"/>
                         <field name="lot_stock_id"/>
-                      </tree>
+                      </list>
                     </field>
                   </group>
                 </group>
@@ -152,21 +168,32 @@
                   <group>
                     <field name="publish_products"/>
                     <field name="publish_stock"/>
+                    <field name="publish_stock_endpoint"/>
                     <field name="publish_price_list"/>
                   </group>
                   <group>
                     <field name="publish_price_lists">
-                      <tree>
+                      <list>
                         <field name="name"/>
                         <field name="currency_id"/>
-                      </tree>
+                      </list>
                     </field>
                     <field name="publish_stock_locations">
-                      <tree>
+                      <list>
                         <field name="display_name"/>
                         <field name="usage"/>
-                      </tree>
+                      </list>
                     </field>
+                    <field name="stock_filter_rules">
+                      <list>
+                        <field name="name"/>
+                        <field name="filtering_text"/>
+                        <field name="filtering_type"/>
+                        <field name="filtering_method"/>
+                        <field name="filtering_case_sensitive"/>
+                      </list>
+                    </field>
+
                   </group>
                 </group>
               </sheet>
@@ -215,22 +242,30 @@
                     <field name="import_sales_action"/>
                     <field name="import_sales_action_full"/>
                     <field name="import_sales_action_full_logistic"/>
+                    <field name="use_alternate_id"/>
                   </group>
                   <group>
                     <field name="warehouse_id"/>
                     <field name="stock_picking_type_id"/>
+                    <field name="download_label_method"/>
+                    <field name="create_invoice_method"/>
+                    <field name="send_invoice_method"/>
+                    <field name="discount_method"/>
+                    <!--field name="sale_order_type"/-->
+                    <!--field name="sale_order_type_full"/-->
                   </group>
                 </group>
                 <group string="Cuentas" name="accounting">
                   <group>
-                    <field name="journal_id"/>
-                    <field name="partner_id"/>
+                    <field name="journal_id" string="Diario de facturación"/>
+                    <field name="invoice_report_id" string="Reporte de factura"/>
+                    <field name="partner_id" string="Marketplace que recibe la comision"/>
                     <field name="analytic_account_id"/>
-                    <field name="analytic_tag"/>
+                    <!--field name="analytic_tag"/-->
                   </group>
                   <group>
-                    <field name="payment_journal_id"/>
-                    <field name="partner_account_receive_id"/>
+                    <field name="payment_journal_id" string="Diario de pago"/>
+                    <field name="partner_account_receive_id" string="Cuenta comun para clientes"/>
                     <field name="account_payment_receipt_validation"/>
                   </group>
                 </group>
@@ -256,13 +291,13 @@
         <field name="name">producteca.account.tree</field>
         <field name="model">producteca.account</field>
         <field name="arch" type="xml">
-          <tree create="0" edit="1" delete="1" default_order='id desc'>
+          <list create="True" edit="1" delete="1" default_order='id desc'>
             <field name="company_id" />
             <field name="name" />
             <field name="client_id" />
             <!--field name="state"/-->
             <field name="type"/>
-          </tree>
+          </list>
         </field>
       </record>
 
@@ -270,10 +305,10 @@
         <field name="name">producteca.configuration.tree</field>
         <field name="model">producteca.configuration</field>
         <field name="arch" type="xml">
-          <tree create="1" edit="1" delete="1" default_order='id desc'>
+          <list create="1" edit="1" delete="1" default_order='id desc'>
             <field name="name" />
             <field name="mode" />
-          </tree>
+          </list>
         </field>
       </record>
 
@@ -281,7 +316,7 @@
   			<field name="name">Connection Accounts</field>
   			<field name="type">ir.actions.act_window</field>
   			<field name="res_model">producteca.account</field>
-  			<field name="view_mode">tree,form</field>
+  			<field name="view_mode">list,form</field>
   			<field name="search_view_id" ref="producteca_account_search_view" />
   		</record>
 
@@ -289,12 +324,12 @@
   			<field name="name">Connection Account Configurations</field>
   			<field name="type">ir.actions.act_window</field>
   			<field name="res_model">producteca.configuration</field>
-  			<field name="view_mode">tree,form</field>
+  			<field name="view_mode">list,form</field>
   			<!--field name="search_view_id" ref="producteca_configuration_search_view" /-->
   		</record>
 
 
-      <menuitem id="menu_producteca_connectors" name="Producteca" parent="sale.sale_menu_root" sequence="5"
+      <menuitem id="menu_producteca_connectors" name="Producteca" parent="sale.sale_menu_root" sequence="16"
           groups="odoo_connector_api_producteca.group_producteca_connectors_manager" />
 
 

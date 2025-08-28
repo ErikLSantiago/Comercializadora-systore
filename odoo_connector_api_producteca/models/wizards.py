@@ -26,19 +26,19 @@ class ProductTemplateBindToProducteca(models.TransientModel):
 
         res = {}
         for product_id in product_ids:
-            
+
             product = product_obj.browse(product_id)
-                        
+
             for producteca in self.connectors:
                 _logger.info(_("Check %s in %s") % (product.display_name, producteca.name))
                 #Binding to
-                product.producteca_bind_to( producteca )                                 
-                        
-                
+                product.producteca_bind_to( producteca )
+
+
     def product_template_remove_from_connector(self, context=None):
 
         _logger.info("product_template_remove_from_connector (Producteca)")
-        
+
         context = context or self.env.context
 
         company = self.env.user.company_id
@@ -47,16 +47,16 @@ class ProductTemplateBindToProducteca(models.TransientModel):
 
         res = {}
         for product_id in product_ids:
-            
+
             product = product_obj.browse(product_id)
-                        
+
             for producteca in self.connectors:
                 _logger.info(_("Check %s in %s") % (product.display_name, producteca.name))
                 #Binding to
-                product.producteca_unbind_from( producteca )       
-                
-                
-                
+                product.producteca_unbind_from( producteca )
+
+
+
 class ProductProductBindToProducteca(models.TransientModel):
 
     _name = "producteca.variant.binder.wiz"
@@ -68,7 +68,7 @@ class ProductProductBindToProducteca(models.TransientModel):
     def product_product_add_to_connector(self, context=None):
 
         _logger.info("product_product_add_to_connector (Producteca)")
-        
+
         context = context or self.env.context
         company = self.env.user.company_id
         product_ids = context['active_ids']
@@ -76,15 +76,15 @@ class ProductProductBindToProducteca(models.TransientModel):
 
         res = {}
         for product_id in product_ids:
-            
+
             product = product_obj.browse(product_id)
-                        
+
             for producteca in self.connectors:
                 _logger.info(_("Check %s in %s") % (product.display_name, producteca.name))
                 #Binding to
-                product.producteca_bind_to( producteca )                                 
-                        
-                
+                product.producteca_bind_to( producteca )
+
+
     def product_product_remove_from_connector(self, context=None):
 
         _logger.info("product_product_remove_from_connector (Producteca)")
@@ -96,16 +96,16 @@ class ProductProductBindToProducteca(models.TransientModel):
 
         res = {}
         for product_id in product_ids:
-            
+
             product = product_obj.browse(product_id)
-                        
+
             for producteca in self.connectors:
                 _logger.info(_("Check %s in %s") % (product.display_name, producteca.name))
                 #Binding to
-                product.producteca_unbind_from( producteca )       
-                
-                
-                
+                product.producteca_unbind_from( producteca )
+
+
+
 class StockQuantBindToProducteca(models.TransientModel):
 
     _name = "producteca.stock.quant.binder.wiz"
@@ -117,29 +117,29 @@ class StockQuantBindToProducteca(models.TransientModel):
     def stock_quant_add_to_connector(self, context=None):
 
         _logger.info("stock_quant_add_to_connector (Producteca)")
-        
+
         context = context or self.env.context
         company = self.env.user.company_id
         stock_quant_ids = context['active_ids']
-        
+
         stock_quant_obj = self.env['stock.quant']
         product_obj = self.env['product.product']
 
         res = {}
         for stock_quant_id in stock_quant_ids:
-            
+
             stock_quant = stock_quant_obj.browse(stock_quant_id)
             product = stock_quant and stock_quant.product_id
-                
-            if not product:        
+
+            if not product:
                 continue;
-                
+
             for producteca in self.connectors:
                 _logger.info(_("Check %s in %s") % (product.display_name, producteca.name))
                 #Binding to
-                product.producteca_bind_to( producteca )                                 
-                        
-                
+                product.producteca_bind_to( producteca )
+
+
     def stock_quant_remove_from_connector(self, context=None):
 
         _logger.info("stock_quant_remove_from_connector (Producteca)")
@@ -147,32 +147,32 @@ class StockQuantBindToProducteca(models.TransientModel):
         context = context or self.env.context
         company = self.env.user.company_id
         stock_quant_ids = context['active_ids']
-        
+
         stock_quant_obj = self.env['stock.quant']
         product_obj = self.env['product.product']
 
         res = {}
         for stock_quant_id in stock_quant_ids:
-            
+
             stock_quant = stock_quant_obj.browse(stock_quant_id)
             product = stock_quant and stock_quant.product_id
-                        
-            if not product:        
+
+            if not product:
                 continue;
 
             for producteca in self.connectors:
                 _logger.info(_("Check %s in %s") % (product.display_name, producteca.name))
                 #Binding to
-                product.producteca_unbind_from( producteca )       
-                
-                
-                
+                product.producteca_unbind_from( producteca )
+
+
+
 class ProductecaNotificationsProcessWiz(models.TransientModel):
     _name = "producteca.notification.wiz"
     _description = "Producteca Notifications Wiz"
 
     connection_account = fields.Many2one( "producteca.account", string='Producteca Account',help="Cuenta de producteca origen de la publicación")
-    
+
     def process_notifications( self, context=None ):
 
         context = context or self.env.context
@@ -181,14 +181,14 @@ class ProductecaNotificationsProcessWiz(models.TransientModel):
         noti_ids = ('active_ids' in context and context['active_ids']) or []
         noti_obj = self.env['producteca.notification']
         ret = []
-        
+
         try:
             #meli = None
             #if self.connection_account:
                 #meli = self.env['meli.util'].get_new_instance( self.connection_account.company_id, self.connection_account )
                 #if meli.need_login():
                 #    return meli.redirect_login()
-            
+
             ##if not self.connection_account:
             #    raise UserError('Connection Account not defined!')
             for noti_id in noti_ids:
@@ -196,50 +196,99 @@ class ProductecaNotificationsProcessWiz(models.TransientModel):
                 _logger.info("Processing notification: %s " % (noti_id) )
 
                 noti = noti_obj.browse(noti_id)
-                
+
                 if noti:
                     reti = None
-                    
+
                     if self.connection_account and noti.connection_account and noti.connection_account.id==self.connection_account.id:
                         reti = noti.process_notification()
-                        
+
                     if not self.connection_account:
                         reti = noti.process_notification()
-                        
+
                     if reti:
                         ret.append(str(reti))
-                    
+
         except Exception as e:
             _logger.info("process_notifications > Error procesando notificacion")
             _logger.error(e, exc_info=True)
             _logger.error(str(ret))
             #self._cr.rollback()
             raise e
-            
+
         _logger.info("Processing notification result: %s " % (str(ret)) )
-        
+
 class ProductecaSaleProcessWiz(models.TransientModel):
     _name = "producteca.sale_order.wiz"
     _description = "Producteca Sale Process Wiz"
 
     connection_account = fields.Many2one( "producteca.account", string='Producteca Account',help="Cuenta de producteca origen de la publicación")
-    
+
+    actualizar_venta = fields.Boolean(string="Actualizar venta",help="Actualizar venta", default=True)
+    limpiar_pagos = fields.Boolean(string="Limpiar pagos",help="Limpiar pagos (no conciliados o asignados a alguna factura)", default=False)
+
+    validar_factura = fields.Boolean(string="Validar factura",help="Valida la factura", default=False)
+    reenviar_a_producteca = fields.Boolean(string="Reenviar factura",help="Reimprime y reenvia la factura si ya existe", default=False)
+    comentario_factura = fields.Text(string="Comentario Factura")
+
+    actualizar_channel_binding = fields.Boolean(string="Actualizar Channel Binding",default=False)
+
     def producteca_sale_process( self, context=None ):
 
         context = context or self.env.context
 
-        _logger.info("producteca_sale_process (Producteca)")
-        prorder_ids = ('active_ids' in context and context['active_ids']) or []
+        _logger.info("producteca_sale_process (Producteca) context:"+str(context))
+
+        prorder_ids = []
+        prorder_obj = self.env['producteca.sale_order']
+
+        if ("active_model" in context and context["active_model"]=="stock.picking"):
+            stpick_ids = ('active_ids' in context and context['active_ids']) or []
+            stpick_obj = self.env['stock.picking']
+
+            _logger.info("producteca_sale_process (Producteca) stpick_ids:"+str(stpick_ids))
+            for stpick_id in stpick_ids:
+                stpick = stpick_obj.browse(stpick_id)
+                if stpick and stpick.sale_id and stpick.sale_id.producteca_binding:
+                    prorder_ids.append(stpick.sale_id and stpick.sale_id.producteca_sale_order and stpick.sale_id.producteca_sale_order.id)
+            _logger.info("producteca_sale_process (Producteca) prorder_ids:"+str(prorder_ids))
+
+        if ("active_model" in context and context["active_model"]=="producteca.sale_order"):
+            prorder_ids = ('active_ids' in context and context['active_ids']) or []
+            _logger.info("producteca_sale_process (Producteca) prorder_ids:"+str(prorder_ids))
+
+        if ("active_model" in context and context["active_model"]=="account.move"):
+            acmove_ids = ('active_ids' in context and context['active_ids']) or []
+            acmove_obj = self.env['account.move']
+
+            _logger.info("producteca_sale_process (Producteca) acmove_ids:"+str(acmove_ids))
+            for acmove_id in acmove_ids:
+                acmove = acmove_obj.browse(acmove_id)
+                if acmove and acmove.sale_id and acmove.sale_id.producteca_sale_order:
+                    prorder_ids.append(acmove.sale_id and acmove.sale_id.producteca_sale_order and acmove.sale_id.producteca_sale_order.id)
+            _logger.info("producteca_sale_process (Producteca) prorder_ids:"+str(prorder_ids))
+
+        if ("active_model" in context and context["active_model"]=="sale.order"):
+            so_ids = ('active_ids' in context and context['active_ids']) or []
+            so_obj = self.env['sale.order']
+
+            _logger.info("producteca_sale_process (Producteca) so_ids:"+str(so_ids))
+            for so_id in so_ids:
+                so = so_obj.browse(so_id)
+                if so and so.producteca_sale_order and so.producteca_binding:
+                    prorder_ids.append(so.producteca_sale_order.id)
+            _logger.info("producteca_sale_process (Producteca) prorder_ids:"+str(prorder_ids))
+
         prorder_obj = self.env['producteca.sale_order']
         ret = []
-        
+
         try:
             #meli = None
             #if self.connection_account:
                 #meli = self.env['meli.util'].get_new_instance( self.connection_account.company_id, self.connection_account )
                 #if meli.need_login():
                 #    return meli.redirect_login()
-            
+
             ##if not self.connection_account:
             #    raise UserError('Connection Account not defined!')
             for prorder_id in prorder_ids:
@@ -247,24 +296,38 @@ class ProductecaSaleProcessWiz(models.TransientModel):
                 _logger.info("Processing producteca order: %s " % (prorder_id) )
 
                 prorder = prorder_obj.browse(prorder_id)
-                
+
                 if prorder:
                     reti = None
-                    
-                    if self.connection_account and prorder.connection_account and prorder.connection_account.id==self.connection_account.id:
-                        reti = prorder.update()
-                        
-                    if not self.connection_account:
-                        reti = prorder.update()
-                        
+                    if self.actualizar_channel_binding:
+                        if prorder and prorder.sale_order:
+                            prorder.sale_order._producteca_channel_binding();
+
+                    if self.actualizar_venta:
+                        if self.connection_account and prorder.connection_account and prorder.connection_account.id==self.connection_account.id:
+                            reti = prorder.update()
+
+                        if not self.connection_account:
+                            reti = prorder.update()
+
+                    if self.limpiar_pagos:
+                        prorder.clean_payments()
+
+                    if self.validar_factura:
+
+                        prorder.post_invoices(comentario_factura=self.comentario_factura)
+
+                    if self.reenviar_a_producteca:
+                        prorder.send_invoices(reenviar=True)
+
                     if reti:
                         ret.append(str(reti))
-                    
+
         except Exception as e:
             _logger.info("producteca_sale_process > Error procesando orden de producteca")
             _logger.error(e, exc_info=True)
             _logger.error(str(ret))
             #self._cr.rollback()
             raise e
-            
+
         _logger.info("Processing producteca sales result: %s " % (str(ret)) )

@@ -45,16 +45,25 @@ class OcapiConnectionBindingSaleOrderPayment(models.Model):
     account_supplier_payment_id = fields.Many2one('account.payment',string='Pago a Proveedor')
     account_supplier_payment_shipment_id = fields.Many2one('account.payment',string='Pago Envio a Proveedor')
 
+    #poner en modulo odoo_connector_api_payment_group para arg
     #account_payment_group_id = fields.Many2one('account.payment.group',string='Pago agrupado')
     #account_supplier_group_payment_id = fields.Many2one('account.payment.group',string='Pago agrupado a Proveedor')
     #account_supplier_group_payment_shipment_id = fields.Many2one('account.payment.group',string='Pago agrupado Envio a Proveedor')
 
+    def _get_ml_company_id( self ):
+        #account_company_id = self.connection_account and self.connection_account.company_id and self.connection_account.company_id.id
+        journal_id = self._get_ml_journal()
+        journal_company_id = journal_id and journal_id.company_id and journal_id.company_id.id
+        return journal_company_id
+
     def get_ml_receiptbook( self ):
-        receiptbook_id = self.channel_binding_id and self.channel_binding_id.account_payment_receiptbook_id
+        receiptbook_id = self.channel_binding_id and "account_payment_receiptbook_id" in self.channel_binding_id._fields
+        receiptbook_id = receiptbook_id and self.channel_binding_id.account_payment_receiptbook_id
         return receiptbook_id
 
     def _get_ml_receiptbook( self ):
-        receiptbook_id = self.channel_binding_id and self.channel_binding_id.account_payment_receiptbook_id
+        receiptbook_id = self.channel_binding_id and "account_payment_receiptbook_id" in self.channel_binding_id._fields
+        receiptbook_id = receiptbook_id and self.channel_binding_id.account_payment_receiptbook_id
         return receiptbook_id
 
     def _get_ml_journal(self):
@@ -76,7 +85,7 @@ class OcapiConnectionBindingSaleOrderPayment(models.Model):
         # or (mlshipment and mlshipment.sale_order)
 
     def create_payment(self):
-        _logger.info("create_payment")
+        #_logger.info("create_payment")
         self.ensure_one()
         if self.account_payment_id:
             raise ValidationError('Ya esta creado el pago')
@@ -90,12 +99,13 @@ class OcapiConnectionBindingSaleOrderPayment(models.Model):
         if not journal_id or not payment_method_id:
             raise ValidationError('Debe configurar el diario/metodo de pago')
 
-        payment_method_line_id = self.env['account.payment.method.line'].search([('journal_id','=',journal_id.id),
+        if 'account.payment.method.line' in self.env:
+            payment_method_line_id = self.env['account.payment.method.line'].search([('journal_id','=',journal_id.id),
                                                                                 ('payment_method_id','=',payment_method_id.id),
                                                                                 ('payment_type','=','inbound')])
 
-        if not payment_method_line_id:
-            raise ValidationError('Debe configurar el diario/metodo de pago con el metodo de pago')
+            if not payment_method_line_id:
+                raise ValidationError('Debe configurar el diario/metodo de pago con el metodo de pago')
 
 
         partner_id = self._get_ml_customer_partner()
@@ -111,23 +121,30 @@ class OcapiConnectionBindingSaleOrderPayment(models.Model):
         if self._get_ml_customer_order():
             communication = ""+str(self._get_ml_customer_order().name)+" OP "+str(self.payment_id)+str(" TOT")
 
+        payment_final_amount = self.amount
+        process_discount = self.channel_binding_id and "discount_method" in self.channel_binding_id._fields and "with_discount" in self.channel_binding_id.discount_method
+        if (self.couponAmount and process_discount):
+            payment_final_amount = payment_final_amount - self.couponAmount
+
         vals_payment = {
                 #'account_id': journal_id.default_debit_account_id.id,
                 'partner_id': partner_id.id,
                 'payment_type': 'inbound',
                 'payment_method_id': payment_method_id.id,
-                'payment_method_line_id': payment_method_line_id.id,
                 'journal_id': journal_id.id,
                 #'meli_payment_id': self.id,
                 'currency_id': currency_id.id,
                 'partner_type': 'customer',
-                'amount': self.amount,
+                'amount': payment_final_amount
                 }
+        if 'payment_method_line_id' in self.env:
+            vals_payment['payment_method_line_id'] = payment_method_line_id.id
+
         vals_payment[acc_pay_ref] = communication
         acct_payment_id = None
         if 'account.payment.group' in self.env:
             vals_group = {
-                'company_id': self.connection_account.company_id.id,
+                'company_id': self._get_ml_company_id(),
                 'receiptbook_id': (self._get_ml_receiptbook() and self._get_ml_receiptbook().id),
                 'partner_id': partner_id.id,
                 #'journal_id': journal_id.id,
@@ -135,27 +152,41 @@ class OcapiConnectionBindingSaleOrderPayment(models.Model):
                 'partner_type': 'customer',
                 'payment_ids': [(0,0,vals_payment)]
             }
-            vals_group[acc_pay_ref] = communication
-            _logger.info("create_payment group: "+str(vals_group))
+            if acc_pay_ref in self.env['account.payment.group']._fields:
+                vals_group[acc_pay_ref] = communication
+            else:
+                vals_group["communication"] = communication
+            #_logger.info("create_payment group: "+str(vals_group))
             acct_payment_group_id = self.env['account.payment.group'].create( vals_group )
             if acct_payment_group_id:
                 acct_payment_id = acct_payment_group_id.payment_ids and acct_payment_group_id.payment_ids[0].id
                 self.account_payment_id = acct_payment_id
                 self.account_payment_group_id = acct_payment_group_id.id
                 if self.channel_binding_id and ("account_payment_receipt_validation" in self.channel_binding_id._fields) and self.channel_binding_id.account_payment_receipt_validation:
-                    if self.channel_binding_id.account_payment_receipt_validation in ['validate']:
-                        payment_post( acct_payment_group_id )
+                    if self.channel_binding_id.account_payment_receipt_validation in ['validate','concile']:
+                        payment_post_group( acct_payment_group_id )
 
         else:
-            _logger.info("create_payment default: "+str(vals_payment))
+            #_logger.info("create_payment default: "+str(vals_payment))
             acct_payment_id = self.env['account.payment'].create(vals_payment)
             self.account_payment_id = (acct_payment_id and acct_payment_id.id)
             if self.channel_binding_id and ("account_payment_receipt_validation" in self.channel_binding_id._fields) and self.channel_binding_id.account_payment_receipt_validation:
-                if self.channel_binding_id.account_payment_receipt_validation in ['validate']:
+                if self.channel_binding_id.account_payment_receipt_validation in ['validate','concile']:
                     payment_post( acct_payment_id )
             #payment_post( acct_payment_id )
 
+    def post_payment(self):
+        if "account_payment_group_id" in self._fields and self.account_payment_group_id:
+            if self.channel_binding_id and ("account_payment_receipt_validation" in self.channel_binding_id._fields) and self.channel_binding_id.account_payment_receipt_validation:
+                #_logger.info("Post payment group")
+                if self.channel_binding_id.account_payment_receipt_validation in ['validate','concile']:
+                    payment_post_group( self.account_payment_group_id )
 
+        if self.account_payment_id:
+            if self.channel_binding_id and ("account_payment_receipt_validation" in self.channel_binding_id._fields) and self.channel_binding_id.account_payment_receipt_validation:
+                #_logger.info("Post payment")
+                if self.channel_binding_id.account_payment_receipt_validation in ['validate','concile']:
+                    payment_post( self.account_payment_id )
 
     def create_supplier_payment(self):
         self.ensure_one()
@@ -172,12 +203,14 @@ class OcapiConnectionBindingSaleOrderPayment(models.Model):
         if not journal_id or not payment_method_id:
             raise ValidationError('Debe configurar el diario/metodo de pago')
 
-        payment_method_line_id = self.env['account.payment.method.line'].search([('journal_id','=',journal_id.id),
+        if 'account.payment.method.line' in self.env:
+            payment_method_line_id = self.env['account.payment.method.line'].search([('journal_id','=',journal_id.id),
                                                                                 ('payment_method_id','=',payment_method_id.id),
-                                                                                ('payment_type','=','inbound')])
+                                                                                ('payment_type','=','outbound')])
 
-        if not payment_method_line_id:
-            raise ValidationError('Debe configurar el diario/metodo de pago con el metodo de pago')
+            if not payment_method_line_id:
+                raise ValidationError('Debe configurar el diario/metodo de pago con el metodo de pago')
+
 
         partner_id = self._get_ml_partner()
         if not partner_id:
@@ -196,19 +229,23 @@ class OcapiConnectionBindingSaleOrderPayment(models.Model):
                 'partner_id': partner_id.id,
                 'payment_type': 'outbound',
                 'payment_method_id': payment_method_id.id,
-                'payment_method_line_id': payment_method_line_id.id,
+                #'payment_method_line_id': payment_method_line_id.id,
                 'journal_id': journal_id.id,
                 #'meli_payment_id': self.id,
                 'currency_id': currency_id.id,
                 'partner_type': 'supplier',
                 'amount': self.transactionFee,
                 }
+
+        if 'payment_method_line_id' in self.env:
+            vals_payment['payment_method_line_id'] = payment_method_line_id.id
+
         vals_payment[acc_pay_ref] = communication
         acct_payment_id = self.env['account.payment'].create(vals_payment)
 
         if 'account.payment.group' in self.env:
             vals_group = {
-                'company_id': self.connection_account.company_id.id,
+                'company_id': self._get_ml_company_id(),
                 'receiptbook_id': (self._get_ml_receiptbook() and self._get_ml_receiptbook().id),
                 'partner_id': partner_id.id,
                 #'journal_id': journal_id.id,
@@ -216,8 +253,12 @@ class OcapiConnectionBindingSaleOrderPayment(models.Model):
                 'partner_type': 'supplier',
                 'payment_ids': [(0,0,vals_payment)]
             }
-            vals_group[acc_pay_ref] = communication
-            _logger.info("create_supplier_payment group: "+str(vals_group))
+            if acc_pay_ref in self.env['account.payment.group']._fields:
+                vals_group[acc_pay_ref] = communication
+            else:
+                vals_group["communication"] = communication
+
+            #_logger.info("create_supplier_payment group: "+str(vals_group))
             acct_payment_group_id = self.env['account.payment.group'].create( vals_group )
             if acct_payment_group_id:
                 acct_payment_id = acct_payment_group_id.payment_ids and acct_payment_group_id.payment_ids[0].id
@@ -225,15 +266,29 @@ class OcapiConnectionBindingSaleOrderPayment(models.Model):
                 self.account_supplier_group_payment_id = acct_payment_group_id.id
                 if self.channel_binding_id and ("account_payment_receipt_validation" in self.channel_binding_id._fields) and self.channel_binding_id.account_payment_receipt_validation:
                     if self.channel_binding_id.account_payment_receipt_validation in ['validate']:
-                        payment_post( acct_payment_group_id )
+                        payment_post_group( acct_payment_group_id )
 
         else:
-            _logger.info("create_supplier_payment default: "+str(vals_payment))
+            #_logger.info("create_supplier_payment default: "+str(vals_payment))
             acct_payment_id = self.env['account.payment'].create(vals_payment)
             self.account_supplier_payment_id = (acct_payment_id and acct_payment_id.id)
             if self.channel_binding_id and ("account_payment_receipt_validation" in self.channel_binding_id._fields) and self.channel_binding_id.account_payment_receipt_validation:
                 if self.channel_binding_id.account_payment_receipt_validation in ['validate']:
                     payment_post( acct_payment_id )
+
+    def post_supplier_payment(self):
+        if "account_supplier_group_payment_id" in self._fields and self.account_supplier_group_payment_id:
+            if self.channel_binding_id and ("account_payment_receipt_validation" in self.channel_binding_id._fields) and self.channel_binding_id.account_payment_receipt_validation:
+                #_logger.info("Post payment group")
+                if self.channel_binding_id.account_payment_receipt_validation in ['validate']:
+                    payment_post_group( self.account_supplier_group_payment_id )
+
+        if self.account_supplier_payment_id:
+            if self.channel_binding_id and ("account_payment_receipt_validation" in self.channel_binding_id._fields) and self.channel_binding_id.account_payment_receipt_validation:
+                #_logger.info("Post payment")
+                if self.channel_binding_id.account_payment_receipt_validation in ['validate']:
+                    payment_post( self.account_supplier_payment_id )
+
 
     def create_supplier_payment_shipment(self):
         self.ensure_one()
@@ -279,6 +334,18 @@ class OcapiConnectionBindingSaleOrderPayment(models.Model):
             if self.channel_binding_id.account_payment_receipt_validation in ['validate']:
                 payment_post( acct_payment_id )
 
+    def post_supplier_payment_shipment(self):
+        #if self.account_supplier_group_payment_id:
+        #    if self.channel_binding_id and ("account_payment_receipt_validation" in self.channel_binding_id._fields) and self.channel_binding_id.account_payment_receipt_validation:
+        #        _logger.info("Post payment group")
+        #        if self.channel_binding_id.account_payment_receipt_validation in ['validate']:
+        #            payment_post_group( self.account_supplier_group_payment_id )
+
+        if self.account_supplier_payment_shipment_id:
+            if self.channel_binding_id and ("account_payment_receipt_validation" in self.channel_binding_id._fields) and self.channel_binding_id.account_payment_receipt_validation:
+                #_logger.info("Post payment")
+                if self.channel_binding_id.account_payment_receipt_validation in ['validate']:
+                    payment_post( self.account_supplier_payment_shipment_id )
 
 
 class OcapiConnectionBindingSaleOrderShipmentItem(models.Model):
@@ -444,6 +511,15 @@ class ProductecaConnectionBindingSaleOrder(models.Model):
 
     #id connector_id
     status = fields.Selection(related="state",string="Status")
+    invoice_status = fields.Selection(selection=[
+                                            ('not_defined','Not defined'),
+                                            ('not_ready','Not Ready'),
+                                            ('ready_to_invoice','Ready to invoice'),
+                                            ('invoiced','Invoiced')
+                                        ],
+                                        string="Invoice Status",
+                                        default='not_defined',
+                                        index=True )
 
     channel = fields.Char(string="Channel",index=True)
     channel_id = fields.Many2one( "producteca.channel", string="Channel Object")
@@ -497,10 +573,10 @@ class ProductecaConnectionBindingSaleOrder(models.Model):
     def get_invoice(self):
         invoice = False
         sale_order = self.sale_order
-        invoices = sale_order and sale_order.partner_id and self.env[acc_inv_model].search([('origin','=',sale_order.name)])
+        invoices = sale_order and sale_order.partner_id and self.env[acc_inv_model].search([(acc_inv_origin,'=',sale_order.name)])
         if invoices:
             for inv in invoices:
-                if inv.state in ['open']:
+                if inv.state in ['open','posted']:
                     invoice = inv
 
         return invoice
@@ -529,7 +605,7 @@ class ProductecaConnectionBindingSaleOrder(models.Model):
                             _logger.error("update pso error: "+str(e))
                             pass;
 
-    def fetch( self, force_update=False ):
+    def ocapi_fetch( self, force_update=False ):
         data = {}
         #retreive data from remote database ( Meli: api.mercadolibre.com ; Producteca: last data notification update based on resource value /import_sale/[PR-ID] )
         #Producteca: search last conn_id related to this resource in the notifications
@@ -537,11 +613,11 @@ class ProductecaConnectionBindingSaleOrder(models.Model):
         #MercadoLibre: search last conn_id related to this resource using the REST API (Meli)
         return data
 
-    def refresh( self, data={} ):
+    def ocapi_refresh( self, data={} ):
         res = {}
         #reprocess the data
         if not (data):
-            data = self.fetch()
+            data = self.ocapi_fetch()
 
         #code here...
         #...
@@ -560,18 +636,33 @@ class ProductecaConnectionBindingSaleOrder(models.Model):
         #_logger.info("shippingLinkPrint from: "+str(self.shippingLink))
         warningobj = self.env["producteca.warning"]
         ret = {}
-        if self.shippingLink:
+
+        if not self.shippingLink:
+            _logger.error("shippingLinkPrint error: "+str('Falta el link de la guia, consultar a Producteca.') );
+            ret = warningobj.info( title='No se puede imprimir la guia, falta el link de la guia, consultar a Producteca.',
+                                message=str('Falta el link de la guia, consultar a Producteca.'),
+                                message_html=str('Falta el link de la guia, consultar a Producteca.') )
+
+        if self.shippingLink and not self.shippingLink_pdf_file:
             try:
+                #_logger.info("shippingLink: "+str(self.shippingLink))
                 data = urlopen(self.shippingLink).read()
                 #_logger.info(data)
                 b64_pdf = base64.b64encode(data)
                 ATTACHMENT_NAME = "Shipment_"+self.name
                 self.shippingLink_pdf_filename = ATTACHMENT_NAME+".pdf"
+                mimetype = 'application/pdf'
+                if "zpl" in self.shippingLink:
+                    self.shippingLink_pdf_filename = ATTACHMENT_NAME+".zpl"
+                    mimetype = 'x-application/zpl'
                 self.shippingLink_pdf_file = b64_pdf
 
                 sale_order = self.sale_order
 
                 sale_order.producteca_shippingLink_pdf_filename = ATTACHMENT_NAME+".pdf"
+                if "zpl" in self.shippingLink:
+                    sale_order.producteca_shippingLink_pdf_filename = ATTACHMENT_NAME+".zpl"
+                    mimetype = 'x-application/zpl'
                 sale_order.producteca_shippingLink_pdf_file = b64_pdf
 
                 attachment = self.env['ir.attachment'].create({
@@ -582,7 +673,7 @@ class ProductecaConnectionBindingSaleOrder(models.Model):
                     #'store_fname': ATTACHMENT_NAME,
                     'res_model': "sale.order",
                     'res_id': sale_order.id,
-                    'mimetype': 'application/pdf'
+                    'mimetype': mimetype
                 })
                 if attachment:
                     sale_order.producteca_shippingLink_attachment = attachment.id
@@ -593,4 +684,241 @@ class ProductecaConnectionBindingSaleOrder(models.Model):
                                     message=str(e),
                                     message_html=str(e) )
                 pass;
+        else:
+            _logger.error("shippingLinkPrint nada q imprimir")
         return ret
+
+    def create_invoices( self ):
+        pso = self
+
+        #_logger.info("Creating invoice for..."+str(pso and pso.name))
+        so = pso.sale_order
+
+        if not so:
+            _logger.error("Creating invoice NO SALE ORDER YET for..."+str(pso and pso.name))
+            return False
+
+        chanbinded = pso.channel_binding_id
+
+        if not chanbinded:
+            _logger.error("Creating invoice NO CHANNEL BINDED or CHANNEL DELETED for..."+str(pso and pso.name))
+            return False
+
+        invoices = so.invoice_ids
+
+        if not invoices:
+            #_logger.info("Creating new invoices")
+            default_journal_id = False
+            if so.producteca_channel_binding and so.producteca_channel_binding.journal_id:
+                default_journal_id = so.producteca_channel_binding.journal_id
+
+            try:
+                #_logger.info("setear currency:"+str(default_journal_id and default_journal_id.currency_id))
+                #so._set_currency_invoice( default_journal_id and default_journal_id.currency_id, tipo_cambio_choice=False )
+                res = order_create_invoices( so.with_context({'default_journal_id': (default_journal_id and default_journal_id.id)}),grouped=False,final=False )
+                #_logger.info("invoice create res:"+str(res))
+            except Exception as E:
+                error = { 'error': 'Error facturando '+str(E) }
+                _logger.error(str(error))
+                if so:
+                    so.message_post(body=str(error))
+                pass;
+
+    def post_invoices( self, comentario_factura=None ):
+        pso = self
+
+        #_logger.info("Posting invoice for..."+str(pso and pso.name))
+        so = pso.sale_order
+
+        if not so:
+            _logger.error("Posting invoice NO SALE ORDER YET for..."+str(pso and pso.name))
+            return False
+
+        chanbinded = pso.channel_binding_id
+
+        if not chanbinded:
+            _logger.error("Posting invoice NO CHANNEL BINDED or CHANNEL DELETED for..."+str(pso and pso.name))
+            return False
+
+        invoices = so.invoice_ids
+
+        if invoices:
+            for inv in invoices:
+                #try:
+                #_logger.info("Invoice to process:"+str( inv.name ) )
+                if inv.state in ['draft']:
+                    if (chanbinded and chanbinded.journal_id):
+                        #chanbinded and chanbinded.journal_id and inv.write({"journal_id": chanbinded.journal_id.id })
+                        if ('account.journal.document.type' in  self.env and
+                            'journal_document_type_id' in inv._fields
+                            and inv.journal_document_type_id
+                            and inv.journal_document_type_id.document_type_id
+                            and not (inv.journal_document_type_id.journal_id.id==chanbinded.journal_id.id)):
+
+                            doctype = self.env['account.journal.document.type'].search([('document_type_id','=',inv.journal_document_type_id.document_type_id.id),('journal_id','=',chanbinded.journal_id.id)],limit=1)
+                            if doctype:
+                                #inv.journal_document_type_id = doctype.id
+                                inv.write({"journal_id": chanbinded.journal_id.id, "journal_document_type_id": doctype.id  })
+
+                        inv.write(
+                                {
+                                    "journal_id": chanbinded.journal_id.id
+                                })
+                        if ("account_id" in inv._fields):
+                            inv.write({
+                                "account_id": (chanbinded and chanbinded.partner_account_receive_id and chanbinded.partner_account_receive_id.id)
+                            })
+                    post_message = "Validating invoice: "+str(inv.name)+" Invoice journal:"+str(inv.journal_id and inv.journal_id.name)
+                    _logger.info(post_message)
+                    if so:
+                        so.message_post(body=str(post_message))
+                    #_logger.info("main_id_number: "+str(inv.partner_id.main_id_number))
+                    #if inv.partner_id and "main_id_number" in inv.partner_id._fields and inv.partner_id.main_id_number and inv.partner_id.afip_responsability_type_id and inv.partner_id.main_id_category_id:
+                    if inv.partner_id:
+                        try:
+                            #setear fecha de vto:
+                            #(fields.Datetime.today() + relativedelta(days=5)).strftime('%Y-%m-%d %H:%M')
+                            if (comentario_factura):
+                                if inv.narration:
+                                    inv.narration = inv.narration + str("\n") + str(comentario_factura)
+                                else:
+                                    inv.narration = str(comentario_factura)
+                            inv.invoice_date_due = fields.Datetime.today().strftime('%Y-%m-%d')
+                            inv.invoice_date = fields.Datetime.today().strftime('%Y-%m-%d')
+                            inv.with_user( so.user_id and so.user_id.id ).action_post()
+                            pso.invoice_status = 'invoiced'
+                            if so:
+                                post_message = "Invoice validated, Invoice Status: "+str(inv.state)+" Fecha: "+str(inv.invoice_date)+" Vencimiento: "+str(inv.invoice_date_due)+" Producteca Sale Order Invoice Status: "+str(pso.invoice_status)
+                                so.message_post(body=str(post_message))
+                        except Exception as E:
+                            error = { 'error': 'Error facturando '+str(E) }
+                            _logger.error(str(error))
+                            if so:
+                                so.message_post(body=str(error))
+                            pass;
+                    else:
+                        error = { 'error': 'Datos de facturación incompletos, revisar Responsabilidad, Tipo de documento y número.' }
+                        _logger.error(str(error["error"]))
+                        #_logger.error(E, exc_info=True)
+                        if so:
+                            so.message_post(body=str(error["error"]))
+
+                #except:
+                    #inv.message_post()
+                #    error = {"error": "Invoice Error"}
+                #    result.append(error)
+                #    raise;
+
+    def concile_invoices( self ):
+        pso = self
+
+        #_logger.info("Concile invoice for..."+str(pso and pso.name))
+        so = pso.sale_order
+
+        if not so:
+            _logger.error("Concile invoice NO SALE ORDER YET for..."+str(pso and pso.name))
+            return False
+
+        chanbinded = pso.channel_binding_id
+
+        if not chanbinded:
+            _logger.error("Concile invoice NO CHANNEL BINDED or CHANNEL DELETED for..."+str(pso and pso.name))
+            return False
+
+        invoices = so.invoice_ids
+
+        if invoices:
+            for inv in invoices:
+                #try:
+                #_logger.info("Invoice to concile:"+str( inv.name ) )
+                inv.conciliar_factura_producteca()
+
+    def send_invoices( self, reenviar=False ):
+        pso = self
+
+        #_logger.info("Sending invoice for..."+str(pso and pso.name))
+        so = pso.sale_order
+
+        if not so:
+            _logger.error("Sending invoice NO SALE ORDER YET for..."+str(pso and pso.name))
+            return False
+
+        chanbinded = pso.channel_binding_id
+
+        if not chanbinded:
+            _logger.error("Sending invoice NO CHANNEL BINDED or CHANNEL DELETED for..."+str(pso and pso.name))
+            return False
+
+        invoices = so.invoice_ids
+
+        if invoices:
+            for inv in invoices:
+
+                if inv.state in ['open','posted'] and (not inv.producteca_inv_attachment_id or reenviar==True):
+
+                    rendering_message = "Sending to Producteca: "+str(inv.name)
+                    _logger.info(rendering_message)
+                    if so:
+                        so.message_post( body = rendering_message )
+                    pso.invoice_status = 'invoiced'
+                    inv.enviar_factura_producteca(reenviar=reenviar)
+
+                elif inv.state in ['open','posted']:
+
+                    pso.invoice_status = 'invoiced'
+                    rendering_message = "Invoice already sent: pso.invoice_status :"+str(pso.invoice_status)
+                    _logger.info(rendering_message)
+                    if so:
+                        so.message_post( body = rendering_message )
+
+    def clean_payments( self ):
+
+        pso = self
+
+        #_logger.info("Clear payments for..."+str(pso and pso.name))
+        so = pso.sale_order
+
+        if not so:
+            _logger.error("NO Odoo Sale Order for..."+str(pso and pso.name))
+            return False
+
+        if not pso.payments:
+            _logger.error("NO Payments..."+str(pso and pso.name))
+            return False
+
+        for payment in pso.payments:
+            if payment.account_payment_id:
+                try:
+                    payment.account_payment_id.unlink()
+                except Exception as E:
+                    pass;
+
+            if "account_payment_group_id" in payment and payment.account_payment_group_id:
+                try:
+                    payment.account_payment_group_id.unlink()
+                except Exception as E:
+                    pass;
+
+            if payment.account_supplier_payment_id:
+                try:
+                    payment.account_supplier_payment_id.unlink()
+                except Exception as E:
+                    pass;
+
+            if "account_supplier_group_payment_id" in payment and payment.account_supplier_group_payment_id:
+                try:
+                    payment.account_supplier_group_payment_id.unlink()
+                except Exception as E:
+                    pass;
+
+            if payment.account_supplier_payment_shipment_id:
+                try:
+                    payment.account_supplier_payment_shipment_id.unlink()
+                except Exception as E:
+                    pass;
+
+            if "account_supplier_group_payment_shipment_id" in payment and payment.account_supplier_group_payment_shipment_id:
+                try:
+                    payment.account_supplier_group_payment_shipment_id.unlink()
+                except Exception as E:
+                    pass;

@@ -32,11 +32,35 @@ from .versions import *
 import hashlib
 from odoo.exceptions import UserError, ValidationError
 
+import json
+from odoo.tools import date_utils
+try:
+    json_default = date_utils.json_default
+except:
+    from odoo.tools import json_default
+    pass;
+import base64
+
+import hashlib
+from datetime import datetime
+
 class ProductecaConnectionAccount(models.Model):
 
     _name = "producteca.account"
     _description = "Producteca Account"
     _inherit = "ocapi.connection.account"
+
+    def get_connector_version(self):
+        for acc in self:
+            acc.connector_version = ''
+            version_module_query = """select name, latest_version from ir_module_module where name like '%s'""" % (str("odoo_connector_api_producteca"))
+            cr = self._cr
+            resquery = cr.execute(version_module_query)
+            version_module_res = cr.fetchall()
+            if version_module_res:
+                acc.connector_version = str(version_module_res[0][1])
+
+    connector_version = fields.Char( compute=get_connector_version, string='Connector Version', help="Versión de este conector", store=False )
 
     configuration = fields.Many2one( "producteca.configuration", string="Configuration", help="Connection Parameters Configuration"  )
     #type = fields.Selection([("custom","Custom"),("producteca","Producteca")],string='Connector',index=True)
@@ -51,9 +75,66 @@ class ProductecaConnectionAccount(models.Model):
     producteca_product_bindings = fields.One2many( "producteca.binding.product", "connection_account", string="Product Variant Bindings" )
     producteca_orders = fields.One2many( "producteca.sale_order", "connection_account", string="Orders" )
 
+
+#### ACCOUNT CREDENTIALS AND STATUS #####
+
+    def get_fields_credentials( self ):
+
+        fields_credentials = []
+
+        for acc in self:
+            if (acc.type == "producteca"):
+                fields_credentials+= [ 'client_id', 'secret_key', 'seller_id','access_token']
+                fields_credentials+= [ 'state','access_token_date','access_token_date_expiration']
+
+        return fields_credentials
+
+    def get_fields_status( self ):
+        fields_status = []
+
+        for acc in self:
+            fields_credentials = acc.get_fields_credentials()
+            fields_status+= [
+                'name', 'company_id',  'country_id',
+                'type', 'connector_version','ocapi_version'
+            ]+fields_credentials
+
+        return fields_status
+
+    def fetch_status( self, **post ):
+        _logger.info("producteca.account > fetch_status")
+        result = []
+        for acc in self:
+            json_status = {
+                "status": "connected"
+            }
+
+            fields_status = acc.get_fields_status()
+
+            _logger.info("producteca.account > fetch_status fields_status: "+str(fields_status))
+
+            raw_data = acc and acc.read(fields_status)
+
+            _logger.info("producteca.account > fetch_status raw_data: "+str(raw_data))
+
+            if raw_data and raw_data[0]:
+                json_status = json.loads( json.dumps( raw_data[0], default=json_default) )
+                json_status["status"] = (acc.access_token and "connected") or "disconnected"
+                json_status["producteca_product_template_bindings"] = len(acc.producteca_product_template_bindings)
+                json_status["producteca_product_bindings"] = len(acc.producteca_product_bindings)
+                json_status["producteca_orders"] = len(acc.producteca_orders)
+
+                #buscar notifications
+                json_status["producteca_notifications"] = self.env["producteca.notification"].search_count([('connection_account','=',acc.id)])
+                #json_status["mercadolibre_notifications_errors"] = self.env["mercadolibre.notification"].search_count([('connection_account','=',acc.id)])
+
+            result.append(json_status)
+        #_logger.info(result)
+        return result
+
     def create_credentials(self, context=None):
         context = context or self.env.context
-        _logger.info("create_credentials: " + str(context))
+        #_logger.info("create_credentials: " + str(context))
 
         now = datetime.now()
         date_time = now.strftime("%m/%d/%Y, %H:%M:%S")
@@ -70,6 +151,9 @@ class ProductecaConnectionAccount(models.Model):
         hexhash = hash.hexdigest()
 
         self.secret_key = hexhash
+
+
+#### LIST RESOURCES #####
 
     def list_data(self, **post):
         offset = post.get("offset") or 0
@@ -89,14 +173,16 @@ class ProductecaConnectionAccount(models.Model):
         data, limit, offset = self.list_data(**post)
         result = []
 
-        _logger.info("list_catalog producteca")
+        #_logger.info("list_catalog producteca")
         #_logger.info(result)
 
         account = self
         company = account.company_id or self.env.user.company_id
 
-        total = self.env["producteca.binding.product"].search_count([("connection_account","=",account.id)])
-        bindings = self.env["producteca.binding.product"].search([("connection_account","=",account.id)], limit=limit, offset=offset)
+        total = self.env["producteca.binding.product_template"].search_count([("connection_account","=",account.id)])
+        bindings = self.env["producteca.binding.product_template"].search([("connection_account","=",account.id)],
+                            limit=limit,
+                            offset=offset)
         offset2 = (bindings and min( offset+limit, total ) ) or str(offset+limit)
 
         #start notification
@@ -118,21 +204,22 @@ class ProductecaConnectionAccount(models.Model):
             _logger.error("list_catalog error creating notification: "+str(e))
             pass;
 
-        for binding in bindings:
+        for bindingT in bindings:
 
-            product = binding.product_tmpl_id
+            productT = bindingT.product_tmpl_id
+            product = productT.product_variant_ids and productT.product_variant_ids[0]
 
             tpl = {
-                "name": product.name or "",
-                "code": product.default_code or "",
-                "barcode": product.barcode or "",
-                "brand": ("product_brand_id" in product._fields and product.product_brand_id and product.product_brand_id.name) or '',
+                "name": productT.name or "",
+                "code": productT.default_code or "",
+                "barcode": productT.barcode or "",
+                "brand": ("product_brand_id" in productT._fields and productT.product_brand_id and productT.product_brand_id.name) or '',
                 "variations": [],
-                "category": product.categ_id.name or "",
-                "notes": product.description_sale or "",
+                "category": productT.categ_id.name or "",
+                "notes": productT.description_sale or "",
                 "prices": [],
                 "dimensions": {
-                    "weight": ('weight' in self.env['product.product']._fields and product.weight) or 1,
+                    "weight": ('weight' in self.env['product.template']._fields and productT.weight) or 1,
                     "width": 1,
                     "length": 1,
                     "height": 1,
@@ -146,18 +233,20 @@ class ProductecaConnectionAccount(models.Model):
             #for plitem in product.item_ids:
             for pl in account.configuration.publish_price_lists:
                 #plprice = product.with_context(pricelist=pl.id).price
-                plprice = get_price_from_pl(pricelist=pl, product=product, quantity=1 )[pl.id]
-                price = {
-                    "priceListId": pl.id,
-                    "priceList": pl.name,
-                    "amount": plprice,
-                    "currency": pl.currency_id.name
-                }
-                prices.append(price)
+                if product:
+                    plprice = get_price_from_pl(pricelist=pl, product=product, quantity=1 )[pl.id]
+                    plprice = self.ocapi_price_unit( product, float(plprice), False, invert=True )
+                    price = {
+                        "priceListId": pl.id,
+                        "priceList": pl.name,
+                        "amount": plprice,
+                        "currency": pl.currency_id.name
+                    }
+                    prices.append(price)
 
             attributes = []
             attvariants = []
-            for attline in product.attribute_line_ids:
+            for attline in productT.attribute_line_ids:
                 if len(attline.value_ids)>1:
                     attvariants.append(attline.attribute_id.id)
                 else:
@@ -166,10 +255,35 @@ class ProductecaConnectionAccount(models.Model):
                             "key": attline.attribute_id.name,
                             "value": val.name
                         }
+                        if (attline.attribute_id.name=='Ancho'):
+                            tpl["dimensions"]["width"] = val.name
+
+                        if (attline.attribute_id.name=='Alto'):
+                            tpl["dimensions"]["height"] = val.name
+
+                        if (attline.attribute_id.name=='Largo'):
+                            tpl["dimensions"]["length"] = val.name
+
+                        attributes.append(att)
+
+                    for val in attline.value_ids:
+                        att = {
+                            "key": attline.attribute_id.name,
+                            "value": val.name
+                        }
+                        if (attline.attribute_id.name=='Ancho del paquete'):
+                            tpl["dimensions"]["width"] = val.name
+
+                        if (attline.attribute_id.name=='Alto del paquete'):
+                            tpl["dimensions"]["height"] = val.name
+
+                        if (attline.attribute_id.name=='Largo del paquete'):
+                            tpl["dimensions"]["length"] = val.name
+
                         attributes.append(att)
 
             #tpl["variations"]
-            for variant in product.product_variant_ids:
+            for variant in productT.product_variant_ids:
 
                 var = {
                     "sku": variant.default_code or "",
@@ -177,11 +291,34 @@ class ProductecaConnectionAccount(models.Model):
                     #"size": "" or "",
                     "barcode": variant.barcode or "",
                     "code": variant.default_code or "",
+                    "dimensions": {}
                 }
 
-                for val in variant.attribute_value_ids:
+                for val in att_value_ids(variant):
                     if val.attribute_id.id in attvariants:
                         var[val.attribute_id.name] = val.name
+
+                        if (val.attribute_id.name=='Ancho'):
+                            var["dimensions"]["width"] = val.name
+
+                        if (val.attribute_id.name=='Alto'):
+                            var["dimensions"]["height"] = val.name
+
+                        if (val.attribute_id.name=='Largo'):
+                            var["dimensions"]["length"] = val.name
+
+                for val in att_value_ids(variant):
+                    if val.attribute_id.id in attvariants:
+                        var[val.attribute_id.name] = val.name
+
+                        if (val.attribute_id.name=='Ancho del paquete'):
+                            var["dimensions"]["width"] = val.name
+
+                        if (val.attribute_id.name=='Alto del paquete'):
+                            var["dimensions"]["height"] = val.name
+
+                        if (val.attribute_id.name=='Largo del paquete'):
+                            var["dimensions"]["length"] = val.name
 
                 stocks = []
                 #ss = variant._product_available()
@@ -196,7 +333,7 @@ class ProductecaConnectionAccount(models.Model):
                         #TODO: merge de stocks
                         #TODO: solo publicar available
                         if ( s.location_id.usage == "internal" and s.location_id.id in account.configuration.publish_stock_locations.mapped("id")):
-                            _logger.info( s )
+                            #_logger.info( s )
                             sjson = {
                                 "warehouseId": s.location_id.id,
                                 "warehouse": s.location_id.display_name,
@@ -215,19 +352,30 @@ class ProductecaConnectionAccount(models.Model):
                 #}
 
                 pictures = []
-                if "product_image_ids" in variant._fields:
-                    if variant.image:
-                        img = {
-                            "url": variant.producteca_image_url_principal(),
-                            "id": variant.producteca_image_id_principal()
-                        }
-                        pictures.append(img)
-                    for image in variant.product_image_ids:
+                if get_image_full(variant):
+                    img = {
+                        "url": variant.producteca_image_url_principal(),
+                        "id": variant.producteca_image_id_principal()
+                    }
+                    pictures.append(img)
+
+                if variant_image_ids(variant):
+                    for image in variant_image_ids(variant):
                         img = {
                             "url": variant.producteca_image_url(image),
                             "id": variant.producteca_image_id(image)
                         }
                         pictures.append(img)
+                else:
+                    #_logger.info("list_catalog no variant images ids?")
+                    if template_image_ids(productT):
+                        for image in template_image_ids(productT):
+                            img = {
+                                "url": productT.producteca_image_url(image),
+                                "id": productT.producteca_image_id(image)
+                            }
+                            pictures.append(img)
+
 
                 var["pictures"] = pictures
                 var["stocks"] = stocks
@@ -237,7 +385,11 @@ class ProductecaConnectionAccount(models.Model):
             tpl["prices"] = prices
             tpl["attributes"] = attributes
 
+            #_logger.info( tpl )
+
             result.append(tpl)
+
+
 
         if noti:
             logs = str(result)
@@ -248,7 +400,7 @@ class ProductecaConnectionAccount(models.Model):
         return data
 
     def list_pricestock( self, **post ):
-        _logger.info("list_pricestock")
+        #_logger.info("list_pricestock")
         data, limit, offset = self.list_data(**post)
         result = []
 
@@ -278,7 +430,7 @@ class ProductecaConnectionAccount(models.Model):
             pass;
 
         for binding in bindings:
-
+            #_logger.info("Binding  -->>>   : "+str(binding.id))
             variant = binding.product_id
 
             var = {
@@ -286,23 +438,7 @@ class ProductecaConnectionAccount(models.Model):
                 "barcode": variant.barcode or "",
             }
 
-            stocks = []
-            #ss = variant._product_available()
-            sq = self.env["stock.quant"].search([('product_id','=',variant.id)])
-            if (sq):
-                #_logger.info( sq )
-                #_logger.info( sq.name )
-                for s in sq:
-                    if ( s.location_id.usage == "internal" and s.location_id.id in account.configuration.publish_stock_locations.mapped("id")):
-                        _logger.info( s )
-                        sjson = {
-                            "warehouseId": s.location_id.id,
-                            "warehouse": s.location_id.display_name,
-                            "quantity": s.quantity,
-                            "reserved": s.reserved_quantity,
-                            "available": s.quantity - s.reserved_quantity
-                        }
-                        stocks.append(sjson)
+            stocks = binding.get_stocks()
 
             var["stocks"] = stocks
 
@@ -310,6 +446,7 @@ class ProductecaConnectionAccount(models.Model):
             for pl in account.configuration.publish_price_lists:
                 #plprice = variant.with_context(pricelist=pl.id).price
                 plprice = get_price_from_pl(pricelist=pl, product=variant, quantity=1 )[pl.id]
+                plprice = self.ocapi_price_unit( variant, float(plprice), False, invert=True )
                 price = {
                     "priceListId": pl.id,
                     "priceList": pl.name,
@@ -330,7 +467,7 @@ class ProductecaConnectionAccount(models.Model):
         return data
 
     def list_pricelist( self, **post ):
-        _logger.info("list_pricelist")
+        #_logger.info("list_pricelist")
         data, limit, offset = self.list_data(**post)
         result = []
 
@@ -372,6 +509,7 @@ class ProductecaConnectionAccount(models.Model):
             for pl in account.configuration.publish_price_lists:
                 #plprice = variant.with_context(pricelist=pl.id).price
                 plprice = get_price_from_pl(pricelist=pl, product=variant, quantity=1 )[pl.id]
+                plprice = self.ocapi_price_unit( variant, float(plprice), False, invert=True )
                 price = {
                     "priceListId": pl.id,
                     "priceList": pl.name,
@@ -392,7 +530,7 @@ class ProductecaConnectionAccount(models.Model):
         return data
 
     def list_stock( self, **post ):
-        _logger.info("list_stock")
+        #_logger.info("list_stock")
         data, limit, offset = self.list_data(**post)
         result = []
 
@@ -431,23 +569,7 @@ class ProductecaConnectionAccount(models.Model):
             }
 
 
-            stocks = []
-            #ss = variant._product_available()
-            sq = self.env["stock.quant"].search([('product_id','=',variant.id)])
-            if (sq):
-                #_logger.info( sq )
-                #_logger.info( sq.name )
-                for s in sq:
-                    if ( s.location_id.usage == "internal" and s.location_id.id in account.configuration.publish_stock_locations.mapped("id")):
-                        _logger.info( s )
-                        sjson = {
-                            "warehouseId": s.location_id.id,
-                            "warehouse": s.location_id.display_name,
-                            "quantity": s.quantity,
-                            "reserved": s.reserved_quantity,
-                            "available": s.quantity - s.reserved_quantity
-                        }
-                        stocks.append(sjson)
+            stocks = binding.get_stocks()
 
             var["stocks"] = stocks
 
@@ -460,6 +582,10 @@ class ProductecaConnectionAccount(models.Model):
         data["paging"]["total"] = total
         data["results"] = result
         return data
+
+
+#### PROFILE CUSTOMER #####
+#### CONVERSION UTILITIES #####
 
     def street(self, contact, billing=False ):
         street_str = ""
@@ -511,8 +637,8 @@ class ProductecaConnectionAccount(models.Model):
         #parse from Producteca contact
         Receiver = {}
         Receiver.update(contact)
-        _logger.info("ostate >> contact:"+str(contact))
-        _logger.info("ostate >> Receiver:"+str(Receiver))
+        #_logger.info("ostate >> contact:"+str(contact))
+        #_logger.info("ostate >> Receiver:"+str(Receiver))
         if not billing:
             Receiver["state"] = { "name": ("location_state" in contact and contact["location_state"]) or "", "id": ("location_stateId" in contact and contact["location_stateId"]) or '' }
         else:
@@ -555,42 +681,115 @@ class ProductecaConnectionAccount(models.Model):
         return contact["phoneNumber"]
 
     def doc_info(self, contactfields, doc_undefined=None):
+        #_logger.info("doc_info contactfields:"+str(contactfields))
         dinfo = {}
+        identid = None
+        founded_doc_type_id = None
+        founded_tax_type_id = None
         if "billingInfo_docNumber" in contactfields and 'billingInfo_docType' in contactfields:
 
             doc_number = contactfields["billingInfo_docNumber"]
             doc_type = contactfields['billingInfo_docType']
+            tax_type = contactfields['billingInfo_taxPayerType']
 
-            if (doc_type and ('afip.responsability.type' in self.env) and doc_number ):
-                doctypeid = self.env['res.partner.id_category'].search([('code','=',doc_type)]).id
-                if (doctypeid):
-                    dinfo['main_id_category_id'] = doctypeid
-                    dinfo['main_id_number'] = doc_number
-                    if (doc_type=="CUIT"):
-                        #IVA Responsable Inscripto
-                        afipid = self.env['afip.responsability.type'].search([('code','=',1)]).id
-                        #dinfo["afip_responsability_type_id"] = afipid
+            if ('afip.responsability.type' in self.env):
+                if (doc_type and ('afip.responsability.type' in self.env) and doc_number ):
+                    doctypeid = self.env['res.partner.id_category'].search([('code','=ilike',doc_type)]).id
+                    if (doctypeid):
+                        dinfo['main_id_category_id'] = doctypeid
+                        dinfo['main_id_number'] = doc_number
+                        if (doc_type=="CUIT"):
+                            #IVA Responsable Inscripto
+                            afipid = self.env['afip.responsability.type'].search([('code','=',1)]).id
+                            #dinfo["afip_responsability_type_id"] = afipid
+                        else:
+                            #if (Buyer['billing_info']['doc_type']=="DNI"):
+                            #Consumidor Final
+                            afipid = self.env['afip.responsability.type'].search([('code','=',5)]).id
+                            dinfo["afip_responsability_type_id"] = afipid
                     else:
-                        #if (Buyer['billing_info']['doc_type']=="DNI"):
-                        #Consumidor Final
-                        afipid = self.env['afip.responsability.type'].search([('code','=',5)]).id
-                        dinfo["afip_responsability_type_id"] = afipid
+                        _logger.error("res.partner.id_category:" + str(doc_type))
                 else:
-                    _logger.error("res.partner.id_category:" + str(doc_type))
+                    #use doc_undefined
+                    if doc_undefined:
+
+                        if ('afip.responsability.type' in self.env):
+                            afipid = self.env['afip.responsability.type'].search([('code','=',5)]).id
+                            dinfo["afip_responsability_type_id"] = afipid
+
+                        doctypeid = self.env['res.partner.id_category'].search([('code','=','DNI')]).id
+                        dinfo['main_id_category_id'] = doctypeid
+                        dinfo['main_id_number'] = doc_undefined
             else:
-                #use doc_undefined
-                if doc_undefined:
 
-                    if ('afip.responsability.type' in self.env):
-                        afipid = self.env['afip.responsability.type'].search([('code','=',5)]).id
-                        dinfo["afip_responsability_type_id"] = afipid
+                if doc_number and doc_type:
 
-                    doctypeid = self.env['res.partner.id_category'].search([('code','=','DNI')]).id
-                    dinfo['main_id_category_id'] = doctypeid
-                    dinfo['main_id_number'] = doc_undefined
+                    dinfo['vat'] = doc_number
+
+                else:
+
+                    if doc_undefined:
+                        doc_number = doc_undefined
+                        doc_type = 'DNI'
+                        tax_type = 'Consumidor Final'
+
+                if doc_type == 'DNI' or doc_type == 'dni':
+                    tax_type = 'Consumidor Final'
+
+                founded_doc_type_id = None
+                founded_tax_type_id = None
+
+                #LATAM
+                if not founded_doc_type_id and doc_type and 'l10n_latam.identification.type' in self.env:
+                    identid = self.env['l10n_latam.identification.type'].search([('name','=ilike',doc_type)]).id
+                    if identid:
+                        dinfo["l10n_latam_identification_type_id"] = identid
+                        founded_doc_type_id = True
+
+                #BLUE ORANGE TIPO DOCUMENTO
+                if not founded_doc_type_id and doc_type and 'partner.document.type' in self.env:
+                    identid = self.env['partner.document.type'].search([('name','=ilike',doc_type)]).id
+                    if identid:
+                        dinfo["partner_document_type_id"] = identid
+                        founded_doc_type_id = True
+
+
+                #ARGENTINA RESPONSABILIDAD
+                if not founded_tax_type_id and tax_type and 'l10n_ar.afip.responsibility.type' in self.env:
+                    if ("Exento" in tax_type):
+                        tax_type = "Exento"
+                    resafipid = self.env['l10n_ar.afip.responsibility.type'].search([('name','=ilike', tax_type )],limit=1).id
+
+                    if not resafipid:
+                        resafipid = self.env['l10n_ar.afip.responsibility.type'].search([('name','=ilike', '%'+tax_type )],limit=1).id
+
+                    if resafipid:
+                        dinfo["l10n_ar_afip_responsibility_type_id"] = resafipid
+                        founded_tax_type_id = True
+
+                #BLUE ORANGE RESPONSABILIDAD
+                if not founded_tax_type_id and tax_type and 'account.fiscal.position' in self.env:
+                    if ("Exento" in tax_type):
+                        tax_type = "IVA Exento"
+                    resafipid = self.env['account.fiscal.position'].search([('name','=ilike', tax_type )],limit=1).id
+
+                    if not resafipid:
+                        resafipid = self.env['account.fiscal.position'].search([('name','=ilike', '%'+tax_type )],limit=1).id
+
+                    if resafipid:
+                        dinfo["property_account_position_id"] = resafipid
+                        founded_tax_type_id = True
+
+        if not founded_doc_type_id:
+            _logger.error("not founded doc type id:"+str(dinfo))
+
+        if not founded_tax_type_id:
+            _logger.error("not founded tax type id:"+str(dinfo))
+
+        #_logger.info("doc_info:"+str(dinfo))
         return dinfo
 
-    def ocapi_price_unit( self, product=False, price=0, tax_id=False ):
+    def ocapi_price_unit( self, product=False, price=0, tax_id=False, invert=False ):
 
         account = self
         company = account.company_id or self.env.user.company_id
@@ -603,28 +802,35 @@ class ProductecaConnectionAccount(models.Model):
             txfixed = 0
             txpercent = 0
             tax_ids = tax_id or product_template.taxes_id
-            _logger.info("Adjust taxes: "+str(tax_ids))
+            #_logger.info("Adjust taxes: "+str(tax_ids))
             for txid in tax_ids:
                 if not txid.company_id or (company and txid.company_id.id==company.id):
                     if (txid.type_tax_use=="sale" and not txid.price_include):
                         if (txid.amount_type=="percent"):
-                            _logger.info("Percent: "+str(txid)+" "+str(txid.amount))
+                            #_logger.info("Percent: "+str(txid)+" "+str(txid.amount))
                             txpercent = txpercent + txid.amount
                         if (txid.amount_type=="fixed"):
-                            _logger.info("Fixed: "+str(txid)+" "+str(txid.amount))
+                            #_logger.info("Fixed: "+str(txid)+" "+str(txid.amount))
                             txfixed = txfixed + txid.amount
-                        _logger.info(txid.amount)
+                        #_logger.info(txid.amount)
             if (txfixed>0 or txpercent>0):
-                ml_price_converted = txfixed + ml_price_converted / (1.0 + txpercent*0.01)
-                _logger.info("From: "+str(price)+" with Tx Total:"+str(txpercent)+" to Price:"+str(ml_price_converted))
+                if invert:
+                    ml_price_converted = ml_price_converted * (1.0 + txpercent*0.01)
+                else:
+                    ml_price_converted = txfixed + ml_price_converted / (1.0 + txpercent*0.01)
+                #_logger.info("From: "+str(price)+" with Tx Total:"+str(txpercent)+" to Price:"+str(ml_price_converted))
                 #_logger.info("Price adjusted with taxes:"+str(ml_price_converted))
 
         ml_price_converted = round(ml_price_converted,2)
         return ml_price_converted
 
+
+
+#### IMPORT PROCEDURES #####
+
     def import_sales( self, **post ):
 
-        _logger.info("import_sales")
+        #_logger.info("import_sales")
         account = self
         company = account.company_id or self.env.user.company_id
         noti = None
@@ -659,13 +865,23 @@ class ProductecaConnectionAccount(models.Model):
 
         sales = post.get("sales")
         logs = str(sales)
+        import json
+        logs_json = json.dumps(sales);
 
-        _logger.info("Processing sales")
+        #_logger.info("Processing sales")
 
         for sale in sales:
-            res = self.import_sale( sale, noti )
-            for r in res:
-                result.append(r)
+            try:
+                res = self.import_sale( sale, noti )
+            except Exception as E:
+                _logger.error("Error en import sale: "+str(E))
+                _logger.error(E, exc_info=True)
+                res = [{"error": ""+str(E)}]
+                pass;
+
+            if res:
+                for r in res:
+                    result.append(r)
 
         #close notifications
         if noti:
@@ -673,7 +889,7 @@ class ProductecaConnectionAccount(models.Model):
             logs = str(logs)
             noti.stop_internal_notification(errors=errors,logs=logs)
 
-        _logger.info(result)
+        #_logger.info(result)
         return result
 
     def import_sale( self, sale, noti ):
@@ -687,9 +903,10 @@ class ProductecaConnectionAccount(models.Model):
         psoid = False
         so = False
 
-        _logger.info(sale)
+        #_logger.info(sale)
         psoid = sale["id"]
 
+        # First Producteca code PR-XXXXXX
         if not psoid:
             return result
         fields = {
@@ -697,7 +914,9 @@ class ProductecaConnectionAccount(models.Model):
             "connection_account": account.id,
             "name": "PR-"+str(psoid)
         }
-        #"warehouseIntegration"
+
+        # Producteca Parameters
+        original_couponAmount = 0
         key_bind = ["channel","tags","integrations","cartId",
                     "warehouse","amount","couponAmount",
                     "shippingCost","financialCost","paidApproved",
@@ -721,14 +940,21 @@ class ProductecaConnectionAccount(models.Model):
                                     fields[key+"_"+skey]+= ","+str(valL[skey])
                                 else:
                                     fields[key+"_"+skey] = str(valL[skey])
+                        elif type(valL)==str:
+                            if str(key) in fields:
+                                fields[key]+= ","+str(valL)
+                            else:
+                                fields[key] = str(valL)
 
                 else:
                     if key =="date":
                         val = ml_datetime(val)
                     fields[key] = val
 
-        _logger.info(fields)
-        _logger.info("Searching sale order: " + str(psoid))
+        original_couponAmount = ("couponAmount" in sale and sale["couponAmount"]) or 0
+        #_logger.info("original_couponAmount: "+str(original_couponAmount))
+        #_logger.info(fields)
+        #_logger.info("Searching sale order: " + str(psoid))
         noti.resource = 'import_sales/'+fields['name']
 
         pso = self.env["producteca.sale_order"].sudo().search( [( 'conn_id', '=', psoid ),
@@ -737,6 +963,12 @@ class ProductecaConnectionAccount(models.Model):
         #use producteca channel and integrations data to set Order Name
         chan = None
         chanbinded = None
+        cartId = ("cartId" in fields and fields["cartId"])
+        alternateId = ("integrations_alternateId" in fields and fields["integrations_alternateId"])
+        integId = ("integrations_integrationId" in fields and fields["integrations_integrationId"])
+        integId = cartId or integId
+        #_logger.info("integId:"+str(integId))
+
         if "producteca.channel" in self.env:
             iapp = 0
             if "integrations_app" in fields and fields["integrations_app"] and len(fields["integrations_app"]):
@@ -747,8 +979,8 @@ class ProductecaConnectionAccount(models.Model):
                     appids = [int(s) for s in fields["integrations_app"].split(",") if s.isdigit()]
                     if len(appids):
                         iapp = appids[0]
-                _logger.info("appids:"+str(appids))
-                _logger.info("iapp:"+str(iapp))
+                #_logger.info("appids:"+str(appids))
+                #_logger.info("iapp:"+str(iapp))
                 if iapp>0:
                     chan = self.env["producteca.channel"].search([ ("app_id", "=", str(iapp) ) ], limit=1)
                 else:
@@ -756,21 +988,49 @@ class ProductecaConnectionAccount(models.Model):
 
             if not chan:
                 #chan = self.env["producteca.channel"].search([], limit=1)
-                return { "error": "channel not found" }
+                error = { "error": "channel not found or not configurated > app_id: "+str(iapp)+ " integrationId: "+str(integId) }
+                result.append(error)
+                return result
+
+        so_name = "PR-"+str(psoid)
 
         if chan:
-
-            cartId = ("cartId" in fields and fields["cartId"])
-            integId = ("integrations_integrationId" in fields and fields["integrations_integrationId"])
-            integId = cartId or integId
-            _logger.info("integId:"+str(integId))
 
             chanbinded = config.producteca_channels_bindings and config.producteca_channels_bindings.filtered(lambda b: (b.channel_id and b.channel_id.id == chan.id))
             chanbinded and fields.update( { "channel_binding_id": chanbinded.id } )
 
-            fields.update( { 'name': "PR-"+str(psoid)+ "-" + str((chanbinded and chanbinded.code) or (chan and chan.code))+"-"+str(integId) } )
+            so_name+= "-" + str((chanbinded and chanbinded.code) or (chan and chan.code))
+            if (chanbinded and alternateId and "use_alternate_id" in chanbinded._fields and chanbinded.use_alternate_id):
+                so_name+= "-" + str(alternateId)
+            else:
+                so_name+= "-" + str(integId)
+
+            #_logger.info("add_tracking_number: " + str(config.add_tracking_number))
+            if ("add_tracking_number" in config._fields and config.add_tracking_number):
+
+                #_logger.info("add_tracking_number check tnumber: ")
+
+                tnumber = "shipments" in sale and sale["shipments"] and sale["shipments"][0]
+                #_logger.info("add_tracking_number check tnumber: "+str(tnumber))
+
+                tnumber = tnumber and "method" in tnumber and tnumber["method"]
+                #_logger.info("add_tracking_number check tnumber: "+str(tnumber))
+
+                tnumber = tnumber and "trackingNumber" in tnumber and tnumber["trackingNumber"]
+                #_logger.info("add_tracking_number check tnumber: "+str(tnumber))
+                if (tnumber):
+                    so_name+= "-" + tnumber
+                    #_logger.info("tnumber: " + str(tnumber))
+
+
+
+
+            fields.update( {
+                    'name': so_name
+                }
+            )
             fields.update( { 'channel_id': chan.id } )
-            _logger.info(fields['name'])
+            #_logger.info(fields['name'])
 
             noti.resource = 'import_sales/'+fields['name']
 
@@ -778,13 +1038,13 @@ class ProductecaConnectionAccount(models.Model):
 
 
         #create/update sale order
-        _logger.info(pso)
+        #_logger.info(pso)
         so_bind_now = None
         if not pso:
-            _logger.info("Creating producteca order")
+            #_logger.info("Creating producteca order")
             pso = self.env["producteca.sale_order"].sudo().create( fields )
         else:
-            _logger.info("Updating producteca order")
+            #_logger.info("Updating producteca order")
             pso.write( fields )
 
         if not pso:
@@ -798,21 +1058,21 @@ class ProductecaConnectionAccount(models.Model):
 
         #set producteca bindings
         sqls = 'select producteca_sale_order_id, sale_order_id from producteca_sale_order_sale_order_rel where producteca_sale_order_id = '+str(pso.id)
-        _logger.info("Search Producteca Sale Order Binding "+str(sqls))
+        #_logger.info("Search Producteca Sale Order Binding "+str(sqls))
         respb = self._cr.execute(sqls)
-        _logger.info(respb)
+        #_logger.info(respb)
         restot = self.env.cr.fetchall()
         if len(restot)==0:
             so_bind_now = [(4, pso.id, 0)]
         else:
-            _logger.info("sale order id:"+str(restot[0][1]))
+            #_logger.info("sale order id:"+str(restot[0][1]))
             so = self.env["sale.order"].browse([restot[0][1]])
 
         #create contact
         contactkey_bind = ["name","contactPerson","mail",
                     "phoneNumber","taxId","location",
                     "type","profile",
-                    #"billingInfo",
+                    "billingInfo",
                     "id"]
 
         #process "contact"
@@ -836,19 +1096,36 @@ class ProductecaConnectionAccount(models.Model):
                     else:
                         contactfields[key] = val
 
-            _logger.info(contactfields)
-            _logger.info("Searching Producteca Client: " + str(id))
+            #_logger.info(contactfields)
+            #_logger.info("Searching Producteca Client: " + str(id))
             client = self.env["producteca.client"].sudo().search([( 'conn_id', '=', str(id) ),
                                                                 ("connection_account","=",account.id)])
             if not client:
-                _logger.info("Creating producteca client")
-                client = self.env["producteca.client"].sudo().create( contactfields )
+                #_logger.info("Creating producteca client")
+                BIfields = {}
+                for bikey in contactfields:
+                    if bikey in self.env["producteca.client"]._fields:
+                        BIfields[bikey] = contactfields[bikey]
+                client = self.env["producteca.client"].sudo().create( BIfields )
+                self.env.cr.commit()
             else:
                 if len(client)>1:
                     client = client[0]
-                _logger.info("Updating producteca client")
+                #_logger.info("Updating producteca client")
                 if ('location_stateId' in contactfields) or ('billingInfo_stateId' in contactfields):
                     client.write( { 'location_stateId': ('location_stateId' in contactfields and contactfields['location_stateId']),'billingInfo_stateId': ('billingInfo_stateId' in contactfields and contactfields['billingInfo_stateId']) } )
+                if (not (client.billingInfo_docNumber) and "billingInfo_docNumber" in contactfields and contactfields["billingInfo_docNumber"]):
+                    BIfields = {}
+                    for bikey in contactfields:
+                        if ("billingInfo" in bikey):
+                            if bikey in self.env["producteca.client"]._fields:
+                                BIfields[bikey] = contactfields[bikey]
+                    if BIfields:
+                        client.write(BIfields)
+                        self.env.cr.commit()
+
+
+
             if not client:
                 error = {"error": "Producteca Client creation error"}
                 result.append(error)
@@ -859,12 +1136,13 @@ class ProductecaConnectionAccount(models.Model):
                 if client.partner_id:
                     partner_id = client.partner_id
                 pso.write({ "client": client.id, "mail": client.mail })
+                self.env.cr.commit()
 
             #partner_id = self.env["res.partner"].search([  ('producteca_bindings','in',[id] ) ] )
             sqls = 'select producteca_client_id, res_partner_id from producteca_client_res_partner_rel where producteca_client_id = '+str(client.id)
-            _logger.info("Search Partner Binding "+str(sqls))
+            #_logger.info("Search Partner Binding "+str(sqls))
             respb = self._cr.execute(sqls)
-            _logger.info(respb)
+            #_logger.info(respb)
             restot = self.env.cr.fetchall()
 
             country_id = self.country(contact=contactfields)
@@ -872,10 +1150,16 @@ class ProductecaConnectionAccount(models.Model):
             buyer_name = ("name" in contactfields and contactfields["name"])
             firstName = ("billingInfo_firstName" in contactfields and contactfields["billingInfo_firstName"])
             lastName = ("billingInfo_lastName" in contactfields and contactfields["billingInfo_lastName"])
-            if not buyer_name and firstName and lastName:
+            if firstName and lastName:
                 _logger.info("buyer_name using first and last: firstName:['"+str(firstName)+"'] lastName['"+str(lastName)+"']")
                 buyer_name = firstName + str(" ") + lastName
-            if not firstName and not lastName and 'contactPerson' in contactfields:
+
+            if not buyer_name and (firstName or lastName):
+                _logger.info("buyer_name using first and last: firstName:['"+str(firstName)+"'] lastName['"+str(lastName)+"']")
+                buyer_name = firstName and str(firstName)
+                buyer_name = buyer_name or (lastName and str(lastName))
+
+            if not buyer_name and 'contactPerson' in contactfields and contactfields['contactPerson']:
                 buyer_name = contactfields['contactPerson']
 
             billingInfo_businessName = ("billingInfo_businessName" in contactfields and contactfields["billingInfo_businessName"])
@@ -883,7 +1167,7 @@ class ProductecaConnectionAccount(models.Model):
                 buyer_name = billingInfo_businessName
 
             ocapi_buyer_fields = {
-                "name": buyer_name,
+                "name": buyer_name or "Revisar",
                 'street': self.street(contact=contactfields,billing=True) or self.street(contact=contactfields),
                 'street2': ("billingInfo_neighborhood" in contactfields and contactfields["billingInfo_neighborhood"]) or str("location_neighborhood" in contactfields and contactfields["location_neighborhood"]),
                 'city': self.city(contact=contactfields,billing=True) or self.city(contact=contactfields),
@@ -904,14 +1188,25 @@ class ProductecaConnectionAccount(models.Model):
             if 'property_account_receivable_id' in self.env["res.partner"]._fields:
                 ocapi_buyer_fields['property_account_receivable_id'] = (chanbinded and chanbinded.partner_account_receive_id and chanbinded.partner_account_receive_id.id)
 
-            ocapi_buyer_fields.update( self.doc_info( contactfields, doc_undefined=(account.configuration and account.configuration.doc_undefined) ) )
-            _logger.info(ocapi_buyer_fields)
+            _doc_info = self.doc_info( contactfields, doc_undefined=(account.configuration and account.configuration.doc_undefined) )
+            #_logger.info("ocapi_buyer_fields _doc_info:"+str(_doc_info) )
+            ocapi_buyer_fields.update( _doc_info )
+            #_logger.info("ocapi_buyer_fields:"+str(ocapi_buyer_fields))
+
+            #check vat
+            country_code = country_id and self.env["res.country"].browse(country_id).code
+            if ("vat" in ocapi_buyer_fields and country_code):
+                check_vat = self.env["res.partner"].simple_vat_check( country_code, str(ocapi_buyer_fields["vat"]) )
+                if not check_vat:
+                    #ocapi_buyer_fields["vat"] = False
+                    #_logger.info("check_vat: "+str(ocapi_buyer_fields["vat"])+" > "+str(check_vat) )
+                    pass;
 
             if len(restot):
-                _logger.info("Upgrade partner")
-                _logger.info(restot)
+                #_logger.info("Upgrade partner")
+                #_logger.info(restot)
                 for res in restot:
-                    _logger.info("Search Partner "+str(res))
+                    #_logger.info("Search Partner "+str(res))
                     partner_id_id = res[1]
                     partner_id = self.env["res.partner"].sudo().browse([partner_id_id])
                     try:
@@ -925,27 +1220,43 @@ class ProductecaConnectionAccount(models.Model):
                         if "main_id_category_id" in partner_id._fields and partner_id.main_id_category_id and "main_id_category_id" in ocapi_buyer_fields:
                             del ocapi_buyer_fields["main_id_category_id"]
 
-                        _logger.info("Upgrade partner: "+str(ocapi_buyer_fields))
+                        #_logger.info("Upgrade partner: "+str(ocapi_buyer_fields))
                         partner_id.sudo().write(ocapi_buyer_fields)
+                        self.env.cr.commit()
                     except Exception as E:
                         error = {"error": "Updated res.partner error. Check account configuration and this message: "+str(E)}
                         result.append(error)
                         _logger.error(E, exc_info=True)
+                        if so:
+                            so.message_post(body=str(error["error"]))
                     break;
             else:
-                _logger.info("Create partner")
+                #_logger.info("Create partner")
                 respartner_obj = self.env['res.partner']
                 try:
                     partner_id = respartner_obj.sudo().create(ocapi_buyer_fields)
-                    if partner_id:
-                        _logger.info("Created Res Partner "+str(partner_id))
+                    self.env.cr.commit()
+                    #if partner_id:
+                        #_logger.info("Created Res Partner "+str(partner_id))
                 except Exception as E:
                     error = {"error": "Created res.partner issue: "+str(E)}
                     result.append(error)
                     _logger.error(str(error["error"]))
                     _logger.error(E, exc_info=True)
+                    if so:
+                        so.message_post(body=str(error["error"]))
+
+                    sqls = 'select producteca_client_id, res_partner_id from producteca_client_res_partner_rel where producteca_client_id = '+str(client.id)
+                    #_logger.info("Search Partner Binding "+str(sqls))
+                    respb = self._cr.execute(sqls)
+                    #_logger.info(respb)
+                    restot = self.env.cr.fetchall()
+                    if restot:
+                        partner_id_id = restot[0][1]
+                        partner_id = self.env["res.partner"].sudo().browse([partner_id_id])
                     pass;
 
+        #_logger.info("partner_id: " +str(partner_id))
         if partner_id:
 
             if client:
@@ -979,19 +1290,22 @@ class ProductecaConnectionAccount(models.Model):
             if "company_ids" in self.env["res.partner"]._fields and company:
                 pdelivery_fields["company_ids"] = [(4,company.id)]
             if company:
+                if "company_id" in self.env["res.partner"]._fields:
+                    pdelivery_fields["company_id"] = company.id
                 pdelivery_fields["lang"] =  company.partner_id.lang
+
             #TODO: agregar un campo para diferencia cada delivery res partner al shipment y orden asociado, crear un binding usando values diferentes... y listo
             deliv_id = self.env["res.partner"].sudo().search([("parent_id","=",pdelivery_fields['parent_id']),
                                                         ("type","=","delivery"),
                                                         ('street','=',pdelivery_fields['street'])],
                                                         limit=1)
             if not deliv_id or len(deliv_id)==0:
-                _logger.info("Create partner delivery")
+                #_logger.info("Create partner delivery")
                 respartner_obj = self.env['res.partner']
                 try:
                     deliv_id = respartner_obj.create(pdelivery_fields)
                     if deliv_id:
-                        _logger.info("Created Res Partner Delivery "+str(deliv_id))
+                        #_logger.info("Created Res Partner Delivery "+str(deliv_id))
                         partner_shipping_id = deliv_id
                 except Exception as E:
                     error = {"error": "Creating partner error. Check account configuration and this message: "+str(E)}
@@ -1001,7 +1315,7 @@ class ProductecaConnectionAccount(models.Model):
                     pass;
             else:
                 try:
-                    deliv_id.write(pdelivery_fields)
+                    deliv_id.sudo().write(pdelivery_fields)
                     partner_shipping_id = deliv_id
                 except Exception as E:
                     error = {"error": "Updating partner error. Check account configuration and this message: "+str(E)}
@@ -1019,28 +1333,30 @@ class ProductecaConnectionAccount(models.Model):
             plist = None
             #
             if not plist and account.configuration and account.configuration.import_price_lists:
-                _logger.info(account.configuration.import_price_lists)
+                #_logger.info(account.configuration.import_price_lists)
                 plist = account.configuration.import_price_lists[0]
 
             if not plist and account.configuration and account.configuration.publish_price_lists:
-                _logger.info(account.configuration.publish_price_lists)
+                #_logger.info(account.configuration.publish_price_lists)
                 plist = account.configuration.publish_price_lists[0]
 
             if not plist:
-                plist = self.env["product.pricelist"].search([],limit=1)
+                return { "error": "Definir listas de precios en la configuracion. " }
+                #plist = self.env["product.pricelist"].search([],limit=1)
+            #_logger.info("Lista de precio: " +str(plist and plist.name))
 
             whouse = None
             #import_sales_action
             if account.configuration and account.configuration.import_stock_locations:
 
-                _logger.info(account.configuration.import_stock_locations)
+                #_logger.info(account.configuration.import_stock_locations)
                 #default is first instance
                 whouse = chanbinded and chanbinded.warehouse_id or account.configuration.import_stock_locations[0]
                 #account.configuration.import_stock_locations
 
                 #check for logistic type
                 if pso.logisticType:
-                    _logger.info( "account.configuration.import_stock_locations:" + str(account.configuration.import_stock_locations.mapped("id")) )
+                    #_logger.info( "account.configuration.import_stock_locations:" + str(account.configuration.import_stock_locations.mapped("id")) )
                     whousefull = self.env["stock.warehouse"].search([('producteca_logistic_type','=ilike',str(pso.logisticType))])
                     if len(whousefull):
                         for wh in whousefull:
@@ -1074,17 +1390,61 @@ class ProductecaConnectionAccount(models.Model):
             if chan:
                 sale_order_fields['name'] = fields['name']
 
+            if (chanbinded and "sale_order_type" in chanbinded._fields and "type_id" in self.env["sale.order"]._fields):
+                sale_order_fields['type_id'] = chanbinded.sale_order_type and chanbinded.sale_order_type.id
+
+            if (chanbinded and "sale_order_type_full" in chanbinded._fields and "type_id" in self.env["sale.order"]._fields):
+                full_log = chanbinded.import_sales_action_full_logistic
+                if full_log:
+                    if full_log in str(pso.logisticType):
+                        sale_order_fields['type_id'] = chanbinded.sale_order_type_full and chanbinded.sale_order_type_full.id
+
             if not so:
-                so = self.env["sale.order"].search([('name','like',sale_order_fields['name'])],limit=1)
+                # Search the last known code if order is already manually created
+                domain = [('name','like',sale_order_fields['name'])]
+                if 'integrations_integrationId' in fields:
+                    integId_code = str((chanbinded and chanbinded.code) or (chan and chan.code))
+                    if fields['integrations_integrationId']:
+                        domain = [
+                            '|',
+                            ('name','like',sale_order_fields['name']),
+                            ('name','like',integId_code + '-' + fields['integrations_integrationId']),
+                        ]
+                        #_logger.info("integrationId --> %s"%(integId_code + '-' + fields['integrations_integrationId']))
+
+                so = self.env["sale.order"].search(domain,limit=1)
+                #_logger.info("Orden de venta encontrada: %s"%(so.mapped('name')))
+
+            if so and so.producteca_update_forbidden:
+                #intenta nuevamente cancelar la orden
+                if pso.paymentStatus in ['Refunded'] and so.state in ['sale','done'] and pso.deliveryStatus not in ["InTransit","Done"] and pso.deliveryFulfillmentStatus not in ["InTransit","Done"]:
+                    mensaje_cancelacion = "Intentando cancelar orden: paymentStatus es Refunded y deliveryStatus no esta en InTransit o Done"
+                    #_logger.info(mensaje_cancelacion)
+                    so.message_post(body=str(mensaje_cancelacion))
+                    so._action_cancel()
+                error = {"error": "Sale Order Forbidden > notificacion enviada el "+str(noti and noti.sent)}
+                _logger.error(error)
+                result.append(error)
+                if so:
+                    so.message_post(body=str(error["error"]))
+                if noti:
+                    errors = str(result)
+                    #logs = str(sale)
+                    noti.stop_internal_notification(errors=errors,logs=noti.processing_logs)
+                return result
 
             if so:
-                _logger.info("Updating order")
-                _logger.info(sale_order_fields)
+                #_logger.info("Updating order")
+                #_logger.info(sale_order_fields)
+                if (so.pricelist_id and so.pricelist_id.id and sale_order_fields["pricelist_id"] and sale_order_fields["pricelist_id"]==so.pricelist_id.id):
+                    del sale_order_fields["pricelist_id"]
                 so.write(sale_order_fields)
+                self.env.cr.commit()
             else:
-                _logger.info("Creating order")
-                _logger.info(sale_order_fields)
+                #_logger.info("Creating order")
+                #_logger.info(sale_order_fields)
                 so = self.env["sale.order"].create(sale_order_fields)
+                self.env.cr.commit()
 
             if so and 1==1 and "x_studio_referencia" in self.env["sale.order"]._fields:
                 so.commitment_date = so.date_order
@@ -1093,11 +1453,23 @@ class ProductecaConnectionAccount(models.Model):
         lines_processed = []
         lines_processed_full = False
         lines_processed_total = 0
+        lines_processed_total_original = 0
+
         if "lines" in sale and pso:
+
             lines = sale["lines"]
+
             lines_processed_full = True
+
+            line_sale_new_id = 0
             for line in lines:
-                lid = str(psoid)+str("_")+str(line["variation"]["id"])
+
+                lid_old = str(psoid)+str("_")+str(line["variation"]["id"])
+                lid_new = str(psoid)+str("_")+str(line["variation"]["id"])+"_"+str(line_sale_new_id)+"_"
+                lid = lid_new
+
+                line_sale_new_id+= 1
+
                 linefields = {
                     "conn_id": lid,
                     "connection_account": account.id,
@@ -1132,11 +1504,19 @@ class ProductecaConnectionAccount(models.Model):
                                 continue;
                             linefields[key] = val
 
-                _logger.info(linefields)
-                _logger.info("Searching Producteca Line: " + str(lid))
+                #_logger.info(linefields)
+                #_logger.info("Searching Producteca Line: " + str(lid))
+                oli_old = self.env["producteca.sale_order_line"].sudo().search([( 'conn_id', '=', lid_old ),
+                                                                    ('order_id','=',pso.id),
+                                                                    ("connection_account","=",account.id)])
+                if oli_old:
+                    oli_old.unlink()
+
                 oli = self.env["producteca.sale_order_line"].sudo().search([( 'conn_id', '=', lid ),
                                                                     ('order_id','=',pso.id),
                                                                     ("connection_account","=",account.id)])
+
+
 
                 if not oli:
                     _logger.info("Creating producteca order line")
@@ -1144,6 +1524,7 @@ class ProductecaConnectionAccount(models.Model):
                 else:
                     _logger.info("Updating producteca order line")
                     oli.write( linefields )
+
                 if not oli:
                     error = {"error": "Producteca Order Line creation error"}
                     #errors+= str(error)+"\n"
@@ -1151,19 +1532,17 @@ class ProductecaConnectionAccount(models.Model):
                     if so:
                         so.message_post(body=str(error["error"]))
                     return result
-                else:
-                    _logger.info("Line ok")
-                    _logger.info(oli)
+                #else:
+                #    _logger.info("Line ok")
+                #    _logger.info(oli)
 
-                product = self.env["product.product"].search( [('default_code','=ilike',line["variation"]["sku"])] )
-                _logger.info("product searched = sku ["+str(line["variation"]["sku"])+"]: "+str(product))
-                #product = self.env["product.product"].search( [('barcode','=',line["variation"]["sku"])] )
-                if not product:
-                    product = self.env["product.product"].search( [('default_code','=ilike',line["variation"]["sku"])] )
-                    _logger.info("product searched like sku ["+str(line["variation"]["sku"])+"]: "+str(product))
+                product = self.env["product.product"].search( [('default_code','=ilike',line["variation"]["sku"]),
+                                                                '|', ('company_id','=',False),('company_id','=', (account.company_id and account.company_id.id) ) ] )
+                #_logger.info("product searched = sku ["+str(line["variation"]["sku"])+"]: "+str(product))
 
                 if not product:
-                    product = self.env["product.product"].search( [('barcode','=ilike',line["variation"]["sku"])] )
+                    product = self.env["product.product"].search( [('barcode','=ilike',line["variation"]["sku"]),
+                                                                '|', ('company_id','=',False),('company_id','=', (account.company_id and account.company_id.id) ) ] )
 
                 if product and len(product)>1:
                     error = { "error":  "Duplicados del producto con sku (revisar sku/barcode) "+str(line["variation"]["sku"]) }
@@ -1186,6 +1565,7 @@ class ProductecaConnectionAccount(models.Model):
                         so_line_fields = {
                             'company_id': company.id,
                             'order_id': so.id,
+                            'producteca_bindings': (oli and oli.id) or None,
                             #'meli_order_item_id': Item['item']['id'],
                             #'meli_order_item_variation_id': Item['item']['variation_id'],
                             'price_unit': self.ocapi_price_unit( product, float(linefields['price']) ),
@@ -1196,20 +1576,44 @@ class ProductecaConnectionAccount(models.Model):
                         }
                         if (chanbinded and "analytic_tag" in chanbinded and "analytic_tag_ids" in soline_mod._fields):
                             so_line_fields["analytic_tag_ids"] = (chanbinded.analytic_tag and chanbinded.analytic_tag.id and [(6, 0, [chanbinded.analytic_tag.id])]) or None
-                        _logger.info("Creating Odoo Sale Order Line Item: "+str(so_line_fields))
+                        #_logger.info("Creating Odoo Sale Order Line Item: "+str(so_line_fields))
                         so_line = soline_mod.search( [  #('meli_order_item_id','=',saleorderline_item_fields['meli_order_item_id']),
                                                         #('meli_order_item_variation_id','=',saleorderline_item_fields['meli_order_item_variation_id']),
                                                         ('product_id','=',product.id),
+                                                        ('producteca_bindings','=',(oli and oli.id) or None),
                                                         ('order_id','=',so.id)] )
 
-                        if not so_line or len(so_line)==0:
-                            so_line = soline_mod.create( ( so_line_fields ))
-                        else:
-                            so_line.write( ( so_line_fields ) )
+                        try:
+
+                            if (not so.state in ['done','cancel']):
+
+                                if (oli and oli.id):
+                                    so_line_old = soline_mod.search( [  #('meli_order_item_id','=',saleorderline_item_fields['meli_order_item_id']),
+                                                                #('meli_order_item_variation_id','=',saleorderline_item_fields['meli_order_item_variation_id']),
+                                                                ('product_id','=',product.id),
+                                                                ('producteca_bindings','=',None),
+                                                                ('order_id','=',so.id)] )
+                                    if so_line_old:
+                                        so_line_old.unlink()
+
+                                if not so_line or len(so_line)==0:
+                                    so_line = soline_mod.create( ( so_line_fields ))
+                                else:
+                                    so_line.write( ( so_line_fields ) )
+
+                        except Exception as E:
+                            error = {"error": "Creating or writing order line error. Check account configuration and this message: "+str(E)}
+                            result.append(error)
+                            _logger.error(str(error["error"]))
+                            _logger.error(E, exc_info=True)
+                            if so:
+                                so.message_post(body=str(error["error"]))
 
                         so_line_fields["price"] = float(linefields['price'])
+                        so_line_fields["originalPrice"] = float(linefields['originalPrice'] or linefields['price'])
                         lines_processed.append(so_line_fields)
                         lines_processed_total+= so_line_fields["price"]*so_line_fields["product_uom_qty"]
+                        lines_processed_total_original+= so_line_fields["originalPrice"]*so_line_fields["product_uom_qty"]
 
                         if so_line and oli:
                             #Many2one this time
@@ -1232,7 +1636,7 @@ class ProductecaConnectionAccount(models.Model):
                 'product_uom': product.uom_id.id,
                 'name': product.display_name,
             }
-            _logger.info("Creating Odoo Sale Order Line Item  for DISCOUNT: "+str(so_line_fields))
+            #_logger.info("Creating Odoo Sale Order Line Item  for DISCOUNT: "+str(so_line_fields))
             so_line = soline_mod.search( [  #('meli_order_item_id','=',saleorderline_item_fields['meli_order_item_id']),
                                             #('meli_order_item_variation_id','=',saleorderline_item_fields['meli_order_item_variation_id']),
                                             ('product_id','=',product.id),
@@ -1282,16 +1686,16 @@ class ProductecaConnectionAccount(models.Model):
                                 val = ml_datetime(val)
                             shpfields[key] = val
 
-                _logger.info(shpfields)
-                _logger.info("Searching Producteca Shipment: " + str(shpid))
+                #_logger.info(shpfields)
+                #_logger.info("Searching Producteca Shipment: " + str(shpid))
                 oshp = self.env["producteca.shipment"].sudo().search([( 'conn_id', '=', shpid ),
                                                                     ('order_id','=',pso.id),
                                                                     ("connection_account","=",account.id)])
                 if not oshp:
-                    _logger.info("Creating producteca shipment record")
+                    #_logger.info("Creating producteca shipment record")
                     oshp = self.env["producteca.shipment"].sudo().create( shpfields )
                 else:
-                    _logger.info("Updating producteca shipment record")
+                    #_logger.info("Updating producteca shipment record")
                     oshp.write( shpfields )
                 if not oshp:
                     error = {"error": "Producteca Order Shipment creation error"}
@@ -1299,9 +1703,9 @@ class ProductecaConnectionAccount(models.Model):
                     if so:
                         so.message_post(body=str(error["error"]))
                     return result
-                else:
-                    _logger.info("Shipment ok")
-                    _logger.info(oshp)
+                #else:
+                #    _logger.info("Shipment ok")
+                #    _logger.info(oshp)
 
 
                 #CREATING SHIPMENT SERVICE AND CARRIERS
@@ -1321,22 +1725,15 @@ class ProductecaConnectionAccount(models.Model):
                     product_shipping_id = product_shipping_id[0]
                 else:
                     product_shipping_id = None
-                    ship_prod = {
-                        "name": ship_name,
-                        "default_code": ship_name,
-                        "type": "service",
-                        #"taxes_id": None
-                        #"categ_id": 279,
-                        #"company_id": company.id
-                    }
-                    _logger.info(ship_prod)
+                    ship_prod = get_default_shipment_service( self, ship_name, ship_name )
+                    #_logger.info(ship_prod)
                     product_shipping_tpl = product_tpl.create((ship_prod))
                     if (product_shipping_tpl):
                         product_shipping_id = product_shipping_tpl.product_variant_ids[0]
-                _logger.info(product_shipping_id)
+                #_logger.info(product_shipping_id)
 
                 if (not product_shipping_id):
-                    _logger.info('Failed to create shipping product service')
+                    #_logger.info('Failed to create shipping product service')
                     continue;
 
                 ship_carrier = {
@@ -1358,9 +1755,9 @@ class ProductecaConnectionAccount(models.Model):
                     #    st_pick.carrier_id = ship_carrier_id
                     st_pick.carrier_tracking_ref = oshp.method_trackingNumber
 
-                if (oshp.method_courier == "MEL Distribution"):
+                if (1==2 and oshp.method_courier == "MEL Distribution"):
                     _logger.info('MEL Distribution, not adding to order')
-                    #continue
+                    continue
 
                 #if ( ship_carrier_id and not so.carrier_id and pso.shippingCost and pso.shippingCost>0.0 ):
                 if ( ship_carrier_id and not so.carrier_id  ):
@@ -1377,27 +1774,28 @@ class ProductecaConnectionAccount(models.Model):
 
                 if ((so.carrier_id and pso.shippingCost==0.0 ) or including_shipping_cost=="never"):
                     delivery_line = get_delivery_line( so )
-                    if delivery_line:
+                    if delivery_line and so.state not in ['done']:
                         delivery_line.price_unit = float(0.0)
                         delivery_line.qty_to_invoice = 0.0
                 #    so._remove_delivery_line()
 
                 if so and pso and pso.shipment_method_cost:
                     delivery_line = get_delivery_line( so )
-                    if delivery_line and 'purchase_price' in saleorderline_obj._fields:
+                    if so.state not in ['done'] and delivery_line and 'purchase_price' in saleorderline_obj._fields:
                         delivery_line.purchase_price = float(pso.shipment_method_cost)
 
                 if ((so.carrier_id and pso.shippingCost==0.0) and including_shipping_cost=="never"):
                     so._remove_delivery_line()
+                    pass;
 
         if (not "shipments" in sale or ("shipments" in sale and not sale["shipments"])):
             #CREATING SHIPMENT SERVICE AND CARRIERS
-            _logger.info("creating shipping without shipping")
-            _logger.info("creating shipping without pso.deliveryMethod: "+str(pso.deliveryMethod))
-            _logger.info("creating shipping without pso.shippingCost: "+str(pso.shippingCost))
+            #_logger.info("creating shipping without shipping")
+            #_logger.info("creating shipping without pso.deliveryMethod: "+str(pso.deliveryMethod))
+            #_logger.info("creating shipping without pso.shippingCost: "+str(pso.shippingCost))
             if pso and so and pso.deliveryMethod and pso.shippingCost>0.0:
                 for iiix in ['11']:
-                    _logger.info("creating shipping without shipping: "+str(iiix))
+                    #_logger.info("creating shipping without shipping: "+str(iiix))
                     product_obj = self.env["product.product"]
                     product_tpl = self.env["product.template"]
                     ship_name = pso.deliveryMethod
@@ -1421,15 +1819,15 @@ class ProductecaConnectionAccount(models.Model):
                             #"categ_id": 279,
                             #"company_id": company.id
                         }
-                        _logger.info("ship_prod:"+str(ship_prod) )
+                        #_logger.info("ship_prod:"+str(ship_prod) )
                         product_shipping_tpl = product_tpl.create((ship_prod))
                         if (product_shipping_tpl):
                             product_shipping_id = product_shipping_tpl.product_variant_ids[0]
 
-                    _logger.info(product_shipping_id)
+                    #_logger.info(product_shipping_id)
 
                     if (not product_shipping_id):
-                        _logger.info('Failed to create shipping product service')
+                        #_logger.info('Failed to create shipping product service')
                         continue;
 
                     ship_carrier = {
@@ -1461,11 +1859,12 @@ class ProductecaConnectionAccount(models.Model):
 
                     if ((so.carrier_id and pso.shippingCost==0.0 ) or including_shipping_cost=="never"):
                         delivery_line = get_delivery_line( so )
-                        if delivery_line:
+                        if so.state not in ['done'] and delivery_line:
                             delivery_line.price_unit = float(0.0)
                             delivery_line.qty_to_invoice = 0.0
 
         #process payments
+        general_discount = False
         if "payments" in sale and pso:
             payments = sale["payments"]
             pso.couponAmount = 0
@@ -1493,7 +1892,7 @@ class ProductecaConnectionAccount(models.Model):
                     fieldname = key
                     if key in payment:
                         val = payment[key]
-                        if type(val)==dict:
+                        if val and type(val)==dict:
                             for skey in val:
                                 fieldname = key+"_"+skey
                                 if not fieldname in model._fields:
@@ -1509,22 +1908,25 @@ class ProductecaConnectionAccount(models.Model):
                                 val = ml_datetime(val)
                             payfields[key] = val
 
-                _logger.info(payfields)
-                _logger.info("Searching Producteca Payment: " + str(payid))
+                #_logger.info(payfields)
+                #_logger.info("Searching Producteca Payment: " + str(payid))
                 opay = self.env["producteca.payment"].sudo().search([( 'conn_id', '=', payid ),
                                                                     ('order_id','=',pso.id),
                                                                     ("connection_account","=",account.id)])
                 if not opay:
-                    _logger.info("Creating producteca payment record")
+                    #_logger.info("Creating producteca payment record")
                     opay = self.env["producteca.payment"].sudo().create( payfields )
                 else:
-                    _logger.info("Updating producteca payment record")
+                    #_logger.info("Updating producteca payment record")
                     opay.write( payfields )
 
                 if opay and opay.status == 'Approved':
                     pso.couponAmount+= opay.couponAmount;
-
-
+                    if opay.couponAmount<=0.0 and (opay.method == 'Ticket' and len(payments)>1 and not opay.card_paymentNetwork) and opay.amount>0:
+                        #_logger.info("Ticket para agregar en Shopify: "+str(opay.amount))
+                        pso.couponAmount+= opay.amount;
+                        #_logger.info("Coupon amount via tickets....: "+str(pso.couponAmount))
+                        general_discount = True
 
                 if not opay:
                     error = {"error": "Producteca Order Payment creation error"}
@@ -1534,13 +1936,27 @@ class ProductecaConnectionAccount(models.Model):
                     return result
                 else:
                     opay.order_id = pso
-                    _logger.info("Producteca Payment ok, creating Odoo Payment.")
-                    _logger.info(opay)
+                    pso.sale_order = so
+                    #_logger.info("Producteca Payment ok, creating Odoo Payment.")
+                    #_logger.info(opay)
                     if opay.status and opay.status=='Approved' and account and account.configuration:
-                        if (account.configuration.import_payments==True and not opay.account_payment_id):
-                            _logger.info("Importing payment...")
+
+                        if opay.account_payment_id and "account_payment_group_id" in opay._fields:
+                            if not opay.account_payment_group_id:
+                                opay.account_payment_group_id = opay.account_payment_id.payment_group_id
+                            if opay.account_payment_group_id and not opay.account_payment_group_id.receiptbook_id:
+                                opay.account_payment_group_id.receiptbook_id = opay.get_ml_receiptbook()
+                            if opay.account_payment_group_id and not opay.account_payment_group_id.partner_type:
+                                opay.account_payment_group_id.partner_type = "customer"
+
+                        if (account.configuration.import_payments==True):
+                            #_logger.info("Importing payment...")
                             try:
-                                opay.create_payment()
+                                if pso.sale_order:
+                                    if not opay.account_payment_id:
+                                        opay.create_payment()
+                                    elif opay.account_payment_id.state=='draft':
+                                        opay.post_payment()
                             except Exception as E:
                                 error = {"error": "Creating payment error. Check account configuration and this message: "+str(E)}
                                 result.append(error)
@@ -1549,18 +1965,15 @@ class ProductecaConnectionAccount(models.Model):
                                 if so:
                                     so.message_post(body=str(error["error"]))
                                 pass;
-                        elif opay.account_payment_id and "account_payment_group_id" in opay._fields:
-                            if not opay.account_payment_group_id:
-                                opay.account_payment_group_id = opay.account_payment_id.payment_group_id
-                            if opay.account_payment_group_id and not opay.account_payment_group_id.receiptbook_id:
-                                opay.account_payment_group_id.receiptbook_id = opay.get_ml_receiptbook()
-                            if opay.account_payment_group_id and not opay.account_payment_group_id.partner_type:
-                                opay.account_payment_group_id.partner_type = "customer"
 
-
-                        if (account.configuration.import_payments_fee==True and not opay.account_supplier_payment_id):
+                        if (account.configuration.import_payments_fee==True):
+                            #_logger.info("Importing payment fee...")
                             try:
-                                opay.create_supplier_payment()
+                                if pso.sale_order:
+                                    if not opay.account_supplier_payment_id:
+                                        opay.create_supplier_payment()
+                                    elif opay.account_supplier_payment_id.state=='draft':
+                                        opay.post_supplier_payment()
                             except Exception as E:
                                 error = {"error": "Creating payment fee error. Check account configuration and this message: "+str(E)}
                                 result.append(error)
@@ -1569,9 +1982,15 @@ class ProductecaConnectionAccount(models.Model):
                                 if so:
                                     so.message_post(body=str(error["error"]))
                                 pass;
-                        if (account.configuration.import_payments_shipment==True and not opay.account_supplier_payment_shipment_id):
+
+                        if (account.configuration.import_payments_shipment==True):
+                            #_logger.info("Importing payment shipment...")
                             try:
-                                opay.create_supplier_payment_shipment()
+                                if pso.sale_order:
+                                    if not opay.account_supplier_payment_shipment_id:
+                                        opay.create_supplier_payment_shipment()
+                                    elif opay.account_supplier_payment_shipment_id.state=='draft':
+                                        opay.post_supplier_payment_shipment()
                             except Exception as E:
                                 error = {"error": "Creating payment shipment error. Check account configuration and this message: "+str(E)}
                                 result.append(error)
@@ -1584,8 +2003,8 @@ class ProductecaConnectionAccount(models.Model):
                 #Register Payments...
 
             if so:
-                _logger.info("Order ok")
-                _logger.info(so)
+                #_logger.info("Order ok")
+                #_logger.info(so)
                 pso.write({ "sale_order": so.id })
                 if so_bind_now:
                     so.producteca_bindings = so_bind_now
@@ -1631,12 +2050,39 @@ class ProductecaConnectionAccount(models.Model):
                     if not saleorderline_item_ids:
                         saleorderline_item_ids = saleorderline_obj.create( ( saleorderline_item_fields ))
                     else:
+                        #saleorderline_item_fields["discount"] = 0.0;
                         saleorderline_item_ids.write( ( saleorderline_item_fields ) )
 
-        if pso and so and "couponAmount" in pso._fields and pso.couponAmount > 0 and so:
+        #desactivamos para argentina por errores de rendondeo de odoo discount
+        process_discount = chanbinded and "discount_method" in chanbinded._fields and "with_discount" in chanbinded.discount_method
+
+        if (process_discount and pso and so and "couponAmount" in pso._fields and pso.couponAmount > 0 and so):
+            process_discount_by_product = "with_discounts_by_product" in chanbinded.discount_method
+            process_discount_by_product = not general_discount and process_discount_by_product
             soline_mod = self.env["sale.order.line"]
-            _logger.info("lines_processed:"+str(lines_processed)+" lines_processed_full:"+str(lines_processed_full))
+            #_logger.info("lines_processed:"+str(lines_processed)+" lines_processed_full:"+str(lines_processed_full))
+
             if lines_processed and lines_processed_full:
+
+                couponAmountFIX = 0
+                for liproidx in lines_processed:
+                    so_line_fields = liproidx
+                    line_price_unit_diff = so_line_fields["originalPrice"]-so_line_fields["price"]
+                    line_price_qty = so_line_fields["product_uom_qty"]
+                    couponAmountFIX+= line_price_unit_diff*line_price_qty
+
+                if process_discount_by_product:
+                    couponAmountFIX = 0
+                    pso.couponAmount = 0
+                else:
+                    if (not original_couponAmount and pso.couponAmount):
+                        original_couponAmount = pso.couponAmount
+
+                    if (couponAmountFIX and original_couponAmount):
+                        couponAmountFIX+= original_couponAmount
+
+                    couponAmountFIX = couponAmountFIX or pso.couponAmount
+
                 for liproidx in lines_processed:
                     so_line_fields = liproidx
                     so_line = soline_mod.search( [  #('meli_order_item_id','=',saleorderline_item_fields['meli_order_item_id']),
@@ -1644,23 +2090,51 @@ class ProductecaConnectionAccount(models.Model):
                                                     ('product_id','=',so_line_fields["product_id"]),
                                                     ('order_id','=',so.id)] )
                     if so_line:
-                        line_price_unit = so_line_fields["price"]
+                        line_price_unit = so_line_fields["originalPrice"]
                         line_price_qty = so_line_fields["product_uom_qty"]
                         line_total = line_price_unit*line_price_qty
-                        line_total_perc = line_total / lines_processed_total
+                        #line_total_perc = line_total / lines_processed_total
+                        line_total_perc = line_total / lines_processed_total_original
 
-                        _logger.info("so_line ok! line_price_unit:"+str(line_price_unit)+" line_price_qty:"+str(line_price_qty)+" line_total:"+str(line_total)+" line_total_perc:"+str(line_total_perc)+" lines_processed_total:"+str(lines_processed_total) )
+                        #_logger.info("so_line ok! line_price_unit:"+str(line_price_unit)+" line_price_qty:"+str(line_price_qty)+" line_total:"+str(line_total)+" line_total_perc:"+str(line_total_perc)+" lines_processed_total_original:"+str(lines_processed_total_original) )
                         #chequear si se puede aplicar simplemente el descuento fijo correspondiente a esta linea
 
-                        del so_line_fields["price"]
-                        if "discount" in so_line._fields:
-                            if line_total>0:
-                                so_line_fields["discount"] = 100.0 * ((line_total_perc * pso.couponAmount) / line_total)
+                        if process_discount_by_product:
+
+                            line_price_unit = so_line_fields["price"]
+                            if (line_price_unit<=0.0):
+                                line_price_unit = 0.01
+
+                            if "discount" in so_line._fields:
+                                so_line_fields["price_unit"] = self.ocapi_price_unit( product, float( so_line_fields["originalPrice"] ) )
+                                if line_total>0:
+                                    so_line_fields["discount"] = 100.0 * ( ( so_line_fields["originalPrice"] - line_price_unit ) / so_line_fields["originalPrice"] )
+                            else:
+                                so_line_fields["price_unit"] =  self.ocapi_price_unit( product, float( line_price_unit ) )
                         else:
-                            so_line_fields["price_unit"] =  self.ocapi_price_unit( product, float( line_price_unit - (line_total_perc * pso.couponAmount) / line_price_qty ) )
-                        so_line.write( ( so_line_fields ) )
-                    else:
-                        _logger.info("NO so_line! "+str(so_line))
+                            if "discount" in so_line._fields:
+                                so_line_fields["price_unit"] = self.ocapi_price_unit( product, float( line_price_unit ) )
+                                if line_total>0:
+                                    so_line_fields["discount"] = 100.0 * ((line_total_perc * couponAmountFIX) / line_total)
+                            else:
+                                so_line_fields["price_unit"] =  self.ocapi_price_unit( product, float( line_price_unit - (line_total_perc * couponAmountFIX) / line_price_qty ) )
+
+
+                        del so_line_fields["price"]
+                        del so_line_fields["originalPrice"]
+
+                        try:
+                            so_line.write( ( so_line_fields ) )
+                        except Exception as E:
+                            error = {"error": "Creating or writing order line DISCOUNT error. Check account configuration and this message: "+str(E)}
+                            result.append(error)
+                            _logger.error(str(error["error"]))
+                            _logger.error(E, exc_info=True)
+                            if so:
+                                so.message_post(body=str(error["error"]))
+
+                    #else:
+                    #    _logger.info("NO so_line! "+str(so_line))
 
 
         #try:
@@ -1695,156 +2169,198 @@ class ProductecaConnectionAccount(models.Model):
                 #    pso.state = "confirmed"
 
                 #check action:
-                cond_total = abs(so.amount_total - so.producteca_bindings[0].paidApproved + so.producteca_bindings[0].couponAmount ) <= 1.0
+                cond_total = abs(so.amount_total - so.producteca_bindings[0].paidApproved + so.producteca_bindings[0].couponAmount ) <= 10.0
+                #_logger.info("amount_total: "+str(so.amount_total));
+                #_logger.info("paidApproved: "+str(so.producteca_bindings[0].paidApproved))
+                #_logger.info("couponAmount: "+str(so.producteca_bindings[0].couponAmount))
+                #_logger.info("paymentStatus: "+str(so.producteca_bindings[0].paymentStatus))
+                
+                #_logger.info("cond_total: "+str(cond_total));
+                cond_total = cond_total or abs(so.amount_total - so.producteca_bindings[0].paidApproved ) <= 10.0
+                #_logger.info("cond_total: "+str(cond_total));
 
                 if (including_shipping_cost=="never"):
-                    cond_total = abs(so.amount_total - so.producteca_bindings[0].amount_no_shipping ) <= 1.0
+                    cond_total = cond_total or abs(so.amount_total - so.producteca_bindings[0].amount_no_shipping ) <= 10.0
 
+                #_logger.info("cond_total: "+str(cond_total));
                 cond = cond_total and so.producteca_bindings[0].paymentStatus in ['Approved']
+                #_logger.info("cond: "+str(cond));
                 cond_refunded = so.producteca_bindings[0].paymentStatus in ['Refunded']
                 cond_canceled = so.producteca_bindings[0].isCanceled
                 if cond_canceled:
                     so.producteca_update_forbidden = True
+                    error = {"error": "Orden Cancelada en Producteca > notificacion enviada el "+str(noti and noti.sent)}
+                    _logger.info(error)
+                    result.append(error)
+                    if so:
+                        so.message_post(body=str(error["error"]))
+                    if noti:
+                        errors = str(result)
+                        noti.stop_internal_notification( errors=errors, logs=noti.processing_logs )
+                    try:
+                        so.action_cancel()
+                    except Exception as E:
+                        error = {"error": "Orden No se pudo cancelar > revisar si ya tiene entregas validadas "+ str(E)}
+                        result.append(str(error["error"]))
+                        if so:
+                            so.message_post(body= str(error["error"]) )
+                        pass;
+
+                    return result
+                else:
+
+                    #_logger.info("import_sales_action: "+str(import_sales_action)+" cond:"+str(cond))
+                    #_logger.info("so.name: "+str(so.name)+" so.state: "+str(so.state))
+                    #_logger.info("cond_refunded: "+str(cond_refunded)+" paymentStatus: "+str(so.producteca_bindings[0].paymentStatus))
+                    #_logger.info("cond_canceled: "+str(cond_canceled)+"  isCanceled: "+str(so.producteca_bindings[0].isCanceled))
+
+                    if "payed_confirm_order" in import_sales_action:
+                        if so.state in ['draft','sent'] and cond:
+                            #_logger.info("action_confirming")
+                            so.action_confirm()
+                            #if so.state in ['done','sale']:
+                            #    _logger.info("action_confirming OK!")
+                            #else:
+                            #    _logger.info("action_confirming CHECK...")
+                        if so.state in ['open','done','sale'] and cond_refunded:
+                            if cond_canceled:
+                                #_logger.info("Cancelling order")
+                                so.producteca_update_forbidden = True
+                                so.action_cancel()
+
+                    #_logger.info("_shipment: "+str(import_sales_action)+" pso.deliveryStatus: "+str(pso.deliveryStatus))
+
+                    if "_shipment" in import_sales_action and not cond_canceled:
+                        if so.state in ['sale','done'] and (pso.deliveryStatus in ["InTransit","Done"] or pso.paymentFulfillmentStatus in ["InTransit","Done"]):
+                        #if so.state in ['sale','done']:
+                            #_logger.info("Shipment confirm")
+                            dones = False
+                            cancels = False
+                            drafts = False
+                            if cond:
+                                stock_pickings = self.env["stock.picking"].search([
+                                        ('sale_id','=',so.id)
+                                        ])
+                                #_logger.info("Shipment confirm stock_pickings:"+str(stock_pickings))
+                                if stock_pickings:
+                                    for spick in stock_pickings:
+                                        _logger.info(str(spick)+" state:"+str(spick.state))
+                                        if spick.state in ['done']:
+                                            dones = True
+                                        elif spick.state in ['cancel']:
+                                            cancels = True
+                                        else:
+                                            drafts = True
+                                else:
+                                    dones = False
+
+                                if drafts:
+                                    #drafts then nothing is full done
+                                    dones = False
+
+                                if dones:
+                                    #_logger.info("Shipment complete")
+                                    pass;
+                                else:
+                                    deliver_message = "Entregas no completadas: Verificar Hechas:"+str(dones)+" Por hacer: "+str(drafts)+" Canceladas:"+str(cancels)
+                                    if so:
+                                        so.message_post(body=str(deliver_message))
+                                    #_logger.info(deliver_message)
+                                    so.producteca_deliver()
+                            #_logger.info("Shipment confirm cond not ok: " +str(cond))
+
+                    create_invoice_method = "create_invoice_method" in chanbinded._fields and chanbinded.create_invoice_method
+                    send_invoice_method = "send_invoice_method" in chanbinded._fields and chanbinded.send_invoice_method
+                    download_label_method = "download_label_method" in chanbinded._fields and chanbinded.download_label_method
+
+                    if "_invoice" in import_sales_action and not cond_canceled:
+                        #_logger.info("Invoice confirm so.state: " +str(so.state)+ " is_invoiceable: "+str(is_invoiceable( self, so )) )
+                        if so.state in ['sale','done'] and is_invoiceable( self, so ):
+                            #_logger.info("Invoice confirm pso.invoice_status: "+str(pso.invoice_status)+" create_invoice_method: "+str(create_invoice_method))
+
+                            if ( create_invoice_method and "_inmediate" in create_invoice_method and pso.invoice_status=='ready_to_invoice'):
+                                pso.invoice_status = 'not_defined';
+
+                            if ( (create_invoice_method and "_after_shipping" in create_invoice_method) and pso.invoice_status == 'ready_to_invoice'):
+
+                                #_logger.info("Intentando crear facturas")
+                                pso.create_invoices()
+                                if (so.invoice_ids and create_invoice_method and "post_invoice" in create_invoice_method):
+                                    pso.post_invoices()
+                                    if (send_invoice_method and "send_after_posting" in send_invoice_method):
+                                        pso.send_invoices()
 
 
-                _logger.info("import_sales_action: "+str(import_sales_action)+" cond:"+str(cond))
-                _logger.info("so.name: "+str(so.name)+" so.state: "+str(so.state))
-                _logger.info("cond_refunded: "+str(cond_refunded)+" paymentStatus: "+str(so.producteca_bindings[0].paymentStatus))
-                _logger.info("cond_canceled: "+str(cond_canceled)+"  isCanceled: "+str(so.producteca_bindings[0].isCanceled))
-
-                if "payed_confirm_order" in import_sales_action:
-                    if so.state in ['draft','sent'] and cond:
-                        so.action_confirm()
-                    if so.state in['open','done','sale'] and cond_refunded:
-                        if cond_canceled:
-                            _logger.info("Cancelling order")
-                            so.producteca_update_forbidden = True
-                            so.action_cancel()
-
-                if "_shipment" in import_sales_action and not cond_canceled:
-                    if so.state in ['sale','done']:
-                        _logger.info("Shipment confirm")
-                        dones = False
-                        cancels = False
-                        drafts = False
-                        if cond:
-                            if so.picking_ids:
-                                for spick in so.picking_ids:
-                                    _logger.info(str(spick)+" state:"+str(spick.state))
-                                    if spick.state in ['done']:
-                                        dones = True
-                                    elif spick.state in ['cancel']:
-                                        cancels = True
-                                    else:
-                                        drafts = True
-                            else:
+                            elif (pso.invoice_status != 'ready_to_invoice' and pso.invoice_status != 'invoiced'):
+                                #_logger.info("Invoice confirm")
                                 dones = False
-
-                            if drafts:
-                                #drafts then nothing is full done
-                                dones = False
-
-                            if dones:
-                                _logger.info("Shipment complete")
-                            else:
-                                _logger.info("Shipment not complete: TODO: make an action, dones:"+str(dones)+" drafts: "+str(drafts)+" cancels:"+str(cancels))
-                                so.producteca_deliver()
-
-                if "_invoice" in import_sales_action and not cond_canceled:
-                    if so.state in ['sale','done']:
-                        _logger.info("Invoice confirm")
-                        dones = False
-                        cancels = False
-                        drafts = False
-                        if cond:
-                            if so.picking_ids:
-                                for spick in so.picking_ids:
-                                    _logger.info(str(spick)+" state:"+str(spick.state))
-                                    if spick.state in ['done']:
-                                        dones = True
-                                    elif spick.state in ['cancel']:
-                                        cancels = True
-                                    else:
-                                        drafts = True
-                            else:
-                                dones = False
-
-                            if drafts:
-                                #drafts then nothing is full done
-                                dones = False
-
-                            if dones:
-                                _logger.info("Creating invoice...")
-                                #invoices = self.env[acc_inv_model].search([('invoice_origin','=',so.name)])
-                                invoices = so.invoice_ids
-
-                                if not invoices:
-                                    _logger.info("Creating new invoices")
-                                    res = so.action_invoice_create(grouped=True) #agrupar por SO id
-                                    _logger.info("invoice create res:"+str(res))
-                                    #invoices = self.env[acc_inv_model].search([('invoice_origin','=',so.name)])
-
-                                if invoices:
-                                    for inv in invoices:
-                                        #try:
-                                        _logger.info("Invoice to process:"+str( inv.name ) )
-                                        if inv.state in ['draft']:
-                                            if (chanbinded and chanbinded.journal_id):
-                                                #chanbinded and chanbinded.journal_id and inv.write({"journal_id": chanbinded.journal_id.id })
-                                                if ('account.journal.document.type' in  self.env and
-                                                    'journal_document_type_id' in inv._fields
-                                                    and inv.journal_document_type_id
-                                                    and inv.journal_document_type_id.document_type_id
-                                                    and not (inv.journal_document_type_id.journal_id.id==chanbinded.journal_id.id)):
-
-                                                    doctype = self.env['account.journal.document.type'].search([('document_type_id','=',inv.journal_document_type_id.document_type_id.id),('journal_id','=',chanbinded.journal_id.id)],limit=1)
-                                                    if doctype:
-                                                        #inv.journal_document_type_id = doctype.id
-                                                        inv.write({"journal_id": chanbinded.journal_id.id, "journal_document_type_id": doctype.id  })
-
-                                                inv.write(
-                                                        {
-                                                            "journal_id": chanbinded.journal_id.id
-                                                        })
-                                                if ("account_id" in inv._fields):
-                                                    inv.write({
-                                                        "account_id": (chanbinded and chanbinded.partner_account_receive_id and chanbinded.partner_account_receive_id.id)
-                                                    })
-
-                                            _logger.info("Validate invoice: "+str(inv.name)+" journal:"+str(inv.journal_id and inv.journal_id.name))
-                                            #_logger.info("main_id_number: "+str(inv.partner_id.main_id_number))
-                                            if inv.partner_id and "main_id_number" in inv.partner_id._fields and inv.partner_id.main_id_number and inv.partner_id.afip_responsability_type_id and inv.partner_id.main_id_category_id:
-                                                inv.action_invoice_open()
+                                cancels = False
+                                drafts = False
+                                if cond:
+                                    if so.picking_ids:
+                                        for spick in so.picking_ids:
+                                            #_logger.info(str(spick)+" state:"+str(spick.state))
+                                            if spick.state in ['done']:
+                                                dones = True
+                                            elif spick.state in ['cancel']:
+                                                cancels = True
                                             else:
-                                                error = { 'error': 'Datos de facturación incompletos, revisar Responsabilidad, Tipo de documento y número.' }
-                                                _logger.error(str(error["error"]))
-                                                #_logger.error(E, exc_info=True)
-                                                if so:
-                                                    so.message_post(body=str(error["error"]))
-                                        if inv.state in ['open'] and not inv.producteca_inv_attachment_id:
-                                            _logger.info("Send to Producteca: "+str(inv.name))
-                                            inv.enviar_factura_producteca()
-                                        elif inv.state in ['open']:
-                                            _logger.info("Invoice already sent: result:"+str(result))
-                                        #except:
-                                            #inv.message_post()
-                                        #    error = {"error": "Invoice Error"}
-                                        #    result.append(error)
-                                        #    raise;
-                            else:
-                                _logger.info("Creating invoices not processed, shipment not complete: dones:"+str(False)+" drafts: "+str(drafts)+" cancels:"+str(cancels))
-                        else:
-                            _logger.error("Conditions not met for invoicing > cond_total: " + str(cond_total) +" cond: "+str(cond) )
+                                                drafts = True
+                                    else:
+                                        dones = False
 
-                if "stock_picking_type_id" in chanbinded._fields and chanbinded.stock_picking_type_id  and not cond_canceled:
-                    _logger.info("stock_pickings_to_print")
-                    stock_pickings_to_print = self.env["stock.picking"].search([
-                            ('sale_id','=',so.id),
-                            ('picking_type_id','=',chanbinded.stock_picking_type_id.id)
-                            ])
-                    _logger.info("stock_pickings_to_print:"+str(stock_pickings_to_print))
-                    for sp in stock_pickings_to_print:
-                        sp.producteca_print()
+                                    if drafts:
+                                        #drafts then nothing is full done
+                                        #dones = False
+                                        if dones:
+                                            #ok lets go we are fine
+                                            dones = True
+
+
+                                    if ( create_invoice_method and "_with_picking_no_shipping" in create_invoice_method):
+                                        dones = dones and so.state in ['sale','done']
+                                    elif ( create_invoice_method and "_no_shipping" in create_invoice_method):
+                                        dones = True
+                                    elif ( create_invoice_method and "_no_picking" in create_invoice_method):
+                                        dones = so.state in ['sale','done'] and (pso.deliveryStatus in ["Done"] or pso.paymentFulfillmentStatus in ["Done"])
+                                    else:
+                                        dones = dones and so.state in ['sale','done'] and (pso.deliveryStatus in ["Done"] or pso.paymentFulfillmentStatus in ["Done"])
+
+
+                                    if dones:
+                                        #_logger.info("Setting to invoice...")
+                                        pso.invoice_status = 'ready_to_invoice'
+                                        if ( create_invoice_method and "_inmediate" in create_invoice_method ):
+                                            pso.create_invoices()
+                                            if (so.invoice_ids and create_invoice_method and "post_invoice" in create_invoice_method):
+                                                pso.post_invoices()
+                                                if (send_invoice_method and "send_after_posting" in send_invoice_method):
+                                                    pso.send_invoices()
+
+                                    #else:
+                                    #    _logger.info("Creating invoices not processed, shipment not complete: dones:"+str(False)+" drafts: "+str(drafts)+" cancels:"+str(cancels))
+                                else:
+                                    _logger.error("Conditions not met for invoicing > cond_total: " + str(cond_total) +" cond: "+str(cond) )
+
+                            if (so.invoice_ids and chanbinded
+                                and chanbinded.account_payment_receipt_validation
+                                and chanbinded.account_payment_receipt_validation in ['concile']):
+                                pso.concile_invoices()
+
+                            if (so.invoice_ids and send_invoice_method and "send_after_posting" in send_invoice_method):
+                                pso.send_invoices()
+
+                    if "stock_picking_type_id" in chanbinded._fields and chanbinded.stock_picking_type_id  and not cond_canceled:
+                        #_logger.info("stock_pickings_to_print check...")
+                        stock_pickings_to_print = self.env["stock.picking"].search([
+                                ('sale_id','=',so.id),
+                                ('picking_type_id','=',chanbinded.stock_picking_type_id.id)
+                                ])
+                        #_logger.info("stock_pickings_to_print:"+str(stock_pickings_to_print))
+                        if stock_pickings_to_print:
+                            for sp in stock_pickings_to_print:
+                                sp.producteca_print()
+
         #except Exception as E:
         #    error = {"error": "Error sale order post processing error: " +str(E)}
         #    _logger.error(error)

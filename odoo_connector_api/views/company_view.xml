@@ -12,12 +12,12 @@
 										<page string="Odoo Connectors" invisible="1">
 											<field name="ocapi_connections" invisible="1" groups="odoo_connector_api.group_ocapi_connectors_manager"
                               domain="['|',('company_id','=',False),('company_id','=',id)]">
-                          <tree>
+                          <list>
                             <field name="company_id"/>
                             <field name="name"/>
                             <field name="client_id"/>
                             <field name="state"/>
-                          </tree>
+                          </list>
                       </field>
 										</page>
 								</notebook>

@@ -21,12 +21,12 @@
                 <div class="oe_button_box" name="button_box_mel" style="width: auto;">
                   <button name='update' type="object"
                     string="Actualizar"
-                    attrs="{'invisible':[('integrations_integrationId','=',False)]}"
+                    invisible="integrations_integrationId == False"
                     class="oe_stat_button"
                     icon="fa-refresh"/>
                     <button name='shippingLinkPrint' type="object"
                       string="Imprimir Guia"
-                      attrs="{'invisible':[('integrations_integrationId','=',False)]}"
+                      invisible="integrations_integrationId == False"
                       class="oe_stat_button"
                       icon="fa-print"/>
                 </div>
@@ -40,9 +40,13 @@
                     <field name="deliveryFulfillmentStatus" readonly="1"/>
                   </group>
                   <group>
+                    <field name="status" readonly="1"/>
+                    <field name="invoice_status" readonly="1"/>
                     <field name="connection_account"  readonly="1"/>
                     <field name="channel" invisible="1"  readonly="1"/>
-                    <field name="channel_id"  readonly="1"/>
+                    
+                    <!--field name="channel_id"  readonly="1"/-->
+                    <field name="channel_binding_id"  readonly="1"/>
                     <field name="integrations_integrationId"  readonly="1"/>
                     <field name="integrations_alternateId"  readonly="1"/>
                   </group>
@@ -81,16 +85,17 @@
                 <notebook>
                   <page string="Order Items">
                     <field name="lines">
-                      <tree delete="0" edit="0" create="0">
+                      <list delete="False" edit="False" create="False">
                         <field name="name"/>
                         <field name="quantity"/>
                         <field name="price"/>
-                      </tree>
+                        <field name="originalPrice"/>
+                      </list>
                     </field>
                   </page>
                   <page string="Payments">
                     <field name="payments">
-                      <tree delete="0" edit="0" create="0">
+                      <list delete="False" edit="False" create="False">
                         <field name="name"/>
                         <field name="method"/>
                         <field name="date"/>
@@ -99,7 +104,7 @@
                         <field name="couponAmount"/>
                         <field name="transactionFee"/>
                         <field name="status"/>
-                      </tree>
+                      </list>
                     </field>
                   </page>
                   <page string="Shipments">
@@ -116,12 +121,13 @@
                   </page>
                   <page string="Notifications">
                     <field name="sale_notifications">
-                      <tree delete="0" edit="1" create="0">
+                      <list delete="False" edit="1" create="False">
                         <field name="sent" />
               					<field name="topic" />
               					<field name="resource" />
                         <field name="state" />
-                      </tree>
+                        <field name="processing_errors" />
+                      </list>
                     </field>
                   </page>
                 </notebook>
@@ -164,9 +170,9 @@
         <record model="ir.ui.view" id="view_producteca_orders_tree">
             <field name="name">producteca.sale_order.tree</field>
             <field name="model">producteca.sale_order</field>
-            <field name="type">tree</field>
+            <field name="type">list</field>
             <field name="arch" type="xml">
-                <tree string="Orders" default_order="conn_id desc">
+                <list string="Orders" default_order="conn_id desc">
                     <field name="name"/>
                     <field name="state"/>
                     <field name="sale_order"/>
@@ -191,7 +197,7 @@
                     <field name="tags" invisible="1"/>
                     <field name="pack_order" string="Es Carrito"/>
                     <field name="catalog_order" string="Es de Catalogo"/-->
-                </tree>
+                </list>
             </field>
         </record>
 
@@ -202,15 +208,21 @@
             <field name="arch" type="xml">
                 <data>
                     <notebook>
-                        <page string="Producteca" attrs="{'invisible':[('producteca_bindings', '=', False)]}">
+                        <page string="Producteca" invisible="producteca_bindings == False">
                           <button name='producteca_update' type="object"
                             string="Actualizar"
-                            attrs="{'invisible':[('producteca_bindings','=',False)]}"
+                            invisible="producteca_bindings == False"
                             class="oe_stat_button"
                             icon="fa-refresh"/>
+                            <button name='producteca_invoice' type="object"
+                              string="Crear factura Producteca"
+                              confirm="Esto creará forzadamente la factura desde el proceso de Producteca, no la enviará."
+                              invisible="producteca_bindings == False"
+                              class="oe_stat_button"
+                              icon="fa-download"/>
                             <button name='producteca_print' type="object"
                               string="Imprimir guia"
-                              attrs="{'invisible':[('producteca_bindings','=',False)]}"
+                              invisible="producteca_bindings == False"
                               class="oe_stat_button"
                               icon="fa-print"/>
                             <field name="producteca_bindings" invisible="0"/>
@@ -260,7 +272,7 @@
             <field name="arch" type="xml">
                 <data>
                     <notebook>
-                        <page string="Producteca" attrs="{'invisible':[('producteca_bindings', '=', False)]}">
+                        <page string="Producteca" invisible="producteca_bindings == False">
                           <group>
                             <field name="producteca_bindings" invisible="0"/>
                             <!--field name="producteca_buyer" invisible="0"/-->
@@ -295,15 +307,15 @@
         <record model="ir.ui.view" id="view_producteca_clients_tree">
             <field name="name">producteca.client.tree</field>
             <field name="model">producteca.client</field>
-            <field name="type">tree</field>
+            <field name="type">list</field>
             <field name="arch" type="xml">
-                <tree string="Clientes" >
+                <list string="Clientes" >
                     <field name="name"/>
                     <field name="partner_id"/>
                     <!--field name="buyer_id"/>
                     <field name="nickname"/>
                     <field name="email"/-->
-                </tree>
+                </list>
             </field>
         </record>
 
@@ -326,7 +338,7 @@
                   <div class="oe_button_box" name="button_box_mel" style="width: auto;">
                     <button name='orders_update_order' type="object"
                       string="Actualizar"
-                      attrs="{'invisible':[('order_id','=',False)]}"
+                      invisible="order_id == False"
                       class="oe_stat_button"
                       icon="fa-refresh"/>
                   </div>
@@ -381,25 +393,25 @@
         <!--record model="ir.ui.view" id="view_producteca_order_items_tree">
             <field name="name">producteca.order_items.tree</field>
             <field name="model">producteca.order_items</field>
-            <field name="type">tree</field>
+            <field name="type">list</field>
             <field name="arch" type="xml">
-                <tree string="Lineas de la Orden" >
+                <list string="Lineas de la Orden" >
                     <field name="posting_id"/>
                     <field name="product_id"/>
                     <field name="order_id"/>
                     <field name="order_item_id"/>
                     <field name="unit_price"/>
                     <field name="quantity"/>
-                </tree>
+                </list>
             </field>
         </record-->
 
         <!--record model="ir.ui.view" id="view_producteca_payments_tree">
             <field name="name">producteca.payments.tree</field>
             <field name="model">producteca.payments</field>
-            <field name="type">tree</field>
+            <field name="type">list</field>
             <field name="arch" type="xml">
-                <tree string="Pagos" >
+                <list string="Pagos" >
                     <field name="payment_id"/>
                     <field name="transaction_amount"/>
                     <field name="total_paid_amount"/>
@@ -410,7 +422,7 @@
                     <field name="status"/>
                     <field name="date_created"/>
                     <field name="date_last_modified"/>
-                </tree>
+                </list>
             </field>
         </record-->
 
@@ -506,7 +518,7 @@
             <field name="type">ir.actions.act_window</field>
             <field name="res_model">sale.order</field>
             <!--field name="view_type">form</field-->
-            <field name="view_mode">tree,form</field>
+            <field name="view_mode">list,form</field>
             <!--field name="view_id" ref="view_producteca_binding_product_template_tree"/-->
             <field name="context">{"search_default_producteca_filter":1}</field>
           	<field name="search_view_id" ref="producteca_sale_order_search_view" />
@@ -518,7 +530,7 @@
             <field name="type">ir.actions.act_window</field>
             <field name="res_model">product.pricelist.item</field>
             <!--field name="view_type">form</field-->
-            <field name="view_mode">tree,form</field>
+            <field name="view_mode">list,form</field>
             <field name="view_id" ref="view_producteca_product_pricelist_items_tree"/>
             <field name="search_view_id" ref="producteca_product_pricelist_items_search_view" />
             <!--field name="context">{"search_default_producteca_filter":1}</field-->
@@ -530,7 +542,7 @@
             <field name="type">ir.actions.act_window</field>
             <field name="res_model">producteca.sale_order</field>
             <!--field name="view_type">form</field-->
-            <field name="view_mode">tree,form</field>
+            <field name="view_mode">list,form</field>
             <!--<field name="search_view_id" ref="producteca_orders_search_view"/>-->
         </record>
 
@@ -539,7 +551,7 @@
             <field name="type">ir.actions.act_window</field>
             <field name="res_model">producteca.client</field>
             <!--field name="view_type">form</field-->
-            <field name="view_mode">tree,form</field>
+            <field name="view_mode">list,form</field>
             <!--<field name="search_view_id" ref="producteca_clients_search_view"/>-->
         </record>
 
@@ -563,7 +575,7 @@
         </record>
         -->
 
-        <menuitem id="menu_producteca_connectors" name="Producteca" parent="sale.sale_menu_root" sequence="5"
+        <menuitem id="menu_producteca_connectors" name="Producteca" parent="sale.sale_menu_root" sequence="16"
             groups="odoo_connector_api_producteca.group_producteca_connectors_manager" />
 
           <menuitem id="menu_producteca_orders"

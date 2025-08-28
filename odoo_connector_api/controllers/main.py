@@ -14,8 +14,6 @@ import logging
 _logger = logging.getLogger(__name__)
 
 
-from odoo.addons.web.controllers.main import content_disposition
-from odoo.addons.web.controllers.main import Binary
 
 class OcapiAuthorize(http.Controller):
 
@@ -37,6 +35,25 @@ class OcapiAuthorize(http.Controller):
         _logger.info(access_tokens)
         return access_tokens
 
+    @http.route('/ocapi/<string:connector>/status', auth='public', type='json', methods=['POST','GET'], csrf=False, cors='*')
+    def status(self, connector, **post):
+        #POST api user id and token, create id based on URL if need to create one
+        #check all connectors
+        _logger.info("status ocapi base object")
+        client_id = post.get("client_id") or post.get("app_id")
+        secret_key = post.get("secret_key") or post.get("app_key")
+        connection_account = []
+        if client_id and secret_key:
+            _logger.info("Authentication request for connector: "+str(connector))
+            connection_account = request.env['ocapi.connection.account'].sudo().search([('client_id','=',client_id),('secret_key','=',secret_key)])
+        access_tokens = []
+        for a in connection_account:
+            _logger.info("Trying")
+            return "connected";
+            #access_token = a.status( client_id, secret_key )
+            #access_tokens.append({ 'client_id': client_id, 'access_token': access_token  })
+        #_logger.info(access_tokens)
+        return access_tokens
 
 class OcapiCatalog(http.Controller):
 
@@ -139,8 +156,7 @@ class OcapiCatalog(http.Controller):
 
         return response
 
-
-    @http.route('/ocapi/<string:connector>/connection', auth='public', type='json', methods=['POST'], csrf=False, cors='*')
+    @http.route('/ocapi/<string:connector>/connection', auth='public', type='json', methods=['POST','GET'], csrf=False, cors='*')
     def get_connection_account( self, connector, **post ):
 
         access_token = post.get("access_token")
@@ -160,7 +176,30 @@ class OcapiCatalog(http.Controller):
 
         return connection_account
 
-    @http.route('/ocapi/<string:connector>/catalog', auth='public', type='json', methods=['POST'], csrf=False, cors='*')
+    @http.route('/ocapi/<string:connector>/<string:channel>/status', auth='public', type='json', methods=['POST','GET'], csrf=False, cors='*')
+    def status(self, connector, channel, **post):
+        _logger.info("ocapi status: "+str(connector)+" channel: "+str(channel))
+        _logger.info(post)
+        connection = self.get_connection_account(connector,**post)
+        if not connection:
+            return {}
+
+        #filter products using connection account and configuration bindings
+        return connection.fetch_status(**post)
+
+
+    @http.route('/ocapi/<string:connector>/githook', auth='public', type='json', methods=['POST','GET'], csrf=False, cors='*')
+    def githook(self, connector, **post):
+        _logger.info("ocapi githook: "+str(connector))
+        _logger.info(post)
+        connection = self.get_connection_account(connector,**post)
+        if not connection:
+            return {}
+
+        #filter products using connection account and configuration bindings
+        return connection.fetch_githook(**post)
+
+    @http.route('/ocapi/<string:connector>/catalog', auth='public', type='json', methods=['POST','GET'], csrf=False, cors='*')
     def catalog(self, connector, **post):
         _logger.info("catalog: "+str(connector))
         _logger.info(post)
@@ -179,7 +218,7 @@ class OcapiCatalog(http.Controller):
             return { "error": "bad format" }
         connection = self.get_connection_account(connector,**post)
         if not connection:
-            return {'error': 'acceso de cuenta'}
+            return {'error': 'no se puede acceder a la cuenta, causa: access_token invalido o vencido! Intente de nuevo con otro access_token.'}
         return connection.list_pricestock(**post)
 
     @http.route('/ocapi/<string:connector>/pricelist', auth='public', type='json', methods=['POST'], csrf=False, cors='*')
@@ -188,7 +227,7 @@ class OcapiCatalog(http.Controller):
         _logger.info(post)
         connection = self.get_connection_account(connector,**post)
         if not connection:
-            return {}
+            return {'error': 'no se puede acceder a la cuenta, causa: access_token invalido o vencido! Intente de nuevo con otro access_token.'}
         return connection.list_pricelist(**post)
 
     @http.route('/ocapi/<string:connector>/stock', auth='public', type='json', methods=['POST'], csrf=False, cors='*')
@@ -210,5 +249,5 @@ class OcapiCatalog(http.Controller):
         connection = self.get_connection_account(connector,**post)
         if not connection:
             _logger.error("connection not found.")
-            return {}
+            return {'error': 'no se puede acceder a la cuenta, causa: access_token invalido o vencido! Intente de nuevo con otro access_token.'}
         return connection.import_sales(**post)

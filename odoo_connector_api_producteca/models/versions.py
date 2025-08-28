@@ -4,7 +4,7 @@ from datetime import *
 import logging
 _logger = logging.getLogger(__name__)
 
-# Odoo version 13.0
+# Odoo version 18.0
 
 # Odoo 12.0 -> Odoo 13.0
 uom_model = "uom.uom"
@@ -15,34 +15,48 @@ prod_att_line = "product.template.attribute.line"
 # account
 acc_inv_model  = "account.move"
 acc_pay_ref = "ref"
+acc_inv_origin = "invoice_origin"
+
+def render_qweb_pdf( report, report_ref, res_ids ):
+    return report._render_qweb_pdf( report_ref=report.id,res_ids=res_ids )
+
+def get_invoice_origin( self ):
+    return self.invoice_origin
 
 #price from pricelist
 def get_price_from_pl( pricelist, product, quantity ):
     pl = pricelist
     return_val = {}
+
+    if not product and pl:
+        return_val[pl.id] = '0'
+        return return_val
+
     try:
-        return_val = pl.price_get( product.id, quantity)
+        return_val[pl.id] = pl._get_product_price(product=product,quantity=quantity)
     except Exception as E:
         _logger.info("get_price_from_pl error:"+str(pricelist)+" product"+str(product)+" qty:"+str(quantity))
-        return_val[pl.id] = '0'
+        if pl:
+            return_val[pl.id] = '0'
         pass;
-        
+
     return return_val
 
 #Autocommit
 def Autocommit( self, act=False ):
-    self._cr.autocommit(act)
+    #no use
     return False
-    
-def UpdateProductType( product ):      
-    if (product and product.detailed_type not in ['product']):
+
+def UpdateProductType( product ):
+    if ( ( product and product.type not in ['consu']) 
+        or ( product and not product.is_storable ) ):
         try:
-            product.write( { 'detailed_type': 'product' } )
+            product.write( { 'type': 'consu', 'is_storable': True } )
         except Exception as e:
             _logger.info("Set type almacenable ('product') not possible:")
             _logger.error(e, exc_info=True)
-            pass;        
-    
+            pass;
+
 def ProductType():
     return { "detailed_type": "product" }
 
@@ -53,7 +67,10 @@ def get_ref_view( self, module_name, view_name ):
     return refview
 
 def payment_post( self ):
-    return self.post()
+    return self.action_post()
+
+def payment_post_group( self ):
+    return self.post()    
 
 # default_create_variant
 default_no_create_variant = "no_variant"
@@ -68,7 +85,7 @@ def get_company_selected( self, context=None, company=None, company_id=None, use
     company = company or self.env.user.company_id
     #_logger.info("context:"+str(context)+" company:"+str(company))
     company_id = company_id or (context and 'allowed_company_ids' in context and context['allowed_company_ids'] and context['allowed_company_ids'][0]) or company.id
-    company = self.env['res.company'].browse(company_id) or company    
+    company = self.env['res.company'].browse(company_id) or company
     return company
 
 #variant mage ids
@@ -78,6 +95,9 @@ def variant_image_ids(self):
 #template image ids
 def template_image_ids(self):
     return self.product_template_image_ids
+
+def get_image_full(self):
+    return ("variant_image" in self._fields and self.variant_image) or self.image_1920
 
 
 #att value ids
@@ -138,7 +158,7 @@ def ml_tax_excluded(self, config=None ):
     #tax_excluded = self.env.user.has_group('sale.group_show_price_subtotal')
     #12.0 and 13.0
     tax_excluded = self.env.user.has_group('account.group_show_line_subtotals_tax_excluded')
-        
+
     company = (config and "company_id" in config._fields and config.company_id) or self.env.user.company_id
     config = config or company
     if (config and config.mercadolibre_tax_included not in ['auto']):
@@ -198,6 +218,58 @@ def set_delivery_line( sorder, delivery_price, delivery_message ):
     	'delivery_message': delivery_message,
     })
     return oline
-    
+
 def order_create_invoices( sale_order, grouped=False, final=False ):
+
 	return sale_order._create_invoices(grouped=grouped, final=final)
+
+
+def get_default_shipment_service( self, name, sku ):
+    shipment_fields = {
+        "name": name,
+        "default_code": sku,
+        "type": "service",
+        #"taxes_id": None
+        #"categ_id": 279,
+        #"company_id": company.id
+    }
+    if "invoice_policy" in self.env["product.template"]._fields:
+        shipment_fields["invoice_policy"] = 'order'
+    if "default_invoice_policy" in self.env["product.template"]._fields:
+        shipment_fields["default_invoice_policy"] = 'order'
+
+    return shipment_fields
+
+
+def is_invoiceable( self, so ):
+
+    dones = False
+    cancels = False
+    drafts = False
+
+    if so and so.picking_ids:
+
+        for spick in so.picking_ids:
+
+            #_logger.info(str(spick)+" state:"+str(spick.state))
+            if spick.state in ['done']:
+                dones = True
+            elif spick.state in ['cancel']:
+                cancels = True
+            else:
+                drafts = True
+
+    else:
+        dones = False
+
+    if drafts:
+        #drafts then nothing is full done
+        dones = False
+
+
+    #return  so and "l10n_ar_afip_responsibility_type_id" in so.partner_invoice_id._fields and so.partner_invoice_id.l10n_ar_afip_responsibility_type_id.name == "Consumidor Final"
+
+    #
+
+    return True
+

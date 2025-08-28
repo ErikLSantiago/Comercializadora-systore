@@ -6,7 +6,7 @@
   			<field name="name">producteca.notification.tree</field>
   			<field name="model">producteca.notification</field>
   			<field name="arch" type="xml">
-  				<tree create="0" edit="1" delete="1" default_order='sent desc, notification_id desc'>
+  				<list create="False" edit="1" delete="1" default_order='sent desc, notification_id desc'>
   					<field name="notification_id" />
   					<field name="sent" />
   					<field name="topic" />
@@ -16,7 +16,7 @@
   					<field name="processing_errors" invisible="0" />
             <field name="producteca_sale_order" invisible="0"/>
             <field name="sale_order" invisible="0"/>
-  				</tree>
+  				</list>
   			</field>
   		</record>
 
@@ -96,11 +96,11 @@
   			<field name="name">Notifications</field>
   			<field name="type">ir.actions.act_window</field>
   			<field name="res_model">producteca.notification</field>
-  			<field name="view_mode">tree,form</field>
+  			<field name="view_mode">list,form</field>
   			<field name="search_view_id" ref="producteca_notifications_search_view" />
   		</record>
 
-      <menuitem id="menu_producteca_connectors" name="Producteca" parent="sale.sale_menu_root" sequence="5"
+      <menuitem id="menu_producteca_connectors" name="Producteca" parent="sale.sale_menu_root" sequence="16"
           groups="odoo_connector_api_producteca.group_producteca_connectors_manager" />
 
         <menuitem id="menu_producteca_notifications"
