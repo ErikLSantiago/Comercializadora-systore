@@ -1,0 +1,53 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<odoo>
+    <data>
+        <record model="ir.ui.view" id="view_location_form_producteca">
+            <field name="name">stock.location.producteca</field>
+            <field name="model">stock.location</field>
+            <field name="inherit_id" ref="stock.view_location_form"/>
+            <field name="arch" type="xml">
+              <xpath expr="//group[1]" position="inside">
+                  <group string="Inventario Producteca" name="producteca_stock_location"  col="2">
+                      <field name="producteca_logistic_type" invisible="0"/>
+                  </group>
+               </xpath>
+            </field>
+        </record>
+        
+        <record model="ir.ui.view" id="view_warehouse_form_producteca">
+            <field name="name">stock.warehouse.producteca</field>
+            <field name="model">stock.warehouse</field>
+            <field name="inherit_id" ref="stock.view_warehouse"/>
+            <field name="arch" type="xml">
+              <xpath expr="//group[1]" position="inside">
+                  <group string="Inventario Producteca" name="producteca_stock_warehouse"  col="2">
+                      <field name="producteca_logistic_type" invisible="0"/>
+                  </group>
+               </xpath>
+            </field>
+        </record>
+        
+        <record model="ir.ui.view" id="view_stock_picking_form_producteca">
+            <field name="name">stock.picking.form.producteca</field>
+            <field name="model">stock.picking</field>
+            <field name="inherit_id" ref="stock.view_picking_form"/>
+            <field name="arch" type="xml">
+              <xpath expr="//group[1]" position="inside">
+                  <group string="Producteca" name="producteca_stock_picking"  
+                    col="2">
+                  <!--group string="Producteca" name="producteca_stock_picking"  
+                      attrs="{'invisible':[('sale_order.producteca_binding','=',False)]}"
+                      col="2"-->                    
+                    <button name='producteca_print' type="object"
+                      string="Imprimir guia"                      
+                      class="oe_stat_button"
+                      icon="fa-print"/>
+                      <field name="producteca_shippingLink_attachment" invisible="0"/>                      
+                  </group>
+               </xpath>
+            </field>
+        </record>
+        
+        
+    </data>
+</odoo>
