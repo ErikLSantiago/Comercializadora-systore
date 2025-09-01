@@ -2,7 +2,7 @@
 {
     "name": "Sin IVA en formulario + Reporte nuevo (Ventas/Compras)",
     "summary": "Añade columnas y totales 'Sin IVA' en formularios de venta/compra y un nuevo PDF imprimible independiente.",
-    "version": "18.1.1.1.0",
+    "version": "18.0.1.1.0",
     "author": "ChatGPT",
     "website": "https://example.com",
     "license": "LGPL-3",
