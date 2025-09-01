@@ -2,9 +2,9 @@
 <odoo>
   <data>
 
-    <!-- VENTAS: insertar inmediatamente DESPUÉS del bloque de totales base -->
-    <template id="sale_report_iva_block" inherit_id="sale.report_saleorder_document" priority="1015">
-      <xpath expr="//t[@t-call='sale.report_saleorder_totals']" position="after">
+    <!-- VENTAS: hereda el bloque de totales y agrega nuestro resumen al final -->
+    <template id="sale_totals_hook" inherit_id="sale.report_saleorder_totals" priority="1020">
+      <xpath expr="/*[last()]" position="after">
         <t t-if="o">
           <style>
             @media screen { .iva16-block { display: none; } }
@@ -38,9 +38,9 @@
       </xpath>
     </template>
 
-    <!-- COMPRAS: insertar inmediatamente DESPUÉS del bloque de totales base -->
-    <template id="purchase_report_iva_block" inherit_id="purchase.report_purchaseorder_document" priority="1015">
-      <xpath expr="//t[@t-call='purchase.report_purchaseorder_totals']" position="after">
+    <!-- COMPRAS: hereda el bloque de totales y agrega nuestro resumen al final -->
+    <template id="purchase_totals_hook" inherit_id="purchase.report_purchaseorder_totals" priority="1020">
+      <xpath expr="/*[last()]" position="after">
         <t t-if="o">
           <style>
             @media screen { .iva16-block { display: none; } }
