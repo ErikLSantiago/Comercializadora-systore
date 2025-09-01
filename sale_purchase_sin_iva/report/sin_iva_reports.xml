@@ -41,8 +41,8 @@
                       <td class="text-end">
                         <span t-esc="l.product_uom_qty"/> <span t-esc="l.product_uom.name"/>
                       </td>
-                      <td class="text-end"><span t-esc="formatLang(l.sin_iva_price_unit, currency_obj=o.currency_id)"/></td>
-                      <td class="text-end"><span t-esc="formatLang(l.sin_iva_price_subtotal, currency_obj=o.currency_id)"/></td>
+                      <td class="text-end"><span t-esc="o.currency_id.round(l.sin_iva_price_unit)"/></td>
+                      <td class="text-end"><span t-esc="o.currency_id.round(l.sin_iva_price_subtotal)"/></td>
                     </tr>
                   </t>
                 </tbody>
@@ -52,15 +52,15 @@
                 <table class="table table-sm" style="width:40%; float:right;">
                   <tr>
                     <td>Subtotal (Sin IVA)</td>
-                    <td class="text-end"><span t-esc="formatLang(o.amount_subtotal_sin_iva, currency_obj=o.currency_id)"/></td>
+                    <td class="text-end"><span t-esc="o.currency_id.round(o.amount_subtotal_sin_iva)"/></td>
                   </tr>
                   <tr>
                     <td>IVA (16%)</td>
-                    <td class="text-end"><span t-esc="formatLang(o.amount_iva_16, currency_obj=o.currency_id)"/></td>
+                    <td class="text-end"><span t-esc="o.currency_id.round(o.amount_iva_16)"/></td>
                   </tr>
                   <tr>
                     <td><strong>Total</strong></td>
-                    <td class="text-end"><strong><span t-esc="formatLang(o.amount_total_sin_iva, currency_obj=o.currency_id)"/></strong></td>
+                    <td class="text-end"><strong><span t-esc="o.currency_id.round(o.amount_total_sin_iva)"/></strong></td>
                   </tr>
                 </table>
               </div>
@@ -110,8 +110,8 @@
                       <td class="text-end">
                         <span t-esc="l.product_qty"/> <span t-esc="l.product_uom.name"/>
                       </td>
-                      <td class="text-end"><span t-esc="formatLang(l.sin_iva_price_unit, currency_obj=o.currency_id)"/></td>
-                      <td class="text-end"><span t-esc="formatLang(l.sin_iva_price_subtotal, currency_obj=o.currency_id)"/></td>
+                      <td class="text-end"><span t-esc="o.currency_id.round(l.sin_iva_price_unit)"/></td>
+                      <td class="text-end"><span t-esc="o.currency_id.round(l.sin_iva_price_subtotal)"/></td>
                     </tr>
                   </t>
                 </tbody>
@@ -121,15 +121,15 @@
                 <table class="table table-sm" style="width:40%; float:right;">
                   <tr>
                     <td>Subtotal (Sin IVA)</td>
-                    <td class="text-end"><span t-esc="formatLang(o.amount_subtotal_sin_iva, currency_obj=o.currency_id)"/></td>
+                    <td class="text-end"><span t-esc="o.currency_id.round(o.amount_subtotal_sin_iva)"/></td>
                   </tr>
                   <tr>
                     <td>IVA (16%)</td>
-                    <td class="text-end"><span t-esc="formatLang(o.amount_iva_16, currency_obj=o.currency_id)"/></td>
+                    <td class="text-end"><span t-esc="o.currency_id.round(o.amount_iva_16)"/></td>
                   </tr>
                   <tr>
                     <td><strong>Total</strong></td>
-                    <td class="text-end"><strong><span t-esc="formatLang(o.amount_total_sin_iva, currency_obj=o.currency_id)"/></strong></td>
+                    <td class="text-end"><strong><span t-esc="o.currency_id.round(o.amount_total_sin_iva)"/></strong></td>
                   </tr>
                 </table>
               </div>
