@@ -18,7 +18,7 @@ def _inject_iva_block(html_text, subtotal_str, iva_str, total_str):
     @media screen {{ .iva16-block {{ display:none; }} }}
     @media print  {{ .iva16-block {{ display:block; }} }}
     .iva16-table td {{ padding:2px 0; }}
-    .iva16-note {{ font-size:11px; color:#666; }}
+    .iva16-note {{ font-size:11px; color:#666; }} 
   </style>
   <p><strong>{_('Resumen (presentación con IVA 16%)')}</strong></p>
   <table class="iva16-table" style="width:100%">
@@ -77,14 +77,21 @@ class IrActionsReport(models.Model):
 
     # Odoo 18 signature
     def _render_qweb_pdf(self, reportname, docids, data=None):
-        # Render HTML first (injects our block)
         html_res, qwebhtml_report = self._render_qweb_html(reportname, docids, data=data)
 
-        # Normalize to list of HTML bytes
+        # Convert to list of UNICODE strings (no bytes)
         if isinstance(html_res, list):
-            html_docs = [h.encode("utf-8") if isinstance(h, str) else h for h in html_res]
+            html_docs = []
+            for h in html_res:
+                if isinstance(h, bytes):
+                    html_docs.append(h.decode("utf-8"))
+                else:
+                    html_docs.append(h)
         else:
-            html_docs = [(html_res.encode("utf-8") if isinstance(html_res, str) else html_res)]
+            if isinstance(html_res, bytes):
+                html_docs = [html_res.decode("utf-8")]
+            else:
+                html_docs = [html_res]
 
         pdf_content, _ = super()._run_wkhtmltopdf(html_docs, report_ref=self)
         return (pdf_content, "pdf")
