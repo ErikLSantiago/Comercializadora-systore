@@ -1,6 +1,20 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <odoo>
   <data>
+    <!-- Subvista TREE para sale.order.line -->
+    <record id="sale_order_line_tree_sin_iva" model="ir.ui.view">
+      <field name="name">sale.order.line.tree.sin.iva</field>
+      <field name="model">sale.order.line</field>
+      <field name="arch" type="xml">
+        <tree create="0" edit="0">
+          <field name="name" string="Descripción"/>
+          <field name="product_uom_qty" string="Cantidad"/>
+          <field name="sin_iva_price_unit" string="Sin IVA"/>
+          <field name="sin_iva_price_subtotal" string="Total sin IVA"/>
+        </tree>
+      </field>
+    </record>
+
     <!-- Página 'Sin IVA' en formulario de Ventas -->
     <record id="view_order_form_sin_iva" model="ir.ui.view">
       <field name="name">sale.order.form.sin.iva.page</field>
@@ -10,14 +24,9 @@
         <xpath expr="//sheet/notebook" position="inside">
           <page string="Sin IVA">
             <group>
-              <field name="order_line" nolabel="1" context="{'default_order_id': active_id}">
-                <tree create="0" edit="0">
-                  <field name="name" string="Descripción"/>
-                  <field name="product_uom_qty" string="Cantidad"/>
-                  <field name="sin_iva_price_unit" string="Sin IVA" readonly="1"/>
-                  <field name="sin_iva_price_subtotal" string="Total sin IVA" readonly="1"/>
-                </tree>
-              </field>
+              <field name="order_line" nolabel="1"
+                     context="{'default_order_id': active_id, 'tree_view_ref': 'sale_purchase_sin_iva.sale_order_line_tree_sin_iva'}"
+                     options="{'no_create': True, 'no_edit': True}"/>
             </group>
             <group>
               <group>

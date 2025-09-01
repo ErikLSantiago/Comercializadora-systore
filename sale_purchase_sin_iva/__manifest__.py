@@ -1,8 +1,8 @@
 # -*- coding: utf-8 -*-
 {
-    "name": "Sin IVA en formulario + Reporte nuevo (Ventas/Compras)",
+    "name": "PDF IVA 16% - Sin IVA en formulario + Reporte nuevo (Ventas/Compras)",
     "summary": "Añade columnas y totales 'Sin IVA' en formularios de venta/compra y un nuevo PDF imprimible independiente.",
-    "version": "18.0.1.1.0",
+    "version": "18.0.1.1.1",
     "author": "ChatGPT",
     "website": "https://example.com",
     "license": "LGPL-3",
