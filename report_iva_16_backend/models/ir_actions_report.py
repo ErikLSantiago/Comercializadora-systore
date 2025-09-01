@@ -18,7 +18,7 @@ def _inject_iva_block(html_text, subtotal_str, iva_str, total_str):
     @media screen {{ .iva16-block {{ display:none; }} }}
     @media print  {{ .iva16-block {{ display:block; }} }}
     .iva16-table td {{ padding:2px 0; }}
-    .iva16-note {{ font-size:11px; color:#666; }} 
+    .iva16-note {{ font-size:11px; color:#666; }}
   </style>
   <p><strong>{_('Resumen (presentación con IVA 16%)')}</strong></p>
   <table class="iva16-table" style="width:100%">
@@ -79,7 +79,7 @@ class IrActionsReport(models.Model):
     def _render_qweb_pdf(self, reportname, docids, data=None):
         html_res, qwebhtml_report = self._render_qweb_html(reportname, docids, data=data)
 
-        # Convert to list of UNICODE strings (no bytes)
+        # Ensure list of unicode strings (wkhtmltopdf expects text)
         if isinstance(html_res, list):
             html_docs = []
             for h in html_res:
@@ -93,5 +93,10 @@ class IrActionsReport(models.Model):
             else:
                 html_docs = [html_res]
 
-        pdf_content, _ = super()._run_wkhtmltopdf(html_docs, report_ref=self)
+        res = super()._run_wkhtmltopdf(html_docs, report_ref=self)
+        # Handle both return types: bytes or (bytes, ext) or (bytes, ext, extra)
+        if isinstance(res, tuple):
+            pdf_content = res[0]
+        else:
+            pdf_content = res
         return (pdf_content, "pdf")
