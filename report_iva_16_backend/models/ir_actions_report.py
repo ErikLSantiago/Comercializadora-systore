@@ -51,8 +51,9 @@ class IrActionsReport(models.Model):
         total_calc = subtotal + iva
         return subtotal, iva, total_calc
 
-    def _render_qweb_html(self, docids, data=None):
-        html_res, qwebhtml_report = super()._render_qweb_html(docids, data=data)
+    # Odoo 18 signature
+    def _render_qweb_html(self, reportname, docids, data=None):
+        html_res, qwebhtml_report = super()._render_qweb_html(reportname, docids, data=data)
         try:
             if self.model not in ("sale.order", "purchase.order"):
                 return html_res, qwebhtml_report
@@ -74,10 +75,10 @@ class IrActionsReport(models.Model):
         except Exception:
             return html_res, qwebhtml_report
 
-    # Odoo 18 signature: _render_qweb_pdf(self, reportname, docids, data=None)
+    # Odoo 18 signature
     def _render_qweb_pdf(self, reportname, docids, data=None):
-        # Render HTML first (this also injects our block)
-        html_res, qwebhtml_report = self._render_qweb_html(docids, data=data)
+        # Render HTML first (injects our block)
+        html_res, qwebhtml_report = self._render_qweb_html(reportname, docids, data=data)
 
         # Normalize to list of HTML bytes
         if isinstance(html_res, list):
@@ -85,6 +86,5 @@ class IrActionsReport(models.Model):
         else:
             html_docs = [(html_res.encode("utf-8") if isinstance(html_res, str) else html_res)]
 
-        # Convert to PDF using Odoo helper
         pdf_content, _ = super()._run_wkhtmltopdf(html_docs, report_ref=self)
         return (pdf_content, "pdf")
