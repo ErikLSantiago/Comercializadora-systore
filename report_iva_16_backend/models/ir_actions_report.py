@@ -74,11 +74,17 @@ class IrActionsReport(models.Model):
         except Exception:
             return html_res, qwebhtml_report
 
-    def _render_qweb_pdf(self, docids, data=None):
+    # Odoo 18 signature: _render_qweb_pdf(self, reportname, docids, data=None)
+    def _render_qweb_pdf(self, reportname, docids, data=None):
+        # Render HTML first (this also injects our block)
         html_res, qwebhtml_report = self._render_qweb_html(docids, data=data)
+
+        # Normalize to list of HTML bytes
         if isinstance(html_res, list):
             html_docs = [h.encode("utf-8") if isinstance(h, str) else h for h in html_res]
         else:
             html_docs = [(html_res.encode("utf-8") if isinstance(html_res, str) else html_res)]
+
+        # Convert to PDF using Odoo helper
         pdf_content, _ = super()._run_wkhtmltopdf(html_docs, report_ref=self)
         return (pdf_content, "pdf")
