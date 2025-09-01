@@ -3,33 +3,39 @@
 from odoo import models, _
 import re
 
-def _inject_iva_block(html_text, subtotal_str, iva_str, total_str):
+def _inject_iva_block(html_text, subtotal_str, iva_str, total_display_str):
     try:
-        pattern = re.compile(r"(<table\b[^>]*>.*?Total.*?</table>)", re.I | re.S)
-        matches = list(pattern.finditer(html_text or ""))
+        html_text = html_text or ""
+        # 1) Try after last TABLE that mentions Total or Subtotal
+        pattern_tbl = re.compile(r"(<table\b[^>]*>.*?(?:Subtotal|Total).*?</table>)", re.I | re.S)
+        matches = list(pattern_tbl.finditer(html_text))
+        insert_at = None
         if matches:
             insert_at = matches[-1].end()
         else:
-            mbody = re.search(r"</body\s*>", html_text or "", re.I)
-            insert_at = mbody.start() if mbody else len(html_text or "")
+            # 2) Try after last BLOCK that mentions Total or Subtotal
+            pattern_blk = re.compile(r"(</(?:div|section|article|tbody)>)(?=[^<>]*?(Subtotal|Total)[^<>]*?$)", re.I | re.S)
+            matches2 = list(pattern_blk.finditer(html_text))
+            if matches2:
+                insert_at = matches2[-1].end()
+
+        # 3) Fallback: before </body>
+        if insert_at is None:
+            mbody = re.search(r"</body\s*>", html_text, re.I)
+            insert_at = mbody.start() if mbody else len(html_text)
+
         block = f"""
 <div class="iva16-block" style="margin-top:8px; font-size:13px;">
-  <style>
-    @media screen {{ .iva16-block {{ display:none; }} }}
-    @media print  {{ .iva16-block {{ display:block; }} }}
-    .iva16-table td {{ padding:2px 0; }}
-    .iva16-note {{ font-size:11px; color:#666; }}
-  </style>
   <p><strong>{_('Resumen (presentación con IVA 16%)')}</strong></p>
   <table class="iva16-table" style="width:100%">
     <tr><td>Subtotal</td><td style="text-align:right;">{subtotal_str}</td></tr>
     <tr><td>IVA (16%)</td><td style="text-align:right;">{iva_str}</td></tr>
-    <tr><td><strong>Total</strong></td><td style="text-align:right;"><strong>{total_str}</strong></td></tr>
+    <tr><td><strong>Total</strong></td><td style="text-align:right;"><strong>{total_display_str}</strong></td></tr>
   </table>
-  <p class="iva16-note">{_('Cálculo visible solo en impresión/PDF. No impacta impuestos ni asientos contables en Odoo.')}</p>
+  <p style="font-size:11px; color:#666;">{_('Cálculo de presentación en PDF. No impacta impuestos ni asientos contables en Odoo. Total mostrado es el del documento original.')}</p>
 </div>
 """
-        return (html_text or "")[:insert_at] + block + (html_text or "")[insert_at:]
+        return html_text[:insert_at] + block + html_text[insert_at:]
     except Exception:
         return html_text
 
@@ -47,9 +53,9 @@ class IrActionsReport(models.Model):
         rate = 0.16
         total = record.amount_total or 0.0
         subtotal = record.currency_id.round(total / (1.0 + rate))
-        iva = record.currency_id.round(subtotal * rate)
-        total_calc = subtotal + iva
-        return subtotal, iva, total_calc
+        iva = record.currency_id.round(subtotal * rate)  # IVA explícito como 16% del subtotal
+        total_display = record.currency_id.round(total)   # mantener total original intacto
+        return subtotal, iva, total_display
 
     # Odoo 18 signature
     def _render_qweb_html(self, reportname, docids, data=None):
@@ -65,10 +71,10 @@ class IrActionsReport(models.Model):
 
             new_list = []
             for rec, html_doc in zip(records, html_list):
-                subtotal, iva, total_calc = self._compute_subtotals(rec)
+                subtotal, iva, total_display = self._compute_subtotals(rec)
                 subtotal_str = self._format_currency(rec.currency_id, subtotal, lang=getattr(rec.partner_id, "lang", None))
                 iva_str = self._format_currency(rec.currency_id, iva, lang=getattr(rec.partner_id, "lang", None))
-                total_str = self._format_currency(rec.currency_id, total_calc, lang=getattr(rec.partner_id, "lang", None))
+                total_str = self._format_currency(rec.currency_id, total_display, lang=getattr(rec.partner_id, "lang", None))
                 new_list.append(_inject_iva_block(html_doc, subtotal_str, iva_str, total_str))
 
             return new_list, qwebhtml_report
@@ -81,22 +87,10 @@ class IrActionsReport(models.Model):
 
         # Ensure list of unicode strings (wkhtmltopdf expects text)
         if isinstance(html_res, list):
-            html_docs = []
-            for h in html_res:
-                if isinstance(h, bytes):
-                    html_docs.append(h.decode("utf-8"))
-                else:
-                    html_docs.append(h)
+            html_docs = [h.decode("utf-8") if isinstance(h, (bytes, bytearray)) else h for h in html_res]
         else:
-            if isinstance(html_res, bytes):
-                html_docs = [html_res.decode("utf-8")]
-            else:
-                html_docs = [html_res]
+            html_docs = [html_res.decode("utf-8")] if isinstance(html_res, (bytes, bytearray)) else [html_res]
 
         res = super()._run_wkhtmltopdf(html_docs, report_ref=self)
-        # Handle both return types: bytes or (bytes, ext) or (bytes, ext, extra)
-        if isinstance(res, tuple):
-            pdf_content = res[0]
-        else:
-            pdf_content = res
+        pdf_content = res[0] if isinstance(res, tuple) else res
         return (pdf_content, "pdf")
