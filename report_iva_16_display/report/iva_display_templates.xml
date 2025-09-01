@@ -2,9 +2,9 @@
 <odoo>
   <data>
 
-    <!-- VENTAS: coloca el bloque DESPUÉS de la última tabla que identifique el TOTAL -->
-    <template id="sale_report_iva_block" inherit_id="sale.report_saleorder_document" priority="1012">
-      <xpath expr="(//table[.//span[@t-field='o.amount_total'] or .//*[self::td or self::th][contains(normalize-space(), 'Total')]])[last()]" position="after">
+    <!-- VENTAS: insertar inmediatamente DESPUÉS del bloque de totales base -->
+    <template id="sale_report_iva_block" inherit_id="sale.report_saleorder_document" priority="1015">
+      <xpath expr="//t[@t-call='sale.report_saleorder_totals']" position="after">
         <t t-if="o">
           <style>
             @media screen { .iva16-block { display: none; } }
@@ -12,13 +12,11 @@
             .iva16-note { font-size: 11px; color: #666; }
             .iva16-table td { padding: 2px 0; }
           </style>
-
           <div class="iva16-block mt8">
             <t t-set="rate" t-value="0.16"/>
             <t t-set="subtotal" t-value="o.currency_id.round(o.amount_total / (1 + rate))"/>
             <t t-set="iva" t-value="o.currency_id.round(subtotal * rate)"/>
             <t t-set="total" t-value="subtotal + iva"/>
-
             <p class="mb4"><strong>Resumen (presentación con IVA 16%)</strong></p>
             <table class="table table-sm iva16-table" style="width:100%">
               <tr>
@@ -40,9 +38,9 @@
       </xpath>
     </template>
 
-    <!-- COMPRAS: misma lógica robusta -->
-    <template id="purchase_report_iva_block" inherit_id="purchase.report_purchaseorder_document" priority="1012">
-      <xpath expr="(//table[.//span[@t-field='o.amount_total'] or .//*[self::td or self::th][contains(normalize-space(), 'Total')]])[last()]" position="after">
+    <!-- COMPRAS: insertar inmediatamente DESPUÉS del bloque de totales base -->
+    <template id="purchase_report_iva_block" inherit_id="purchase.report_purchaseorder_document" priority="1015">
+      <xpath expr="//t[@t-call='purchase.report_purchaseorder_totals']" position="after">
         <t t-if="o">
           <style>
             @media screen { .iva16-block { display: none; } }
@@ -50,13 +48,11 @@
             .iva16-note { font-size: 11px; color: #666; }
             .iva16-table td { padding: 2px 0; }
           </style>
-
           <div class="iva16-block mt8">
             <t t-set="rate" t-value="0.16"/>
             <t t-set="subtotal" t-value="o.currency_id.round(o.amount_total / (1 + rate))"/>
             <t t-set="iva" t-value="o.currency_id.round(subtotal * rate)"/>
             <t t-set="total" t-value="subtotal + iva"/>
-
             <p class="mb4"><strong>Resumen (presentación con IVA 16%)</strong></p>
             <table class="table table-sm iva16-table" style="width:100%">
               <tr>
