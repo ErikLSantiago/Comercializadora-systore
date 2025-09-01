@@ -1,0 +1,142 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<odoo>
+  <data>
+    <!-- Reporte: Cotización (Sin IVA) para Ventas -->
+    <record id="action_report_saleorder_siniva" model="ir.actions.report">
+      <field name="name">PDF IVA 16% - Cotización (Sin IVA)</field>
+      <field name="model">sale.order</field>
+      <field name="report_type">qweb-pdf</field>
+      <field name="report_name">sale_purchase_sin_iva.report_saleorder_siniva</field>
+      <field name="print_report_name">'PDF_IVA16_Cotizacion_' + (object.name or '')</field>
+      <field name="binding_model_id" ref="sale.model_sale_order"/>
+      <field name="binding_type">report</field>
+    </record>
+
+    <template id="report_saleorder_siniva">
+      <t t-call="web.html_container">
+        <t t-foreach="docs" t-as="o">
+          <t t-call="web.external_layout">
+            <div class="page">
+              <table class="mb-3" style="width:100%">
+                <tr>
+                  <td><strong>Número de orden</strong> <span t-esc="o.name"/></td>
+                  <td><strong>Fecha de la orden</strong> <span t-esc="o.date_order"/></td>
+                  <td><strong>Vendedor</strong> <span t-esc="o.user_id.name"/></td>
+                </tr>
+              </table>
+
+              <table class="table table-sm mt16" style="width:100%">
+                <thead>
+                  <tr>
+                    <th>Descripción</th>
+                    <th class="text-end">Cantidad</th>
+                    <th class="text-end">Sin IVA</th>
+                    <th class="text-end">Total sin IVA</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  <t t-foreach="o.order_line" t-as="l">
+                    <tr>
+                      <td><span t-esc="l.name"/></td>
+                      <td class="text-end">
+                        <span t-esc="l.product_uom_qty"/> <span t-esc="l.product_uom.name"/>
+                      </td>
+                      <td class="text-end"><span t-esc="format_amount(l.sin_iva_price_unit, o.currency_id)"/></td>
+                      <td class="text-end"><span t-esc="format_amount(l.sin_iva_price_subtotal, o.currency_id)"/></td>
+                    </tr>
+                  </t>
+                </tbody>
+              </table>
+
+              <div class="mt16" style="width:100%">
+                <table class="table table-sm" style="width:40%; float:right;">
+                  <tr>
+                    <td>Subtotal (Sin IVA)</td>
+                    <td class="text-end"><span t-esc="format_amount(o.amount_subtotal_sin_iva, o.currency_id)"/></td>
+                  </tr>
+                  <tr>
+                    <td>IVA (16%)</td>
+                    <td class="text-end"><span t-esc="format_amount(o.amount_iva_16, o.currency_id)"/></td>
+                  </tr>
+                  <tr>
+                    <td><strong>Total</strong></td>
+                    <td class="text-end"><strong><span t-esc="format_amount(o.amount_total_sin_iva, o.currency_id)"/></strong></td>
+                  </tr>
+                </table>
+              </div>
+            </div>
+          </t>
+        </t>
+      </t>
+    </template>
+
+    <!-- Reporte: Orden de Compra (Sin IVA) -->
+    <record id="action_report_purchaseorder_siniva" model="ir.actions.report">
+      <field name="name">PDF IVA 16% - Orden de Compra (Sin IVA)</field>
+      <field name="model">purchase.order</field>
+      <field name="report_type">qweb-pdf</field>
+      <field name="report_name">sale_purchase_sin_iva.report_purchaseorder_siniva</field>
+      <field name="print_report_name">'PDF_IVA16_OC_' + (object.name or '')</field>
+      <field name="binding_model_id" ref="purchase.model_purchase_order"/>
+      <field name="binding_type">report</field>
+    </record>
+
+    <template id="report_purchaseorder_siniva">
+      <t t-call="web.html_container">
+        <t t-foreach="docs" t-as="o">
+          <t t-call="web.external_layout">
+            <div class="page">
+              <table class="mb-3" style="width:100%">
+                <tr>
+                  <td><strong>Número de orden</strong> <span t-esc="o.name"/></td>
+                  <td><strong>Fecha de la orden</strong> <span t-esc="o.date_order"/></td>
+                  <td><strong>Comprador</strong> <span t-esc="o.user_id.name"/></td>
+                </tr>
+              </table>
+
+              <table class="table table-sm mt16" style="width:100%">
+                <thead>
+                  <tr>
+                    <th>Descripción</th>
+                    <th class="text-end">Cantidad</th>
+                    <th class="text-end">Sin IVA</th>
+                    <th class="text-end">Total sin IVA</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  <t t-foreach="o.order_line" t-as="l">
+                    <tr>
+                      <td><span t-esc="l.name"/></td>
+                      <td class="text-end">
+                        <span t-esc="l.product_qty"/> <span t-esc="l.product_uom.name"/>
+                      </td>
+                      <td class="text-end"><span t-esc="format_amount(l.sin_iva_price_unit, o.currency_id)"/></td>
+                      <td class="text-end"><span t-esc="format_amount(l.sin_iva_price_subtotal, o.currency_id)"/></td>
+                    </tr>
+                  </t>
+                </tbody>
+              </table>
+
+              <div class="mt16" style="width:100%">
+                <table class="table table-sm" style="width:40%; float:right;">
+                  <tr>
+                    <td>Subtotal (Sin IVA)</td>
+                    <td class="text-end"><span t-esc="format_amount(o.amount_subtotal_sin_iva, o.currency_id)"/></td>
+                  </tr>
+                  <tr>
+                    <td>IVA (16%)</td>
+                    <td class="text-end"><span t-esc="format_amount(o.amount_iva_16, o.currency_id)"/></td>
+                  </tr>
+                  <tr>
+                    <td><strong>Total</strong></td>
+                    <td class="text-end"><strong><span t-esc="format_amount(o.amount_total_sin_iva, o.currency_id)"/></strong></td>
+                  </tr>
+                </table>
+              </div>
+            </div>
+          </t>
+        </t>
+      </t>
+    </template>
+  </data>
+</odoo>
