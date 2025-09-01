@@ -1,0 +1,102 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<odoo>
+    <data>
+        <!--
+            Bloque de totales alterno para PDF con IVA 16% (solo presentación)
+            Nota: No modifica impuestos/contabilidad; solo muestra un resumen recalculado.
+        -->
+
+        <!-- Ventas: extiende el documento de cotización/OV -->
+        <template id="sale_report_iva_block" inherit_id="sale.report_saleorder_document" priority="1001">
+            <xpath expr="//div[contains(@class,'article')]" position="inside">
+                <t t-if="o">
+                    <style>
+                        /* Mostrar solo en impresión/PDF */
+                        @media screen { .iva16-block { display: none; } }
+                        @media print  { .iva16-block { display: block; } }
+                        .iva16-note { font-size: 11px; color: #666; }
+                        .iva16-table td { padding: 2px 0; }
+                    </style>
+
+                    <div class="iva16-block mt16">
+                        <t t-set="rate" t-value="0.16"/>
+                        <!-- Subtotal mostrado = total / 1.16, redondeado a moneda -->
+                        <t t-set="subtotal" t-value="o.currency_id.round(o.amount_total / (1 + rate))"/>
+                        <!-- IVA mostrado = subtotal * 0.16, redondeado a moneda -->
+                        <t t-set="iva" t-value="o.currency_id.round(subtotal * rate)"/>
+                        <!-- Total mostrado = subtotal + IVA (puede diferir por 0.01 por redondeo) -->
+                        <t t-set="total" t-value="subtotal + iva"/>
+
+                        <p><strong>Resumen (presentación con IVA 16%)</strong></p>
+                        <table class="table table-sm iva16-table" style="width:100%">
+                            <tr>
+                                <td>Subtotal</td>
+                                <td class="text-end">
+                                    <span t-esc="format_amount(subtotal, o.currency_id)"/>
+                                </td>
+                            </tr>
+                            <tr>
+                                <td>IVA (16%)</td>
+                                <td class="text-end">
+                                    <span t-esc="format_amount(iva, o.currency_id)"/>
+                                </td>
+                            </tr>
+                            <tr>
+                                <td><strong>Total</strong></td>
+                                <td class="text-end">
+                                    <strong><span t-esc="format_amount(total, o.currency_id)"/></strong>
+                                </td>
+                            </tr>
+                        </table>
+                        <p class="iva16-note">Cálculo visible solo en impresión/PDF. No impacta impuestos ni asientos contables en Odoo.</p>
+                    </div>
+                </t>
+            </xpath>
+        </template>
+
+        <!-- Compras: extiende el documento de RFQ/OC -->
+        <template id="purchase_report_iva_block" inherit_id="purchase.report_purchaseorder_document" priority="1001">
+            <xpath expr="//div[contains(@class,'article')]" position="inside">
+                <t t-if="o">
+                    <style>
+                        @media screen { .iva16-block { display: none; } }
+                        @media print  { .iva16-block { display: block; } }
+                        .iva16-note { font-size: 11px; color: #666; }
+                        .iva16-table td { padding: 2px 0; }
+                    </style>
+
+                    <div class="iva16-block mt16">
+                        <t t-set="rate" t-value="0.16"/>
+                        <t t-set="subtotal" t-value="o.currency_id.round(o.amount_total / (1 + rate))"/>
+                        <t t-set="iva" t-value="o.currency_id.round(subtotal * rate)"/>
+                        <t t-set="total" t-value="subtotal + iva"/>
+
+                        <p><strong>Resumen (presentación con IVA 16%)</strong></p>
+                        <table class="table table-sm iva16-table" style="width:100%">
+                            <tr>
+                                <td>Subtotal</td>
+                                <td class="text-end">
+                                    <span t-esc="format_amount(subtotal, o.currency_id)"/>
+                                </td>
+                            </tr>
+                            <tr>
+                                <td>IVA (16%)</td>
+                                <td class="text-end">
+                                    <span t-esc="format_amount(iva, o.currency_id)"/>
+                                </td>
+                            </tr>
+                            <tr>
+                                <td><strong>Total</strong></td>
+                                <td class="text-end">
+                                    <strong><span t-esc="format_amount(total, o.currency_id)"/></strong>
+                                </td>
+                            </tr>
+                        </table>
+                        <p class="iva16-note">Cálculo visible solo en impresión/PDF. No impacta impuestos ni asientos contables en Odoo.</p>
+                    </div>
+                </t>
+            </xpath>
+        </template>
+
+    </data>
+</odoo>
