@@ -1,17 +1,17 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <odoo>
   <data>
-    <!-- Subvista TREE para purchase.order.line -->
-    <record id="purchase_order_line_tree_sin_iva" model="ir.ui.view">
-      <field name="name">purchase.order.line.tree.sin.iva</field>
+    <!-- Subvista LIST para purchase.order.line -->
+    <record id="purchase_order_line_list_sin_iva" model="ir.ui.view">
+      <field name="name">purchase.order.line.list.sin.iva</field>
       <field name="model">purchase.order.line</field>
       <field name="arch" type="xml">
-        <tree create="0" edit="0">
+        <list create="false" edit="false">
           <field name="name" string="Descripción"/>
           <field name="product_qty" string="Cantidad"/>
           <field name="sin_iva_price_unit" string="Sin IVA"/>
           <field name="sin_iva_price_subtotal" string="Total sin IVA"/>
-        </tree>
+        </list>
       </field>
     </record>
 
@@ -25,7 +25,7 @@
           <page string="Sin IVA">
             <group>
               <field name="order_line" nolabel="1"
-                     context="{'default_order_id': active_id, 'tree_view_ref': 'sale_purchase_sin_iva.purchase_order_line_tree_sin_iva'}"
+                     context="{'default_order_id': active_id, 'tree_view_ref': 'sale_purchase_sin_iva.purchase_order_line_list_sin_iva', 'list_view_ref': 'sale_purchase_sin_iva.purchase_order_line_list_sin_iva'}"
                      options="{'no_create': True, 'no_edit': True}"/>
             </group>
             <group>

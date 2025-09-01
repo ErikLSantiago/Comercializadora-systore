@@ -2,8 +2,6 @@
 # -*- coding: utf-8 -*-
 from odoo import api, fields, models
 
-IVA_RATE = 0.16
-
 class SaleOrderLine(models.Model):
     _inherit = "sale.order.line"
 
