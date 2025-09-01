@@ -1,0 +1,34 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<odoo>
+  <data>
+    <!-- Página 'Sin IVA' en formulario de Compras -->
+    <record id="purchase_order_form_sin_iva" model="ir.ui.view">
+      <field name="name">purchase.order.form.sin.iva.page</field>
+      <field name="model">purchase.order</field>
+      <field name="inherit_id" ref="purchase.purchase_order_form"/>
+      <field name="arch" type="xml">
+        <xpath expr="//sheet/notebook" position="inside">
+          <page string="Sin IVA">
+            <group>
+              <field name="order_line" nolabel="1" context="{'default_order_id': active_id}">
+                <tree create="0" edit="0">
+                  <field name="name" string="Descripción"/>
+                  <field name="product_qty" string="Cantidad"/>
+                  <field name="sin_iva_price_unit" string="Sin IVA" readonly="1"/>
+                  <field name="sin_iva_price_subtotal" string="Total sin IVA" readonly="1"/>
+                </tree>
+              </field>
+            </group>
+            <group>
+              <group>
+                <field name="amount_subtotal_sin_iva" readonly="1"/>
+                <field name="amount_iva_16" readonly="1"/>
+                <field name="amount_total_sin_iva" readonly="1"/>
+              </group>
+            </group>
+          </page>
+        </xpath>
+      </field>
+    </record>
+  </data>
+</odoo>
