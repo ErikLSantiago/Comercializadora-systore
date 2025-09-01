@@ -25,7 +25,7 @@
           <page string="Sin IVA">
             <group>
               <field name="order_line" nolabel="1"
-                     context="{'default_order_id': active_id, 'tree_view_ref': 'sale_purchase_sin_iva.purchase_order_line_list_sin_iva', 'list_view_ref': 'sale_purchase_sin_iva.purchase_order_line_list_sin_iva'}"
+                     context="{ 'tree_view_ref': 'sale_purchase_sin_iva.purchase_order_line_list_sin_iva', 'list_view_ref': 'sale_purchase_sin_iva.purchase_order_line_list_sin_iva'}"
                      options="{'no_create': True, 'no_edit': True}"/>
             </group>
             <group>
