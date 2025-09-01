@@ -2,9 +2,9 @@
 <odoo>
   <data>
 
-    <!-- VENTAS: colocar bloque inmediatamente DESPUÉS de la tabla que contiene o.amount_total -->
-    <template id="sale_report_iva_block" inherit_id="sale.report_saleorder_document" priority="1010">
-      <xpath expr="//table[.//span[@t-field='o.amount_total']]" position="after">
+    <!-- VENTAS: coloca el bloque DESPUÉS de la última tabla que identifique el TOTAL -->
+    <template id="sale_report_iva_block" inherit_id="sale.report_saleorder_document" priority="1012">
+      <xpath expr="(//table[.//span[@t-field='o.amount_total'] or .//*[self::td or self::th][contains(normalize-space(), 'Total')]])[last()]" position="after">
         <t t-if="o">
           <style>
             @media screen { .iva16-block { display: none; } }
@@ -40,9 +40,9 @@
       </xpath>
     </template>
 
-    <!-- COMPRAS: colocar bloque inmediatamente DESPUÉS de la tabla que contiene o.amount_total -->
-    <template id="purchase_report_iva_block" inherit_id="purchase.report_purchaseorder_document" priority="1010">
-      <xpath expr="//table[.//span[@t-field='o.amount_total']]" position="after">
+    <!-- COMPRAS: misma lógica robusta -->
+    <template id="purchase_report_iva_block" inherit_id="purchase.report_purchaseorder_document" priority="1012">
+      <xpath expr="(//table[.//span[@t-field='o.amount_total'] or .//*[self::td or self::th][contains(normalize-space(), 'Total')]])[last()]" position="after">
         <t t-if="o">
           <style>
             @media screen { .iva16-block { display: none; } }
