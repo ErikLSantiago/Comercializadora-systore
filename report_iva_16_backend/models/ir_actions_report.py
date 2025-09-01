@@ -2,22 +2,18 @@
 # -*- coding: utf-8 -*-
 from odoo import api, models, _
 import re
-from markupsafe import Markup
 
-# Robust HTML injector to append IVA block after the last table containing a 'Total' label.
 def _inject_iva_block(html_text, subtotal_str, iva_str, total_str):
     try:
-        # Find the last table that mentions 'Total' (case-insensitive, with accents/tags)
+        # Buscar la última tabla que mencione "Total" (robusto a HTML intermedio)
         pattern = re.compile(r"(<table\b[^>]*>.*?Total.*?</table>)", re.I | re.S)
-        matches = list(pattern.finditer(html_text))
+        matches = list(pattern.finditer(html_text or ""))
         if matches:
-            last = matches[-1]
-            insert_at = last.end()
+            insert_at = matches[-1].end()
         else:
-            # fallback: before </body>
-            mbody = re.search(r"</body\s*>", html_text, re.I)
-            insert_at = mbody.start() if mbody else len(html_text)
-
+            # Fallback: antes de </body>
+            mbody = re.search(r"</body\s*>", html_text or "", re.I)
+            insert_at = mbody.start() if mbody else len(html_text or "")
         block = f"""
 <div class="iva16-block" style="margin-top:8px; font-size:13px;">
   <style>
@@ -35,7 +31,7 @@ def _inject_iva_block(html_text, subtotal_str, iva_str, total_str):
   <p class="iva16-note">{_('Cálculo visible solo en impresión/PDF. No impacta impuestos ni asientos contables en Odoo.')}</p>
 </div>
 """
-        return html_text[:insert_at] + block + html_text[insert_at:]
+        return (html_text or "")[:insert_at] + block + (html_text or "")[insert_at:]
     except Exception:
         return html_text
 
@@ -43,18 +39,13 @@ class IrActionsReport(models.Model):
     _inherit = "ir.actions.report"
 
     def _format_currency(self, currency, amount, lang=None):
-        # Use Odoo's format_amount helper when available via qwebcontext; otherwise basic fallback
-        # Here we use currency's rounding and symbol placement.
-        amount = currency.round(amount)
-        # Build with symbol
-        symbol = currency.symbol or ''
-        if currency.position == 'after':
+        amount = currency.round(amount or 0.0)
+        symbol = currency.symbol or ""
+        if currency.position == "after":
             return f"{amount:,.2f} {symbol}"
-        else:
-            return f"{symbol} {amount:,.2f}"
+        return f"{symbol} {amount:,.2f}"
 
     def _compute_subtotals(self, record):
-        # subtotal = total / 1.16 ; iva = subtotal * 0.16
         rate = 0.16
         total = record.amount_total or 0.0
         subtotal = record.currency_id.round(total / (1.0 + rate))
@@ -65,43 +56,32 @@ class IrActionsReport(models.Model):
     def _render_qweb_html(self, docids, data=None):
         html_res, qwebhtml_report = super()._render_qweb_html(docids, data=data)
         try:
-            # Only target the standard Sale and Purchase reports by report_name
-            target_reports = ('sale.report_saleorder', 'purchase.report_purchaseorder')
-            if self.report_name not in target_reports:
+            # Disparar por modelo, no por report_name (cubre XMLIDs personalizados)
+            if self.model not in ("sale.order", "purchase.order"):
                 return html_res, qwebhtml_report
 
-            # Determine model
-            model = 'sale.order' if self.report_name == 'sale.report_saleorder' else 'purchase.order'
-            records = self.env[model].browse(docids).exists()
-
-            # Ensure html_res is a list of HTML documents aligned with records
+            records = self.env[self.model].browse(docids).exists()
             html_list = html_res if isinstance(html_res, list) else [html_res]
-            # If mismatch, just return untouched
             if not records or len(html_list) != len(records):
                 return html_res, qwebhtml_report
 
-            # Inject block per document
             new_list = []
             for rec, html_doc in zip(records, html_list):
                 subtotal, iva, total_calc = self._compute_subtotals(rec)
-                subtotal_str = self._format_currency(rec.currency_id, subtotal, lang=rec.partner_id.lang)
-                iva_str = self._format_currency(rec.currency_id, iva, lang=rec.partner_id.lang)
-                total_str = self._format_currency(rec.currency_id, total_calc, lang=rec.partner_id.lang)
+                subtotal_str = self._format_currency(rec.currency_id, subtotal, lang=getattr(rec.partner_id, "lang", None))
+                iva_str = self._format_currency(rec.currency_id, iva, lang=getattr(rec.partner_id, "lang", None))
+                total_str = self._format_currency(rec.currency_id, total_calc, lang=getattr(rec.partner_id, "lang", None))
                 new_list.append(_inject_iva_block(html_doc, subtotal_str, iva_str, total_str))
 
             return new_list, qwebhtml_report
         except Exception:
-            # Never block report rendering
             return html_res, qwebhtml_report
 
-    # Also override _render_qweb_pdf to be safe in some flows that skip HTML stage
     def _render_qweb_pdf(self, docids, data=None):
-        # Render HTML first to inject our block
         html_res, qwebhtml_report = self._render_qweb_html(docids, data=data)
         if isinstance(html_res, list):
-            html_combined = b"".join([h.encode('utf-8') if isinstance(h, str) else h for h in html_res])
+            html_docs = [h.encode("utf-8") if isinstance(h, str) else h for h in html_res]
         else:
-            html_combined = html_res.encode('utf-8') if isinstance(html_res, str) else html_res
-        # Use Odoo converter to PDF
-        pdf_content, _ = super()._run_wkhtmltopdf([html_combined], report_ref=self)
-        return (pdf_content, 'pdf')
+            html_docs = [(html_res.encode("utf-8") if isinstance(html_res, str) else html_res)]
+        pdf_content, _ = super()._run_wkhtmltopdf(html_docs, report_ref=self)
+        return (pdf_content, "pdf")
