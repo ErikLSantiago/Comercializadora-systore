@@ -1,0 +1,69 @@
+<odoo>
+    <template id="report_purchaseorder_siniva">
+        <t t-call="web.external_layout">
+            <t t-set="doc" t-value="doc or o"/>
+            <div class="page">
+                <h2>Orden de Compra (Sin IVA)</h2>
+                <p>
+                    <strong>Referencia:</strong> <span t-esc="doc.name"/>
+                    <t t-if="doc.partner_id">
+                        &nbsp;|&nbsp; <strong>Proveedor:</strong> <span t-esc="doc.partner_id.name"/>
+                    </t>
+                </p>
+
+                <table class="table table-sm o_main_table" style="width:100%;">
+                    <thead>
+                        <tr>
+                            <th>Producto</th>
+                            <th class="text-end">Cantidad</th>
+                            <th class="text-end">Sin IVA</th>
+                            <th class="text-end">Total sin IVA</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <tr t-foreach="doc.order_line" t-as="l">
+                            <td><span t-esc="l.name"/></td>
+                            <td class="text-end"><span t-esc="l.product_qty"/></td>
+                            <td class="text-end">
+                                <span t-field="l.sin_iva_price_unit"
+                                      t-options="{'widget': 'monetary', 'display_currency': doc.currency_id}"/>
+                            </td>
+                            <td class="text-end">
+                                <span t-field="l.sin_iva_price_subtotal"
+                                      t-options="{'widget': 'monetary', 'display_currency': doc.currency_id}"/>
+                            </td>
+                        </tr>
+                    </tbody>
+                </table>
+
+                <div class="row" style="margin-top: 12px;">
+                    <div class="col-auto ms-auto">
+                        <table class="table table-sm">
+                            <tr>
+                                <td class="text-end"><strong>Subtotal (sin IVA)</strong></td>
+                                <td class="text-end">
+                                    <span t-field="doc.amount_untaxed_sin_iva"
+                                          t-options="{'widget': 'monetary', 'display_currency': doc.currency_id}"/>
+                                </td>
+                            </tr>
+                            <tr>
+                                <td class="text-end"><strong>IVA (16%)</strong></td>
+                                <td class="text-end">
+                                    <span t-field="doc.amount_iva_sin_iva"
+                                          t-options="{'widget': 'monetary', 'display_currency': doc.currency_id}"/>
+                                </td>
+                            </tr>
+                            <tr>
+                                <td class="text-end"><strong>Total</strong></td>
+                                <td class="text-end">
+                                    <span t-field="doc.amount_total_sin_iva"
+                                          t-options="{'widget': 'monetary', 'display_currency': doc.currency_id}"/>
+                                </td>
+                            </tr>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </t>
+    </template>
+</odoo>

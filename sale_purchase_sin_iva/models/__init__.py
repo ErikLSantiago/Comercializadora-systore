@@ -1,2 +1,2 @@
-from . import sale
-from . import purchase
+from . import sale_sin_iva
+from . import purchase_sin_iva

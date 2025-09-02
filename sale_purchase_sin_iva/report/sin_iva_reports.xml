@@ -1,165 +1,21 @@
-<?xml version="1.0" encoding="utf-8"?>
-<?xml version="1.0" encoding="utf-8"?><odoo>
-<!-- SALE REPORT ACTION -->
-<record id="action_report_saleorder_siniva" model="ir.actions.report">
-<field name="name">PDF IVA 16% - Cotización (Sin IVA)</field>
-<field name="type">ir.actions.report</field>
-<field name="model">sale.order</field>
-<field name="report_type">qweb-pdf</field>
-<field name="report_name">sale_purchase_sin_iva.report_saleorder_siniva</field>
-<field name="report_file">sale_purchase_sin_iva.report_saleorder_siniva</field>
-<field name="print_report_name">'Cotización (SIN IVA) - %s' % (object.name.replace('/','-'))</field>
-<field name="binding_model_id" ref="sale.model_sale_order"/><field name="binding_type">report</field></record>
-<!-- PURCHASE REPORT ACTION -->
-<record id="action_report_purchaseorder_siniva" model="ir.actions.report">
-<field name="name">PDF IVA 16% - Orden de Compra (Sin IVA)</field>
-<field name="type">ir.actions.report</field>
-<field name="model">purchase.order</field>
-<field name="report_type">qweb-pdf</field>
-<field name="report_name">sale_purchase_sin_iva.report_purchaseorder_siniva</field>
-<field name="report_file">sale_purchase_sin_iva.report_purchaseorder_siniva</field>
-<field name="print_report_name">'OC (SIN IVA) - %s' % (object.name.replace('/','-'))</field>
-<field name="binding_model_id" ref="purchase.model_purchase_order"/><field name="binding_type">report</field></record>
-<!-- Add to "Imprimir" dropdowns -->
-<!-- QWEB: SALE -->
-<template id="report_saleorder_siniva">
-<t t-call="web.basic_layout">
-<t t-set="docs" t-value="docs"/>
-<t t-as="o" t-foreach="docs">
-<t t-set="company" t-value="o.company_id"/>
-<div class="page">
-<h2>Quotation (SIN IVA)</h2>
-<div class="row mt16 mb8">
-<div class="col-6">
-<p><strong>Customer:</strong> <span t-esc="o.partner_id.display_name"/></p>
-<p><strong>Your Reference:</strong> <span t-esc="o.client_order_ref or ''"/></p>
-</div>
-<div class="col-6 text-end">
-<p><strong>Number:</strong> <span t-esc="o.name"/></p>
-<p><strong>Date:</strong> <span t-esc="o.date_order and o.date_order.date() or ''"/></p>
-</div>
-</div>
-<table class="table table-sm o_main_table">
-<thead>
-<tr>
-<th>Description</th>
-<th class="text-end">Qty</th>
-<th class="text-end">Sin IVA (unit.)</th>
-<th class="text-end">Total sin IVA</th>
-</tr>
-</thead>
-<tbody>
-<tr t-as="l" t-foreach="o.order_line">
-<td>
-<span t-esc="l.name"/>
-</td>
-<td class="text-end">
-<span t-esc="'%s %s' % (('%.2f' % l.product_uom_qty).rstrip('0').rstrip('.'), l.product_uom.name or '')"/>
-</td>
-<td class="text-end">
-<span t-esc="(o.currency_id.symbol + ' ' + ('%.2f' % o.currency_id.round(l.sin_iva_price_unit))) if o.currency_id and o.currency_id.position == 'before' else (('%.2f' % o.currency_id.round(l.sin_iva_price_unit)) + ' ' + (o.currency_id.symbol or ''))"/>
-</td>
-<td class="text-end">
-<span t-esc="(o.currency_id.symbol + ' ' + ('%.2f' % o.currency_id.round(l.sin_iva_price_subtotal))) if o.currency_id and o.currency_id.position == 'before' else (('%.2f' % o.currency_id.round(l.sin_iva_price_subtotal)) + ' ' + (o.currency_id.symbol or ''))"/>
-</td>
-</tr>
-</tbody>
-</table>
-<div class="row">
-<div class="col-6"/>
-<div class="col-6">
-<table class="table table-sm">
-<tbody>
-<tr>
-<td><strong>Subtotal (Sin IVA)</strong></td>
-<td class="text-end">
-<span t-esc="(o.currency_id.symbol + ' ' + ('%.2f' % o.currency_id.round(o.amount_untaxed_sin_iva))) if o.currency_id and o.currency_id.position == 'before' else (('%.2f' % o.currency_id.round(o.amount_untaxed_sin_iva)) + ' ' + (o.currency_id.symbol or ''))"/>
-</td>
-</tr>
-<tr>
-<td>IVA (16%)</td>
-<td class="text-end">
-<span t-esc="(o.currency_id.symbol + ' ' + ('%.2f' % o.currency_id.round(o.amount_tax_sin_iva))) if o.currency_id and o.currency_id.position == 'before' else (('%.2f' % o.currency_id.round(o.amount_tax_sin_iva)) + ' ' + (o.currency_id.symbol or ''))"/>
-</td>
-</tr>
-<tr>
-<td><strong>Total</strong></td>
-<td class="text-end">
-<strong>
-<span t-esc="(o.currency_id.symbol + ' ' + ('%.2f' % o.currency_id.round(o.amount_total_sin_iva))) if o.currency_id and o.currency_id.position == 'before' else (('%.2f' % o.currency_id.round(o.amount_total_sin_iva)) + ' ' + (o.currency_id.symbol or ''))"/>
-</strong>
-</td>
-</tr>
-</tbody>
-</table>
-</div>
-</div>
-</div>
-</t>
-</t>
-</template>
-<!-- QWEB: PURCHASE -->
-<template id="report_purchaseorder_siniva">
-<t t-call="web.basic_layout">
-<t t-as="o" t-foreach="docs">
-<t t-set="company" t-value="o.company_id"/>
-<div class="page">
-<h2>Purchase Order (SIN IVA)</h2>
-<table class="table table-sm o_main_table">
-<thead>
-<tr>
-<th>Description</th>
-<th class="text-end">Qty</th>
-<th class="text-end">Sin IVA (unit.)</th>
-<th class="text-end">Total sin IVA</th>
-</tr>
-</thead>
-<tbody>
-<tr t-as="l" t-foreach="o.order_line">
-<td><span t-esc="l.name"/></td>
-<td class="text-end">
-<span t-esc="'%s %s' % (('%.2f' % l.product_qty).rstrip('0').rstrip('.'), l.product_uom.name or '')"/>
-</td>
-<td class="text-end">
-<span t-esc="(o.currency_id.symbol + ' ' + ('%.2f' % o.currency_id.round(l.sin_iva_price_unit))) if o.currency_id and o.currency_id.position == 'before' else (('%.2f' % o.currency_id.round(l.sin_iva_price_unit)) + ' ' + (o.currency_id.symbol or ''))"/>
-</td>
-<td class="text-end">
-<span t-esc="(o.currency_id.symbol + ' ' + ('%.2f' % o.currency_id.round(l.sin_iva_price_subtotal))) if o.currency_id and o.currency_id.position == 'before' else (('%.2f' % o.currency_id.round(l.sin_iva_price_subtotal)) + ' ' + (o.currency_id.symbol or ''))"/>
-</td>
-</tr>
-</tbody>
-</table>
-<div class="row">
-<div class="col-6"/>
-<div class="col-6">
-<table class="table table-sm">
-<tbody>
-<tr>
-<td><strong>Subtotal (Sin IVA)</strong></td>
-<td class="text-end">
-<span t-esc="(o.currency_id.symbol + ' ' + ('%.2f' % o.currency_id.round(o.amount_untaxed_sin_iva))) if o.currency_id and o.currency_id.position == 'before' else (('%.2f' % o.currency_id.round(o.amount_untaxed_sin_iva)) + ' ' + (o.currency_id.symbol or ''))"/>
-</td>
-</tr>
-<tr>
-<td>IVA (16%)</td>
-<td class="text-end">
-<span t-esc="(o.currency_id.symbol + ' ' + ('%.2f' % o.currency_id.round(o.amount_tax_sin_iva))) if o.currency_id and o.currency_id.position == 'before' else (('%.2f' % o.currency_id.round(o.amount_tax_sin_iva)) + ' ' + (o.currency_id.symbol or ''))"/>
-</td>
-</tr>
-<tr>
-<td><strong>Total</strong></td>
-<td class="text-end">
-<strong>
-<span t-esc="(o.currency_id.symbol + ' ' + ('%.2f' % o.currency_id.round(o.amount_total_sin_iva))) if o.currency_id and o.currency_id.position == 'before' else (('%.2f' % o.currency_id.round(o.amount_total_sin_iva)) + ' ' + (o.currency_id.symbol or ''))"/>
-</strong>
-</td>
-</tr>
-</tbody>
-</table>
-</div>
-</div>
-</div>
-</t>
-</t>
-</template>
+<odoo>
+    <record id="action_report_saleorder_siniva" model="ir.actions.report">
+        <field name="name">Cotización (Sin IVA)</field>
+        <field name="model">sale.order</field>
+        <field name="report_type">qweb-pdf</field>
+        <field name="report_name">sale_purchase_sin_iva.report_saleorder_siniva</field>
+        <field name="print_report_name">'Cotizacion_Sin_IVA_%s' % (object.name)</field>
+        <field name="binding_model_id" ref="sale.model_sale_order"/>
+        <field name="binding_type">report</field>
+    </record>
+
+    <record id="action_report_purchaseorder_siniva" model="ir.actions.report">
+        <field name="name">Orden de Compra (Sin IVA)</field>
+        <field name="model">purchase.order</field>
+        <field name="report_type">qweb-pdf</field>
+        <field name="report_name">sale_purchase_sin_iva.report_purchaseorder_siniva</field>
+        <field name="print_report_name">'OC_Sin_IVA_%s' % (object.name)</field>
+        <field name="binding_model_id" ref="purchase.model_purchase_order"/>
+        <field name="binding_type">report</field>
+    </record>
 </odoo>
