@@ -1,0 +1,41 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<odoo>
+  <data>
+    <record id="purchase_order_form_usd_page" model="ir.ui.view">
+      <field name="name">purchase.order.form.usd.page</field>
+      <field name="model">purchase.order</field>
+      <field name="inherit_id" ref="purchase.purchase_order_form"/>
+      <field name="arch" type="xml">
+        <xpath expr="//sheet/notebook" position="inside">
+          <page string="USD">
+            <group>
+              <field name="usd_mx"/>
+            </group>
+            <field name="order_line" nolabel="1"
+                   context="{'tree_view_ref': 'purchase_usd_mx.purchase_order_line_usd_list', 'list_view_ref': 'purchase_usd_mx.purchase_order_line_usd_list'}"
+                   options="{'no_create': True, 'no_edit': True}"/>
+            <group class="oe_subtotal_footer oe-right">
+              <label for="amount_total_usd"/>
+              <div class="oe_subtotal_footer_separator"/>
+              <field name="amount_total_usd" class="oe_subtotal_footer_only_total"/>
+            </group>
+          </page>
+        </xpath>
+      </field>
+    </record>
+
+    <record id="purchase_order_line_usd_list" model="ir.ui.view">
+      <field name="name">purchase.order.line.usd.list</field>
+      <field name="model">purchase.order.line</field>
+      <field name="arch" type="xml">
+        <list create="0" edit="0">
+          <field name="name" string="Descripción"/>
+          <field name="product_qty" string="Cantidad"/>
+          <field name="price_unit" string="Precio unitario"/>
+          <field name="price_usd" string="Precio USD"/>
+          <field name="price_total_usd" string="Total USD"/>
+        </list>
+      </field>
+    </record>
+  </data>
+</odoo>
