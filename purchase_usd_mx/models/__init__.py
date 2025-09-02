@@ -1,1 +1,1 @@
-from . import purchase_usd_mx
+from . import purchase_usd
