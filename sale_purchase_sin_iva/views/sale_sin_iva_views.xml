@@ -1,0 +1,38 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<odoo>
+    <record id="sale_order_line_list_sin_iva" model="ir.ui.view">
+        <field name="name">sale.order.line.list.sin.iva</field>
+        <field name="model">sale.order.line</field>
+        <field name="arch" type="xml">
+            <list create="0" edit="0">
+                <field name="name" string="Descripción"/>
+                <field name="product_uom_qty" string="Cantidad"/>
+                <field name="sin_iva_price_unit" string="Sin IVA"/>
+                <field name="sin_iva_price_subtotal" string="Total sin IVA"/>
+            </list>
+        </field>
+    </record>
+
+    <record id="view_order_form_sin_iva" model="ir.ui.view">
+        <field name="name">sale.order.form.sin.iva.page</field>
+        <field name="model">sale.order</field>
+        <field name="inherit_id" ref="sale.view_order_form"/>
+        <field name="arch" type="xml">
+            <xpath expr="//sheet/notebook" position="inside">
+                <page string="Sin IVA">
+                    <field name="order_line" nolabel="1"
+                           context="{'list_view_ref': 'sale_purchase_sin_iva.sale_order_line_list_sin_iva',
+                                    'tree_view_ref': 'sale_purchase_sin_iva.sale_order_line_list_sin_iva'}"
+                           options="{'no_create': True, 'no_edit': True}"/>
+                    <group>
+                        <group>
+                            <field name="amount_subtotal_sin_iva" readonly="1"/>
+                            <field name="amount_tax_sin_iva" readonly="1"/>
+                            <field name="amount_total_sin_iva" readonly="1"/>
+                        </group>
+                    </group>
+                </page>
+            </xpath>
+        </field>
+    </record>
+</odoo>
