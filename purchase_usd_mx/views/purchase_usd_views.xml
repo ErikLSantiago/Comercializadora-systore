@@ -1,31 +1,37 @@
-<?xml version="1.0" encoding="UTF-8"?>
+<?xml version="1.0" encoding="utf-8"?>
 <odoo>
-  <data>
-    <record id="view_purchase_order_form_usd_mx" model="ir.ui.view">
-      <field name="name">purchase.order.form.usd.mx</field>
-      <field name="model">purchase.order</field>
-      <field name="inherit_id" ref="purchase.purchase_order_form"/>
-      <field name="arch" type="xml">
-        <xpath expr="//notebook" position="inside">
-          <page name="usd_tab" string="USD">
-            <group>
-              <field name="usd_mx"/>
-            </group>
-            <field name="order_line" options="{'no_create': True, 'no_edit': True}">
-              <tree>
+    <!-- List view used inside the USD tab -->
+    <record id="purchase_order_line_list_usd_mx" model="ir.ui.view">
+        <field name="name">purchase.order.line.list.usd.mx</field>
+        <field name="model">purchase.order.line</field>
+        <field name="arch" type="xml">
+            <list create="0" edit="0">
                 <field name="name" string="Descripción"/>
                 <field name="product_qty" string="Cantidad"/>
                 <field name="price_unit" string="Precio unitario"/>
-                <field name="price_unit_usd"/>
-                <field name="price_total_usd"/>
-              </tree>
-            </field>
-            <group>
-              <field name="amount_total_usd" readonly="1"/>
-            </group>
-          </page>
-        </xpath>
-      </field>
+                <field name="price_unit_usd" string="Precio USD"/>
+                <field name="total_usd" string="Total USD"/>
+            </list>
+        </field>
     </record>
-  </data>
+
+    <!-- Inherit purchase order form to add USD tab -->
+    <record id="view_purchase_order_form_usd_mx" model="ir.ui.view">
+        <field name="name">purchase.order.form.usd.mx</field>
+        <field name="model">purchase.order</field>
+        <field name="inherit_id" ref="purchase.purchase_order_form"/>
+        <field name="arch" type="xml">
+            <xpath expr="//notebook" position="inside">
+                <page string="USD">
+                    <group>
+                        <field name="usd_mx"/>
+                        <field name="amount_total_usd" readonly="1"/>
+                    </group>
+                    <field name="order_line" nolabel="1"
+                        options="{'no_create': True, 'no_edit': True}"
+                        context="{'tree_view_ref': 'purchase_usd_mx.purchase_order_line_list_usd_mx', 'list_view_ref': 'purchase_usd_mx.purchase_order_line_list_usd_mx'}"/>
+                </page>
+            </xpath>
+        </field>
+    </record>
 </odoo>
