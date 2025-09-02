@@ -1,9 +1,11 @@
+<?xml version="1.0" encoding="UTF-8"?>
 <odoo>
-    <record id="sale_order_line_tree_sin_iva" model="ir.ui.view">
-        <field name="name">sale.order.line.tree.sin.iva</field>
+    <!-- List view for sale.order.line (Sin IVA columns) -->
+    <record id="sale_order_line_list_sin_iva" model="ir.ui.view">
+        <field name="name">sale.order.line.list.sin.iva</field>
         <field name="model">sale.order.line</field>
         <field name="arch" type="xml">
-            <list string="Order Lines (Sin IVA)">
+            <list create="0" edit="0" string="Líneas (Sin IVA)">
                 <field name="name" string="Descripción"/>
                 <field name="product_uom_qty" string="Cantidad"/>
                 <field name="sin_iva_price_unit" string="Sin IVA"/>
@@ -12,20 +14,21 @@
         </field>
     </record>
 
+    <!-- Add "Sin IVA" page in sale order form -->
     <record id="view_order_form_sin_iva" model="ir.ui.view">
         <field name="name">sale.order.form.sin.iva.page</field>
         <field name="model">sale.order</field>
         <field name="inherit_id" ref="sale.view_order_form"/>
         <field name="arch" type="xml">
-            <xpath expr="//notebook" position="inside">
+            <xpath expr="//sheet/notebook" position="inside">
                 <page string="Sin IVA">
                     <field name="order_line" nolabel="1"
-                           context="{'tree_view_ref': 'sale_purchase_sin_iva.sale_order_line_tree_sin_iva'}"
-                           options="{'no_create': True, 'no_edit': True}"/>
+                           context="{}"
+                           options="{'no_create': True, 'no_edit': True, 'list_view_ref': 'sale_purchase_sin_iva.sale_order_line_list_sin_iva'}"/>
                     <group>
                         <group>
-                            <field name="amount_untaxed_sin_iva" readonly="1"/>
-                            <field name="amount_iva_sin_iva" readonly="1"/>
+                            <field name="amount_subtotal_sin_iva" readonly="1"/>
+                            <field name="amount_tax_sin_iva" readonly="1"/>
                             <field name="amount_total_sin_iva" readonly="1"/>
                         </group>
                     </group>

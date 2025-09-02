@@ -1,21 +1,23 @@
+<?xml version="1.0" encoding="UTF-8"?>
 <odoo>
-    <record id="action_report_saleorder_siniva" model="ir.actions.report">
-        <field name="name">Cotización (Sin IVA)</field>
-        <field name="model">sale.order</field>
-        <field name="report_type">qweb-pdf</field>
-        <field name="report_name">sale_purchase_sin_iva.report_saleorder_siniva</field>
-        <field name="print_report_name">'Cotizacion_Sin_IVA_%s' % (object.name)</field>
-        <field name="binding_model_id" ref="sale.model_sale_order"/>
-        <field name="binding_type">report</field>
-    </record>
-
-    <record id="action_report_purchaseorder_siniva" model="ir.actions.report">
-        <field name="name">Orden de Compra (Sin IVA)</field>
-        <field name="model">purchase.order</field>
-        <field name="report_type">qweb-pdf</field>
-        <field name="report_name">sale_purchase_sin_iva.report_purchaseorder_siniva</field>
-        <field name="print_report_name">'OC_Sin_IVA_%s' % (object.name)</field>
-        <field name="binding_model_id" ref="purchase.model_purchase_order"/>
-        <field name="binding_type">report</field>
-    </record>
+    <!-- Sale report (Sin IVA) -->
+    <report
+        id="report_saleorder_siniva"
+        model="sale.order"
+        string="Cotización (Sin IVA)"
+        report_type="qweb-pdf"
+        name="sale_purchase_sin_iva.report_saleorder_siniva"
+        file="sale_purchase_sin_iva.report_saleorder_siniva"
+        print_report_name="'Cotización (Sin IVA) - %s' % (object.name)"
+    />
+    <!-- Purchase report (Sin IVA) -->
+    <report
+        id="report_purchaseorder_siniva"
+        model="purchase.order"
+        string="Orden de Compra (Sin IVA)"
+        report_type="qweb-pdf"
+        name="sale_purchase_sin_iva.report_purchaseorder_siniva"
+        file="sale_purchase_sin_iva.report_purchaseorder_siniva"
+        print_report_name="'OC (Sin IVA) - %s' % (object.name)"
+    />
 </odoo>

@@ -1,2 +1,2 @@
-from . import sale_sin_iva
-from . import purchase_sin_iva
+# -*- coding: utf-8 -*-
+from . import sale_purchase_sin_iva
