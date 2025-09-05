@@ -30,22 +30,16 @@ class SerialCaptureWizard(models.TransientModel):
     product_id = fields.Many2one("product.product", string="Producto (si aplica)", domain="[('id', 'in', available_product_ids)]")
     available_product_ids = fields.Many2many("product.product", compute="_compute_available_products")
     paste_text = fields.Text(string="Pegar números de serie (uno por línea o separados por comas)")
+
     allow_mismatch = fields.Boolean(string="Permitir diferencia en cantidades", default=True, help="Si está desactivado, debe coincidir el # de seriales con las piezas objetivo.")
+    check_global_duplicate = fields.Boolean(string="Validar duplicado global", default=True, help="Si está activo, verifica que los seriales no existan en otras operaciones.")
     clear_existing = fields.Boolean(string="Limpiar seriales existentes en el alcance", default=True)
     only_unassigned = fields.Boolean(string="Solo líneas con cantidad a procesar", default=True)
 
     total_needed = fields.Integer(string="Piezas objetivo", compute="_compute_totals")
     total_entered = fields.Integer(string="Seriales pegados", compute="_compute_totals")
+    entered_serials_preview = fields.Text(string="Vista previa de seriales", compute="_compute_totals")
     demand_qty_line = fields.Float(string="Demanda del producto", compute="_compute_demand_qty_line")
-
-    def _compute_demand_qty_line(self):
-        for w in self:
-            qty = 0.0
-            ml = w.move_line_id
-            if ml and ml.move_id and 'product_uom_qty' in ml.move_id._fields:
-                qty = ml.move_id.product_uom_qty or 0.0
-            w.demand_qty_line = qty
-
 
     def _compute_available_products(self):
         for w in self:
@@ -54,8 +48,10 @@ class SerialCaptureWizard(models.TransientModel):
     def _compute_totals(self):
         for w in self:
             lines = w._target_move_lines()
+            tokens = _tokenize_serials(w.paste_text)
             w.total_needed = sum(self._line_qty_target(l) for l in lines)
-            w.total_entered = len(_tokenize_serials(w.paste_text))
+            w.total_entered = len(tokens)
+            w.entered_serials_preview = "\n".join(tokens)
 
     @api.model
     def _line_qty_target(self, ml):
@@ -65,6 +61,14 @@ class SerialCaptureWizard(models.TransientModel):
         if not qty and ml.move_id:
             qty = ml.move_id.product_uom_qty or 0.0
         return int(round(qty))
+
+    def _compute_demand_qty_line(self):
+        for w in self:
+            qty = 0.0
+            ml = w.move_line_id
+            if ml and ml.move_id and 'product_uom_qty' in ml.move_id._fields:
+                qty = ml.move_id.product_uom_qty or 0.0
+            w.demand_qty_line = qty
 
     def _target_move_lines(self):
         self.ensure_one()
@@ -79,7 +83,6 @@ class SerialCaptureWizard(models.TransientModel):
 
     def action_apply(self):
         self.ensure_one()
-        # Validación de modo producto sin depender de attrs/states en la vista
         if self.mode == "product" and not self.product_id:
             raise UserError(_("Debes seleccionar un producto cuando el modo es 'Aplicar a un producto específico'."))
 
@@ -93,18 +96,23 @@ class SerialCaptureWizard(models.TransientModel):
             if not serials:
                 raise UserError(_("No se proporcionaron números de serie."))
 
+        # Limpiar existentes si así se indica
         if self.clear_existing:
             self.env["stock.move.line.serial"].search([("move_line_id", "in", lines.ids)]).unlink()
 
+        # Duplicados en la entrada
         seen, dups = set(), set()
         for s in serials:
             if s in seen:
                 dups.add(s)
             seen.add(s)
         if dups:
-            raise UserError(_("Existen números de serie duplicados en la entrada: %s") % (", ".join(sorted(dups))))
+            if len(dups) == 1:
+                raise UserError(_("Número de serie duplicado en la entrada: '%s'") % list(dups)[0])
+            else:
+                raise UserError(_("Duplicados en la entrada: %s") % (", ".join("'%s'" % x for x in sorted(dups))))
 
-        # Duplicados en el sistema (misma operación)
+        # Duplicados ya guardados en la misma operación
         if serials:
             already = self.env['stock.move.line.serial'].search([
                 ('picking_id', '=', self.picking_id.id),
@@ -117,6 +125,23 @@ class SerialCaptureWizard(models.TransientModel):
                 else:
                     raise UserError(_("Los siguientes números de serie ya existen en esta operación: %s") % ", ".join("'%s'" % n for n in names))
 
+        # Duplicados globales en otras operaciones
+        if serials and self.check_global_duplicate:
+            other = self.env['stock.move.line.serial'].search([
+                ('picking_id', '!=', self.picking_id.id),
+                ('name', 'in', serials)
+            ], limit=100)
+            if other:
+                byname = {}
+                for rec in other:
+                    byname.setdefault(rec.name, set()).add(rec.picking_id.display_name)
+                parts = []
+                for name in sorted(byname.keys()):
+                    ops = ", ".join(sorted(byname[name]))
+                    parts.append("'%s' en %s" % (name, ops))
+                raise UserError(_("Duplicado global: los siguientes números ya existen en otras operaciones: %s") % "; ".join(parts))
+
+        # Asignación
         to_create, s_idx = [], 0
         for ml in lines:
             qty_target = self._line_qty_target(ml)

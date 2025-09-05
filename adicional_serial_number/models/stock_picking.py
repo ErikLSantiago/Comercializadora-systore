@@ -21,3 +21,10 @@ class StockPicking(models.Model):
         action['domain'] = [('picking_id', '=', self.id)]
         action['context'] = {'default_picking_id': self.id}
         return action
+
+    def action_open_serial_history(self):
+        self.ensure_one()
+        action = self.env.ref('adicional_serial_number.action_serial_history_by_picking').read()[0]
+        action['domain'] = [('picking_id', '=', self.id)]
+        action['context'] = {'default_picking_id': self.id}
+        return action

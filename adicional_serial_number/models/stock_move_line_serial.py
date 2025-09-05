@@ -12,10 +12,10 @@ class StockMoveLineSerial(models.Model):
     picking_id = fields.Many2one(related="move_line_id.picking_id", string="Operación", store=True, index=True)
     date = fields.Datetime(related="move_line_id.date", string="Fecha de operación", store=True)
     company_id = fields.Many2one(related="move_line_id.company_id", string="Compañía", store=True, index=True)
-    lot_id = fields.Many2one(related="move_line_id.lot_id", comodel_name="stock.lot", string="Lote/Serie (nativo)", store=True, index=True)
 
     partner_id = fields.Many2one(related="picking_id.partner_id", comodel_name="res.partner", string="Cliente/Proveedor", store=True, index=True)
     origin = fields.Char(related="picking_id.origin", string="Origen", store=True, index=True)
+    lot_id = fields.Many2one(related="move_line_id.lot_id", comodel_name="stock.lot", string="Lote/Serie (nativo)", store=True, index=True)
     carrier_tracking_ref = fields.Char(string="Guía/Tracking", compute="_compute_carrier_tracking_ref", store=False)
 
     _sql_constraints = [
@@ -32,6 +32,22 @@ class StockMoveLineSerial(models.Model):
             except Exception:
                 val = False
             rec.carrier_tracking_ref = val
+
+    # Bloquear edición si picking validado/cancelado
+    def _check_editable_state(self):
+        for rec in self:
+            if rec.picking_id and rec.picking_id.state in ('done', 'cancel'):
+                from odoo.exceptions import UserError
+                raise UserError(_("No puedes modificar seriales porque la operación ya está %s.") % (dict(self.env['stock.picking']._fields['state'].selection).get(rec.picking_id.state, rec.picking_id.state)))
+        return True
+
+    def write(self, vals):
+        self._check_editable_state()
+        return super().write(vals)
+
+    def unlink(self):
+        self._check_editable_state()
+        return super().unlink()
 
 class StockMoveLine(models.Model):
     _inherit = "stock.move.line"

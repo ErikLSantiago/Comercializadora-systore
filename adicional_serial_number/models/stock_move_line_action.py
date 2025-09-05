@@ -7,18 +7,17 @@ class StockMoveLine(models.Model):
     reserved_qty_info = fields.Float(string="Cantidad Reservada", compute="_compute_reserved_qty_info", digits="Product Unit of Measure")
     demand_qty_info = fields.Float(string="Demanda", compute="_compute_demand_qty_info", digits="Product Unit of Measure")
 
+    def _compute_reserved_qty_info(self):
+        for ml in self:
+            qty = getattr(ml, 'reserved_uom_qty', 0.0) or getattr(ml, 'reserved_quantity', 0.0) or 0.0
+            ml.reserved_qty_info = qty
+
     def _compute_demand_qty_info(self):
         for ml in self:
             qty = 0.0
             if ml.move_id and 'product_uom_qty' in ml.move_id._fields:
                 qty = ml.move_id.product_uom_qty or 0.0
             ml.demand_qty_info = qty
-
-
-    def _compute_reserved_qty_info(self):
-        for ml in self:
-            qty = getattr(ml, 'reserved_uom_qty', 0.0) or getattr(ml, 'reserved_quantity', 0.0) or 0.0
-            ml.reserved_qty_info = qty
 
     def action_open_serial_line_wizard(self):
         self.ensure_one()

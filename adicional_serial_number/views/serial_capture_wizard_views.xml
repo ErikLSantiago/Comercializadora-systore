@@ -15,6 +15,7 @@
               <field name="only_unassigned"/>
               <field name="clear_existing"/>
               <field name="allow_mismatch"/>
+              <field name="check_global_duplicate"/>
             </group>
             <group>
               <field name="paste_text" placeholder="Pega aquí uno por línea, o separados por coma/espacio"/>
@@ -23,6 +24,9 @@
               <field name="total_entered" readonly="1"/>
               <field name="total_needed" readonly="1"/>
               <field name="demand_qty_line" readonly="1"/>
+            </group>
+            <group string="Vista previa">
+              <field name="entered_serials_preview" readonly="1" nolabel="1" widget="text"/>
             </group>
           </sheet>
           <footer>
