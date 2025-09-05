@@ -1,0 +1,31 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+  <data>
+    <record id="view_adicional_sn_about_form" model="ir.ui.view">
+      <field name="name">adicional.sn.about.form</field>
+      <field name="model">adicional.sn.about</field>
+      <field name="arch" type="xml">
+        <form string="Acerca de Adicional Serial Number">
+          <sheet>
+            <group>
+              <field name="version" readonly="1"/>
+            </group>
+          </sheet>
+          <footer>
+            <button string="Cerrar" class="btn-secondary" special="cancel"/>
+          </footer>
+        </form>
+      </field>
+    </record>
+
+    <record id="action_adicional_sn_about" model="ir.actions.act_window">
+      <field name="name">Acerca de</field>
+      <field name="res_model">adicional.sn.about</field>
+      <field name="view_mode">form</field>
+      <field name="target">new</field>
+      <field name="context">{}</field>
+    </record>
+
+    <menuitem id="adicional_sn_about_menu" name="Acerca de" parent="adicional_sn_root" action="action_adicional_sn_about" sequence="99"/>
+  </data>
+</odoo>
