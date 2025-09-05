@@ -110,10 +110,10 @@ class SerialCaptureWizard(models.TransientModel):
             raise UserError(_("No se pudo asignar ningún número de serie. Verifique el alcance y cantidades."))
 
         self.env["stock.move.line.serial"].create(to_create)
-        return {{
+        return {
             "type": "ir.actions.act_window",
             "res_model": "stock.picking",
             "view_mode": "form",
             "res_id": self.picking_id.id,
             "target": "current",
-        }}
+        }
