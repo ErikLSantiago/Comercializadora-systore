@@ -1,0 +1,30 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <!-- Campo 'Favorita' en la plantilla de correo -->
+    <record id="mail_template_form_inherit_picking_favorite" model="ir.ui.view">
+        <field name="name">mail.template.form.picking.favorite</field>
+        <field name="model">mail.template</field>
+        <field name="inherit_id" ref="mail.email_template_form"/>
+        <field name="arch" type="xml">
+            <xpath expr="//field[@name='model_id']" position="after">
+                <field name="is_favorite"
+                       attrs="{'invisible': [('model_id.model','!=','stock.picking')]}"/>
+            </xpath>
+        </field>
+    </record>
+
+    <!-- Filtros en la búsqueda de plantillas -->
+    <record id="mail_template_search_inherit_picking" model="ir.ui.view">
+        <field name="name">mail.template.search.picking</field>
+        <field name="model">mail.template</field>
+        <field name="inherit_id" ref="mail.view_email_template_search"/>
+        <field name="arch" type="xml">
+            <xpath expr="//filter[@name='my_templates']" position="after">
+                <filter name="stock_picking" string="Operaciones (stock.picking)"
+                        domain="[('model_id.model','=','stock.picking')]"/>
+                <filter name="favorite" string="Favoritas"
+                        domain="[('is_favorite','=',True)]"/>
+            </xpath>
+        </field>
+    </record>
+</odoo>
