@@ -3,7 +3,7 @@
   <data noupdate="1">
     <record id="ir_config_parameter_adicional_sn_version" model="ir.config_parameter">
       <field name="key">adicional_sn_version</field>
-      <field name="value">18.0.1.30.2</field>
+      <field name="value">18.0.1.30.3</field>
     </record>
   </data>
 </odoo>
