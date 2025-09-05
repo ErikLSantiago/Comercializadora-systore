@@ -1,10 +1,10 @@
 # -*- coding: utf-8 -*-
-from odoo import models, _
+from odoo import models, fields, api, _
 
 class StockPicking(models.Model):
-
     _inherit = "stock.picking"
 
+    # --- Wizard clásico para capturar seriales por líneas ---
     def action_open_serial_capture_wizard(self):
         self.ensure_one()
         return {
@@ -16,6 +16,7 @@ class StockPicking(models.Model):
             "context": {"default_picking_id": self.id},
         }
 
+    # --- Lista unificada por producto (Seriales - adicional) ---
     def action_open_serial_lines_list(self):
         self.ensure_one()
         import uuid as _uuid
@@ -83,28 +84,37 @@ class StockPicking(models.Model):
             T.create(records)
         return True
 
+    # --- Totales para colorear el smart button ---
+    serial_demand_total = fields.Integer(string="Demanda (seriales)", compute="_compute_serial_totals", store=False)
+    serial_captured_count = fields.Integer(string="Seriales capturados", compute="_compute_serial_totals", store=False)
 
-# --- Smart button count for captured serials ---
-serial_captured_count = fields.Integer(compute="_compute_serial_captured_count", string="Seriales capturados", store=False)
+    @api.depends('move_ids_without_package.product_uom_qty', 'move_ids_without_package.product_id.tracking')
+    def _compute_serial_totals(self):
+        # conteo de seriales capturados por picking
+        groups = self.env["stock.move.line.serial"].read_group(
+            domain=[("picking_id", "in", self.ids)],
+            fields=["picking_id"],
+            groupby=["picking_id"],
+        )
+        map_counts = {g["picking_id"][0]: g["picking_id_count"] for g in groups}
 
-def _compute_serial_captured_count(self):
-    groups = self.env["stock.move.line.serial"].read_group(
-        domain=[("picking_id", "in", self.ids)],
-        fields=["picking_id"],
-        groupby=["picking_id"],
-    )
-    map_counts = {g["picking_id"][0]: g["picking_id_count"] for g in groups}
-    for p in self:
-        p.serial_captured_count = map_counts.get(p.id, 0)
+        for p in self:
+            demand = 0
+            for m in p.move_ids_without_package:
+                if m.product_id and m.product_id.tracking == 'serial':
+                    demand += int(round(m.product_uom_qty or 0))
+            p.serial_demand_total = demand
+            p.serial_captured_count = map_counts.get(p.id, 0)
 
-def action_open_serial_captured_list(self):
-    self.ensure_one()
-    return {
-        "name": _("Seriales capturados"),
-        "type": "ir.actions.act_window",
-        "res_model": "stock.move.line.serial",
-        "view_mode": "list,form",
-        "target": "current",
-        "domain": [("picking_id", "=", self.id)],
-        "context": {"search_default_picking_id": self.id, "default_picking_id": self.id},
-    }
+    # --- Acción del smart button ---
+    def action_open_serial_captured_list(self):
+        self.ensure_one()
+        return {
+            "name": _("Seriales capturados"),
+            "type": "ir.actions.act_window",
+            "res_model": "stock.move.line.serial",
+            "view_mode": "list,form",
+            "target": "current",
+            "domain": [("picking_id", "=", self.id)],
+            "context": {"search_default_picking_id": self.id, "default_picking_id": self.id},
+        }
