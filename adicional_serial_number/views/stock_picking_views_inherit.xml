@@ -1,0 +1,28 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+  <data>
+    <record id="view_picking_form_inherit_adicional_sn" model="ir.ui.view">
+      <field name="name">stock.picking.form.inherit.adicional.sn</field>
+      <field name="model">stock.picking</field>
+      <field name="inherit_id" ref="stock.view_picking_form"/>
+      <field name="arch" type="xml">
+        <xpath expr="//sheet//div[@class='oe_button_box']" position="inside">
+          <button name="action_open_serial_lines_list"
+                  type="object"
+                  class="oe_stat_button"
+                  icon="fa-barcode">
+            <div class="o_stat_info">
+              <span class="o_stat_value"><field name="serial_captured_count"/></span>
+              <span class="o_stat_text">Seriales (adicional)</span>
+            </div>
+          </button>
+          <button name="action_open_serial_history" type="object" class="oe_stat_button" icon="fa-list-ul">
+            <div class="o_stat_info">
+              <span class="o_stat_text">Historial seriales</span>
+            </div>
+          </button>
+        </xpath>
+      </field>
+    </record>
+  </data>
+</odoo>

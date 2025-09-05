@@ -1,0 +1,26 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+  <data>
+    <record id="view_move_line_list_adicional_sn" model="ir.ui.view">
+      <field name="name">stock.move.line.list.adicional.sn</field>
+      <field name="model">stock.move.line</field>
+      <field name="arch" type="xml">
+        <list string="Líneas de operación (seriales adicionales)" create="false" edit="false">
+          <field name="picking_id" optional="show"/>
+          <field name="product_id"/>
+          <field name="demand_qty_info"/>
+          <button name="action_open_serial_line_wizard" type="object" icon="fa-barcode" string="Seriales..."/>
+        </list>
+      </field>
+    </record>
+
+    <record id="action_move_lines_by_picking_adicional_sn" model="ir.actions.act_window">
+      <field name="name">Líneas de operación</field>
+      <field name="res_model">stock.move.line</field>
+      <field name="view_mode">list,form</field>
+      <field name="view_id" ref="view_move_line_list_adicional_sn"/>
+      <field name="domain">[('picking_id', '=', active_id)]</field>
+      <field name="context">{}</field>
+    </record>
+  </data>
+</odoo>

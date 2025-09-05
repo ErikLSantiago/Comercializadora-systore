@@ -1,0 +1,9 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+  <data noupdate="0">
+    <record id="param_adicional_sn_version" model="ir.config_parameter">
+      <field name="key">adicional_serial_number.version</field>
+      <field name="value">18.0.1.15</field>
+    </record>
+  </data>
+</odoo>
