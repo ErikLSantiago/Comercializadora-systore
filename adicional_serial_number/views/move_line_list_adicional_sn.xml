@@ -5,7 +5,7 @@
       <field name="name">adicional.sn.product.line.list</field>
       <field name="model">adicional.sn.product.line</field>
       <field name="arch" type="xml">
-        <list string="Productos (seriales adicionales)" create="false" editable="false">
+        <list string="Productos (seriales adicionales)" create="false">
           <field name="picking_id" optional="show"/>
           <field name="product_id"/>
           <field name="demand_total"/>
@@ -21,7 +21,7 @@
       <field name="res_model">adicional.sn.product.line</field>
       <field name="view_mode">list,form</field>
       <field name="view_id" ref="view_move_line_list_adicional_sn"/>
-      <field name="domain">[('session_token', '=', context.get('adicional_sn_token')), ('picking_id', '=', active_id)]</field>
+      
       <field name="context">{}</field>
     </record>
   </data>
