@@ -3,7 +3,6 @@ from odoo import models, _
 
 class StockPicking(models.Model):
     _inherit = "stock.picking"
-
     def action_open_serial_capture_wizard(self):
         self.ensure_one()
         return {
@@ -14,7 +13,6 @@ class StockPicking(models.Model):
             "target": "new",
             "context": {"default_picking_id": self.id},
         }
-
     def action_open_serial_lines_list(self):
         self.ensure_one()
         
@@ -24,16 +22,12 @@ self._prepare_adicional_sn_product_rows(token)
 action = self.env.ref('adicional_serial_number.action_move_lines_by_picking_adicional_sn').read()[0]
 action['context'] = {'adicional_sn_token': token, 'default_picking_id': self.id}
 return action
-
-
     def action_open_serial_history(self):
         self.ensure_one()
         action = self.env.ref('adicional_serial_number.action_serial_history_by_picking').read()[0]
         action['domain'] = [('picking_id', '=', self.id)]
         action['context'] = {'default_picking_id': self.id}
         return action
-
-
     def _prepare_adicional_sn_product_rows(self, session_token):
         self.ensure_one()
         T = self.env["adicional.sn.product.line"].sudo()
