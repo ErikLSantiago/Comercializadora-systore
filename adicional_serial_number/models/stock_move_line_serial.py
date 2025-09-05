@@ -12,6 +12,7 @@ class StockMoveLineSerial(models.Model):
     picking_id = fields.Many2one(related="move_line_id.picking_id", string="Operación", store=True, index=True)
     date = fields.Datetime(related="move_line_id.date", string="Fecha de operación", store=True)
     company_id = fields.Many2one(related="move_line_id.company_id", string="Compañía", store=True, index=True)
+    lot_id = fields.Many2one(related="move_line_id.lot_id", comodel_name="stock.lot", string="Lote/Serie (nativo)", store=True, index=True)
 
     partner_id = fields.Many2one(related="picking_id.partner_id", comodel_name="res.partner", string="Cliente/Proveedor", store=True, index=True)
     origin = fields.Char(related="picking_id.origin", string="Origen", store=True, index=True)

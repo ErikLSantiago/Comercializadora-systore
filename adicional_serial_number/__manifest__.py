@@ -3,7 +3,7 @@
     "name": "Adicional Serial Number",
     "summary": "Captura opcional de números de serie por operación sin alterar la trazabilidad nativa.",
     "description": "Botón por picking y por línea de operación para pegar múltiples números de serie y asociarlos a líneas de movimiento (stock.move.line). Reporte con filtros.",
-    "version": "18.0.1.12",
+    "version": "18.0.1.13",
     "author": "Comercializadora Systore & ChatGPT",
     "website": "https://www.systore.com.mx",
     "category": "Inventory/Operations",

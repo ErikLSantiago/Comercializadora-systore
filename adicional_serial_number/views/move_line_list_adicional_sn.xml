@@ -8,7 +8,7 @@
         <list string="Líneas de operación (seriales adicionales)" create="false" edit="false">
           <field name="picking_id" optional="show"/>
           <field name="product_id"/>
-          <field name="reserved_qty_info"/>
+          <field name="demand_qty_info"/>
           <button name="action_open_serial_line_wizard" type="object" icon="fa-barcode" string="Seriales..."/>
         </list>
       </field>
