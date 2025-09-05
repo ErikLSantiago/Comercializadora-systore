@@ -1,0 +1,49 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+  <data>
+    <record id="view_stock_move_line_serial_tree" model="ir.ui.view">
+      <field name="name">stock.move.line.serial.tree</field>
+      <field name="model">stock.move.line.serial</field>
+      <field name="arch" type="xml">
+        <tree string="Seriales capturados" create="false">
+          <field name="name"/>
+          <field name="product_id"/>
+          <field name="picking_id"/>
+          <field name="date"/>
+          <field name="move_line_id"/>
+          <field name="company_id"/>
+        </tree>
+      </field>
+    </record>
+
+    <record id="view_stock_move_line_serial_form" model="ir.ui.view">
+      <field name="name">stock.move.line.serial.form</field>
+      <field name="model">stock.move.line.serial</field>
+      <field name="arch" type="xml">
+        <form string="Serial capturado">
+          <sheet>
+            <group>
+              <field name="name"/>
+              <field name="move_line_id"/>
+              <field name="product_id" readonly="1"/>
+              <field name="picking_id" readonly="1"/>
+              <field name="date" readonly="1"/>
+              <field name="company_id" readonly="1"/>
+            </group>
+          </sheet>
+        </form>
+      </field>
+    </record>
+
+    <record id="view_stock_move_line_form_inherit_serials" model="ir.ui.view">
+      <field name="name">stock.move.line.form.inherit.serials</field>
+      <field name="model">stock.move.line</field>
+      <field name="inherit_id" ref="stock.view_move_line_form"/>
+      <field name="arch" type="xml">
+        <xpath expr="//field[@name='qty_done']" position="after">
+          <field name="serial_captured_count" readonly="1" class="oe_inline"/>
+        </xpath>
+      </field>
+    </record>
+  </data>
+</odoo>
