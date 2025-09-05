@@ -65,6 +65,10 @@ class SerialCaptureWizard(models.TransientModel):
         return mls.sorted(lambda ml: (ml.sequence, ml.id))
 
     def action_apply(self):
+        # Validación de modo producto sin depender de attrs/states en la vista
+        if self.mode == "product" and not self.product_id:
+            raise UserError(_("Debes seleccionar un producto cuando el modo es 'Aplicar a un producto específico'."))
+
         self.ensure_one()
         serials = _tokenize_serials(self.paste_text)
         lines = self._target_move_lines()

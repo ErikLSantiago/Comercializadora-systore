@@ -10,7 +10,7 @@
             <group>
               <field name="picking_id" readonly="1"/>
               <field name="mode"/>
-              <field name="product_id" attrs="{'invisible': [('mode','!=','product')], 'required': [('mode','=','product')]}"/>
+              <field name="product_id"/>
               <field name="only_unassigned"/>
               <field name="clear_existing"/>
               <field name="allow_mismatch"/>

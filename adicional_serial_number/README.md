@@ -17,3 +17,5 @@ Puntos clave
 Historial de cambios
 --------------------
 - 18.0.1.1: Renombrado del módulo, vistas `<list>`, eliminación de xpath conflictivo en `stock.move.line` form, versión en Ajustes.
+
+- 18.0.1.3: Removidos attrs/states del wizard; validación de producto en Python.
