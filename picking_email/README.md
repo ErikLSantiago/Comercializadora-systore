@@ -8,7 +8,4 @@ en las operaciones de almacén (`stock.picking`), con soporte de **plantilla fav
 - Registra el mensaje en el **chatter** del picking.
 - Una (1) plantilla favorita por modelo.
 
-Compatibilidad: Odoo 18/17 (usa `invisible="..."` en vez de `attrs`/`states`).
-
-Instalación: cargar el módulo y actualizar la lista. Configurar plantillas en
-**Inventario → Configuración → Plantillas de correo**.
+Compatibilidad: Odoo 18/17. Se usa `default_res_ids` en el asistente de correo.
