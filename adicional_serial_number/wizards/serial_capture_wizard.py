@@ -79,7 +79,19 @@ class SerialCaptureWizard(models.TransientModel):
             mls = mls.filtered(lambda ml: self._line_qty_target(ml) > len(ml.serial_captured_ids))
         if self.mode == "product" and self.product_id:
             mls = mls.filtered(lambda ml: ml.product_id.id == self.product_id.id)
-        return mls.sorted(lambda ml: (ml.sequence, ml.id))
+        def _key(ml):
+    # Algunas bases no tienen 'sequence' en move line; usar fallback a move.sequence
+    try:
+        if 'sequence' in ml._fields and ml.sequence is not None:
+            return (ml.sequence or 0, ml.id)
+    except Exception:
+        pass
+    seq = 0
+    if ml.move_id and hasattr(ml.move_id, '_fields') and 'sequence' in ml.move_id._fields:
+        seq = ml.move_id.sequence or 0
+    return (seq, ml.id)
+return mls.sorted(_key)
+
 
     def action_apply(self):
         self.ensure_one()
