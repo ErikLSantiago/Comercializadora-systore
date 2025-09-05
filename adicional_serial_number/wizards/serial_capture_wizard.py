@@ -49,9 +49,9 @@ class SerialCaptureWizard(models.TransientModel):
 
     @api.model
     def _line_qty_target(self, ml):
-        qty = ml.qty_done or 0.0
+        qty = getattr(ml, 'qty_done', 0.0) or getattr(ml, 'quantity', 0.0) or 0.0
         if not qty:
-            qty = getattr(ml, "reserved_uom_qty", 0.0) or 0.0
+            qty = getattr(ml, 'reserved_uom_qty', 0.0) or getattr(ml, 'reserved_quantity', 0.0) or 0.0
         if not qty and ml.move_id:
             qty = ml.move_id.product_uom_qty or 0.0
         return int(round(qty))

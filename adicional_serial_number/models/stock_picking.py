@@ -20,4 +20,5 @@ class StockPicking(models.Model):
         self.ensure_one()
         action = self.env.ref('adicional_serial_number.action_move_lines_by_picking_adicional_sn').read()[0]
         action['domain'] = [('picking_id', '=', self.id)]
+        action['context'] = {'default_picking_id': self.id}
         return action
