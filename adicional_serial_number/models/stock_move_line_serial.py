@@ -13,9 +13,24 @@ class StockMoveLineSerial(models.Model):
     date = fields.Datetime(related="move_line_id.date", string="Fecha de operación", store=True)
     company_id = fields.Many2one(related="move_line_id.company_id", string="Compañía", store=True, index=True)
 
+    partner_id = fields.Many2one(related="picking_id.partner_id", comodel_name="res.partner", string="Cliente/Proveedor", store=True, index=True)
+    origin = fields.Char(related="picking_id.origin", string="Origen", store=True, index=True)
+    carrier_tracking_ref = fields.Char(string="Guía/Tracking", compute="_compute_carrier_tracking_ref", store=False)
+
     _sql_constraints = [
         ("uniq_serial_per_picking", "unique(name, picking_id)", "Este número de serie ya existe en esta operación."),
     ]
+
+    def _compute_carrier_tracking_ref(self):
+        for rec in self:
+            val = False
+            picking = rec.picking_id
+            try:
+                if picking and 'carrier_tracking_ref' in picking._fields:
+                    val = picking.carrier_tracking_ref or False
+            except Exception:
+                val = False
+            rec.carrier_tracking_ref = val
 
 class StockMoveLine(models.Model):
     _inherit = "stock.move.line"
@@ -35,20 +50,3 @@ class StockPicking(models.Model):
     def _compute_serial_captured_count(self):
         for picking in self:
             picking.serial_captured_count = self.env["stock.move.line.serial"].search_count([("picking_id", "=", picking.id)])
-
-
-    def action_open_serial_line_wizard(self):
-        self.ensure_one()
-        return {
-            "name": _("Capturar números de serie (línea)"),
-            "type": "ir.actions.act_window",
-            "res_model": "serial.capture.wizard",
-            "view_mode": "form",
-            "target": "new",
-            "context": {
-                "default_picking_id": self.picking_id.id,
-                "default_move_line_id": self.id,
-                "default_mode": "auto",
-                "default_only_unassigned": False,
-            },
-        }

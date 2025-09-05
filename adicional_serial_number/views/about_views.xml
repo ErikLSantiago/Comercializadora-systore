@@ -23,7 +23,7 @@
       <field name="res_model">adicional.sn.about</field>
       <field name="view_mode">form</field>
       <field name="target">new</field>
-      <field name="context">{{}}</field>
+      <field name="context">{}</field>
     </record>
 
     <menuitem id="adicional_sn_about_menu" name="Acerca de" parent="adicional_sn_root" action="action_adicional_sn_about" sequence="99"/>

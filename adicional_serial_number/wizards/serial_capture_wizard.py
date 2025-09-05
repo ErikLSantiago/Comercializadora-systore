@@ -30,7 +30,7 @@ class SerialCaptureWizard(models.TransientModel):
     product_id = fields.Many2one("product.product", string="Producto (si aplica)", domain="[('id', 'in', available_product_ids)]")
     available_product_ids = fields.Many2many("product.product", compute="_compute_available_products")
     paste_text = fields.Text(string="Pegar números de serie (uno por línea o separados por comas)")
-    allow_mismatch = fields.Boolean(string="Permitir diferencia en cantidades", default=False, help="Si está desactivado, debe coincidir el # de seriales con las piezas objetivo.")
+    allow_mismatch = fields.Boolean(string="Permitir diferencia en cantidades", default=True, help="Si está desactivado, debe coincidir el # de seriales con las piezas objetivo.")
     clear_existing = fields.Boolean(string="Limpiar seriales existentes en el alcance", default=True)
     only_unassigned = fields.Boolean(string="Solo líneas con cantidad a procesar", default=True)
 
@@ -51,7 +51,7 @@ class SerialCaptureWizard(models.TransientModel):
     def _line_qty_target(self, ml):
         qty = getattr(ml, 'qty_done', 0.0) or getattr(ml, 'quantity', 0.0) or 0.0
         if not qty:
-            qty = getattr(ml, 'reserved_uom_qty', 0.0) or getattr(ml, 'reserved_quantity', 0.0) or 0.0
+            qty = getattr(ml, "reserved_uom_qty", 0.0) or getattr(ml, "reserved_quantity", 0.0) or 0.0
         if not qty and ml.move_id:
             qty = ml.move_id.product_uom_qty or 0.0
         return int(round(qty))
@@ -68,11 +68,11 @@ class SerialCaptureWizard(models.TransientModel):
         return mls.sorted(lambda ml: (ml.sequence, ml.id))
 
     def action_apply(self):
+        self.ensure_one()
         # Validación de modo producto sin depender de attrs/states en la vista
         if self.mode == "product" and not self.product_id:
             raise UserError(_("Debes seleccionar un producto cuando el modo es 'Aplicar a un producto específico'."))
 
-        self.ensure_one()
         serials = _tokenize_serials(self.paste_text)
         lines = self._target_move_lines()
 
@@ -98,7 +98,7 @@ class SerialCaptureWizard(models.TransientModel):
         for ml in lines:
             qty_target = self._line_qty_target(ml)
             assign_n = min(qty_target, len(serials) - s_idx) if self.allow_mismatch else qty_target
-            for _ in range(assign_n):
+            for i in range(assign_n):
                 to_create.append({"name": serials[s_idx], "move_line_id": ml.id})
                 s_idx += 1
                 if s_idx >= len(serials):
@@ -108,6 +108,14 @@ class SerialCaptureWizard(models.TransientModel):
 
         if not to_create and serials:
             raise UserError(_("No se pudo asignar ningún número de serie. Verifique el alcance y cantidades."))
+
+        mismatch = (len(serials) != needed)
+        if mismatch and self.allow_mismatch:
+            msg = _("Se capturaron %s de %s números de serie. Puedes completar los faltantes más tarde.") % (len(serials), needed)
+            if hasattr(self.env.user, 'notify_warning'):
+                self.env.user.notify_warning(message=msg, title=_("Advertencia"), sticky=False)
+            elif hasattr(self.env.user, 'notify_info'):
+                self.env.user.notify_info(message=msg, title=_("Advertencia"), sticky=False)
 
         self.env["stock.move.line.serial"].create(to_create)
         return {

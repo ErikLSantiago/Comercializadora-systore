@@ -15,7 +15,6 @@ class StockPicking(models.Model):
             "context": {"default_picking_id": self.id},
         }
 
-
     def action_open_serial_lines_list(self):
         self.ensure_one()
         action = self.env.ref('adicional_serial_number.action_move_lines_by_picking_adicional_sn').read()[0]

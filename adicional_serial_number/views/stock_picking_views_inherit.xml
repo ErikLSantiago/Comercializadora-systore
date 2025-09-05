@@ -10,8 +10,7 @@
           <button name="action_open_serial_lines_list"
                   type="object"
                   class="oe_stat_button"
-                  icon="fa-barcode"
-                 >
+                  icon="fa-barcode">
             <div class="o_stat_info">
               <span class="o_stat_value"><field name="serial_captured_count"/></span>
               <span class="o_stat_text">Seriales (adicional)</span>
