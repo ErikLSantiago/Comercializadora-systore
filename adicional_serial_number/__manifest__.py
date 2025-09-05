@@ -3,7 +3,7 @@
     "name": "Adicional Serial Number",
     "summary": "Captura opcional de números de serie por operación sin alterar la trazabilidad nativa.",
     "description": "Agrega un botón inteligente en recolección/empaque/salida (stock.picking) para capturar N números de serie y asociarlos a líneas de movimiento (stock.move.line). No modifica tracking nativo por lote/serie.",
-    "version": "18.0.1.1",
+    "version": "18.0.1.2",
     "author": "Comercializadora Systore & ChatGPT",
     "website": "https://www.systore.com.mx",
     "category": "Inventory/Operations",

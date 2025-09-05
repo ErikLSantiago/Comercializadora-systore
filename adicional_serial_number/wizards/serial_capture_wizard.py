@@ -92,7 +92,7 @@ class SerialCaptureWizard(models.TransientModel):
             qty_target = self._line_qty_target(ml)
             assign_n = min(qty_target, len(serials) - s_idx) if self.allow_mismatch else qty_target
             for _ in range(assign_n):
-                to_create.append({{"name": serials[s_idx], "move_line_id": ml.id}})
+                to_create.append({"name": serials[s_idx], "move_line_id": ml.id})
                 s_idx += 1
                 if s_idx >= len(serials):
                     break
