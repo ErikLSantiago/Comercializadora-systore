@@ -36,6 +36,16 @@ class SerialCaptureWizard(models.TransientModel):
 
     total_needed = fields.Integer(string="Piezas objetivo", compute="_compute_totals")
     total_entered = fields.Integer(string="Seriales pegados", compute="_compute_totals")
+    demand_qty_line = fields.Float(string="Demanda del producto", compute="_compute_demand_qty_line")
+
+    def _compute_demand_qty_line(self):
+        for w in self:
+            qty = 0.0
+            ml = w.move_line_id
+            if ml and ml.move_id and 'product_uom_qty' in ml.move_id._fields:
+                qty = ml.move_id.product_uom_qty or 0.0
+            w.demand_qty_line = qty
+
 
     def _compute_available_products(self):
         for w in self:
@@ -93,6 +103,19 @@ class SerialCaptureWizard(models.TransientModel):
             seen.add(s)
         if dups:
             raise UserError(_("Existen números de serie duplicados en la entrada: %s") % (", ".join(sorted(dups))))
+
+        # Duplicados en el sistema (misma operación)
+        if serials:
+            already = self.env['stock.move.line.serial'].search([
+                ('picking_id', '=', self.picking_id.id),
+                ('name', 'in', serials)
+            ])
+            if already:
+                names = sorted(set(already.mapped('name')))
+                if len(names) == 1:
+                    raise UserError(_("El número de serie '%s' ya existe en esta operación.") % names[0])
+                else:
+                    raise UserError(_("Los siguientes números de serie ya existen en esta operación: %s") % ", ".join("'%s'" % n for n in names))
 
         to_create, s_idx = [], 0
         for ml in lines:
