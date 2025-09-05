@@ -79,21 +79,18 @@ class SerialCaptureWizard(models.TransientModel):
             mls = mls.filtered(lambda ml: self._line_qty_target(ml) > len(ml.serial_captured_ids))
         if self.mode == "product" and self.product_id:
             mls = mls.filtered(lambda ml: ml.product_id.id == self.product_id.id)
-        def _key(ml):
-    # Algunas bases no tienen 'sequence' en move line; usar fallback a move.sequence
-    try:
-        if 'sequence' in ml._fields and ml.sequence is not None:
-            return (ml.sequence or 0, ml.id)
-    except Exception:
-        pass
-    seq = 0
-    if ml.move_id and hasattr(ml.move_id, '_fields') and 'sequence' in ml.move_id._fields:
-        seq = ml.move_id.sequence or 0
-    return (seq, ml.id)
-return mls.sorted(_key)
-
+        # Orden robusto: usa sequence de la línea si existe; si no, usa move.sequence; si no, id
+        def _safe_key(ml):
+            seq_line = getattr(ml, 'sequence', None)
+            if seq_line is None and ml.move_id:
+                seq_line = getattr(ml.move_id, 'sequence', 0)
+            if seq_line is None:
+                seq_line = 0
+            return (seq_line, ml.id)
+        return mls.sorted(key=_safe_key)
 
     def action_apply(self):
+(self):
         self.ensure_one()
         if self.mode == "product" and not self.product_id:
             raise UserError(_("Debes seleccionar un producto cuando el modo es 'Aplicar a un producto específico'."))
