@@ -2,17 +2,17 @@
 <odoo>
   <data>
     <record id="view_stock_move_line_serial_tree" model="ir.ui.view">
-      <field name="name">stock.move.line.serial.tree</field>
+      <field name="name">stock.move.line.serial.list</field>
       <field name="model">stock.move.line.serial</field>
       <field name="arch" type="xml">
-        <tree string="Seriales capturados" create="false">
+        <list string="Seriales capturados" create="false">
           <field name="name"/>
           <field name="product_id"/>
           <field name="picking_id"/>
           <field name="date"/>
           <field name="move_line_id"/>
           <field name="company_id"/>
-        </tree>
+        </list>
       </field>
     </record>
 
