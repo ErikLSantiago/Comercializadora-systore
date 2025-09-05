@@ -6,57 +6,50 @@
       <field name="model">stock.picking</field>
       <field name="inherit_id" ref="stock.view_picking_form"/>
       <field name="arch" type="xml">
-        <xpath expr="//header" position="inside">
-
-          <!-- COMPLETO (VERDE) -->
-          <button name="adicional_serial_number.action_serial_captured_list"
-                  type="action"
-                  class="oe_stat_button btn-success"
-                  icon="fa-list-ol"
-                  invisible="not id or not serial_complete">
+        <xpath expr="//sheet//div[@class='oe_button_box']" position="inside">
+          <button name="action_open_serial_lines_list"
+                  type="object"
+                  class="oe_stat_button"
+                  icon="fa-barcode">
             <div class="o_stat_info">
-              <span class="o_stat_value">
-                <field name="serial_captured_count"/>
-                <span>/</span>
-                <field name="serial_expected_qty"/>
-              </span>
-              <span class="o_stat_text">Seriales capturados</span>
+              <span class="o_stat_value"><field name="serial_captured_count"/></span>
+              <span class="o_stat_text">Seriales (adicional)</span>
             </div>
           </button>
+            
+<button name="action_open_serial_captured_list"
+        type="object"
+        class="oe_stat_button btn-success"
+        icon="fa-list-ol"
+        invisible="not id or serial_captured_count == 0 or serial_captured_count != serial_demand_total">
+  <div class="o_stat_info">
+    <span class="o_stat_value"><field name="serial_captured_count"/></span>
+    <span class="o_stat_text">Seriales capturados</span>
+  </div>
+</button>
+<button name="action_open_serial_captured_list"
+        type="object"
+        class="oe_stat_button btn-warning"
+        icon="fa-list-ol"
+        invisible="not id or serial_captured_count == 0 or serial_captured_count == serial_demand_total">
+  <div class="o_stat_info">
+    <span class="o_stat_value"><field name="serial_captured_count"/></span>
+    <span class="o_stat_text">Seriales capturados</span>
+  </div>
+</button>
+<button name="action_open_serial_captured_list"
+        type="object"
+        class="oe_stat_button btn-secondary"
+        icon="fa-list-ol"
+        invisible="not id or serial_captured_count != 0">
+  <div class="o_stat_info">
+    <span class="o_stat_value">0</span>
+    <span class="o_stat_text">Seriales capturados</span>
+  </div>
+</button>
 
-          <!-- PARCIAL (AMARILLO) -->
-          <button name="adicional_serial_number.action_serial_captured_list"
-                  type="action"
-                  class="oe_stat_button btn-warning"
-                  icon="fa-list-ol"
-                  invisible="not id or not serial_partial">
-            <div class="o_stat_info">
-              <span class="o_stat_value">
-                <field name="serial_captured_count"/>
-                <span>/</span>
-                <field name="serial_expected_qty"/>
-              </span>
-              <span class="o_stat_text">Seriales capturados</span>
-            </div>
-          </button>
+  </xpath>
 
-          <!-- SIN CAPTURA (GRIS) -->
-          <button name="adicional_serial_number.action_serial_captured_list"
-                  type="action"
-                  class="oe_stat_button btn-secondary"
-                  icon="fa-list-ol"
-                  invisible="not id or not serial_none">
-            <div class="o_stat_info">
-              <span class="o_stat_value">
-                <field name="serial_captured_count"/>
-                <span>/</span>
-                <field name="serial_expected_qty"/>
-              </span>
-              <span class="o_stat_text">Seriales capturados</span>
-            </div>
-          </button>
-
-        </xpath>
       </field>
     </record>
   </data>
