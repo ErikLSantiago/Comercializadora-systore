@@ -28,7 +28,6 @@ class StockPicking(models.Model):
             'type': 'ir.actions.act_window',
             'res_model': 'mail.compose.message',
             'view_mode': 'form',
-            'view_type': 'form',
             'views': [(compose_form.id, 'form')],
             'target': 'new',
             'context': ctx,

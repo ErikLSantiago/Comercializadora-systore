@@ -10,7 +10,7 @@
                         type="object"
                         string="Enviar por correo electrónico"
                         class="btn-primary"
-                        attrs="{'invisible': ['|', ('partner_id','=',False), ('state','in',['cancel'])]}"/>
+                        invisible="not partner_id or state == 'cancel'"/>
             </xpath>
         </field>
     </record>

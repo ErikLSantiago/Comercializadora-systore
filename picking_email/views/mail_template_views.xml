@@ -7,7 +7,7 @@
         <field name="arch" type="xml">
             <xpath expr="//field[@name='model_id']" position="after">
                 <field name="is_favorite"
-                       attrs="{'invisible': [('model_id.model','!=','stock.picking')]}"/>
+                       invisible="model_id.model != 'stock.picking'"/>
             </xpath>
         </field>
     </record>

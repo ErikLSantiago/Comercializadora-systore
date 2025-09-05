@@ -2,7 +2,7 @@
 {
     "name": "picking_email",
     "summary": "Botón para enviar por correo desde operaciones de almacén con plantilla favorita.",
-    "version": "18.0.1.1.0",
+    "version": "18.0.1.2.0",
     "author": "Comercializadora Systore & ChatGPT",
     "license": "LGPL-3",
     "website": "https://systore.com.mx",

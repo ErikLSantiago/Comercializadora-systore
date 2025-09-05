@@ -3,8 +3,7 @@
     <record id="action_mail_template_picking" model="ir.actions.act_window">
         <field name="name">Plantillas de correo (Operaciones)</field>
         <field name="res_model">mail.template</field>
-        <field name="view_mode">tree,form"
-        </field>
+        <field name="view_mode">tree,form</field>
         <field name="domain">[('model_id.model','=','stock.picking')]</field>
         <field name="context">{'search_default_stock_picking': 1}</field>
         <field name="help" type="html">
