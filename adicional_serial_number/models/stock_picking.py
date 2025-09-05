@@ -17,10 +17,14 @@ class StockPicking(models.Model):
 
     def action_open_serial_lines_list(self):
         self.ensure_one()
-        action = self.env.ref('adicional_serial_number.action_move_lines_by_picking_adicional_sn').read()[0]
-        action['domain'] = [('picking_id', '=', self.id)]
-        action['context'] = {'default_picking_id': self.id}
-        return action
+        
+import uuid as _uuid
+token = str(_uuid.uuid4())
+self._prepare_adicional_sn_product_rows(token)
+action = self.env.ref('adicional_serial_number.action_move_lines_by_picking_adicional_sn').read()[0]
+action['context'] = {'adicional_sn_token': token, 'default_picking_id': self.id}
+return action
+
 
     def action_open_serial_history(self):
         self.ensure_one()
@@ -28,3 +32,61 @@ class StockPicking(models.Model):
         action['domain'] = [('picking_id', '=', self.id)]
         action['context'] = {'default_picking_id': self.id}
         return action
+
+
+    def _prepare_adicional_sn_product_rows(self, session_token):
+        self.ensure_one()
+        T = self.env["adicional.sn.product.line"].sudo()
+        # limpiar previos de este token/picking
+        T.search([("session_token", "=", session_token), ("picking_id", "=", self.id)]).unlink()
+
+        # agrupar por producto
+        by_product = {}
+        for ml in self.move_line_ids:
+            prod = ml.product_id
+            if not prod:
+                continue
+            rec = by_product.setdefault(prod.id, {
+                "demand_total": 0.0,
+                "reserved_total": 0.0,
+            })
+            # Demanda total desde el move
+            if ml.move_id and "product_uom_qty" in ml.move_id._fields:
+                rec["demand_total"] += (ml.move_id.product_uom_qty or 0.0)
+            # Reservado (mejor detector)
+            qty_res = 0.0
+            if "quantity" in ml._fields and (ml.quantity or 0.0):
+                qty_res = ml.quantity or 0.0
+            if not qty_res:
+                qty_res = getattr(ml, "reserved_uom_qty", 0.0) or getattr(ml, "reserved_quantity", 0.0) or 0.0
+            if not qty_res:
+                qty_res = getattr(ml, "qty_done", 0.0) or 0.0
+            rec["reserved_total"] += qty_res
+
+        # seriales existentes por producto
+        S = self.env["stock.move.line.serial"].sudo()
+        existing = S.read_group(
+            domain=[("picking_id", "=", self.id)],
+            fields=["name", "product_id"],
+            groupby=["product_id"],
+        )
+        captured_ids = set()
+        for row in existing:
+            pid = row.get("product_id") and row["product_id"][0]
+            if pid:
+                captured_ids.add(pid)
+
+        records = []
+        for pid, vals in by_product.items():
+            records.append({
+                "session_token": session_token,
+                "picking_id": self.id,
+                "product_id": pid,
+                "demand_total": vals["demand_total"],
+                "reserved_total": vals["reserved_total"],
+                "captured_label": _("Capturado") if pid in captured_ids else "",
+            })
+
+        if records:
+            T.create(records)
+        return True
