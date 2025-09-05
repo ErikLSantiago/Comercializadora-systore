@@ -90,7 +90,6 @@ class SerialCaptureWizard(models.TransientModel):
         return mls.sorted(key=_safe_key)
 
     def action_apply(self):
-(self):
         self.ensure_one()
         if self.mode == "product" and not self.product_id:
             raise UserError(_("Debes seleccionar un producto cuando el modo es 'Aplicar a un producto específico'."))
