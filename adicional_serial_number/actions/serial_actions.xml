@@ -1,6 +1,8 @@
+
 <?xml version="1.0" encoding="utf-8"?>
 <odoo>
   <data>
+    <!-- Lista de seriales capturados del picking actual -->
     <record id="action_serial_captured_list" model="ir.actions.act_window">
       <field name="name">Seriales capturados</field>
       <field name="res_model">stock.move.line.serial</field>
@@ -8,6 +10,15 @@
       <field name="target">current</field>
       <field name="domain">[('picking_id','=',active_id)]</field>
       <field name="context">{'search_default_picking_id': active_id, 'default_picking_id': active_id}</field>
+    </record>
+
+    <!-- Abrir wizard de captura por producto (seleccionable en el formulario) -->
+    <record id="action_open_serial_capture_wizard" model="ir.actions.act_window">
+      <field name="name">Seriales (producto)</field>
+      <field name="res_model">serial.capture.wizard</field>
+      <field name="view_mode">form</field>
+      <field name="target">new</field>
+      <field name="context">{'default_picking_id': active_id}</field>
     </record>
   </data>
 </odoo>

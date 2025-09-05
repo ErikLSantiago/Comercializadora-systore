@@ -1,189 +1,99 @@
-# -*- coding: utf-8 -*-
-from odoo import models, fields, api, _
+
+from odoo import api, fields, models, _
 from odoo.exceptions import UserError
 
-def _tokenize_serials(text):
-    if not text:
-        return []
-    raw = text.replace("\r", "\n")
-    for s in [",", ";", "\t"]:
-        raw = raw.replace(s, "\n")
-    tokens = [t.strip() for t in raw.split("\n")]
-    out = []
-    for t in tokens:
-        for part in t.split(" "):
-            part = part.strip()
-            if part:
-                out.append(part)
-    return out
 
 class SerialCaptureWizard(models.TransientModel):
     _name = "serial.capture.wizard"
-    _description = "Captura opcional de números de serie en operación"
+    _description = "Capturar números de serie (producto)"
 
-    picking_id = fields.Many2one("stock.picking", string="Operación", required=True, ondelete="cascade")
-    move_line_id = fields.Many2one('stock.move.line', string='Línea específica (opcional)', ondelete='cascade')
-    mode = fields.Selection([
-        ("auto", "Distribuir automáticamente en todas las líneas"),
-        ("product", "Aplicar a un producto específico"),
-    ], default="auto", required=True, string="Modo de asignación")
-    product_id = fields.Many2one("product.product", string="Producto (si aplica)", domain="[('id', 'in', available_product_ids)]")
-    available_product_ids = fields.Many2many("product.product", compute="_compute_available_products")
-    paste_text = fields.Text(string="Pegar números de serie (uno por línea o separados por comas)")
+    picking_id = fields.Many2one("stock.picking", string="Operación", required=True, readonly=True)
+    product_id = fields.Many2one("product.product", string="Producto", required=True)
+    demand_qty = fields.Float(string="Demanda", compute="_compute_totals", readonly=True)
+    reserved_qty = fields.Float(string="Reservado", compute="_compute_totals", readonly=True)
+    existing_serials_info = fields.Text(string="Seriales ya capturados", compute="_compute_existing", readonly=True)
+    input_serials_text = fields.Text(string="Pegar/Escribir N° de serie (uno por línea)", required=True,
+                                     help="Puedes pegar múltiples seriales, uno por línea.")
 
-    allow_mismatch = fields.Boolean(string="Permitir diferencia en cantidades", default=True, help="Si está desactivado, debe coincidir el # de seriales con las piezas objetivo.")
-    check_global_duplicate = fields.Boolean(string="Validar duplicado global", default=True, help="Si está activo, verifica que los seriales no existan en otras operaciones.")
-    clear_existing = fields.Boolean(string="Limpiar seriales existentes en el alcance", default=True)
-    only_unassigned = fields.Boolean(string="Solo líneas con cantidad a procesar", default=True)
-
-    total_needed = fields.Integer(string="Piezas objetivo", compute="_compute_totals")
-    total_entered = fields.Integer(string="Seriales pegados", compute="_compute_totals")
-    entered_serials_preview = fields.Text(string="Vista previa de seriales", compute="_compute_totals")
-    demand_qty_line = fields.Float(string="Demanda del producto", compute="_compute_demand_qty_line")
-
-    def _compute_available_products(self):
-        for w in self:
-            w.available_product_ids = [(6, 0, w.picking_id.move_line_ids.product_id.ids)]
-
+    @api.depends("picking_id", "product_id")
     def _compute_totals(self):
         for w in self:
-            lines = w._target_move_lines()
-            tokens = _tokenize_serials(w.paste_text)
-            w.total_needed = sum(self._line_qty_target(l) for l in lines)
-            w.total_entered = len(tokens)
-            w.entered_serials_preview = "\n".join(tokens)
+            demand = 0.0
+            reserved = 0.0
+            if w.picking_id and w.product_id:
+                for m in w.picking_id.move_ids_without_package.filtered(lambda x: x.product_id == w.product_id):
+                    demand += m.product_uom_qty
+                    # usar qty_reserved si existe en v18; si no, cae en 0
+                    reserved += getattr(m, "reserved_uom_qty", 0.0) or getattr(m, "reserved_quantity", 0.0) or 0.0
+            w.demand_qty = demand
+            w.reserved_qty = reserved
 
-    @api.model
-    def _line_qty_target(self, ml):
-        qty = getattr(ml, 'qty_done', 0.0) or getattr(ml, 'quantity', 0.0) or 0.0
-        if not qty:
-            qty = getattr(ml, "reserved_uom_qty", 0.0) or getattr(ml, "reserved_quantity", 0.0) or 0.0
-        if not qty and ml.move_id:
-            qty = ml.move_id.product_uom_qty or 0.0
-        return int(round(qty))
-
-    def _compute_demand_qty_line(self):
+    @api.depends("picking_id", "product_id")
+    def _compute_existing(self):
+        Serial = self.env["stock.move.line.serial"]
         for w in self:
-            qty = 0.0
-            ml = w.move_line_id
-            if ml and ml.move_id and 'product_uom_qty' in ml.move_id._fields:
-                qty = ml.move_id.product_uom_qty or 0.0
-            w.demand_qty_line = qty
+            info = ""
+            if w.picking_id and w.product_id:
+                rows = Serial.search([("picking_id", "=", w.picking_id.id),
+                                      ("product_id", "=", w.product_id.id)], order="id desc")
+                if rows:
+                    info = "\n".join(r.name for r in rows)
+            w.existing_serials_info = info
 
-    def _target_move_lines(self):
-        self.ensure_one()
-        if self.move_line_id:
-            return self.move_line_id
-        mls = self.picking_id.move_line_ids
-        if self.only_unassigned:
-            mls = mls.filtered(lambda ml: self._line_qty_target(ml) > len(ml.serial_captured_ids))
-        if self.mode == "product" and self.product_id:
-            mls = mls.filtered(lambda ml: ml.product_id.id == self.product_id.id)
-        # Orden robusto: usa sequence de la línea si existe; si no, usa move.sequence; si no, id
-        def _safe_key(ml):
-            seq_line = getattr(ml, 'sequence', None)
-            if seq_line is None and ml.move_id:
-                seq_line = getattr(ml.move_id, 'sequence', 0)
-            if seq_line is None:
-                seq_line = 0
-            return (seq_line, ml.id)
-        return mls.sorted(key=_safe_key)
+    def _parse_serials(self, text):
+        serials = []
+        for raw in (text or "").splitlines():
+            s = raw.strip()
+            if s:
+                serials.append(s)
+        return serials
 
     def action_apply(self):
         self.ensure_one()
-        if self.mode == "product" and not self.product_id:
-            raise UserError(_("Debes seleccionar un producto cuando el modo es 'Aplicar a un producto específico'."))
+        serials = self._parse_serials(self.input_serials_text)
 
-        serials = _tokenize_serials(self.paste_text)
-        lines = self._target_move_lines()
-
-        needed = sum(self._line_qty_target(ml) for ml in lines)
-        if not self.allow_mismatch:
-            if len(serials) != needed:
-                raise UserError(_("La cantidad de números de serie (%s) no coincide con las piezas objetivo (%s).") % (len(serials), needed))
-            if not serials:
-                raise UserError(_("No se proporcionaron números de serie."))
-
-        if self.clear_existing:
-            self.env["stock.move.line.serial"].search([("move_line_id", "in", lines.ids)]).unlink()
-
-        seen, dups = set(), set()
+        # Duplicados locales
+        seen = set()
+        dups_local = set()
         for s in serials:
             if s in seen:
-                dups.add(s)
+                dups_local.add(s)
             seen.add(s)
-        if dups:
-            if len(dups) == 1:
-                raise UserError(_("Número de serie duplicado en la entrada: '%s'") % list(dups)[0])
-            else:
-                raise UserError(_("Duplicados en la entrada: %s") % (", ".join("'%s'" % x for x in sorted(dups))))
+        if dups_local:
+            raise UserError(_("Se encontraron números de serie duplicados en la entrada: %s") % ", ".join(sorted(dups_local)))
 
-        if serials:
-            already = self.env['stock.move.line.serial'].search([
-                ('picking_id', '=', self.picking_id.id),
-                ('name', 'in', serials)
-            ])
-            if already:
-                names = sorted(set(already.mapped('name')))
-                if len(names) == 1:
-                    raise UserError(_("El número de serie '%s' ya existe en esta operación.") % names[0])
-                else:
-                    raise UserError(_("Los siguientes números de serie ya existen en esta operación: %s") % ", ".join("'%s'" % n for n in names))
+        # Duplicados globales en todo el sistema
+        Serial = self.env["stock.move.line.serial"]
+        existing = Serial.search([("name", "in", serials)])
+        if existing:
+            raise UserError(_("Los siguientes números de serie ya existen en el sistema: %s") % ", ".join(sorted(set(existing.mapped("name")))))
 
-        if serials and self.check_global_duplicate:
-            other = self.env['stock.move.line.serial'].search([
-                ('picking_id', '!=', self.picking_id.id),
-                ('name', 'in', serials)
-            ], limit=100)
-            if other:
-                byname = {}
-                for rec in other:
-                    byname.setdefault(rec.name, set()).add(rec.picking_id.display_name)
-                parts = []
-                for name in sorted(byname.keys()):
-                    ops = ", ".join(sorted(byname[name]))
-                    parts.append("'%s' en %s" % (name, ops))
-                raise UserError(_("Duplicado global: los siguientes números ya existen en otras operaciones: %s") % "; ".join(parts))
+        # Distribuir sobre líneas (si hay)
+        move_lines = self.picking_id.move_line_ids.filtered(lambda ml: ml.product_id == self.product_id)
+        # Si no hay líneas de operación, igualmente guardamos con move_line_id vacío
+        by_ml_count = {ml.id: self.env["stock.move.line.serial"].search_count([("move_line_id", "=", ml.id)]) for ml in move_lines}
+        for s in serials:
+            # escoger la ml con menos seriales ligados hasta ahora
+            ml_target = None
+            if move_lines:
+                ml_target = min(move_lines, key=lambda ml: by_ml_count.get(ml.id, 0))
+                by_ml_count[ml_target.id] = by_ml_count.get(ml_target.id, 0) + 1
+            Serial.create({
+                "name": s,
+                "product_id": self.product_id.id,
+                "picking_id": self.picking_id.id,
+                "move_line_id": ml_target and ml_target.id or False,
+                "lot_id": ml_target and getattr(ml_target, "lot_id", False) and ml_target.lot_id.id or False,
+            })
 
-        to_create, s_idx = [], 0
-        for ml in lines:
-            qty_target = self._line_qty_target(ml)
-            assign_n = min(qty_target, len(serials) - s_idx) if self.allow_mismatch else qty_target
-            for i in range(assign_n):
-                to_create.append({"name": serials[s_idx], "move_line_id": ml.id})
-                s_idx += 1
-                if s_idx >= len(serials):
-                    break
-            if s_idx >= len(serials):
-                break
-
-        if not to_create and serials:
-            raise UserError(_("No se pudo asignar ningún número de serie. Verifique el alcance y cantidades."))
-
-        mismatch = (len(serials) != needed)
-        if mismatch and self.allow_mismatch:
-            msg = _("Se capturaron %s de %s números de serie. Puedes completar los faltantes más tarde.") % (len(serials), needed)
-            if hasattr(self.env.user, 'notify_warning'):
-                self.env.user.notify_warning(message=msg, title=_("Advertencia"), sticky=False)
-            elif hasattr(self.env.user, 'notify_info'):
-                self.env.user.notify_info(message=msg, title=_("Advertencia"), sticky=False)
-
-        self.env["stock.move.line.serial"].create(to_create)
+        # cerrar wizard y refrescar vista
         return {
             "type": "ir.actions.act_window",
-            "res_model": "stock.picking",
+            "res_model": "serial.capture.wizard",
             "view_mode": "form",
-            "res_id": self.picking_id.id,
-            "target": "current",
+            "target": "new",
+            "context": {
+                "default_picking_id": self.picking_id.id,
+                "default_product_id": self.product_id.id,
+            },
         }
-
-
-    @api.model
-    def default_get(self, fields_list):
-        vals = super().default_get(fields_list)
-        ctx = dict(self.env.context or {})
-        # Si viene default_product_id y no viene modo, usar 'product'
-        if ctx.get('default_product_id') and not ctx.get('default_mode'):
-            vals['mode'] = 'product'
-            vals['product_id'] = ctx.get('default_product_id')
-        return vals
