@@ -22,9 +22,18 @@ class StockMoveLine(models.Model):
 
     def _compute_reserved_by_lot_info(self):
         for ml in self:
-            qty = getattr(ml, 'reserved_uom_qty', 0.0) or getattr(ml, 'reserved_quantity', 0.0) or 0.0
+            # Mejor detector de cantidad reservada en v17/v18:
+            # 1) 'quantity' (cantidad a procesar en la línea)
+            # 2) 'reserved_uom_qty' o 'reserved_quantity' (dependiendo de la base)
+            # 3) 'qty_done' como fallback visual
+            qty = 0.0
+            if 'quantity' in ml._fields:
+                qty = ml.quantity or 0.0
+            if not qty:
+                qty = getattr(ml, 'reserved_uom_qty', 0.0) or getattr(ml, 'reserved_quantity', 0.0) or 0.0
             if not qty:
                 qty = getattr(ml, 'qty_done', 0.0) or 0.0
+
             lot_name = False
             if 'lot_id' in ml._fields and ml.lot_id:
                 lot_name = ml.lot_id.display_name or ml.lot_id.name
@@ -45,5 +54,23 @@ class StockMoveLine(models.Model):
                 "default_move_line_id": self.id,
                 "default_mode": "auto",
                 "default_only_unassigned": False,
+            },
+        }
+
+
+    def action_open_serial_product_wizard(self):
+        self.ensure_one()
+        return {
+            "name": _("Capturar números de serie (producto)"),
+            "type": "ir.actions.act_window",
+            "res_model": "serial.capture.wizard",
+            "view_mode": "form",
+            "target": "new",
+            "context": {
+                "default_picking_id": self.picking_id.id,
+                "default_mode": "product",
+                "default_product_id": self.product_id.id,
+                "default_only_unassigned": True,
+                "default_move_line_id": False,
             },
         }

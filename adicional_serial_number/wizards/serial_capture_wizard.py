@@ -168,3 +168,14 @@ class SerialCaptureWizard(models.TransientModel):
             "res_id": self.picking_id.id,
             "target": "current",
         }
+
+
+    @api.model
+    def default_get(self, fields_list):
+        vals = super().default_get(fields_list)
+        ctx = dict(self.env.context or {})
+        # Si viene default_product_id y no viene modo, usar 'product'
+        if ctx.get('default_product_id') and not ctx.get('default_mode'):
+            vals['mode'] = 'product'
+            vals['product_id'] = ctx.get('default_product_id')
+        return vals

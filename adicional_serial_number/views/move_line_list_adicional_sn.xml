@@ -11,6 +11,7 @@
           <field name="reserved_by_lot_info"/>
           <field name="demand_qty_info"/>
           <button name="action_open_serial_line_wizard" type="object" icon="fa-barcode" string="Seriales..."/>
+          <button name="action_open_serial_product_wizard" type="object" icon="fa-cubes" string="Seriales (producto)"/>
         </list>
       </field>
     </record>
