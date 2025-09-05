@@ -22,6 +22,7 @@ class SerialCaptureWizard(models.TransientModel):
     _description = "Captura opcional de números de serie en operación"
 
     picking_id = fields.Many2one("stock.picking", string="Operación", required=True, ondelete="cascade")
+    move_line_id = fields.Many2one('stock.move.line', string='Línea específica (opcional)', ondelete='cascade')
     mode = fields.Selection([
         ("auto", "Distribuir automáticamente en todas las líneas"),
         ("product", "Aplicar a un producto específico"),
@@ -57,6 +58,8 @@ class SerialCaptureWizard(models.TransientModel):
 
     def _target_move_lines(self):
         self.ensure_one()
+        if self.move_line_id:
+            return self.move_line_id
         mls = self.picking_id.move_line_ids
         if self.only_unassigned:
             mls = mls.filtered(lambda ml: self._line_qty_target(ml) > len(ml.serial_captured_ids))

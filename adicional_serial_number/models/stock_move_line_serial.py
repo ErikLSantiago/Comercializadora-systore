@@ -35,3 +35,20 @@ class StockPicking(models.Model):
     def _compute_serial_captured_count(self):
         for picking in self:
             picking.serial_captured_count = self.env["stock.move.line.serial"].search_count([("picking_id", "=", picking.id)])
+
+
+    def action_open_serial_line_wizard(self):
+        self.ensure_one()
+        return {
+            "name": _("Capturar números de serie (línea)"),
+            "type": "ir.actions.act_window",
+            "res_model": "serial.capture.wizard",
+            "view_mode": "form",
+            "target": "new",
+            "context": {
+                "default_picking_id": self.picking_id.id,
+                "default_move_line_id": self.id,
+                "default_mode": "auto",
+                "default_only_unassigned": False,
+            },
+        }
