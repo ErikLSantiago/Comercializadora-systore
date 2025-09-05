@@ -1,0 +1,61 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+  <data>
+    <record id="view_stock_move_line_serial_tree" model="ir.ui.view">
+      <field name="name">stock.move.line.serial.tree</field>
+      <field name="model">stock.move.line.serial</field>
+      <field name="arch" type="xml">
+        <list string="Seriales capturados" create="false">
+          <field name="name"/>
+          <field name="product_id"/>
+          <field name="picking_id"/>
+          <field name="move_line_id"/>
+          <field name="lot_id"/>
+          <field name="partner_id"/>
+          <field name="origin"/>
+          <field name="carrier_tracking_ref"/>
+          <field name="date"/>
+          <field name="company_id"/>
+        </list>
+      </field>
+    </record>
+
+    <record id="view_stock_move_line_serial_form" model="ir.ui.view">
+      <field name="name">stock.move.line.serial.form</field>
+      <field name="model">stock.move.line.serial</field>
+      <field name="arch" type="xml">
+        <form string="Serial capturado">
+          <sheet>
+            <group>
+              <field name="name"/>
+              <field name="product_id"/>
+              <field name="picking_id"/>
+              <field name="move_line_id"/>
+              <field name="lot_id"/>
+              <field name="partner_id" readonly="1"/>
+              <field name="origin" readonly="1"/>
+              <field name="carrier_tracking_ref" readonly="1"/>
+              <field name="date" readonly="1"/>
+              <field name="company_id" readonly="1"/>
+            </group>
+          </sheet>
+        </form>
+      </field>
+    </record>
+
+    <record id="view_stock_move_line_serial_search" model="ir.ui.view">
+      <field name="name">stock.move.line.serial.search</field>
+      <field name="model">stock.move.line.serial</field>
+      <field name="arch" type="xml">
+        <search string="Buscar seriales">
+          <field name="name"/>
+          <field name="product_id"/>
+          <field name="picking_id"/>
+          <field name="partner_id"/>
+          <field name="origin"/>
+          <field name="carrier_tracking_ref"/>
+        </search>
+      </field>
+    </record>
+  </data>
+</odoo>
