@@ -1,28 +1,34 @@
 
-from odoo import api, fields, models, _
-
+from odoo import api, fields, models
 
 class StockPicking(models.Model):
     _inherit = "stock.picking"
 
     serial_captured_count = fields.Integer(
-        compute="_compute_serial_totals",
+        compute="_compute_serial_flags",
         string="Seriales capturados",
         store=False,
     )
-    serial_demand_total = fields.Float(
-        compute="_compute_serial_totals",
-        string="Demanda total (producto)",
+    serial_expected_qty = fields.Integer(
+        compute="_compute_serial_flags",
+        string="Demanda (serializada)",
         store=False,
     )
+    serial_complete = fields.Boolean(compute="_compute_serial_flags", store=False)
+    serial_partial = fields.Boolean(compute="_compute_serial_flags", store=False)
+    serial_none = fields.Boolean(compute="_compute_serial_flags", store=False)
 
-    @api.depends("move_ids_without_package.product_uom_qty", "move_ids_without_package.product_id")
-    def _compute_serial_totals(self):
+    @api.depends("move_ids_without_package.product_id", "move_ids_without_package.product_uom_qty", "state")
+    def _compute_serial_flags(self):
         Serial = self.env["stock.move.line.serial"]
         for picking in self:
-            picking.serial_captured_count = Serial.search_count([("picking_id", "=", picking.id)])
-            # suma demanda por producto (no por lotes)
-            demand = 0.0
+            captured = Serial.search_count([("picking_id", "=", picking.id)])
+            expected = 0
             for m in picking.move_ids_without_package:
-                demand += m.product_uom_qty
-            picking.serial_demand_total = demand
+                if m.product_id and m.product_id.tracking == "serial":
+                    expected += int(round(m.product_uom_qty or 0))
+            picking.serial_captured_count = captured
+            picking.serial_expected_qty = expected
+            picking.serial_complete = (expected > 0 and captured >= expected)
+            picking.serial_partial = (captured > 0 and captured < expected)
+            picking.serial_none = (captured == 0)
