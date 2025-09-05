@@ -8,4 +8,4 @@ en las operaciones de almacén (`stock.picking`), con soporte de **plantilla fav
 - Registra el mensaje en el **chatter** del picking.
 - Una (1) plantilla favorita por modelo.
 
-Nota: Se eliminó el valor dinámico del campo `lang` de la plantilla por cambios en v17+.
+Hardening: si la plantilla favorita tiene un idioma inválido, el asistente abre sin plantilla para evitar errores.
