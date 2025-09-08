@@ -79,7 +79,15 @@ class SerialCaptureWizard(models.TransientModel):
             mls = mls.filtered(lambda ml: self._line_qty_target(ml) > len(ml.serial_captured_ids))
         if self.mode == "product" and self.product_id:
             mls = mls.filtered(lambda ml: ml.product_id.id == self.product_id.id)
-        return mls.sorted(lambda ml: (ml.sequence, ml.id))
+        # Orden robusto: usa sequence de la línea si existe; si no, usa move.sequence; si no, id
+        def _safe_key(ml):
+            seq_line = getattr(ml, 'sequence', None)
+            if seq_line is None and ml.move_id:
+                seq_line = getattr(ml.move_id, 'sequence', 0)
+            if seq_line is None:
+                seq_line = 0
+            return (seq_line, ml.id)
+        return mls.sorted(key=_safe_key)
 
     def action_apply(self):
         self.ensure_one()
@@ -96,11 +104,9 @@ class SerialCaptureWizard(models.TransientModel):
             if not serials:
                 raise UserError(_("No se proporcionaron números de serie."))
 
-        # Limpiar existentes si así se indica
         if self.clear_existing:
             self.env["stock.move.line.serial"].search([("move_line_id", "in", lines.ids)]).unlink()
 
-        # Duplicados en la entrada
         seen, dups = set(), set()
         for s in serials:
             if s in seen:
@@ -112,7 +118,6 @@ class SerialCaptureWizard(models.TransientModel):
             else:
                 raise UserError(_("Duplicados en la entrada: %s") % (", ".join("'%s'" % x for x in sorted(dups))))
 
-        # Duplicados ya guardados en la misma operación
         if serials:
             already = self.env['stock.move.line.serial'].search([
                 ('picking_id', '=', self.picking_id.id),
@@ -125,7 +130,6 @@ class SerialCaptureWizard(models.TransientModel):
                 else:
                     raise UserError(_("Los siguientes números de serie ya existen en esta operación: %s") % ", ".join("'%s'" % n for n in names))
 
-        # Duplicados globales en otras operaciones
         if serials and self.check_global_duplicate:
             other = self.env['stock.move.line.serial'].search([
                 ('picking_id', '!=', self.picking_id.id),
@@ -141,7 +145,6 @@ class SerialCaptureWizard(models.TransientModel):
                     parts.append("'%s' en %s" % (name, ops))
                 raise UserError(_("Duplicado global: los siguientes números ya existen en otras operaciones: %s") % "; ".join(parts))
 
-        # Asignación
         to_create, s_idx = [], 0
         for ml in lines:
             qty_target = self._line_qty_target(ml)
@@ -173,3 +176,14 @@ class SerialCaptureWizard(models.TransientModel):
             "res_id": self.picking_id.id,
             "target": "current",
         }
+
+
+    @api.model
+    def default_get(self, fields_list):
+        vals = super().default_get(fields_list)
+        ctx = dict(self.env.context or {})
+        # Si viene default_product_id y no viene modo, usar 'product'
+        if ctx.get('default_product_id') and not ctx.get('default_mode'):
+            vals['mode'] = 'product'
+            vals['product_id'] = ctx.get('default_product_id')
+        return vals

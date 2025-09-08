@@ -2,24 +2,26 @@
 <odoo>
   <data>
     <record id="view_move_line_list_adicional_sn" model="ir.ui.view">
-      <field name="name">stock.move.line.list.adicional.sn</field>
-      <field name="model">stock.move.line</field>
+      <field name="name">adicional.sn.product.line.list</field>
+      <field name="model">adicional.sn.product.line</field>
       <field name="arch" type="xml">
-        <list string="Líneas de operación (seriales adicionales)" create="false" edit="false">
+        <list string="Productos (seriales adicionales)" create="false">
           <field name="picking_id" optional="show"/>
           <field name="product_id"/>
-          <field name="demand_qty_info"/>
-          <button name="action_open_serial_line_wizard" type="object" icon="fa-barcode" string="Seriales..."/>
+          <field name="demand_total"/>
+          <field name="reserved_total"/>
+          <field name="captured_label"/>
+          <button name="action_open_serial_product_wizard" type="object" icon="fa-cubes" string="Seriales (producto)"/>
         </list>
       </field>
     </record>
 
     <record id="action_move_lines_by_picking_adicional_sn" model="ir.actions.act_window">
-      <field name="name">Líneas de operación</field>
-      <field name="res_model">stock.move.line</field>
+      <field name="name">Productos de la operación</field>
+      <field name="res_model">adicional.sn.product.line</field>
       <field name="view_mode">list,form</field>
       <field name="view_id" ref="view_move_line_list_adicional_sn"/>
-      <field name="domain">[('picking_id', '=', active_id)]</field>
+      
       <field name="context">{}</field>
     </record>
   </data>
