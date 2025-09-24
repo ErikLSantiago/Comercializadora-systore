@@ -1,0 +1,87 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<odoo>
+    <record id="product_warehouse_cost_list" model="ir.ui.view">
+        <field name="name">product.warehouse.cost.list</field>
+        <field name="model">product.warehouse.cost</field>
+        <field name="arch" type="xml">
+            <list string="Costos por almacén">
+                <field name="warehouse_id"/>
+                <field name="qty_on_hand"/>
+                <field name="available_qty"/>
+                <field name="reserved_qty"/>
+                                <field name="total_value"/>
+                                <field name="unit_value"/>
+                <field name="available_value"/>
+                <field name="proposed_avg_cost"/>
+            </list>
+        </field>
+    </record>
+
+    <record id="view_product_form_inherit_warehouse_avg_cost" model="ir.ui.view">
+        <field name="name">product.product.form.warehouse.avg.cost</field>
+        <field name="model">product.product</field>
+        <field name="inherit_id" ref="product.product_normal_form_view"/>
+        <field name="arch" type="xml">
+            <xpath expr="//page[@name='inventory']" position="after">
+                <page string="Costos por almacén" name="warehouse_avg_cost" groups="purchase.group_purchase_user">
+                    <group>
+                        <field name="proposed_avg_cost_global" readonly="1"/>
+                        <field name="total_avg_cost_global" readonly="1"/>
+                    </group>
+                    <field name="warehouse_cost_line_ids" nolabel="1">
+                        <list create="0" edit="0" delete="0" string="Costos por almacén">
+                            <field name="warehouse_id"/>
+                            <field name="qty_on_hand"/>
+                            <field name="available_qty"/>
+                            <field name="reserved_qty"/>
+                                <field name="total_value"/>
+                                <field name="unit_value"/>
+                            <field name="available_value"/>
+                            <field name="proposed_avg_cost"/>
+                        </list>
+                    </field>
+                    <div class="text-muted mt-2">
+                        <span><b>CPT</b>: Costo Promedio de Piezas Totales en Almacén | </span>
+                        <span><b>CPD</b>: Costo Promedio de Piezas Disponibles | </span>
+                        <span><b>VT</b>: Valor Total de Piezas en Inventario | </span>
+                        <span><b>VD</b>: Valor de Piezas Disponibles en Inventario</span>
+                    </div>
+                </page>
+            </xpath>
+        </field>
+    </record>
+
+    <record id="view_product_template_form_inherit_warehouse_avg_cost" model="ir.ui.view">
+        <field name="name">product.template.form.warehouse.avg.cost</field>
+        <field name="model">product.template</field>
+        <field name="inherit_id" ref="product.product_template_only_form_view"/>
+        <field name="arch" type="xml">
+            <xpath expr="//page[@name='inventory']" position="after">
+                <page string="Costos por almacén" name="warehouse_avg_cost_tpl" groups="purchase.group_purchase_user">
+                    <group>
+                        <field name="proposed_avg_cost_global_tpl" readonly="1"/>
+                        <field name="total_avg_cost_global_tpl" readonly="1"/>
+                    </group>
+                    <field name="warehouse_cost_line_ids_tmpl" nolabel="1">
+                        <list create="0" edit="0" delete="0" string="Costos por almacén">
+                            <field name="warehouse_id"/>
+                            <field name="qty_on_hand"/>
+                            <field name="available_qty"/>
+                            <field name="reserved_qty"/>
+                                <field name="total_value"/>
+                                <field name="unit_value"/>
+                            <field name="available_value"/>
+                            <field name="proposed_avg_cost"/>
+                        </list>
+                    </field>
+                    <div class="text-muted mt-2">
+                        <span><b>CPT</b>: Costo Promedio de Piezas Totales en Almacén | </span>
+                        <span><b>CPD</b>: Costo Promedio de Piezas Disponibles | </span>
+                        <span><b>VT</b>: Valor Total de Piezas en Inventario | </span>
+                        <span><b>VD</b>: Valor de Piezas Disponibles en Inventario</span>
+                    </div>
+                </page>
+            </xpath>
+        </field>
+    </record>
+</odoo>
