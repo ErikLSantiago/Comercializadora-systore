@@ -1,8 +1,8 @@
 # -*- coding: utf-8 -*-
 {
     "name": "Product Warehouse Average Cost (v18)",
-    "summary": "Costo promedio por almacén y propuestas de costo (disponibles y total), con compute tolerante a concurrencia.",
-    "version": "18.0.1.4.3",
+    "summary": "Costo promedio por almacén y promedios globales (disponibles y total). Compute robusto para exportaciones masivas.",
+    "version": "18.0.1.4.4",
     "author": "Systore + ChatGPT",
     "website": "https://systore.com.mx",
     "category": "Inventory/Products",
