@@ -1,5 +1,6 @@
 # -*- coding: utf-8 -*-
 from odoo import api, fields, models
+from psycopg2 import errors
 
 
 class ProductWarehouseCost(models.Model):
@@ -33,9 +34,24 @@ class ProductWarehouseCost(models.Model):
         readonly=True,
         help="Suma de inventory_value (o value) de los quants del producto dentro del almacén.",
     )
-    unit_value = fields.Monetary("CPT", currency_field="currency_id", readonly=True)
-    available_value = fields.Monetary("VD", currency_field="currency_id", readonly=True)
-    proposed_avg_cost = fields.Monetary("CPD", currency_field="currency_id", readonly=True)
+    unit_value = fields.Monetary(
+        "CPT",
+        currency_field="currency_id",
+        readonly=True,
+        help="Costo Promedio de Piezas Totales en almacén: VT ÷ Cantidad."
+    )
+    available_value = fields.Monetary(
+        "VD",
+        currency_field="currency_id",
+        readonly=True,
+        help="Valor de Piezas Disponibles en almacén: CPT × Disponibles."
+    )
+    proposed_avg_cost = fields.Monetary(
+        "CPD",
+        currency_field="currency_id",
+        readonly=True,
+        help="Costo Promedio Disponible en almacén: VD ÷ Disponibles (si Disponibles > 0)."
+    )
 
     _sql_constraints = [
         ("uniq_product_warehouse", "unique(product_id, warehouse_id)", "Ya existe un registro para este producto y almacén."),
@@ -45,21 +61,21 @@ class ProductWarehouseCost(models.Model):
 class ProductProduct(models.Model):
     _inherit = "product.product"
 
-    # Promedio disponible global (antes: proposed_avg_cost_global)
+    # Promedio disponible global
     proposed_avg_cost_global = fields.Monetary(
         string="Costo Promedio Disponible General",
         currency_field="currency_id",
         compute="_compute_proposed_avg_cost_global",
-        help="Promedio ponderado por almacenes considerando SOLO piezas DISPONIBLES: "
-             "CPD_global = Σ(CPT_almacén × Disponibles_almacén) ÷ Σ(Disponibles_almacén).",
+        help="Promedio ponderado usando SOLO piezas DISPONIBLES bajo los almacenes visibles: "
+             "Σ(CPT_almacén × Disponibles_almacén) ÷ Σ(Disponibles_almacén).",
     )
     # Promedio total global (todas las piezas)
     total_avg_cost_global = fields.Monetary(
         string="Costo Promedio Total General",
         currency_field="currency_id",
         compute="_compute_total_avg_cost_global",
-        help="Promedio ponderado usando TODAS las piezas en inventario (incluye reservadas): "
-             "CPT_global = Σ(Valor_total_almacén) ÷ Σ(Cantidad_almacén).",
+        help="Promedio ponderado usando TODAS las piezas (incluye reservadas): "
+             "Σ(Valor_total_almacén) ÷ Σ(Cantidad_almacén).",
     )
 
     warehouse_cost_line_ids = fields.One2many(
@@ -80,6 +96,16 @@ class ProductProduct(models.Model):
 
         for product in self:
             new_lines = []
+            # Lock NOWAIT para evitar conflictos durante exportaciones/otras lecturas
+            try:
+                self.env.cr.execute(
+                    "SELECT id FROM product_warehouse_cost WHERE product_id=%s FOR UPDATE NOWAIT",
+                    (product.id,),
+                )
+            except Exception:
+                # Si no se puede bloquear, omitir este producto en este ciclo
+                continue
+
             for wh in warehouses:
                 quants = Quant.search([
                     ("product_id", "=", product.id),
@@ -122,8 +148,13 @@ class ProductProduct(models.Model):
                 })
 
             if new_lines:
-                self.env["product.warehouse.cost"].sudo().search([("product_id", "=", product.id)]).unlink()
-                self.env["product.warehouse.cost"].sudo().create(new_lines)
+                try:
+                    with self.env.cr.savepoint():
+                        self.env["product.warehouse.cost"].sudo().search([("product_id", "=", product.id)]).unlink()
+                        self.env["product.warehouse.cost"].sudo().create(new_lines)
+                except (errors.SerializationFailure, Exception):
+                    # En conflicto de concurrencia, omitir sin romper la llamada
+                    continue
 
     def _compute_warehouse_cost_lines(self):
         Cost = self.env["product.warehouse.cost"].sudo()
@@ -211,16 +242,14 @@ class ProductTemplate(models.Model):
         string="Costo Promedio Disponible General",
         currency_field="currency_id",
         compute="_compute_tpl_avg_cost",
-        help="Promedio ponderado considerando SOLO piezas DISPONIBLES de todas las variantes: "
-             "CPD_global = Σ(CPT_almacén × Disponibles_almacén) ÷ Σ(Disponibles_almacén).",
+        help="Promedio ponderado con SOLO piezas DISPONIBLES de todas las variantes bajo los almacenes visibles.",
     )
     # Promedio total global (plantilla)
     total_avg_cost_global_tpl = fields.Monetary(
         string="Costo Promedio Total General",
         currency_field="currency_id",
         compute="_compute_tpl_total_avg_cost",
-        help="Promedio ponderado con TODAS las piezas de todas las variantes: "
-             "CPT_global = Σ(Valor_total_almacén) ÷ Σ(Cantidad_almacén).",
+        help="Promedio ponderado con TODAS las piezas de todas las variantes bajo los almacenes visibles.",
     )
 
     warehouse_cost_line_ids_tmpl = fields.One2many(
