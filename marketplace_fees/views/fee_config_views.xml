@@ -1,0 +1,49 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <record id="product_marketplace_fee_config_list" model="ir.ui.view">
+        <field name="name">product.marketplace.fee.config.list</field>
+        <field name="model">product.marketplace.fee.config</field>
+        <field name="arch" type="xml">
+            <list string="Comisiones por Marketplace" editable="bottom">
+                <field name="producteca_channel_id"/>
+                <field name="channel_ref" invisible="1"/>
+                <field name="commission_percent"/>
+                <field name="shipping_cost"/>
+                <field name="currency_id"/>
+                <field name="commission_product_id"/>
+                <field name="shipping_product_id"/>
+                <field name="commission_account_id"/>
+                <field name="shipping_account_id"/>
+                <field name="revenue_account_id"/>
+            </list>
+        </field>
+    </record>
+
+    <record id="product_marketplace_fee_config_form" model="ir.ui.view">
+        <field name="name">product.marketplace.fee.config.form</field>
+        <field name="model">product.marketplace.fee.config</field>
+        <field name="arch" type="xml">
+            <form string="Configuración de Marketplace">
+                <sheet>
+                    <group>
+                        <group>
+                            <field name="product_tmpl_id" readonly="1"/>
+                            <field name="producteca_channel_id" options="{'no_open': False}"/>
+                            <field name="channel_ref" invisible="1"/>
+                            <field name="commission_percent"/>
+                            <field name="shipping_cost"/>
+                            <field name="currency_id"/>
+                        </group>
+                        <group>
+                            <field name="commission_product_id" domain="[('type','=','service')]"/>
+                            <field name="shipping_product_id" domain="[('type','=','service')]"/>
+                            <field name="commission_account_id"/>
+                            <field name="shipping_account_id"/>
+                            <field name="revenue_account_id" domain="[('internal_group','=','income')]"/>
+                        </group>
+                    </group>
+                </sheet>
+            </form>
+        </field>
+    </record>
+</odoo>
