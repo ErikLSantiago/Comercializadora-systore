@@ -45,6 +45,50 @@ class SaleOrderLine(models.Model):
 class SaleOrder(models.Model):
     _inherit = "sale.order"
 
+    def _is_producteca_order(self):
+        """Detecta si la orden proviene de Producteca (binding/canal presente)."""
+        self.ensure_one()
+        # Campo computado de producteca: producteca_channel_binding
+        if hasattr(self, "producteca_channel_binding") and self.producteca_channel_binding:
+            return True
+        # Algunas instalaciones usan producteca_bindings o producteca_sale_order
+        if hasattr(self, "producteca_bindings") and getattr(self, "producteca_bindings"):
+            return True
+        if hasattr(self, "producteca_sale_order") and getattr(self, "producteca_sale_order"):
+            return True
+        return False
+
+    def _draft_has_product_lines(self):
+        self.ensure_one()
+        return bool(self.order_line.filtered(lambda l: not getattr(l, "is_marketplace_fee", False) and not l.display_type and l.product_id))
+
+    def _maybe_autoconfirm_producteca(self):
+        """Autoconfirma órdenes de Producteca en estado borrador, de forma segura y sin romper flujos nativos."""
+        for order in self:
+            if order.state in ("draft", "sent") and order._is_producteca_order() and order._draft_has_product_lines():
+                # Evitar loops y confirmar con el usuario que ejecuta la importación
+                ctx = dict(self.env.context or {}, marketplace_fees_autoconfirm=True)
+                try:
+                    order.with_context(ctx).action_confirm()
+                except Exception as e:
+                    # No abortar el flujo de importación; solo registrar.
+                    order.message_post(body=f"[marketplace_fees] No se pudo confirmar automáticamente: {e}")
+                    # continuar sin bloquear
+
+    @api.model_create_multi
+    def create(self, vals_list):
+        recs = super().create(vals_list)
+        # Intentar después de crear (muchas integraciones crean líneas en el create)
+        recs._maybe_autoconfirm_producteca()
+        return recs
+
+    def write(self, vals):
+        res = super().write(vals)
+        # Evitar reentradas cuando la propia confirmación escribe sobre la orden
+        if not self.env.context.get("marketplace_fees_autoconfirm"):
+            self._maybe_autoconfirm_producteca()
+        return res
+
     def action_confirm(self):
         # Agregar fees antes de confirmar; conservar flujo nativo.
         self._add_marketplace_fee_lines()
