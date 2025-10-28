@@ -45,6 +45,36 @@ class SaleOrderLine(models.Model):
 class SaleOrder(models.Model):
     _inherit = "sale.order"
 
+    # === Contacto para facturación por marketplace ===
+    def _compute_single_billing_partner(self, channel):
+        """Devuelve un partner único si todas las líneas de producto configuradas
+        para el canal resuelven al mismo 'billing_partner_id'. Si no, False.
+        """
+        self.ensure_one()
+        partner_ids = set()
+        for line in self.order_line.filtered(lambda l: not getattr(l, "is_marketplace_fee", False) and not l.display_type and l.product_id):
+            cfg = self._find_product_channel_config(line.product_id.product_tmpl_id, channel)
+            if cfg and cfg.billing_partner_id:
+                partner_ids.add(cfg.billing_partner_id.id)
+        if len(partner_ids) == 1:
+            return self.env["res.partner"].browse(list(partner_ids)[0])
+        return False
+
+    def _apply_billing_partner_if_needed(self):
+        """Si la orden es de Producteca y todas las líneas configuradas coinciden
+        en el mismo 'billing_partner_id', setea partner_invoice_id a ese partner.
+        No sobreescribe si el usuario/flujo ya lo cambió a ese mismo valor.
+        """
+        for order in self:
+            if order.env.context.get("marketplace_fees_set_inv"):
+                continue
+            channel = order._get_marketplace_channel_from_order()
+            if not channel:
+                continue
+            partner = order._compute_single_billing_partner(channel)
+            if partner and order.partner_invoice_id.id != partner.id:
+                order.with_context(marketplace_fees_set_inv=True).write({"partner_invoice_id": partner.id})
+
     def _is_producteca_order(self):
         """Detecta si la orden proviene de Producteca (binding/canal presente)."""
         self.ensure_one()
@@ -79,11 +109,14 @@ class SaleOrder(models.Model):
     def create(self, vals_list):
         recs = super().create(vals_list)
         # Intentar después de crear (muchas integraciones crean líneas en el create)
+        recs._apply_billing_partner_if_needed()
         recs._maybe_autoconfirm_producteca()
         return recs
 
     def write(self, vals):
         res = super().write(vals)
+        # Aplicar partner de facturación antes de autoconfirmar
+        self._apply_billing_partner_if_needed()
         # Evitar reentradas cuando la propia confirmación escribe sobre la orden
         if not self.env.context.get("marketplace_fees_autoconfirm"):
             self._maybe_autoconfirm_producteca()

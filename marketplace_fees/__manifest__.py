@@ -3,7 +3,7 @@
     "name": "Marketplace Fees",
     "summary": "Comisiones y envío por marketplace (Producteca) + cuenta de ventas por marketplace",
     "description": "Agrega líneas de comisión (%) y envío fijo por producto al confirmar ventas cuando la orden tiene canal/binding y el producto posee configuración. Permite definir una cuenta de ingresos por marketplace. Selector simple a producteca.channel. Textos en español.",
-    "version": "18.0.1.6.0",
+    "version": "18.0.1.6.2",
     "author": "Systore + ChatGPT",
     "license": "OEEL-1",
     "website": "https://www.systore.com.mx",

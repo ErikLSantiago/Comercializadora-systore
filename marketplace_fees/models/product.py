@@ -79,6 +79,13 @@ class ProductMarketplaceFeeConfig(models.Model):
         string="Cuenta de gasto (Envío)",
         help="Si se define, la línea/partida contable de envío usará esta cuenta de gasto."
     )
+    # Contacto para facturación (por marketplace)
+    billing_partner_id = fields.Many2one(
+        "res.partner",
+        string="Contacto para facturación",
+        help="Si se define, la orden de venta usará este contacto en 'Dirección de factura' cuando el canal coincida.",
+    )
+
 
     revenue_account_id = fields.Many2one(
         "account.account",

@@ -15,6 +15,7 @@
                 <field name="commission_account_id"/>
                 <field name="shipping_account_id"/>
                 <field name="revenue_account_id"/>
+                <field name="billing_partner_id"/>
             </list>
         </field>
     </record>
@@ -40,6 +41,7 @@
                             <field name="commission_account_id"/>
                             <field name="shipping_account_id"/>
                             <field name="revenue_account_id" domain="[('internal_group','=','income')]"/>
+                            <field name="billing_partner_id"/>
                         </group>
                     </group>
                 </sheet>
