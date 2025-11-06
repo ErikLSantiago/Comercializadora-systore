@@ -73,21 +73,7 @@ class SaleOrder(models.Model):
                 continue
             partner = order._compute_single_billing_partner(channel)
             if partner and order.partner_invoice_id.id != partner.id:
-                try:
-                    # Verifica acceso del usuario actual y que name_get funcione
-                    partner.with_user(order.env.user).name_get()
-                    # Exigir misma empresa comercial para respetar dominios de la vista (evita KeyError)
-                    cp_ok = True
-                    try:
-                        cp_ok = (partner.commercial_partner_id.id == order.partner_id.commercial_partner_id.id)
-                    except Exception:
-                        cp_ok = True  # si no se puede evaluar, no bloqueamos
-                    if cp_ok:
-                        order.with_context(marketplace_fees_set_inv=True).write({"partner_invoice_id": partner.id})
-                    else:
-                        order.message_post(body=f"[marketplace_fees] Contacto de facturación omitido por diferente empresa comercial: {partner.display_name}")
-                except Exception as e:
-                    order.message_post(body=f"[marketplace_fees] No se pudo aplicar el contacto de facturación '{partner.display_name}': {e}")
+                order.with_context(marketplace_fees_set_inv=True).write({"partner_invoice_id": partner.id})
 
     def _is_producteca_order(self):
         """Detecta si la orden proviene de Producteca (binding/canal presente)."""
