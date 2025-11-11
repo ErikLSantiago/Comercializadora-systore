@@ -24,9 +24,16 @@
         <field name="arch" type="xml">
             <xpath expr="//page[@name='inventory']" position="after">
                 <page string="Costos por almacén" name="warehouse_avg_cost" groups="purchase.group_purchase_user">
+                    <header>
+                        <button name="action_rebuild_warehouse_costs" type="object" string="Actualizar costos por almacén" class="btn-primary"/>
+                    </header>
                     <group>
-                        <field name="proposed_avg_cost_global" readonly="1"/>
-                        <field name="total_avg_cost_global" readonly="1"/>
+                        <field name="proposed_avg_cost_global" readonly="1" nolabel="0">
+                            <label string="Costo Promedio Disponible General" for="proposed_avg_cost_global"/>
+                        </field>
+                        <field name="total_avg_cost_global" readonly="1" nolabel="0">
+                            <label string="Costo Promedio Total General" for="total_avg_cost_global"/>
+                        </field>
                     </group>
                     <field name="warehouse_cost_line_ids" nolabel="1">
                         <list create="0" edit="0" delete="0" string="Costos por almacén">
@@ -58,9 +65,16 @@
         <field name="arch" type="xml">
             <xpath expr="//page[@name='inventory']" position="after">
                 <page string="Costos por almacén" name="warehouse_avg_cost_tpl" groups="purchase.group_purchase_user">
+                    <header>
+                        <button name="action_rebuild_warehouse_costs" type="object" string="Actualizar costos por almacén" class="btn-primary"/>
+                    </header>
                     <group>
-                        <field name="proposed_avg_cost_global_tpl" readonly="1"/>
-                        <field name="total_avg_cost_global_tpl" readonly="1"/>
+                        <field name="proposed_avg_cost_global_tpl" readonly="1" nolabel="0">
+                            <label string="Costo Promedio Disponible General" for="proposed_avg_cost_global_tpl"/>
+                        </field>
+                        <field name="total_avg_cost_global_tpl" readonly="1" nolabel="0">
+                            <label string="Costo Promedio Total General" for="total_avg_cost_global_tpl"/>
+                        </field>
                     </group>
                     <field name="warehouse_cost_line_ids_tmpl" nolabel="1">
                         <list create="0" edit="0" delete="0" string="Costos por almacén">
