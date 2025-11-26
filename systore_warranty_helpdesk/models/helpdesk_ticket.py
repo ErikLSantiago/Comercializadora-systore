@@ -18,14 +18,6 @@ class HelpdeskTicket(models.Model):
         help="Producto reportado en la garantía.",
     )
 
-    @api.onchange('sale_order_id')
-    def _onchange_sale_order_id_set_product_domain(self):
-        """Limit available products to those present in the selected sale order."""
-        if self.sale_order_id:
-            products = self.sale_order_id.order_line.product_id
-            return {'domain': {'product_id': [('id', 'in', products.ids)]}}
-        return {'domain': {'product_id': []}}
-
     no_order_found = fields.Boolean(string="No encontró su número de orden")
     manual_order_number = fields.Char(
         string="Número de orden (manual)",
