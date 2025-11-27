@@ -4,15 +4,7 @@
             <div class="container my-5">
                 <div class="row justify-content-center">
                     <div class="col-lg-8 col-md-10">
-
-                        <!-- Mensaje superior de login/registro -->
-                        <t t-if="not is_logged_in">
-                            <div class="alert alert-info" role="alert">
-                                Para poder generar tu solicitud de garantía es necesario que crees una cuenta o, si ya tienes una cuenta, inicia sesión aquí.
-                            </div>
-                        </t>
-
-                        <!-- Mensaje de éxito -->
+<!-- Mensaje de éxito -->
                         <t t-if="success">
                             <div class="alert alert-success" role="alert">
                                 Tu solicitud ha sido recibida con el número
