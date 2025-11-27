@@ -25,9 +25,7 @@ class WarrantyWebsiteController(http.Controller):
             )
 
 
-        if not is_logged_in:
-            # Redirigir a login si el usuario no ha iniciado sesión
-            return request.redirect('/web/login?redirect=/garantias/solicitud')
+
 
         if request.httprequest.method == "POST":
             # Validar check de términos
