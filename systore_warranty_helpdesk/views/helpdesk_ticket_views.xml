@@ -9,7 +9,7 @@
                     <group>
                         <field name="is_warranty"/>
                         <field name="sale_order_id"/>
-                        <field name="warranty_order_product_id"/>
+                        <field name="product_id"/>
                     </group>
                     <group string="Datos cuando no encontró la orden">
                         <field name="no_order_found"/>

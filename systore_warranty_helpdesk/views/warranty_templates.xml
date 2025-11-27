@@ -37,70 +37,29 @@
 
                             <!-- Número de orden de venta -->
                             <div class="mb-3">
-                                <label class="form-label">Número de orden de venta</label>
-                                <input type="text"
-                                       name="sale_order_name"
-                                       class="form-control"
-                                       t-att-value="post.get('sale_order_name', '')"
-                                       placeholder="Ej. SO0001"/>
-                                <div class="form-text">
-                                    Captura el número de pedido y a partir de seis dígitos se sugerirá tu orden de venta en sistema, selecciónala en el listado, sino aparece, selecciona la opción "No encontré mi número de orden"
-                                </div>
-                            </div>
+                                
+<label class="form-label">Número de orden (manual)</label>
+<input type="text"
+       name="manual_order_number"
+       class="form-control"
+       t-att-value="post.get('manual_order_number', '')"
+       placeholder="Escribe el número de orden tal como viene en tu orden de venta"/>
+<div class="form-text">
+    Captura el número de pedido y el producto tal como viene en tu orden de venta. El equipo de garantías validará la información en sistema.
+</div>
 
-                            <input type="hidden" name="sale_order_id" id="sale_order_id"
-                                   t-att-value="post.get('sale_order_id', '')"/>
-                            <div id="sale_order_suggestions" class="list-group mb-3"></div>
-
-                            <!-- Producto de la orden -->
-                            <div class="mb-3">
-                                <label class="form-label">
-                                    Producto de la orden (solo se reportará una pieza)
-                                </label>
-                                <select name="product_id" class="form-select">
-                                    <option value="">-- Selecciona un producto --</option>
-                                </select>
-                                <div class="form-text">
-                                    Solo puedes reportar un producto en esta solicitud.
-                                </div>
-                            </div>
-
-                            <!-- Check: No encontré mi número de orden -->
-                            <div class="form-check mb-3">
-                                <input class="form-check-input"
-                                       type="checkbox"
-                                       name="no_order_found"
-                                       id="no_order_found"
-                                       t-att-checked="'checked' if post.get('no_order_found') else None"/>
-                                <label class="form-check-label fw-bold" for="no_order_found">
-                                    No encontré mi número de orden
-                                </label>
-                            </div>
-
-                            <!-- Campos condicionales cuando NO encontró la orden -->
-                            <div id="no_order_block" style="display: none;">
-                                <div class="mb-3">
-                                    <label class="form-label">Número de orden (manual)</label>
-                                    <input type="text"
-                                           name="manual_order_number"
-                                           class="form-control"
-                                           t-att-value="post.get('manual_order_number', '')"
-                                           placeholder="Escribe el número de orden"/>
-                                </div>
-                                <div class="mb-3">
-                                    <label class="form-label">Descripción del producto</label>
-                                    <input type="text"
-                                           name="manual_product_description"
-                                           class="form-control"
-                                           t-att-value="post.get('manual_product_description', '')"
-                                           placeholder="Escribe la descripción del producto tal como viene en tu orden de venta"/>
-                                    <div class="form-text">
-                                        Escribe la descripción del producto tal como viene en tu orden de venta.
-                                    </div>
-                                </div>
-                            </div>
-
-                            <!-- Teléfono -->
+<div class="mb-3 mt-3">
+    <label class="form-label">Descripción del producto</label>
+    <input type="text"
+           name="manual_product_description"
+           class="form-control"
+           t-att-value="post.get('manual_product_description', '')"
+           placeholder="Escribe la descripción del producto tal como viene en tu orden de venta"/>
+    <div class="form-text">
+        Escribe la descripción del producto tal como viene en tu orden de venta.
+    </div>
+</div>
+<!-- Teléfono -->
                             <div class="mb-3">
                                 <label class="form-label">Teléfono de contacto</label>
                                 <input type="text"
@@ -217,152 +176,7 @@
             </div>
 
             <!-- JS para campos condicionales y autocompletado de órdenes/productos -->
-            <script>
-                (function () {
-                    function toggleNoOrderBlock() {
-                        var checkbox = document.getElementById('no_order_found');
-                        var block = document.getElementById('no_order_block');
-                        if (checkbox &amp;&amp; block) {
-                            block.style.display = checkbox.checked ? 'block' : 'none';
-                        }
-                    }
-                    function toggleFailureOther() {
-                        var select = document.getElementById('failure_type');
-                        var block = document.getElementById('failure_type_other_block');
-                        if (select &amp;&amp; block) {
-                            block.style.display = (select.value === 'otro') ? 'block' : 'none';
-                        }
-                    }
-
-                    // Autocompletado de órdenes y carga de productos
-                    function setupOrderAutocomplete() {
-                        var input = document.querySelector('input[name="sale_order_name"]');
-                        var hiddenId = document.getElementById('sale_order_id');
-                        var suggestions = document.getElementById('sale_order_suggestions');
-                        var productSelect = document.querySelector('select[name="product_id"]');
-
-                        if (!input || !hiddenId || !suggestions || !productSelect) {
-                            return;
-                        }
-
-                        function clearSuggestions() {
-                            suggestions.innerHTML = '';
-                        }
-
-                        function clearProducts() {
-                            productSelect.innerHTML = '';
-                            var opt = document.createElement('option');
-                            opt.value = '';
-                            opt.textContent = '-- Selecciona un producto --';
-                            productSelect.appendChild(opt);
-                        }
-
-                        function fetchOrders(term) {
-                            var url = '/garantias/order_search?term=' + encodeURIComponent(term);
-                            return fetch(url, { credentials: 'same-origin' })
-                                .then(function (r) { return r.json(); })
-                                .catch(function () { return []; });
-                        }
-
-                        function fetchProducts(orderId) {
-                            var url = '/garantias/order_products?order_id=' + encodeURIComponent(orderId);
-                            return fetch(url, { credentials: 'same-origin' })
-                                .then(function (r) { return r.json(); })
-                                .catch(function () { return []; });
-                        }
-
-                        function renderSuggestions(items) {
-                            clearSuggestions();
-                            if (!items || !items.length) {
-                                return;
-                            }
-                            items.forEach(function (item) {
-                                var btn = document.createElement('button');
-                                btn.type = 'button';
-                                btn.className = 'list-group-item list-group-item-action';
-                                btn.textContent = item.label || item.name;
-                                btn.dataset.orderId = item.id;
-                                btn.addEventListener('click', function () {
-                                    input.value = item.name;
-                                    hiddenId.value = String(item.id);
-                                    clearSuggestions();
-                                    // Cargar productos de la orden
-                                    clearProducts();
-                                    fetchProducts(item.id).then(function (products) {
-                                        clearProducts();
-                                        products.forEach(function (p) {
-                                            var opt = document.createElement('option');
-                                            opt.value = p.id;
-                                            opt.textContent = p.label || p.name;
-                                            productSelect.appendChild(opt);
-                                        });
-                                    });
-                                });
-                                suggestions.appendChild(btn);
-                            });
-                        }
-
-                        var lastTerm = '';
-                        var debounceTimer = null;
-                        input.addEventListener('input', function () {
-                            var term = (input.value || '').trim();
-                            hiddenId.value = '';
-                            clearProducts();
-                            if (term.length &lt; 6) {
-                                clearSuggestions();
-                                lastTerm = term;
-                                return;
-                            }
-                            if (term === lastTerm) {
-                                return;
-                            }
-                            lastTerm = term;
-                            if (debounceTimer) {
-                                clearTimeout(debounceTimer);
-                            }
-                            debounceTimer = setTimeout(function () {
-                                fetchOrders(term).then(renderSuggestions);
-                            }, 300);
-                        });
-
-                        // Cerrar sugerencias al hacer click fuera
-                        document.addEventListener('click', function (ev) {
-                            if (!suggestions.contains(ev.target) &amp;&amp; ev.target !== input) {
-                                clearSuggestions();
-                            }
-                        });
-                    }
-
-                                        document.addEventListener('DOMContentLoaded', function () {
-                        toggleNoOrderBlock();
-                        toggleFailureOther();
-                        var cb = document.getElementById('no_order_found');
-                        if (cb) {
-                            cb.addEventListener('change', toggleNoOrderBlock);
-                        }
-                        var ft = document.getElementById('failure_type');
-                        if (ft) {
-                            ft.addEventListener('change', toggleFailureOther);
-                        }
-                        setupOrderAutocomplete();
-
-                        // Validación: obligar a seleccionar una orden
-                        var form = document.getElementById('warranty_request_form');
-                        if (form) {
-                            form.addEventListener('submit', function (ev) {
-                                var noOrder = document.getElementById('no_order_found');
-                                var saleOrderId = document.getElementById('sale_order_id');
-                                if (noOrder &amp;&amp; !noOrder.checked &amp;&amp; saleOrderId &amp;&amp; !saleOrderId.value) {
-                                    ev.preventDefault();
-                                    ev.stopPropagation();
-                                    alert('Por favor selecciona una orden de venta de la lista o marca "No encontré mi número de orden".');
-                                }
-                            });
-                        }
-                    });
-
-                })();
-            </script>
+            
         </t>
     </template>
 </odoo>

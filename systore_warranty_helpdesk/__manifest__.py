@@ -1,6 +1,6 @@
 {
     "name": "Systore Warranty Helpdesk",
-    "version": "18.0.2.18.0",
+    "version": "18.0.2.13.0",
     "summary": "Formulario web de garantías conectado a Helpdesk",
     "category": "Website/Helpdesk",
     "author": "Systore",
