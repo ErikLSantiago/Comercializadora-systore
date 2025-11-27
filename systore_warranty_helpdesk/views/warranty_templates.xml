@@ -143,27 +143,27 @@
                                     <input type="file" name="evidence_failure" class="form-control" required="required"/>
                                 </div>
                                 <div class="mb-2">
-                                    Lado lateral izquierda:
+                                    Lado lateral izquierda: <i class="fa fa-image text-success ms-1" data-bs-toggle="tooltip" data-bs-html="true" title="&lt;img src='/systore_warranty_helpdesk/static/src/img/evidence_left.png' width='220' /&gt;"></i>
                                     <input type="file" name="evidence_left" class="form-control" required="required"/>
                                 </div>
                                 <div class="mb-2">
-                                    Lado lateral derecha:
+                                    Lado lateral derecha: <i class="fa fa-image text-success ms-1" data-bs-toggle="tooltip" data-bs-html="true" title="&lt;img src='/systore_warranty_helpdesk/static/src/img/evidence_right.png' width='220' /&gt;"></i>
                                     <input type="file" name="evidence_right" class="form-control" required="required"/>
                                 </div>
                                 <div class="mb-2">
-                                    Lado superior:
+                                    Lado superior: <i class="fa fa-image text-success ms-1" data-bs-toggle="tooltip" data-bs-html="true" title="&lt;img src='/systore_warranty_helpdesk/static/src/img/evidence_top.png' width='220' /&gt;"></i>
                                     <input type="file" name="evidence_top" class="form-control" required="required"/>
                                 </div>
                                 <div class="mb-2">
-                                    Lado inferior:
+                                    Lado inferior: <i class="fa fa-image text-success ms-1" data-bs-toggle="tooltip" data-bs-html="true" title="&lt;img src='/systore_warranty_helpdesk/static/src/img/evidence_bottom.png' width='220' /&gt;"></i>
                                     <input type="file" name="evidence_bottom" class="form-control" required="required"/>
                                 </div>
                                 <div class="mb-2">
-                                    Frente pantalla:
+                                    Frente pantalla: <i class="fa fa-image text-success ms-1" data-bs-toggle="tooltip" data-bs-html="true" title="&lt;img src='/systore_warranty_helpdesk/static/src/img/evidence_front.png' width='220' /&gt;"></i>
                                     <input type="file" name="evidence_front" class="form-control" required="required"/>
                                 </div>
                                 <div class="mb-2">
-                                    Tapa trasera o parte posterior:
+                                    Tapa trasera o parte posterior: <i class="fa fa-image text-success ms-1" data-bs-toggle="tooltip" data-bs-html="true" title="&lt;img src='/systore_warranty_helpdesk/static/src/img/evidence_back.png' width='220' /&gt;"></i>
                                     <input type="file" name="evidence_back" class="form-control" required="required"/>
                                 </div>
                             </div>
@@ -184,6 +184,15 @@
                                 Enviar solicitud de garantía
                             </button>
                         </form>
+                    <script>
+                        document.addEventListener("DOMContentLoaded", function () {
+                            var tooltipTriggerList = [].slice.call(document.querySelectorAll('[data-bs-toggle="tooltip"]'));
+                            tooltipTriggerList.map(function (tooltipTriggerEl) {
+                                return new bootstrap.Tooltip(tooltipTriggerEl);
+                            });
+                        });
+                    </script>
+
                     </div>
                 </div>
             </div>
