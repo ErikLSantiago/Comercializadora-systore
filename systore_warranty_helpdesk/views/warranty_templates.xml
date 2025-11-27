@@ -60,7 +60,6 @@
                                            id="manual_product_description"
                                            class="form-control"
                                            required="required"
-                                           class="form-control"
                                            t-att-value="post.get('manual_product_description', '')"
                                            placeholder="Escribe la descripción del producto tal como viene en tu orden de venta"/>
                                     <div class="form-text">
