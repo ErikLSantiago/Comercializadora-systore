@@ -1,0 +1,4 @@
+{'name': 'Systore Warranty Helpdesk', 'version': '18.0.2.14.0', 'summary': 'Formulario web de garantías conectado a Helpdesk', 'category': 'Website/Helpdesk', 'author': 'Systore', 'website': 'https://systore.com.mx', 'license': 'LGPL-3', 'depends': ['website', 'helpdesk', 'sale_management', 'portal'], 'data': ['views/warranty_login_required.xml',
+        'views/helpdesk_ticket_views.xml', 'views/warranty_login_required.xml',
+        'views/helpdesk_team_data.xml', 'views/warranty_login_required.xml',
+        'views/warranty_templates.xml', 'security/ir.model.access.csv'], 'installable': True, 'application': False}
