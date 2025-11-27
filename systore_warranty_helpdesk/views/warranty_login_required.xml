@@ -1,11 +1,12 @@
-
 <odoo>
-  <template id="warranty_login_required" name="Warranty Login Required">
-    <section class="container mt-5 mb-5">
-      <div class="alert alert-warning">
-        Para registrar la solicitud de garantía es necesario que inicies sesión o crees una cuenta
-        <a href="/web/login">aquí</a> para el seguimiento de tu solicitud.
-      </div>
-    </section>
+  <template id="warranty_login_required" name="Warranty Login Required" inherit_id="website.layout">
+    <xpath expr="//main" position="inside">
+      <section class="container mt-5 mb-5">
+        <div class="alert alert-warning" role="alert">
+          Para registrar la solicitud de garantía es necesario que inicies sesión o crees una cuenta
+          <a href="/web/login">aquí</a> para el seguimiento de tu solicitud.
+        </div>
+      </section>
+    </xpath>
   </template>
 </odoo>
