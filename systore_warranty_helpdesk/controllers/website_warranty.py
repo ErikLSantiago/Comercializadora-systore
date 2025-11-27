@@ -14,7 +14,11 @@ class WarrantyWebsiteController(http.Controller):
         website=True,
         methods=["GET", "POST"],
     )
-    def warranty_request(self, **post):
+    def warranty_request(
+        # Login required check
+        if request.env.user._is_public():
+            return request.render("systore_warranty_helpdesk_manual_front_v4.warranty_login_required")
+self, **post):
         """Formulario para solicitud de garantías -> crea helpdesk.ticket."""
 
         user = request.env.user
