@@ -14,17 +14,25 @@ class HelpdeskTicket(models.Model):
     product_id = fields.Many2one(
         "product.product",
         string="Producto",
-        help="Producto reportado en la garantía.",
+        help="Producto asociado automáticamente desde la solicitud de garantías.",
+    )
+    product_reported_id = fields.Many2one(
+        "product.product",
+        string="Producto reportado",
+        help="Producto que el equipo de garantías registra como reportado por el cliente.",
     )
 
-    no_order_found = fields.Boolean(string="No encontró su número de orden")
+    no_order_found = fields.Boolean(
+        string="No encontró su número de orden",
+        help="Marcar si el cliente no encontró su número de orden.",
+    )
     manual_order_number = fields.Char(
         string="Número de orden (manual)",
         help="Número de orden proporcionado manualmente por el cliente.",
     )
     manual_product_description = fields.Char(
         string="Descripción de producto (manual)",
-        help="Descripción del producto cuando el cliente no encontró su orden.",
+        help="Descripción del producto proporcionada manualmente por el cliente.",
     )
 
     warranty_phone = fields.Char(string="Teléfono de contacto")
