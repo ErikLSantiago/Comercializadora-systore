@@ -1,15 +1,13 @@
 <odoo>
-  <template id="warranty_login_required" name="Warranty Login Required">
-    <t t-call="website.layout">
-      <div id="wrap" class="oe_structure">
+  <template id="warranty_login_required" name="Warranty Login Required" inherit_id="website.layout">
+    <xpath expr="//main" position="inside">
+      <t t-if="0">
         <section class="container mt-5 mb-5">
           <div class="alert alert-warning" role="alert" style="font-size: 18px;">
-            Si vas generar una cotización, compra o registrar la solicitud de garantía es necesario que inicies sesión o crees una cuenta
-            <a href="/web/login"><b><u>aquí</u></b></a>
-            para el seguimiento de tu solicitud.
+            (Mensaje de login neutralizado)
           </div>
         </section>
-      </div>
-    </t>
+      </t>
+    </xpath>
   </template>
 </odoo>

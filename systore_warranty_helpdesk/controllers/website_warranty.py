@@ -20,10 +20,8 @@ class WarrantyWebsiteController(http.Controller):
         user = request.env.user
         is_logged_in = not user._is_public()
         if not is_logged_in:
-            return request.render(
-                "systore_warranty_helpdesk.warranty_login_required"
-            )
-
+            # Redirigir al login y volver a esta pantalla
+            return request.redirect('/web/login?redirect=/garantias/solicitud')
 
 
 
