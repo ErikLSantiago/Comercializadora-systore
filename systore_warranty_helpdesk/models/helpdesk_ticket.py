@@ -20,19 +20,17 @@ class HelpdeskTicket(models.Model):
         "product.product",
         string="Producto reportado",
         help="Producto que el equipo de garantías registra como reportado por el cliente.",
+        help="Producto reportado en la garantía.",
     )
 
-    no_order_found = fields.Boolean(
-        string="No encontró su número de orden",
-        help="Marcar si el cliente no encontró su número de orden.",
-    )
+    no_order_found = fields.Boolean(string="No encontró su número de orden")
     manual_order_number = fields.Char(
         string="Número de orden (manual)",
         help="Número de orden proporcionado manualmente por el cliente.",
     )
     manual_product_description = fields.Char(
         string="Descripción de producto (manual)",
-        help="Descripción del producto proporcionada manualmente por el cliente.",
+        help="Descripción del producto cuando el cliente no encontró su orden.",
     )
 
     warranty_phone = fields.Char(string="Teléfono de contacto")
