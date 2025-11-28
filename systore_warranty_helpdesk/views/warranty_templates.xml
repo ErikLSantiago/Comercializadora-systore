@@ -83,11 +83,8 @@
                                            class="form-control"
                                            required="required"
                                            t-att-value="post.get('manual_product_description', '')"
-                                           placeholder="Escribe la descripción del producto tal como viene en tu orden de venta"/>
-                                    <div class="form-text">
-                                        Escribe la descripción del producto tal como viene en tu orden de venta.
-                                    </div>
-                                </div>
+                                           placeholder="Escribe la descripción del producto tal como viene en tu pedido"/>
+                                                                    </div>
                             </div>
                         </div>
 
@@ -156,13 +153,15 @@
                             <!-- Evidencias -->
                             <div class="mb-3">
                                 <label class="form-label">Evidencias</label>
+                                <p class="form-text">Peso máximo por archivo: 10 MB.</p>
                                 <p class="form-text">
                                     Para poder brindarte un mejor servicio, carga las siguientes imágenes actuales del dispositivo:
                                 </p>
 
                                 <div class="mb-2">
-                                    Evidencia de la falla: <span title="Sube un video muy breve o imagen donde se muestre la falla del dispositivo" style="cursor: help; color:#198754;">&#9432;</span>
-                                    <input type="file" name="evidence_failure" class="form-control" required="required"/>
+                                    Evidencia de la falla:
+                                    <span title="Sube un video muy breve o imagen donde se muestre la falla del dispositivo" style="cursor: help; color:#198754;">&#9432;</span>
+                                    <input type="file" name="evidence_failure" class="form-control" required="required" accept="image/*,video/*"/>
                                 </div>
                                 <div class="mb-2">
                                     Lado lateral izquierda:

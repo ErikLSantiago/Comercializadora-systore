@@ -56,6 +56,7 @@ class HelpdeskTicket(models.Model):
         for ticket in self:
             base_name = ticket.name or ""
             order_name = ticket.sale_order_id.name or ""
+            # Preferimos el producto reportado; si no, el producto estándar
             if hasattr(ticket, "product_reported_id") and ticket.product_reported_id:
                 product_name = ticket.product_reported_id.display_name
             else:
