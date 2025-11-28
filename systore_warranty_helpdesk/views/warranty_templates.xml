@@ -161,7 +161,7 @@
                                 </p>
 
                                 <div class="mb-2">
-                                    Identificación de la falla:
+                                    Evidencia de la falla: <span title="Sube un video muy breve o imagen donde se muestre la falla del dispositivo" style="cursor: help; color:#198754;">&#9432;</span>
                                     <input type="file" name="evidence_failure" class="form-control" required="required"/>
                                 </div>
                                 <div class="mb-2">
