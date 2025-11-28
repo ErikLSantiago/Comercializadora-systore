@@ -36,6 +36,27 @@
                             <h3 class="mb-3">Solicitud de cotización</h3>
                             <p class="text-muted mb-3"><small>Solo se reportará un producto por solicitud.</small></p>
 
+                            <style>
+                                .evidence-help {
+                                    cursor: pointer;
+                                    position: relative;
+                                    display: inline-block;
+                                }
+                                .evidence-help .evidence-preview {
+                                    display: none;
+                                    position: absolute;
+                                    z-index: 1000;
+                                    background: #ffffff;
+                                    border: 1px solid #ccc;
+                                    padding: 4px;
+                                    border-radius: 4px;
+                                    box-shadow: 0 2px 8px rgba(0,0,0,0.15);
+                                }
+                                .evidence-help:hover .evidence-preview {
+                                    display: block;
+                                }
+                            </style>
+
                                                     <!-- Número de orden y producto (captura manual) -->
                         <input type="hidden" name="no_order_found" value="1"/>
 
@@ -143,27 +164,27 @@
                                     <input type="file" name="evidence_failure" class="form-control" required="required"/>
                                 </div>
                                 <div class="mb-2">
-                                    Lado lateral izquierda: <i class="fa fa-image text-success ms-1" data-bs-toggle="tooltip" data-bs-html="true" title="&lt;img src='/systore_warranty_helpdesk/static/src/img/evidence_left.png' width='220' /&gt;"></i>
+                                    Lado lateral izquierda: <span class="evidence-help"><i class="fa fa-image text-success ms-1"></i><span class="evidence-preview"><img src="/systore_warranty_helpdesk/static/src/img/evidence_left.png" width="220"/></span></span>
                                     <input type="file" name="evidence_left" class="form-control" required="required"/>
                                 </div>
                                 <div class="mb-2">
-                                    Lado lateral derecha: <i class="fa fa-image text-success ms-1" data-bs-toggle="tooltip" data-bs-html="true" title="&lt;img src='/systore_warranty_helpdesk/static/src/img/evidence_right.png' width='220' /&gt;"></i>
+                                    Lado lateral derecha: <span class="evidence-help"><i class="fa fa-image text-success ms-1"></i><span class="evidence-preview"><img src="/systore_warranty_helpdesk/static/src/img/evidence_right.png" width="220"/></span></span>
                                     <input type="file" name="evidence_right" class="form-control" required="required"/>
                                 </div>
                                 <div class="mb-2">
-                                    Lado superior: <i class="fa fa-image text-success ms-1" data-bs-toggle="tooltip" data-bs-html="true" title="&lt;img src='/systore_warranty_helpdesk/static/src/img/evidence_top.png' width='220' /&gt;"></i>
+                                    Lado superior: <span class="evidence-help"><i class="fa fa-image text-success ms-1"></i><span class="evidence-preview"><img src="/systore_warranty_helpdesk/static/src/img/evidence_top.png" width="220"/></span></span>
                                     <input type="file" name="evidence_top" class="form-control" required="required"/>
                                 </div>
                                 <div class="mb-2">
-                                    Lado inferior: <i class="fa fa-image text-success ms-1" data-bs-toggle="tooltip" data-bs-html="true" title="&lt;img src='/systore_warranty_helpdesk/static/src/img/evidence_bottom.png' width='220' /&gt;"></i>
+                                    Lado inferior: <span class="evidence-help"><i class="fa fa-image text-success ms-1"></i><span class="evidence-preview"><img src="/systore_warranty_helpdesk/static/src/img/evidence_bottom.png" width="220"/></span></span>
                                     <input type="file" name="evidence_bottom" class="form-control" required="required"/>
                                 </div>
                                 <div class="mb-2">
-                                    Frente pantalla: <i class="fa fa-image text-success ms-1" data-bs-toggle="tooltip" data-bs-html="true" title="&lt;img src='/systore_warranty_helpdesk/static/src/img/evidence_front.png' width='220' /&gt;"></i>
+                                    Frente pantalla: <span class="evidence-help"><i class="fa fa-image text-success ms-1"></i><span class="evidence-preview"><img src="/systore_warranty_helpdesk/static/src/img/evidence_front.png" width="220"/></span></span>
                                     <input type="file" name="evidence_front" class="form-control" required="required"/>
                                 </div>
                                 <div class="mb-2">
-                                    Tapa trasera o parte posterior: <i class="fa fa-image text-success ms-1" data-bs-toggle="tooltip" data-bs-html="true" title="&lt;img src='/systore_warranty_helpdesk/static/src/img/evidence_back.png' width='220' /&gt;"></i>
+                                    Tapa trasera o parte posterior: <span class="evidence-help"><i class="fa fa-image text-success ms-1"></i><span class="evidence-preview"><img src="/systore_warranty_helpdesk/static/src/img/evidence_back.png" width="220"/></span></span>
                                     <input type="file" name="evidence_back" class="form-control" required="required"/>
                                 </div>
                             </div>
@@ -184,17 +205,7 @@
                                 Enviar solicitud de garantía
                             </button>
                         </form>
-                    <script>
-                        document.addEventListener("DOMContentLoaded", function () {
-                            var tooltipTriggerList = [].slice.call(document.querySelectorAll('[data-bs-toggle="tooltip"]'));
-                            tooltipTriggerList.map(function (tooltipTriggerEl) {
-                                return new bootstrap.Tooltip(tooltipTriggerEl, {
-                                    html: true,
-                                    sanitize: false
-                                });
-                            });
-                        });
-                    </script>
+                    
 
                     </div>
                 </div>
