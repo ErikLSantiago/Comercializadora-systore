@@ -1,4 +1,4 @@
-from odoo import models, fields
+from odoo import models, fields, api
 
 
 class HelpdeskTicket(models.Model):
@@ -46,3 +46,28 @@ class HelpdeskTicket(models.Model):
     )
     failure_type_other = fields.Char(string="Otro tipo de falla")
     failure_description = fields.Text(string="Descripción de la falla")
+    @api.multi
+    def action_update_ticket_name(self):
+        """Actualizar el nombre del ticket con la orden y el producto.
+
+        Formato esperado:
+            TicketOriginal - Orden - Producto
+
+        Donde:
+        - TicketOriginal es el nombre actual (por ejemplo, 'Ticket-1234').
+        - Orden proviene de sale_order_id.name.
+        - Producto proviene de product_reported_id.display_name (o product_id si no está definido).
+        """
+        for ticket in self:
+            base_name = ticket.name or ''
+            order_name = ticket.sale_order_id.name or ''
+            product_name = (
+                ticket.product_reported_id.display_name
+                if hasattr(ticket, 'product_reported_id') and ticket.product_reported_id
+                else (ticket.product_id.display_name if ticket.product_id else '')
+            )
+
+            parts = [p for p in [base_name, order_name, product_name] if p]
+            ticket.name = " - ".join(parts)
+        return True
+
