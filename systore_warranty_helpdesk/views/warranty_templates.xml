@@ -57,6 +57,7 @@
                                 }
                             </style>
 
+
                                                     <!-- Número de orden y producto (captura manual) -->
                         <input type="hidden" name="no_order_found" value="1"/>
 
@@ -164,27 +165,33 @@
                                     <input type="file" name="evidence_failure" class="form-control" required="required"/>
                                 </div>
                                 <div class="mb-2">
-                                    Lado lateral izquierda: <span class="evidence-help"><i class="fa fa-image text-success ms-1"></i><span class="evidence-preview"><img src="/systore_warranty_helpdesk/static/src/img/evidence_left.png" width="220"/></span></span>
+                                    Lado lateral izquierda:
+                                    <span class="evidence-help"><i class="fa fa-image text-success ms-1"></i><span class="evidence-preview"><img src="/systore_warranty_helpdesk/static/src/img/evidence_left.png" width="220"/></span></span>
                                     <input type="file" name="evidence_left" class="form-control" required="required"/>
                                 </div>
                                 <div class="mb-2">
-                                    Lado lateral derecha: <span class="evidence-help"><i class="fa fa-image text-success ms-1"></i><span class="evidence-preview"><img src="/systore_warranty_helpdesk/static/src/img/evidence_right.png" width="220"/></span></span>
+                                    Lado lateral derecha:
+                                    <span class="evidence-help"><i class="fa fa-image text-success ms-1"></i><span class="evidence-preview"><img src="/systore_warranty_helpdesk/static/src/img/evidence_right.png" width="220"/></span></span>
                                     <input type="file" name="evidence_right" class="form-control" required="required"/>
                                 </div>
                                 <div class="mb-2">
-                                    Lado superior: <span class="evidence-help"><i class="fa fa-image text-success ms-1"></i><span class="evidence-preview"><img src="/systore_warranty_helpdesk/static/src/img/evidence_top.png" width="220"/></span></span>
+                                    Lado superior:
+                                    <span class="evidence-help"><i class="fa fa-image text-success ms-1"></i><span class="evidence-preview"><img src="/systore_warranty_helpdesk/static/src/img/evidence_top.png" width="220"/></span></span>
                                     <input type="file" name="evidence_top" class="form-control" required="required"/>
                                 </div>
                                 <div class="mb-2">
-                                    Lado inferior: <span class="evidence-help"><i class="fa fa-image text-success ms-1"></i><span class="evidence-preview"><img src="/systore_warranty_helpdesk/static/src/img/evidence_bottom.png" width="220"/></span></span>
+                                    Lado inferior:
+                                    <span class="evidence-help"><i class="fa fa-image text-success ms-1"></i><span class="evidence-preview"><img src="/systore_warranty_helpdesk/static/src/img/evidence_bottom.png" width="220"/></span></span>
                                     <input type="file" name="evidence_bottom" class="form-control" required="required"/>
                                 </div>
                                 <div class="mb-2">
-                                    Frente pantalla: <span class="evidence-help"><i class="fa fa-image text-success ms-1"></i><span class="evidence-preview"><img src="/systore_warranty_helpdesk/static/src/img/evidence_front.png" width="220"/></span></span>
+                                    Frente pantalla:
+                                    <span class="evidence-help"><i class="fa fa-image text-success ms-1"></i><span class="evidence-preview"><img src="/systore_warranty_helpdesk/static/src/img/evidence_front.png" width="220"/></span></span>
                                     <input type="file" name="evidence_front" class="form-control" required="required"/>
                                 </div>
                                 <div class="mb-2">
-                                    Tapa trasera o parte posterior: <span class="evidence-help"><i class="fa fa-image text-success ms-1"></i><span class="evidence-preview"><img src="/systore_warranty_helpdesk/static/src/img/evidence_back.png" width="220"/></span></span>
+                                    Tapa trasera o parte posterior:
+                                    <span class="evidence-help"><i class="fa fa-image text-success ms-1"></i><span class="evidence-preview"><img src="/systore_warranty_helpdesk/static/src/img/evidence_back.png" width="220"/></span></span>
                                     <input type="file" name="evidence_back" class="form-control" required="required"/>
                                 </div>
                             </div>
@@ -205,8 +212,6 @@
                                 Enviar solicitud de garantía
                             </button>
                         </form>
-                    
-
                     </div>
                 </div>
             </div>
