@@ -205,6 +205,17 @@ class WarrantyWebsiteController(http.Controller):
 
             ticket.name = " - ".join(parts) if parts else ticket_number
 
+
+            # Enviar correo usando la plantilla configurada en la etapa (si aplica)
+            try:
+                stage = ticket.stage_id
+                template = getattr(stage, "mail_template_id", False) or getattr(stage, "template_id", False)
+                if template and ticket.partner_id:
+                    template.sudo().send_mail(ticket.id, force_send=True)
+            except Exception:
+                # En caso de fallo en el envío, no bloquear el flujo del portal
+                pass
+
             # Procesar evidencias (archivos adjuntos)
             file_fields = {
                 "evidence_failure": "Identificación de la falla",
