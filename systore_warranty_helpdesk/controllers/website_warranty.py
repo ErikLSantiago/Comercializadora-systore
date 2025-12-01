@@ -154,6 +154,13 @@ class WarrantyWebsiteController(http.Controller):
                 else False,
             }
 
+            # Asociar el partner del usuario logueado para permitir notificaciones nativas
+            partner = user.partner_id
+            if partner:
+                vals["partner_id"] = partner.id
+                if partner.email:
+                    vals["email_from"] = partner.email
+
             # Forzar compañía coherente para evitar errores de empresa/cliente
             if sale_order and sale_order.company_id:
                 vals["company_id"] = sale_order.company_id.id

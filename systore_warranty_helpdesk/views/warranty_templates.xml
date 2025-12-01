@@ -165,7 +165,7 @@
 
                             <!-- Evidencias -->
                             <div class="mb-3">
-                                <label class="form-label">Evidencias</label>
+                                <label class="form-label" style="font-weight:bold; font-size:20px;">Evidencias</label>
                                 <p class="form-text">
                                     Para poder brindarte un mejor servicio, carga las siguientes imágenes actuales del dispositivo:
                                 </p>
@@ -214,7 +214,7 @@
                                        id="terms_accepted"
                                        required="required"/>
                                 <label class="form-check-label" for="terms_accepted">
-                                    He leído los términos y condiciones de las Garantías Marketplace.
+                                    He leído los <a href="/terminos/garantias" target="_blank">términos y condiciones</a> de las Garantías Marketplace.
                                 </label>
                             </div>
 
