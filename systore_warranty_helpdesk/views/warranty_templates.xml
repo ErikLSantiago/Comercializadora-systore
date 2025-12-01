@@ -33,7 +33,7 @@
                         <form id="warranty_request_form" action="" method="post" enctype="multipart/form-data">
                             <input type="hidden" name="csrf_token" t-att-value="request.csrf_token()"/>
 
-                            <h3 class="mb-3">Solicitud de cotización</h3>
+                            <h3 class="mb-3" style="font-size:64px;">Solicitud de garantías</h3>
                             <p class="text-muted mb-3"><small>Solo se reportará un producto por solicitud.</small></p>
 
                             <style>
@@ -72,6 +72,16 @@
                                            required="required"
                                            t-att-value="post.get('manual_order_number', '')"
                                            placeholder="Escribe el número de orden"/>
+                                </div>
+                            </div>
+                            <div class="col-12">
+                                <div class="mb-3">
+                                    <label class="form-label" for="purchase_date">Fecha de compra</label>
+                                    <input type="date"
+                                           name="purchase_date"
+                                           id="purchase_date"
+                                           class="form-control"
+                                           required="required"/>
                                 </div>
                             </div>
                             <div class="col-12">
