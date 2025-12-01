@@ -1,0 +1,38 @@
+<odoo>
+    <record id="view_helpdesk_ticket_form_warranty" model="ir.ui.view">
+        <field name="name">helpdesk.ticket.form.warranty</field>
+        <field name="model">helpdesk.ticket</field>
+        <field name="inherit_id" ref="helpdesk.helpdesk_ticket_view_form"/>
+        <field name="arch" type="xml">
+            <xpath expr="//sheet/notebook" position="inside">
+                <page string="Garantía">
+                    <group>
+                        <field name="is_warranty"/>
+                        <field name="sale_order_id"/>
+                        <field name="product_reported_id"/>
+                    </group>
+                    <group>
+                        <button name="action_update_ticket_name"
+                                type="object"
+                                string="Actualizar ticket"
+                                class="btn-primary"/>
+                    </group>
+                    <group string="Datos cuando no encontró la orden" col="4">
+                        <field name="no_order_found" colspan="4"/>
+                        <group col="2" colspan="4">
+                            <field name="manual_order_number"/>
+                            <field name="manual_product_description"/>
+                        </group>
+                    </group>
+                    <group string="Contacto y falla">
+                        <field name="warranty_phone"/>
+                        <field name="warranty_imei"/>
+                        <field name="failure_type"/>
+                        <field name="failure_type_other"/>
+                        <field name="failure_description"/>
+                    </group>
+                </page>
+            </xpath>
+        </field>
+    </record>
+</odoo>

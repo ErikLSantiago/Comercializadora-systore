@@ -1,0 +1,368 @@
+<odoo>
+    <template id="warranty_request_template" name="Solicitud de garantías">
+        <t t-call="website.layout">
+            <div class="container my-5">
+                <div class="row justify-content-center">
+                    <div class="col-lg-8 col-md-10">
+
+                        <!-- Mensaje superior de login/registro -->
+                        <t t-if="not is_logged_in">
+                            <div class="alert alert-info" role="alert">
+                                Para poder generar tu solicitud de garantía es necesario que crees una cuenta o, si ya tienes una cuenta, inicia sesión aquí.
+                            </div>
+                        </t>
+
+                        <!-- Mensaje de éxito -->
+                        <t t-if="success">
+                            <div class="alert alert-success" role="alert">
+                                Tu solicitud ha sido recibida con el número
+                                <strong><t t-esc="ticket.name"/></strong>.
+                                Podrás consultar el seguimiento de tu garantía en el apartado
+                                <strong>Mi perfil / Mi cuenta / Tickets</strong>.
+                            </div>
+                        </t>
+
+                        <!-- Mensaje de error por términos -->
+                        <t t-if="error_terms">
+                            <div class="alert alert-danger" role="alert">
+                                Debes aceptar los términos y condiciones de las Garantías Marketplace para enviar la solicitud.
+                            </div>
+                        </t>
+
+                        <!-- Formulario -->
+                        <form id="warranty_request_form" action="" method="post" enctype="multipart/form-data">
+                            <input type="hidden" name="csrf_token" t-att-value="request.csrf_token()"/>
+
+                            <h3 class="mb-3">Solicitud de cotización</h3>
+                            <p class="text-muted mb-3"><small>Solo se reportará un producto por solicitud.</small></p>
+
+                            <style>
+                                .evidence-help {
+                                    cursor: pointer;
+                                    position: relative;
+                                    display: inline-block;
+                                }
+                                .evidence-help .evidence-preview {
+                                    display: none;
+                                    position: absolute;
+                                    z-index: 1000;
+                                    background: #ffffff;
+                                    border: 1px solid #ccc;
+                                    padding: 4px;
+                                    border-radius: 4px;
+                                    box-shadow: 0 2px 8px rgba(0,0,0,0.15);
+                                }
+                                .evidence-help:hover .evidence-preview {
+                                    display: block;
+                                }
+                            </style>
+
+
+                                                    <!-- Número de orden y producto (captura manual) -->
+                        <input type="hidden" name="no_order_found" value="1"/>
+
+                        <div class="row g-3 mt-2">
+                            <div class="col-12">
+                                <div class="mb-3">
+                                    <label class="form-label" for="manual_order_number">Número de pedido</label>
+                                    <input type="text"
+                                           name="manual_order_number"
+                                           id="manual_order_number"
+                                           class="form-control"
+                                           required="required"
+                                           t-att-value="post.get('manual_order_number', '')"
+                                           placeholder="Escribe el número de orden"/>
+                                </div>
+                            </div>
+                            <div class="col-12">
+                                <div class="mb-3">
+                                    <label class="form-label" for="manual_product_description">Nombre del producto</label>
+                                    <input type="text"
+                                           name="manual_product_description"
+                                           id="manual_product_description"
+                                           class="form-control"
+                                           required="required"
+                                           t-att-value="post.get('manual_product_description', '')"
+                                           placeholder="Escribe la descripción del producto tal como viene en tu orden de venta"/>
+                                    <div class="form-text">
+                                        Escribe la descripción del producto tal como viene en tu orden de venta.
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+<!-- Teléfono -->
+                            <div class="mb-3">
+                                <label class="form-label">Teléfono de contacto</label>
+                                <input type="text"
+                                       name="warranty_phone"
+                                       class="form-control"
+                                       required="required"
+                                       t-att-value="post.get('warranty_phone', '')"/>
+                            </div>
+
+                            <!-- IMEI / Núm. de serie -->
+                            <div class="mb-3">
+                                <label class="form-label">Número de serie o IMEI del dispositivo</label>
+                                <input type="text"
+                                       name="warranty_imei"
+                                       class="form-control"
+                                       required="required"
+                                       t-att-value="post.get('warranty_imei', '')"/>
+                            </div>
+
+                            <!-- Tipo de falla -->
+                            <div class="mb-3">
+                                <label class="form-label">Tipo de falla</label>
+                                <select name="failure_type" id="failure_type" class="form-select" required="required">
+                                    <option value="">-- Selecciona una opción --</option>
+                                    <option value="pantalla"
+                                        t-att-selected="'selected' if post.get('failure_type') == 'pantalla' else None">
+                                        Pantalla
+                                    </option>
+                                    <option value="no_enciende"
+                                        t-att-selected="'selected' if post.get('failure_type') == 'no_enciende' else None">
+                                        No enciende
+                                    </option>
+                                    <option value="carga"
+                                        t-att-selected="'selected' if post.get('failure_type') == 'carga' else None">
+                                        Carga
+                                    </option>
+                                    <option value="otro"
+                                        t-att-selected="'selected' if post.get('failure_type') == 'otro' else None">
+                                        Otro (especifique)
+                                    </option>
+                                </select>
+                            </div>
+
+                            <!-- Otro tipo de falla -->
+                            <div class="mb-3" id="failure_type_other_block" style="display: none;">
+                                <label class="form-label">Otro tipo de falla</label>
+                                <input type="text"
+                                       name="failure_type_other"
+                                       class="form-control"
+                                       t-att-value="post.get('failure_type_other', '')"/>
+                            </div>
+
+                            <!-- Comentarios / descripción de la falla -->
+                            <div class="mb-3">
+                                <label class="form-label">Comentarios o descripción de la falla</label>
+                                <textarea name="failure_description"
+                                          class="form-control"
+                                          required="required"
+                                          rows="4"><t t-esc="post.get('failure_description', '')"/></textarea>
+                            </div>
+
+                            <!-- Evidencias -->
+                            <div class="mb-3">
+                                <label class="form-label">Evidencias</label>
+                                <p class="form-text">
+                                    Para poder brindarte un mejor servicio, carga las siguientes imágenes actuales del dispositivo:
+                                </p>
+
+                                <div class="mb-2">
+                                    Evidencia de la falla: <span title="Sube un video muy breve o imagen donde se muestre la falla del dispositivo" style="cursor: help; color:#198754;">&#9432;</span>
+                                    <input type="file" name="evidence_failure" class="form-control" required="required"/>
+                                </div>
+                                <div class="mb-2">
+                                    Lado lateral izquierda:
+                                    <span class="evidence-help"><i class="fa fa-image text-success ms-1"></i><span class="evidence-preview"><img src="/systore_warranty_helpdesk/static/src/img/evidence_left.png" width="220"/></span></span>
+                                    <input type="file" name="evidence_left" class="form-control" required="required"/>
+                                </div>
+                                <div class="mb-2">
+                                    Lado lateral derecha:
+                                    <span class="evidence-help"><i class="fa fa-image text-success ms-1"></i><span class="evidence-preview"><img src="/systore_warranty_helpdesk/static/src/img/evidence_right.png" width="220"/></span></span>
+                                    <input type="file" name="evidence_right" class="form-control" required="required"/>
+                                </div>
+                                <div class="mb-2">
+                                    Lado superior:
+                                    <span class="evidence-help"><i class="fa fa-image text-success ms-1"></i><span class="evidence-preview"><img src="/systore_warranty_helpdesk/static/src/img/evidence_top.png" width="220"/></span></span>
+                                    <input type="file" name="evidence_top" class="form-control" required="required"/>
+                                </div>
+                                <div class="mb-2">
+                                    Lado inferior:
+                                    <span class="evidence-help"><i class="fa fa-image text-success ms-1"></i><span class="evidence-preview"><img src="/systore_warranty_helpdesk/static/src/img/evidence_bottom.png" width="220"/></span></span>
+                                    <input type="file" name="evidence_bottom" class="form-control" required="required"/>
+                                </div>
+                                <div class="mb-2">
+                                    Frente pantalla:
+                                    <span class="evidence-help"><i class="fa fa-image text-success ms-1"></i><span class="evidence-preview"><img src="/systore_warranty_helpdesk/static/src/img/evidence_front.png" width="220"/></span></span>
+                                    <input type="file" name="evidence_front" class="form-control" required="required"/>
+                                </div>
+                                <div class="mb-2">
+                                    Tapa trasera o parte posterior:
+                                    <span class="evidence-help"><i class="fa fa-image text-success ms-1"></i><span class="evidence-preview"><img src="/systore_warranty_helpdesk/static/src/img/evidence_back.png" width="220"/></span></span>
+                                    <input type="file" name="evidence_back" class="form-control" required="required"/>
+                                </div>
+                            </div>
+
+                            <!-- Check términos -->
+                            <div class="form-check mb-3">
+                                <input class="form-check-input"
+                                       type="checkbox"
+                                       name="terms_accepted"
+                                       id="terms_accepted"
+                                       required="required"/>
+                                <label class="form-check-label" for="terms_accepted">
+                                    He leído los términos y condiciones de las Garantías Marketplace.
+                                </label>
+                            </div>
+
+                            <button type="submit" class="btn btn-primary">
+                                Enviar solicitud de garantía
+                            </button>
+                        </form>
+                    </div>
+                </div>
+            </div>
+
+            <!-- JS para campos condicionales y autocompletado de órdenes/productos -->
+            <script>
+                (function () {
+                    function toggleNoOrderBlock() {
+                        var checkbox = document.getElementById('no_order_found');
+                        var block = document.getElementById('no_order_block');
+                        if (checkbox &amp;&amp; block) {
+                            block.style.display = checkbox.checked ? 'block' : 'none';
+                        }
+                    }
+                    function toggleFailureOther() {
+                        var select = document.getElementById('failure_type');
+                        var block = document.getElementById('failure_type_other_block');
+                        if (select &amp;&amp; block) {
+                            block.style.display = (select.value === 'otro') ? 'block' : 'none';
+                        }
+                    }
+
+                    // Autocompletado de órdenes y carga de productos
+                    function setupOrderAutocomplete() {
+                        var input = document.querySelector('input[name="sale_order_name"]');
+                        var hiddenId = document.getElementById('sale_order_id');
+                        var suggestions = document.getElementById('sale_order_suggestions');
+                        var productSelect = document.querySelector('select[name="product_id"]');
+
+                        if (!input || !hiddenId || !suggestions || !productSelect) {
+                            return;
+                        }
+
+                        function clearSuggestions() {
+                            suggestions.innerHTML = '';
+                        }
+
+                        function clearProducts() {
+                            productSelect.innerHTML = '';
+                            var opt = document.createElement('option');
+                            opt.value = '';
+                            opt.textContent = '-- Selecciona un producto --';
+                            productSelect.appendChild(opt);
+                        }
+
+                        function fetchOrders(term) {
+                            var url = '/garantias/order_search?term=' + encodeURIComponent(term);
+                            return fetch(url, { credentials: 'same-origin' })
+                                .then(function (r) { return r.json(); })
+                                .catch(function () { return []; });
+                        }
+
+                        function fetchProducts(orderId) {
+                            var url = '/garantias/order_products?order_id=' + encodeURIComponent(orderId);
+                            return fetch(url, { credentials: 'same-origin' })
+                                .then(function (r) { return r.json(); })
+                                .catch(function () { return []; });
+                        }
+
+                        function renderSuggestions(items) {
+                            clearSuggestions();
+                            if (!items || !items.length) {
+                                return;
+                            }
+                            items.forEach(function (item) {
+                                var btn = document.createElement('button');
+                                btn.type = 'button';
+                                btn.className = 'list-group-item list-group-item-action';
+                                btn.textContent = item.label || item.name;
+                                btn.dataset.orderId = item.id;
+                                btn.addEventListener('click', function () {
+                                    input.value = item.name;
+                                    hiddenId.value = String(item.id);
+                                    clearSuggestions();
+                                    // Cargar productos de la orden
+                                    clearProducts();
+                                    fetchProducts(item.id).then(function (products) {
+                                        clearProducts();
+                                        products.forEach(function (p) {
+                                            var opt = document.createElement('option');
+                                            opt.value = p.id;
+                                            opt.textContent = p.label || p.name;
+                                            productSelect.appendChild(opt);
+                                        });
+                                    });
+                                });
+                                suggestions.appendChild(btn);
+                            });
+                        }
+
+                        var lastTerm = '';
+                        var debounceTimer = null;
+                        input.addEventListener('input', function () {
+                            var term = (input.value || '').trim();
+                            hiddenId.value = '';
+                            clearProducts();
+                            if (term.length &lt; 6) {
+                                clearSuggestions();
+                                lastTerm = term;
+                                return;
+                            }
+                            if (term === lastTerm) {
+                                return;
+                            }
+                            lastTerm = term;
+                            if (debounceTimer) {
+                                clearTimeout(debounceTimer);
+                            }
+                            debounceTimer = setTimeout(function () {
+                                fetchOrders(term).then(renderSuggestions);
+                            }, 300);
+                        });
+
+                        // Cerrar sugerencias al hacer click fuera
+                        document.addEventListener('click', function (ev) {
+                            if (!suggestions.contains(ev.target) &amp;&amp; ev.target !== input) {
+                                clearSuggestions();
+                            }
+                        });
+                    }
+
+                                        document.addEventListener('DOMContentLoaded', function () {
+                        toggleNoOrderBlock();
+                        toggleFailureOther();
+                        var cb = document.getElementById('no_order_found');
+                        if (cb) {
+                            cb.addEventListener('change', toggleNoOrderBlock);
+                        }
+                        var ft = document.getElementById('failure_type');
+                        if (ft) {
+                            ft.addEventListener('change', toggleFailureOther);
+                        }
+                        setupOrderAutocomplete();
+
+                        // Validación: obligar a seleccionar una orden
+                        var form = document.getElementById('warranty_request_form');
+                        if (form) {
+                            form.addEventListener('submit', function (ev) {
+                                var noOrder = document.getElementById('no_order_found');
+                                var saleOrderId = document.getElementById('sale_order_id');
+                                if (noOrder &amp;&amp; !noOrder.checked &amp;&amp; saleOrderId &amp;&amp; !saleOrderId.value) {
+                                    ev.preventDefault();
+                                    ev.stopPropagation();
+                                    alert('Por favor selecciona una orden de venta de la lista o marca "No encontré mi número de orden".');
+                                }
+                            });
+                        }
+                    });
+
+                })();
+            </script>
+        </t>
+    </template>
+</odoo>

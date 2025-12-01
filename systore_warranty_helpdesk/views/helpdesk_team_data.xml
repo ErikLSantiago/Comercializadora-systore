@@ -1,0 +1,6 @@
+<odoo>
+    <record id="helpdesk_team_warranty" model="helpdesk.team">
+        <field name="name">Garantías</field>
+        <field name="active">True</field>
+    </record>
+</odoo>
