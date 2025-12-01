@@ -158,8 +158,6 @@ class WarrantyWebsiteController(http.Controller):
             partner = user.partner_id
             if partner:
                 vals["partner_id"] = partner.id
-                if partner.email:
-                    vals["email_from"] = partner.email
 
             # Forzar compañía coherente para evitar errores de empresa/cliente
             if sale_order and sale_order.company_id:
