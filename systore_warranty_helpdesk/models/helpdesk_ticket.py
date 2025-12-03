@@ -40,6 +40,7 @@ class HelpdeskTicket(models.Model):
         "sale.order",
         string="Orden de venta",
         help="Orden de venta asociada a la garantía.",
+        domain=[],
     )
     product_id = fields.Many2one(
         "product.product",
