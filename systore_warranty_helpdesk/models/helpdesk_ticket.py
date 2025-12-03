@@ -68,12 +68,13 @@ class HelpdeskTicket(models.Model):
 
     failure_type = fields.Selection(
         [
-            ("fabrication", "Falla de fabricación"),
-            ("usage", "Falla por uso"),
-            ("unknown", "Falla no especificada"),
+            ("pantalla", "Pantalla"),
+            ("no_enciende", "No enciende"),
+            ("carga", "Carga"),
+            ("otro", "Otro (especifique)"),
         ],
         string="Tipo de falla",
-        help="Tipo de falla reportada en la solicitud de garantía.",
+        help="Tipo de falla reportada en la solicitud de garantía desde el formulario web.",
     )
 
     failure_type_other = fields.Char(
