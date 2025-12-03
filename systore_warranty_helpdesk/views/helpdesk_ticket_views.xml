@@ -35,4 +35,27 @@
             </xpath>
         </field>
     </record>
+
+    <record id="view_helpdesk_ticket_form_warranty_header" model="ir.ui.view">
+        <field name="name">helpdesk.ticket.form.warranty.header</field>
+        <field name="model">helpdesk.ticket</field>
+        <field name="inherit_id" ref="helpdesk.helpdesk_ticket_view_form"/>
+        <field name="arch" type="xml">
+            <xpath expr="//sheet/group" position="after">
+                <group>
+                    <group>
+                        <field name="x_studio_canal_de_venta_1" string="Canal de venta"/>
+                        <field name="x_studio_nmero_de_orden_mkp" string="Orden de venta"/>
+                        <field name="x_studio_fecha_orden_producteca" string="Fecha de venta"/>
+                    </group>
+                    <group>
+                        <field name="warranty_tracking_number"/>
+                        <field name="warranty_carrier_name"/>
+                        <field name="warranty_account_number"/>
+                    </group>
+                </group>
+            </xpath>
+        </field>
+    </record>
+
 </odoo>
