@@ -5,6 +5,14 @@ class HelpdeskTicket(models.Model):
     _inherit = "helpdesk.ticket"
 
     is_warranty = fields.Boolean(string="Solicitud de garantía", default=False)
+    warranty_state = fields.Char(string="Estado")
+    warranty_city = fields.Char(string="Municipio")
+    warranty_district = fields.Char(string="Colonia")
+    warranty_zip = fields.Char(string="Código Postal")
+    warranty_street = fields.Char(string="Calle")
+    warranty_street_number = fields.Char(string="Número")
+    warranty_references = fields.Text(string="Referencias")
+
 
     no_order_found = fields.Boolean(
         string="Sin orden encontrada",

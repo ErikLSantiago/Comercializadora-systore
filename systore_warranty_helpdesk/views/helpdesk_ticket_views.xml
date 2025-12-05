@@ -31,6 +31,15 @@
                         <field name="failure_type_other"/>
                         <field name="failure_description"/>
                     </group>
+                    <group string="Domicilio de retorno">
+                        <field name="warranty_state"/>
+                        <field name="warranty_city"/>
+                        <field name="warranty_district"/>
+                        <field name="warranty_zip"/>
+                        <field name="warranty_street"/>
+                        <field name="warranty_street_number"/>
+                        <field name="warranty_references"/>
+                    </group>
                 </page>
             </xpath>
         </field>

@@ -369,3 +369,63 @@ class WarrantyWebsiteController(http.Controller):
         return request.make_response(
             body, headers=[("Content-Type", "application/json")]
         )
+
+    @http.route(
+        ["/garantias/actualizar-guia/<int:ticket_id>"],
+        type="http",
+        auth="public",
+        website=True,
+        methods=["GET", "POST"],
+    )
+    def warranty_update_address(self, ticket_id, **post):
+        """Formulario complementario para actualizar domicilio de envío de garantía."""
+        user = request.env.user
+        is_logged_in = not user._is_public()
+
+        if not is_logged_in:
+            return request.redirect("/web/login?redirect=/helpdesk/ticket/%s" % ticket_id)
+
+        HelpdeskTicket = request.env["helpdesk.ticket"].sudo()
+        ticket = HelpdeskTicket.browse(ticket_id)
+        if not ticket.exists():
+            return request.not_found()
+
+        # Validar que el usuario tenga acceso al ticket (mismo partner en portal)
+        if user._is_public():
+            return request.not_found()
+        if (not user.has_group("base.group_system")
+                and not user.has_group("helpdesk.group_helpdesk_user")):
+            partner = user.partner_id
+            if ticket.partner_id and ticket.partner_id != partner:
+                return request.not_found()
+
+        values = {
+            "ticket": ticket,
+            "is_logged_in": is_logged_in,
+            "success": False,
+        }
+
+        if request.httprequest.method == "POST":
+            vals = {
+                "warranty_state": post.get("warranty_state"),
+                "warranty_city": post.get("warranty_city"),
+                "warranty_district": post.get("warranty_district"),
+                "warranty_zip": post.get("warranty_zip"),
+                "warranty_street": post.get("warranty_street"),
+                "warranty_street_number": post.get("warranty_street_number"),
+                "warranty_references": post.get("warranty_references"),
+            }
+            ticket.write(vals)
+
+            # Cambiar etapa automáticamente a "Guias pendientes" si existe
+            HelpdeskStage = request.env["helpdesk.stage"].sudo()
+            pending_stage = HelpdeskStage.search([("name", "=", "Guias pendientes")], limit=1)
+            if pending_stage:
+                ticket.stage_id = pending_stage.id
+
+            values["success"] = True
+
+        return request.render(
+            "systore_warranty_helpdesk.warranty_update_address_template",
+            values,
+        )

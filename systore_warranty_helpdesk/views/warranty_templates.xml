@@ -19,7 +19,9 @@
                                 <strong><t t-esc="ticket.name"/></strong>.
                                 Podrás consultar el seguimiento de tu garantía en el apartado
                                 <strong>Mi perfil / Mi cuenta / Tickets</strong>.
-                            </div>
+                        
+                            
+    </div>
                         </t>
 
                         <!-- Mensaje de error por términos -->
@@ -71,7 +73,7 @@
                                            class="form-control"
                                            required="required"
                                            t-att-value="post.get('manual_order_number', '')"
-                                           placeholder="Escribe el número de orden"/>
+                                           placeholder="Escribe el número de pedido"/>
                                 </div>
                             </div>
                             <div class="col-12">
@@ -93,10 +95,7 @@
                                            class="form-control"
                                            required="required"
                                            t-att-value="post.get('manual_product_description', '')"
-                                           placeholder="Escribe la descripción del producto tal como viene en tu orden de venta"/>
-                                    <div class="form-text">
-                                        Escribe la descripción del producto tal como viene en tu orden de venta.
-                                    </div>
+                                           placeholder="Escribe la descripción del producto tal como viene en tu pedido"/>
                                 </div>
                             </div>
                         </div>
@@ -375,4 +374,114 @@
             </script>
         </t>
     </template>
+
+<template id="warranty_update_address_template" name="Captura tus datos para la guía de retorno del equipo">
+    <t t-call="website.layout">
+        <div class="container my-5">
+            <div class="row justify-content-center">
+                <div class="col-lg-8 col-md-10">
+                    <t t-if="success">
+                        <div class="alert alert-success" role="alert">
+                            ¡Recibimos tus datos! En breve recibirás una guía en formato PDF que podrás imprimir y colocar en el paquete para enviarlo a nuestras instalaciones
+                        </div>
+                    </t>
+                    <h1 class="mb-4">Captura tus datos para la guía de retorno del equipo</h1>
+                    <form method="post" action="">
+                        <input type="hidden" name="csrf_token" t-att-value="request.csrf_token()"/>
+                        <div class="mb-3">
+                            <label class="form-label">Estado</label>
+                            <select class="form-select" name="warranty_state" required="required">
+                                <option value="">Selecciona un estado</option>
+                                <option value="Aguascalientes" t-att-selected="'selected' if ticket.warranty_state == 'Aguascalientes' else None">Aguascalientes</option>
+                                <option value="Baja California" t-att-selected="'selected' if ticket.warranty_state == 'Baja California' else None">Baja California</option>
+                                <option value="Baja California Sur" t-att-selected="'selected' if ticket.warranty_state == 'Baja California Sur' else None">Baja California Sur</option>
+                                <option value="Campeche" t-att-selected="'selected' if ticket.warranty_state == 'Campeche' else None">Campeche</option>
+                                <option value="Coahuila" t-att-selected="'selected' if ticket.warranty_state == 'Coahuila' else None">Coahuila</option>
+                                <option value="Colima" t-att-selected="'selected' if ticket.warranty_state == 'Colima' else None">Colima</option>
+                                <option value="Chiapas" t-att-selected="'selected' if ticket.warranty_state == 'Chiapas' else None">Chiapas</option>
+                                <option value="Chihuahua" t-att-selected="'selected' if ticket.warranty_state == 'Chihuahua' else None">Chihuahua</option>
+                                <option value="Ciudad de México" t-att-selected="'selected' if ticket.warranty_state == 'Ciudad de México' else None">Ciudad de México</option>
+                                <option value="Durango" t-att-selected="'selected' if ticket.warranty_state == 'Durango' else None">Durango</option>
+                                <option value="Guanajuato" t-att-selected="'selected' if ticket.warranty_state == 'Guanajuato' else None">Guanajuato</option>
+                                <option value="Guerrero" t-att-selected="'selected' if ticket.warranty_state == 'Guerrero' else None">Guerrero</option>
+                                <option value="Hidalgo" t-att-selected="'selected' if ticket.warranty_state == 'Hidalgo' else None">Hidalgo</option>
+                                <option value="Jalisco" t-att-selected="'selected' if ticket.warranty_state == 'Jalisco' else None">Jalisco</option>
+                                <option value="México" t-att-selected="'selected' if ticket.warranty_state == 'México' else None">México</option>
+                                <option value="Michoacán" t-att-selected="'selected' if ticket.warranty_state == 'Michoacán' else None">Michoacán</option>
+                                <option value="Morelos" t-att-selected="'selected' if ticket.warranty_state == 'Morelos' else None">Morelos</option>
+                                <option value="Nayarit" t-att-selected="'selected' if ticket.warranty_state == 'Nayarit' else None">Nayarit</option>
+                                <option value="Nuevo León" t-att-selected="'selected' if ticket.warranty_state == 'Nuevo León' else None">Nuevo León</option>
+                                <option value="Oaxaca" t-att-selected="'selected' if ticket.warranty_state == 'Oaxaca' else None">Oaxaca</option>
+                                <option value="Puebla" t-att-selected="'selected' if ticket.warranty_state == 'Puebla' else None">Puebla</option>
+                                <option value="Querétaro" t-att-selected="'selected' if ticket.warranty_state == 'Querétaro' else None">Querétaro</option>
+                                <option value="Quintana Roo" t-att-selected="'selected' if ticket.warranty_state == 'Quintana Roo' else None">Quintana Roo</option>
+                                <option value="San Luis Potosí" t-att-selected="'selected' if ticket.warranty_state == 'San Luis Potosí' else None">San Luis Potosí</option>
+                                <option value="Sinaloa" t-att-selected="'selected' if ticket.warranty_state == 'Sinaloa' else None">Sinaloa</option>
+                                <option value="Sonora" t-att-selected="'selected' if ticket.warranty_state == 'Sonora' else None">Sonora</option>
+                                <option value="Tabasco" t-att-selected="'selected' if ticket.warranty_state == 'Tabasco' else None">Tabasco</option>
+                                <option value="Tamaulipas" t-att-selected="'selected' if ticket.warranty_state == 'Tamaulipas' else None">Tamaulipas</option>
+                                <option value="Tlaxcala" t-att-selected="'selected' if ticket.warranty_state == 'Tlaxcala' else None">Tlaxcala</option>
+                                <option value="Veracruz" t-att-selected="'selected' if ticket.warranty_state == 'Veracruz' else None">Veracruz</option>
+                                <option value="Yucatán" t-att-selected="'selected' if ticket.warranty_state == 'Yucatán' else None">Yucatán</option>
+                                <option value="Zacatecas" t-att-selected="'selected' if ticket.warranty_state == 'Zacatecas' else None">Zacatecas</option>
+                            </select>
+                        </div>
+                        <div class="mb-3">
+                            <label class="form-label">Municipio</label>
+                            <input type="text" class="form-control" name="warranty_city"
+                                   t-att-value="ticket.warranty_city or ''" required="required"/>
+                        </div>
+                        <div class="mb-3">
+                            <label class="form-label">Colonia</label>
+                            <input type="text" class="form-control" name="warranty_district"
+                                   t-att-value="ticket.warranty_district or ''" required="required"/>
+                        </div>
+                        <div class="mb-3">
+                            <label class="form-label">Código Postal</label>
+                            <input type="text" class="form-control" name="warranty_zip"
+                                   t-att-value="ticket.warranty_zip or ''" required="required"/>
+                        </div>
+                        <div class="mb-3">
+                            <label class="form-label">Calle</label>
+                            <input type="text" class="form-control" name="warranty_street"
+                                   t-att-value="ticket.warranty_street or ''" required="required"/>
+                        </div>
+                        <div class="mb-3">
+                            <label class="form-label">Número</label>
+                            <input type="text" class="form-control" name="warranty_street_number"
+                                   t-att-value="ticket.warranty_street_number or ''"
+                                   placeholder='Ej. 123 o "Sin número"'
+                                   required="required"/>
+                            <small class="form-text text-muted">
+                                En caso de no tener número, coloca la frase "Sin número".
+                            </small>
+                        </div>
+                        <div class="mb-3">
+                            <label class="form-label">Referencias</label>
+                            <textarea class="form-control" name="warranty_references"
+                                      rows="3" required="required"><t t-esc="ticket.warranty_references or ''"/></textarea>
+                        </div>
+                        <button type="submit" class="btn btn-primary">Guardar datos</button>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </t>
+</template>
+
+<template id="warranty_portal_ticket_update_address"
+          inherit_id="helpdesk.tickets_followup"
+          name="Botón actualizar guía en ticket portal">
+    <xpath expr="//div[@id='card_header']" position="after">
+        <t t-if="ticket and ticket.is_warranty and ticket.stage_id and ticket.stage_id.name == 'Solicitud guia'">
+            <div class="container mt-3 mb-3">
+                <a t-att-href="'/garantias/actualizar-guia/%s' % ticket.id"
+                   class="btn btn-primary">
+                    Datos para la generación de guía
+                </a>
+            </div>
+        </t>
+    </xpath>
+</template>
+
 </odoo>
