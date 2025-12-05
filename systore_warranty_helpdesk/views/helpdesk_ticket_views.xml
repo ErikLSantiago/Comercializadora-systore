@@ -61,6 +61,7 @@
                         <field name="warranty_tracking_number"/>
                         <field name="warranty_carrier_name"/>
                         <field name="warranty_account_number"/>
+                        <field name="warranty_attachments" filename="warranty_attachments_filename"/>
                     </group>
                 </group>
             </xpath>

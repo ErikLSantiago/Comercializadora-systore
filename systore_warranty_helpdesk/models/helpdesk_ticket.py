@@ -110,6 +110,17 @@ class HelpdeskTicket(models.Model):
     )
 
 
+    warranty_attachments = fields.Binary(
+        string="Adjuntos",
+        attachment=True,
+        help="Archivo adjunto relacionado con el dictamen u otros documentos de la garantía.",
+    )
+    warranty_attachments_filename = fields.Char(
+        string="Nombre de archivo adjunto",
+        help="Nombre del archivo cargado en el campo Adjuntos.",
+    )
+
+
 
     @api.onchange("sale_order_id")
     def _onchange_sale_order_id_sync_header_fields(self):
