@@ -10,29 +10,28 @@ template = env['mail.template'].search([
     ('model', '=', 'helpdesk.ticket'),
     ('name', '=', 'Soporte al cliente: Ticket de garantía en proceso (Dictamen)')
 ], limit=1)
-if not template:
-    return
 
-for ticket in records:
-    if (
-        ticket.stage_id
-        and ticket.stage_id.name == 'Dictamen'
-        and ticket.warranty_attachments
-        and ticket.partner_id
-        and ticket.partner_id.email
-    ):
-        mail_id = template.send_mail(ticket.id, force_send=False)
-        if not mail_id:
-            continue
-        mail = env['mail.mail'].browse(mail_id)
-        env['ir.attachment'].create({
-            'name': ticket.warranty_attachments_filename or 'dictamen.pdf',
-            'datas': ticket.warranty_attachments,
-            'res_model': 'mail.mail',
-            'res_id': mail.id,
-            'type': 'binary',
-        })
-        mail.send()
+if template:
+    for ticket in records:
+        if (
+            ticket.stage_id
+            and ticket.stage_id.name == 'Dictamen'
+            and ticket.warranty_attachments
+            and ticket.partner_id
+            and ticket.partner_id.email
+        ):
+            mail_id = template.send_mail(ticket.id, force_send=False)
+            if not mail_id:
+                continue
+            mail = env['mail.mail'].browse(mail_id)
+            env['ir.attachment'].create({
+                'name': ticket.warranty_attachments_filename or 'dictamen.pdf',
+                'datas': ticket.warranty_attachments,
+                'res_model': 'mail.mail',
+                'res_id': mail.id,
+                'type': 'binary',
+            })
+            mail.send()
         ]]></field>
     </record>
 
