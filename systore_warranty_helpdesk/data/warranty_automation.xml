@@ -1,12 +1,10 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <odoo>
-    <record id="warranty_helpdesk_dictamen_auto_email" model="base.automation">
-        <field name="name">Garantías - Enviar correo de dictamen (retorno a cliente)</field>
+    <!-- Acción de servidor que envía el correo con adjunto -->
+    <record id="ir_actions_server_warranty_dictamen_email" model="ir.actions.server">
+        <field name="name">Enviar correo de dictamen (garantía)</field>
         <field name="model_id" ref="helpdesk.model_helpdesk_ticket"/>
         <field name="state">code</field>
-        <field name="trigger">on_write</field>
-        <field name="active">True</field>
-        <field name="filter_domain">[('stage_id.name', '=', 'Dictamen')]</field>
         <field name="code"><![CDATA[
 template = env['mail.template'].search([
     ('model', '=', 'helpdesk.ticket'),
@@ -36,5 +34,15 @@ for ticket in records:
         })
         mail.send()
         ]]></field>
+    </record>
+
+    <!-- Automatización que dispara la acción de servidor al cambiar a Dictamen -->
+    <record id="warranty_helpdesk_dictamen_auto_email" model="base.automation">
+        <field name="name">Garantías - Enviar correo de dictamen (retorno a cliente)</field>
+        <field name="model_id" ref="helpdesk.model_helpdesk_ticket"/>
+        <field name="trigger">on_write</field>
+        <field name="active">True</field>
+        <field name="filter_domain">[('stage_id.name', '=', 'Dictamen')]</field>
+        <field name="action_server_id" ref="systore_warranty_helpdesk.ir_actions_server_warranty_dictamen_email"/>
     </record>
 </odoo>
