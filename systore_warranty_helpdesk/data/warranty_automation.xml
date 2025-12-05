@@ -1,0 +1,40 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<odoo>
+    <record id="warranty_helpdesk_dictamen_auto_email" model="base.automation">
+        <field name="name">Garantías - Enviar correo de dictamen (retorno a cliente)</field>
+        <field name="model_id" ref="helpdesk.model_helpdesk_ticket"/>
+        <field name="state">code</field>
+        <field name="trigger">on_write</field>
+        <field name="active">True</field>
+        <field name="filter_domain">[('stage_id.name', '=', 'Dictamen')]</field>
+        <field name="code"><![CDATA[
+template = env['mail.template'].search([
+    ('model', '=', 'helpdesk.ticket'),
+    ('name', '=', 'Soporte al cliente: Ticket de garantía en proceso (Dictamen)')
+], limit=1)
+if not template:
+    return
+
+for ticket in records:
+    if (
+        ticket.stage_id
+        and ticket.stage_id.name == 'Dictamen'
+        and ticket.warranty_attachments
+        and ticket.partner_id
+        and ticket.partner_id.email
+    ):
+        mail_id = template.send_mail(ticket.id, force_send=False)
+        if not mail_id:
+            continue
+        mail = env['mail.mail'].browse(mail_id)
+        env['ir.attachment'].create({
+            'name': ticket.warranty_attachments_filename or 'dictamen.pdf',
+            'datas': ticket.warranty_attachments,
+            'res_model': 'mail.mail',
+            'res_id': mail.id,
+            'type': 'binary',
+        })
+        mail.send()
+        ]]></field>
+    </record>
+</odoo>
