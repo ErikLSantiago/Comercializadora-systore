@@ -180,28 +180,32 @@ class HelpdeskTicket(models.Model):
 
 
     
+    
     def rename_ticket_with_order_and_product(self):
         """Renombra el ticket usando:
             - Prefijo original del ticket (antes del primer " - ")
-            - Orden de venta (sale_order_id.name), si existe
+            - Orden de venta corta (x_studio_nmero_de_orden_mkp), si existe
+            - Si no hay orden corta, usa sale_order_id.name
             - Descripción del producto, si existe
 
             Formato final:
                 Prefijo - OrdenDeVenta - DescripciónProducto
-
-            Esto permite reemplazar la antigua "Referencia de orden de venta"
-            por el valor real de la Orden de venta, evitando que se acumulen
-            números de orden viejos en el nombre.
         """
         for ticket in self:
             # Tomar solo el prefijo antes del primer " - " para no ir
             # acumulando nombres previos (ej. "Ticket-21 - ...").
-            base_name = (ticket.name or "").split(" - ")[0]
+            base_name = (ticket.name or "").split(" - ", 1)[0]
 
-            # Usar siempre la Orden de venta Many2one.
-            order_name = ticket.sale_order_id.name or ""
+            # 1) Intentar usar siempre la Orden de venta corta de Studio.
+            order_name = ""
+            if "x_studio_nmero_de_orden_mkp" in ticket._fields:
+                order_name = (ticket.x_studio_nmero_de_orden_mkp or "").strip()
 
-            # Priorizar la nueva descripción de producto.
+            # 2) Si no hay número corto, caer al nombre de la orden Many2one.
+            if not order_name and ticket.sale_order_id:
+                order_name = (ticket.sale_order_id.name or "").strip()
+
+            # 3) Obtener la descripción del producto.
             if ticket.warranty_product_description:
                 product_name = ticket.warranty_product_description
             elif hasattr(ticket, "product_reported_id") and ticket.product_reported_id:
