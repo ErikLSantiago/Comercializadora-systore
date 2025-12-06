@@ -9,7 +9,8 @@
                     <group>
                         <field name="is_warranty"/>
                         <field name="sale_order_id"/>
-                        <field name="product_reported_id"/>
+                                                <field name="product_reported_id"/>
+                        <field name="warranty_product_description"/>
                     </group>
                     <group>
                         <button name="action_update_ticket_name"

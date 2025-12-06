@@ -62,6 +62,14 @@ class HelpdeskTicket(models.Model):
         help="Producto reportado en la garantía.",
     )
 
+    warranty_product_description = fields.Char(
+        string="Descripción del producto",
+        help="Nombre del producto (plantilla) asociado al Producto reportado.",
+        compute="_compute_warranty_product_description",
+        store=True,
+        readonly=True,
+    )
+
 
     warranty_phone = fields.Char(
         string="Teléfono (garantía)",
@@ -122,6 +130,19 @@ class HelpdeskTicket(models.Model):
 
 
 
+
+    @api.depends("product_reported_id")
+    def _compute_warranty_product_description(self):
+        for ticket in self:
+            if ticket.product_reported_id:
+                product_tmpl = ticket.product_reported_id.product_tmpl_id
+                ticket.warranty_product_description = (
+                    product_tmpl.name or ticket.product_reported_id.display_name
+                )
+            else:
+                ticket.warranty_product_description = False
+
+
     @api.onchange("sale_order_id")
     def _onchange_sale_order_id_sync_header_fields(self):
         """Cuando se selecciona una orden de venta en la pestaña Garantía,
@@ -158,19 +179,36 @@ class HelpdeskTicket(models.Model):
                 ticket.x_studio_fecha_orden_producteca = sale_order.x_studio_fecha_orden_producteca
 
 
+    
+    
     def rename_ticket_with_order_and_product(self):
         """Renombra el ticket usando:
-            - Nombre original del ticket
-            - Número de orden de venta (si existe)
-            - Nombre del producto (si existe)
+            - Prefijo original del ticket (antes del primer " - ")
+            - Orden de venta corta (x_studio_nmero_de_orden_mkp), si existe
+            - Si no hay orden corta, usa sale_order_id.name
+            - Descripción del producto, si existe
 
-            Formato:
-                NombreOriginal - Orden - Producto
+            Formato final:
+                Prefijo - OrdenDeVenta - DescripciónProducto
         """
         for ticket in self:
-            base_name = ticket.name or ""
-            order_name = ticket.sale_order_id.name or ""
-            if hasattr(ticket, "product_reported_id") and ticket.product_reported_id:
+            # Tomar solo el prefijo antes del primer " - " para no ir
+            # acumulando nombres previos (ej. "Ticket-21 - ...").
+            base_name = (ticket.name or "").split(" - ", 1)[0]
+
+            # 1) Intentar usar siempre la Orden de venta corta de Studio.
+            order_name = ""
+            if "x_studio_nmero_de_orden_mkp" in ticket._fields:
+                order_name = (ticket.x_studio_nmero_de_orden_mkp or "").strip()
+
+            # 2) Si no hay número corto, caer al nombre de la orden Many2one.
+            if not order_name and ticket.sale_order_id:
+                order_name = (ticket.sale_order_id.name or "").strip()
+
+            # 3) Obtener la descripción del producto.
+            if ticket.warranty_product_description:
+                product_name = ticket.warranty_product_description
+            elif hasattr(ticket, "product_reported_id") and ticket.product_reported_id:
                 product_name = ticket.product_reported_id.display_name
             else:
                 product_name = (
