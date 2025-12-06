@@ -62,6 +62,14 @@ class HelpdeskTicket(models.Model):
         help="Producto reportado en la garantía.",
     )
 
+    warranty_product_description = fields.Char(
+        string="Descripción del producto",
+        help="Nombre del producto (plantilla) asociado al Producto reportado.",
+        compute="_compute_warranty_product_description",
+        store=True,
+        readonly=True,
+    )
+
 
     warranty_phone = fields.Char(
         string="Teléfono (garantía)",
@@ -122,6 +130,19 @@ class HelpdeskTicket(models.Model):
 
 
 
+
+    @api.depends("product_reported_id")
+    def _compute_warranty_product_description(self):
+        for ticket in self:
+            if ticket.product_reported_id:
+                product_tmpl = ticket.product_reported_id.product_tmpl_id
+                ticket.warranty_product_description = (
+                    product_tmpl.name or ticket.product_reported_id.display_name
+                )
+            else:
+                ticket.warranty_product_description = False
+
+
     @api.onchange("sale_order_id")
     def _onchange_sale_order_id_sync_header_fields(self):
         """Cuando se selecciona una orden de venta en la pestaña Garantía,
@@ -170,7 +191,9 @@ class HelpdeskTicket(models.Model):
         for ticket in self:
             base_name = ticket.name or ""
             order_name = ticket.sale_order_id.name or ""
-            if hasattr(ticket, "product_reported_id") and ticket.product_reported_id:
+            if ticket.warranty_product_description:
+                product_name = ticket.warranty_product_description
+            elif hasattr(ticket, "product_reported_id") and ticket.product_reported_id:
                 product_name = ticket.product_reported_id.display_name
             else:
                 product_name = (
