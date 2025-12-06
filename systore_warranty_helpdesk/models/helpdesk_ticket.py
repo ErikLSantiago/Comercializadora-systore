@@ -217,7 +217,7 @@ class HelpdeskTicket(models.Model):
             ticket.name = " - ".join(parts)
         return True
 
-def action_update_ticket_name(self):
+    def action_update_ticket_name(self):
         """Acción llamada desde el botón 'Actualizar ticket' en la vista.
 
         Simplemente delega en rename_ticket_with_order_and_product.
