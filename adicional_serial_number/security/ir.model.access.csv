@@ -4,3 +4,4 @@ access_serial_capture_wizard_user,serial.capture.wizard.user,model_serial_captur
 access_adicional_sn_about,adicional.sn.about,model_adicional_sn_about,base.group_user,1,0,0,0
 access_stock_picking_read_internal,stock.picking.read.internal,model_stock_picking,base.group_user,1,0,0,0
 access_stock_move_line_read_internal,stock.move.line.read.internal,model_stock_move_line,base.group_user,1,0,0,0
+access_ir_actions_act_window_read_internal,ir.actions.act_window.read.internal,model_ir_actions_act_window,base.group_user,1,0,0,0
