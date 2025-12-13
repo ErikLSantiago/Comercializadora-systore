@@ -33,6 +33,7 @@ class StockMoveLineSerial(models.Model):
                 val = False
             rec.carrier_tracking_ref = val
 
+    # Bloquear edición si picking validado/cancelado
     def _check_editable_state(self):
         for rec in self:
             if rec.picking_id and rec.picking_id.state in ('done', 'cancel'):
