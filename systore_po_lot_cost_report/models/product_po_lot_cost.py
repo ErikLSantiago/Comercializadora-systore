@@ -155,6 +155,10 @@ class ProductTemplate(models.Model):
 
             company = self.env.company
 
+            # Limpiar líneas previas para evitar duplicados/histórico en cada actualización
+            self.po_lot_cost_line_ids.sudo().unlink()
+            self.po_lot_cost_wh_summary_ids.sudo().unlink()
+
             Quant = self.env["stock.quant"].sudo()
             POLine = self.env["purchase.order.line"].sudo()
             PO = self.env["purchase.order"].sudo()
