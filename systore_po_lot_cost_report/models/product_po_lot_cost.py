@@ -23,6 +23,7 @@ class ProductPoLotCostLine(models.Model):
     date_order = fields.Datetime(string="Fecha OC", index=True)
 
     qty_available = fields.Float(string="Cantidad disponible", digits="Product Unit of Measure")
+    reserved_qty = fields.Float(string=\"Reservadas\", digits=\"Product Unit of Measure\", readonly=True)
     uom_id = fields.Many2one("uom.uom", string="UdM", readonly=True)
 
     currency_id = fields.Many2one("res.currency", string="Moneda", readonly=True)
