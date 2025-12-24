@@ -159,6 +159,7 @@ class ProductTemplate(models.Model):
             POLine = self.env["purchase.order.line"].sudo()
             PO = self.env["purchase.order"].sudo()
 
+
             domain = [
                 ("product_id", "in", self.product_variant_ids.ids),
                 ("company_id", "in", [company.id, False]),
@@ -205,6 +206,49 @@ class ProductTemplate(models.Model):
                 bucket['reserved'] += reserved
             Warehouse = self.env['stock.warehouse'].sudo()
             wh_cache_local = {}
+
+            # Complemento: Reservadas por lote/ubicación usando stock.move.line (más consistente con "Actualizar cantidad")
+            MoveLine = self.env['stock.move.line'].sudo()
+            reserved_map = {}  # (product_id, lot_id, location_id, warehouse_id) -> reserved_qty
+            # Dominio: movimientos con reserva en ubicaciones internas y de tránsito
+            ml_domain = [
+                ('product_id', 'in', self.product_variant_ids.ids),
+                ('state', 'in', ['assigned', 'partially_available']),
+                ('company_id', 'in', [company.id, False]),
+                ('location_id.usage', 'in', ['internal', 'transit']),
+            ]
+            move_lines = MoveLine.search(ml_domain)
+            # En v18 normalmente existe reserved_uom_qty; si no, aproximamos con product_uom_qty - qty_done
+            use_reserved_uom_qty = 'reserved_uom_qty' in MoveLine._fields
+            for ml in move_lines:
+                try:
+                    rqty = ml.reserved_uom_qty if use_reserved_uom_qty else ((ml.product_uom_qty or 0.0) - (ml.qty_done or 0.0))
+                except Exception:
+                    rqty = 0.0
+                if not rqty:
+                    continue
+                loc = ml.location_id
+                location_id = loc.id if loc else False
+                # warehouse por ubicación
+                wh = False
+                if location_id:
+                    if location_id in wh_cache_local:
+                        wh = wh_cache_local[location_id]
+                    else:
+                        wh = self._get_warehouse_from_location(loc, company, Warehouse)
+                        wh_cache_local[location_id] = wh
+                warehouse_id = wh.id if wh else False
+                key = (ml.product_id.id, ml.lot_id.id if ml.lot_id else False, location_id or False, warehouse_id or False)
+                reserved_map[key] = reserved_map.get(key, 0.0) + rqty
+
+            # Mezclamos las reservadas del mapa al qty_map (manteniendo qty físico de quants)
+            for key, rqty in reserved_map.items():
+                bucket = qty_map.get(key)
+                if not bucket:
+                    # Si no existe bucket (por ejemplo reserva en ubicación sin quant), creamos bucket con qty=0
+                    bucket = {'qty': 0.0, 'reserved': 0.0}
+                    qty_map[key] = bucket
+                bucket['reserved'] = (bucket.get('reserved') or 0.0) + rqty
             for (product_id, lot_id, location_id, warehouse_id), bq in qty_map.items():
                 qty = bq.get('qty', 0.0)
                 reserved = bq.get('reserved', 0.0)
@@ -259,6 +303,7 @@ class ProductTemplate(models.Model):
                     "vendor_id": vendor.id if vendor else False,
                     "date_order": date_order,
                     "qty_available": qty,
+                    "reserved_qty": reserved,
                     "uom_id": product.uom_id.id,
                     "currency_id": currency.id if currency else company.currency_id.id,
                     "price_unit": price_unit,
