@@ -54,8 +54,8 @@ class ProductPoLotCostWarehouseSummary(models.Model):
 
     warehouse_id = fields.Many2one("stock.warehouse", string="Almacén", index=True)
     warehouse_name = fields.Char(string="Almacén", readonly=True)
+    reserved_total = fields.Float(string="Reservadas", digits="Product Unit of Measure")
     qty_total = fields.Float(string="Total piezas", digits="Product Unit of Measure")
-    reserved_qty_total = fields.Float(string="Reservadas", digits="Product Unit of Measure")
     currency_id = fields.Many2one("res.currency", string="Moneda", readonly=True)
     value_total = fields.Monetary(string="Valor total", currency_field="currency_id")
     avg_cost = fields.Monetary(string="Costo promedio", currency_field="currency_id",
@@ -140,7 +140,7 @@ class ProductTemplate(models.Model):
         # Obtener quants internos (cantidad física) y agregarlos por producto+lote
         quants = Quant.search(domain)
 
-        qty_map = {}  # (product_id, lot_id, location_id, warehouse_id) -> qty_sum
+        qty_map = {}  # (product_id, lot_id, location_id, warehouse_id) -> {'qty': x, 'reserved': y}
         Warehouse = self.env['stock.warehouse'].sudo()
         wh_cache_local = {}
         for q in quants:
@@ -181,7 +181,12 @@ class ProductTemplate(models.Model):
             wh_id = wh.id if wh else False
 
             key = (q.product_id.id, q.lot_id.id if q.lot_id else False, q.location_id.id, wh_id)
-            qty_map[key] = qty_map.get(key, 0.0) + (q.quantity or 0.0)
+            bucket = qty_map.get(key)
+            if not bucket:
+                bucket = {'qty': 0.0, 'reserved': 0.0}
+                qty_map[key] = bucket
+            bucket['qty'] += (q.quantity or 0.0)
+            bucket['reserved'] += (q.reserved_quantity or 0.0)
 
         # Limpiar líneas previas
         self.po_lot_cost_line_ids.sudo().unlink()
@@ -201,12 +206,15 @@ class ProductTemplate(models.Model):
                     'location_id': False,
                     'warehouse_id': False,
                     'qty_available': 0.0,
+                    'reserved_qty': 0.0,
                     'uom_id': first_variant.uom_id.id,
                     'currency_id': company.currency_id.id,
                     'price_unit': 0.0,
                     'note': _('No se encontraron quants internos para este producto. Revisa multi-compañía y company_id en quants (puede ser vacío).'),
                 })
-        for (product_id, lot_id, location_id, warehouse_id), qty in qty_map.items():
+        for (product_id, lot_id, location_id, warehouse_id), bq in qty_map.items():
+            qty = bq.get('qty', 0.0)
+            reserved = bq.get('reserved', 0.0)
 
             if qty <= 0 or not product_id:
                 continue
@@ -271,7 +279,7 @@ class ProductTemplate(models.Model):
         # Resumen por almacén (en moneda de la compañía)
         company_currency = company.currency_id
         today = fields.Date.today()
-        summary_map = {}  # warehouse_name -> {'warehouse_id': id/False, 'qty': x, 'reserved': x, 'value': y}
+        summary_map = {}  # warehouse_name -> {'warehouse_id': id/False, 'qty': x, 'reserved': y, 'value': y}
         for line in created_lines:
             wh_id = line.warehouse_id.id if line.warehouse_id else False
             wh_name = (line.warehouse_id.display_name if line.warehouse_id else False)
@@ -292,6 +300,7 @@ class ProductTemplate(models.Model):
                 val = line.currency_id._convert(val, company_currency, company, today)
             bucket = summary_map.setdefault(wh_name, {'warehouse_id': wh_id, 'qty': 0.0, 'reserved': 0.0, 'value': 0.0})
             bucket['qty'] += qty
+            bucket['reserved'] += (line.reserved_qty or 0.0)
             bucket['value'] += val
 
         summary_vals = []
@@ -302,8 +311,8 @@ class ProductTemplate(models.Model):
                 'product_tmpl_id': self.id,
                 'warehouse_id': wh_id,
                 'warehouse_name': wh_name,
+                'reserved_total': b['reserved'],
                 'qty_total': b['qty'],
-                'reserved_qty_total': b.get('reserved', 0.0),
                 'currency_id': company_currency.id,
                 'value_total': b['value'],
             })
@@ -312,15 +321,3 @@ class ProductTemplate(models.Model):
             self.env["product.po.lot.cost.wh.summary"].sudo().create(summary_vals)
 
         return {"type": "ir.actions.client", "tag": "reload"}
-    def action_refresh_po_lot_cost_multi(self):
-        """Acción masiva desde lista: actualiza costos por lote/OC para productos con cantidad física."""
-        Quant = self.env['stock.quant'].sudo()
-        tmpl_with_qty = set(Quant.search([
-            ('product_tmpl_id', 'in', self.ids),
-            ('quantity', '>', 0),
-        ]).mapped('product_tmpl_id').ids)
-        for rec in self:
-            if rec.id in tmpl_with_qty:
-                rec.action_refresh_po_lot_cost()
-        return {"type": "ir.actions.client", "tag": "reload"}
-

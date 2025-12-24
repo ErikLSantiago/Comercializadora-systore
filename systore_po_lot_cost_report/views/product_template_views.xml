@@ -10,7 +10,7 @@
                 <field name="lot_id"/>
                 <field name="location_id"/>
                 <field name="product_id"/>
-                <field name="qty_available" string="Cantidad"/>
+                <field name="qty_available"/>
                 <field name="uom_id"/>
                                 <field name="price_unit"/>
                 <field name="value_subtotal" string="Valor real"/>
@@ -27,7 +27,7 @@
         <field name="arch" type="xml">
             <list string="Resumen por almacén" create="0" edit="0" delete="0">
                 <field name="warehouse_name"/>
-                <field name="reserved_qty_total" string="Reservadas"/>
+                <field name="reserved_total"/>
                 <field name="qty_total"/>
                 <field name="avg_cost"/>
             </list>
