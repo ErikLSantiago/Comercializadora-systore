@@ -55,7 +55,7 @@ class ProductPoLotCostWarehouseSummary(models.Model):
     warehouse_id = fields.Many2one("stock.warehouse", string="Almacén", index=True)
     warehouse_name = fields.Char(string="Almacén", readonly=True)
     qty_total = fields.Float(string="Total piezas", digits="Product Unit of Measure")
-    reserved_qty_total = fields.Float(string=\"Reservadas\", digits=\"Product Unit of Measure\")
+    reserved_qty_total = fields.Float(string="Reservadas", digits="Product Unit of Measure")
     currency_id = fields.Many2one("res.currency", string="Moneda", readonly=True)
     value_total = fields.Monetary(string="Valor total", currency_field="currency_id")
     avg_cost = fields.Monetary(string="Costo promedio", currency_field="currency_id",
