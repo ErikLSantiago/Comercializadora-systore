@@ -167,43 +167,40 @@ class ProductTemplate(models.Model):
 
             # Obtener quants internos (cantidad física) y agregarlos por producto+lote+ubicación
             # Usamos read_group para sumar quantity y reserved_quantity directamente en SQL
-            groups = Quant.read_group(
-                domain,
-                ['quantity:sum', 'reserved_quantity:sum', 'product_id', 'lot_id', 'location_id'],
-                ['product_id', 'lot_id', 'location_id'],
-                lazy=False,
-            )
+            quants = Quant.search(domain)
 
-            
-            # Reservadas: en algunas instalaciones, reserved_quantity no se agrega bien en read_group de stock.quant.
-            # Para ser robustos, calculamos reservadas desde stock.move.line (movimientos asignados) y lo mapeamos por producto+lote+ubicación.
-            reserved_map = {}  # (product_id, lot_id/False, location_id/False) -> reserved_qty
+            qty_map = {}  # (product_id, lot_id, location_id, warehouse_id) -> {'qty': x, 'reserved': y}
+            Warehouse = self.env['stock.warehouse'].sudo()
+            wh_cache_local = {}
 
-            product_ids = list(set([g.get('product_id')[0] for g in groups if g.get('product_id')]))
-            if product_ids:
-                company_id = (self.company_id.id if self.company_id else self.env.company.id)
-                self.env.cr.execute(
-                    '''
-                    SELECT
-                        sml.product_id,
-                        COALESCE(sml.lot_id, 0) AS lot_id,
-                        COALESCE(sml.location_id, 0) AS location_id,
-                        SUM(COALESCE(sml.product_uom_qty, 0.0) - COALESCE(sml.qty_done, 0.0)) AS reserved_qty
-                    FROM stock_move_line sml
-                    JOIN stock_move sm ON sm.id = sml.move_id
-                    JOIN stock_location sl ON sl.id = sml.location_id
-                    WHERE sm.state IN ('assigned', 'partially_available')
-                      AND sml.company_id = %s
-                      AND sml.product_id = ANY(%s)
-                      AND sl.usage IN ('internal', 'transit')
-                    GROUP BY sml.product_id, COALESCE(sml.lot_id, 0), COALESCE(sml.location_id, 0)
-                    ''',
-                    (company_id, product_ids),
-                )
-                for product_id, lot_id0, location_id0, reserved_qty in self.env.cr.fetchall():
-                    key = (product_id, lot_id0 or False, location_id0 or False)
-                    reserved_map[key] = float(reserved_qty or 0.0)
+            for q in quants:
+                # agrupación base por producto+lote+ubicación (+ almacén)
+                product_id = q.product_id.id
+                lot_id = q.lot_id.id if q.lot_id else False
+                location_id = q.location_id.id if q.location_id else False
+                qty = q.quantity or 0.0
+                reserved = getattr(q, 'reserved_quantity', 0.0) or 0.0
+                if qty <= 0.0:
+                    continue
 
+                wh = False
+                if location_id:
+                    if location_id in wh_cache_local:
+                        wh = wh_cache_local[location_id]
+                    else:
+                        loc_rec = q.location_id
+                        company = self.company_id or self.env.company
+                        wh = self._get_warehouse_from_location(loc_rec, company, Warehouse)
+                        wh_cache_local[location_id] = wh
+
+                warehouse_id = wh.id if wh else False
+                key = (product_id, lot_id or False, location_id or False, warehouse_id or False)
+                bucket = qty_map.get(key)
+                if not bucket:
+                    bucket = {'qty': 0.0, 'reserved': 0.0}
+                    qty_map[key] = bucket
+                bucket['qty'] += qty
+                bucket['reserved'] += reserved
             qty_map = {}  # (product_id, lot_id, location_id, warehouse_id) -> {'qty': x, 'reserved': y}
             Warehouse = self.env['stock.warehouse'].sudo()
             wh_cache_local = {}
@@ -218,8 +215,6 @@ class ProductTemplate(models.Model):
 
                 qty = (g.get('quantity_sum') if g.get('quantity_sum') is not None else g.get('quantity')) or 0.0
                 reserved = (g.get('reserved_quantity_sum') if g.get('reserved_quantity_sum') is not None else g.get('reserved_quantity')) or 0.0
-                # Override con cálculo robusto desde stock.move.line
-                reserved = reserved_map.get((product_id, lot_id or False, location_id or False), reserved) or 0.0
                 if qty <= 0.0:
                     continue
 
