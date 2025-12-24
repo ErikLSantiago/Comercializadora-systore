@@ -121,76 +121,45 @@ class ProductTemplate(models.Model):
             tmpl.po_lot_cost_qty_total = qty_total
             tmpl.po_lot_cost_value_total = value_total_company
 
-    def _get_warehouse_from_location(self, location, company, Warehouse=None):
-        """Return stock.warehouse for a given location.
+    def _get_warehouse_from_location(self, location, company, Warehouse=None, cache=None):
+        """Return stock.warehouse for a given stock.location.
 
-        Uses parent_path to match against warehouse.view_location_id (or lot_stock_id) ancestors.
-        Cached per (company_id, location_id).
+        We keep a local cache dict because Odoo recordsets cannot be assigned arbitrary
+        attributes (no __dict__). Cache key: (company_id, location_id).
         """
         Warehouse = Warehouse or self.env['stock.warehouse'].sudo()
         if not location:
             return False
-        cache = getattr(self, '_po_lot_cost_wh_cache', None)
-        if cache is None:
-            cache = {}
-            self._po_lot_cost_wh_cache = cache
 
-        key = (company.id if company else False, location.id)
+        cache = cache or {}
+        key = ((company.id if company else False), location.id)
         if key in cache:
             return cache[key]
 
-        # Build ancestor ids set from parent_path (includes self)
-        ancestor_ids = set()
-        if location.parent_path:
-            try:
-                ancestor_ids = set(int(x) for x in location.parent_path.strip('/').split('/') if x)
-            except Exception:
-                ancestor_ids = set()
+        loc = location.sudo()
 
-        # Candidate warehouses (same company or global)
-        whs = Warehouse.search([('company_id', 'in', [company.id if company else False, False])])
-        best_wh = False
-        best_depth = -1
-        for wh in whs:
-            root_loc = wh.view_location_id or wh.lot_stock_id
-            if not root_loc:
-                continue
-            if root_loc.id in ancestor_ids:
-                # depth = number of ancestors up to root (more specific = larger depth)
-                depth = 0
-                if location.parent_path:
-                    depth = location.parent_path.count('/')  # rough proxy
-                if depth > best_depth:
-                    best_wh = wh
-                    best_depth = depth
+        # Walk up the location hierarchy and try to match a warehouse view_location_id
+        wh = False
+        cur = loc
+        while cur and cur.location_id:
+            # view_location_id is the "root" location of a warehouse
+            wh = Warehouse.search([
+                ('company_id', '=', company.id) if company else ('id', '!=', 0),
+                ('view_location_id', '=', cur.id),
+            ], limit=1)
+            if wh:
+                break
+            cur = cur.location_id
 
-        cache[key] = best_wh
-        return best_wh
-
-
-        # 1) Algunas implementaciones agregan warehouse_id directo en la ubicación
-        if getattr(loc, 'warehouse_id', False):
-            wh = loc.warehouse_id
-
-        # 2) Inferir por jerarquía (lot_stock_id / view_location_id)
+        # If not found, fallback: check if the original location is within a warehouse view location
         if not wh:
-            wh = Warehouse.search([('lot_stock_id', 'parent_of', loc.id), ('company_id', 'in', [company.id, False])], limit=1)
-        if not wh:
-            wh = Warehouse.search([('view_location_id', 'parent_of', loc.id), ('company_id', 'in', [company.id, False])], limit=1)
-        if not wh:
-            wh = Warehouse.search([('lot_stock_id', 'child_of', loc.id), ('company_id', 'in', [company.id, False])], limit=1)
-        if not wh:
-            wh = Warehouse.search([('view_location_id', 'child_of', loc.id), ('company_id', 'in', [company.id, False])], limit=1)
+            domain = [('view_location_id', 'child_of', loc.id)]
+            if company:
+                domain.insert(0, ('company_id', '=', company.id))
+            wh = Warehouse.search(domain, limit=1)
 
-        # 3) Último recurso: prefijo de ubicación vs warehouse.code (MX, MXMAY, etc.)
-        if not wh and loc.complete_name:
-            prefix = loc.complete_name.split('/')[0].strip()
-            if prefix:
-                wh = Warehouse.search([('code', '=', prefix), ('company_id', 'in', [company.id, False])], limit=1) or Warehouse.search([('code', '=', prefix)], limit=1)
-
-        return wh
-
-
+        cache[key] = wh or False
+        return cache[key]
     def action_refresh_po_lot_cost(self):
         """Rebuild lot/PO cost lines and warehouse summary for the selected product(s)."""
         for rec in self:
@@ -204,6 +173,8 @@ class ProductTemplate(models.Model):
 
         company = self.env.company
 
+
+        wh_cache = {}
         # Limpiar líneas previas para evitar duplicados/histórico en cada actualización
         self.po_lot_cost_line_ids.sudo().unlink()
         self.po_lot_cost_wh_summary_ids.sudo().unlink()
@@ -246,7 +217,7 @@ class ProductTemplate(models.Model):
                 else:
                     loc_rec = q.location_id
                     company = self.company_id or self.env.company
-                    wh = self._get_warehouse_from_location(loc_rec, company, Warehouse)
+                    wh = self._get_warehouse_from_location(loc_rec, company, Warehouse, cache=wh_cache)
                     wh_cache_local[location_id] = wh
 
             warehouse_id = wh.id if wh else False
