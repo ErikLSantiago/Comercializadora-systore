@@ -1,0 +1,77 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <!-- List view for the report lines (Odoo 18 uses 'list' instead of 'tree') -->
+    <record id="view_po_lot_cost_line_list" model="ir.ui.view">
+        <field name="name">product.po.lot.cost.line.list</field>
+        <field name="model">product.po.lot.cost.line</field>
+        <field name="arch" type="xml">
+            <list string="Costos por Lote/OC" create="0" edit="0" delete="0">
+                <field name="purchase_order_id"/>
+                <field name="lot_id"/>
+                <field name="location_id"/>
+                <field name="product_id"/>
+                <field name="qty_available"/>
+                <field name="uom_id"/>
+                                <field name="price_unit"/>
+                <field name="value_subtotal" string="Valor real"/>
+                <field name="vendor_id"/>
+                <field name="date_order"/>            </list>
+        </field>
+    </record>
+
+    
+    <!-- List view for warehouse summary -->
+    <record id="view_po_lot_cost_wh_summary_list" model="ir.ui.view">
+        <field name="name">product.po.lot.cost.wh.summary.list</field>
+        <field name="model">product.po.lot.cost.wh.summary</field>
+        <field name="arch" type="xml">
+            <list string="Resumen por almacén" create="0" edit="0" delete="0">
+                <field name="warehouse_name"/>
+                <field name="reserved_total"/>
+                <field name="qty_total"/>
+                <field name="avg_cost"/>
+            </list>
+        </field>
+    </record>
+
+<!-- Inherit product template form to add the tab -->
+    <record id="view_product_template_form_inherit_po_lot_cost" model="ir.ui.view">
+        <field name="name">product.template.form.inherit.po.lot.cost</field>
+        <field name="model">product.template</field>
+        <field name="inherit_id" ref="product.product_template_only_form_view"/>
+        <field name="arch" type="xml">
+            <xpath expr="//notebook" position="inside">
+                <page string="Costos por Lote/OC" name="po_lot_cost_report_page">
+                    <group>
+                        <button name="action_refresh_po_lot_cost"
+                                type="object"
+                                string="Actualizar"
+                                class="btn-primary"
+                                icon="fa-refresh"/>
+                    </group>
+
+                    <group>
+                        <group>
+                            <field name="po_lot_cost_qty_total" readonly="1"/>
+                        </group>
+                        <group>
+                            <field name="po_lot_cost_value_total" readonly="1"/>
+                        </group>
+                    </group>
+
+                    <field name="po_lot_cost_wh_summary_ids" nolabel="1" readonly="1" context="{'tree_view_ref': 'systore_po_lot_cost_report.view_po_lot_cost_wh_summary_list'}"/>
+
+                    <field name="po_lot_cost_line_ids"
+                           nolabel="1"
+                           readonly="1"
+                           context="{'tree_view_ref': 'systore_po_lot_cost_report.view_po_lot_cost_line_list'}"/>
+
+                    <p class="text-muted" style="margin-top: 8px;">
+                        Este reporte es <b>operativo</b>: toma la cantidad disponible por lote (stock.quant) y el costo actual de la OC
+                        (purchase.order.line.price_unit). No revaloriza ni modifica asientos contables.
+                    </p>
+                </page>
+            </xpath>
+        </field>
+    </record>
+</odoo>
