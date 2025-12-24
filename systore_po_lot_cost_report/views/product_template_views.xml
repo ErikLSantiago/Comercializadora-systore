@@ -27,6 +27,7 @@
         <field name="arch" type="xml">
             <list string="Resumen por almacén" create="0" edit="0" delete="0">
                 <field name="warehouse_name"/>
+                <field name="reserved_qty_total" string="Reservadas"/>
                 <field name="qty_total"/>
                 <field name="avg_cost"/>
             </list>
