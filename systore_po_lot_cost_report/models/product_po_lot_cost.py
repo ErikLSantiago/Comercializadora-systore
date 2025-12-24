@@ -138,56 +138,51 @@ class ProductTemplate(models.Model):
             ("location_id.usage", "=", "internal"),
         ]
 
-        # Obtener quants internos (cantidad física) y agregarlos por producto+lote
-        quants = Quant.search(domain)
+        # Obtener quants internos (cantidad física) y agregarlos por producto+lote+ubicación
+        # Usamos read_group para sumar quantity y reserved_quantity directamente en SQL
+        groups = Quant.read_group(
+            domain,
+            ['quantity:sum', 'reserved_quantity:sum', 'product_id', 'lot_id', 'location_id'],
+            ['product_id', 'lot_id', 'location_id'],
+            lazy=False,
+        )
 
         qty_map = {}  # (product_id, lot_id, location_id, warehouse_id) -> {'qty': x, 'reserved': y}
         Warehouse = self.env['stock.warehouse'].sudo()
         wh_cache_local = {}
-        for q in quants:
+
+        for g in groups:
+            prod = g.get('product_id')
+            loc = g.get('location_id')
+            lot = g.get('lot_id')
+            product_id = prod[0] if isinstance(prod, (list, tuple)) and prod else False
+            location_id = loc[0] if isinstance(loc, (list, tuple)) and loc else False
+            lot_id = lot[0] if isinstance(lot, (list, tuple)) and lot else False
+
+            qty = g.get('quantity', 0.0) or 0.0
+            reserved = g.get('reserved_quantity', 0.0) or 0.0
+            if qty <= 0.0:
+                continue
+
             # Detectar almacén por jerarquía de ubicaciones (cache local por location_id)
-            wh_cache = wh_cache_local
+            wh = False
+            if location_id:
+                if location_id in wh_cache_local:
+                    wh = wh_cache_local[location_id]
+                else:
+                    loc_rec = self.env['stock.location'].browse(location_id)
+                    company = self.company_id or self.env.company
+                    wh = self._get_warehouse_from_location(loc_rec, company, Warehouse)
+                    wh_cache_local[location_id] = wh
 
-            loc = q.location_id
-            wh = wh_cache.get(loc.id)
-            if wh is None:
-                wh = False
-                # 1) Si la ubicación trae warehouse_id directo (algunas implementaciones lo agregan)
-                try:
-                    if hasattr(loc, 'warehouse_id') and loc.warehouse_id:
-                        wh = loc.warehouse_id
-                except Exception:
-                    wh = False
-
-                # 2) Inferir por lot_stock_id / view_location_id
-                if not wh:
-                    wh = Warehouse.search([('lot_stock_id', 'parent_of', loc.id)], limit=1)
-                if not wh:
-                    wh = Warehouse.search([('view_location_id', 'parent_of', loc.id)], limit=1)
-                if not wh:
-                    wh = Warehouse.search([('lot_stock_id', 'child_of', loc.id)], limit=1)
-                if not wh:
-                    wh = Warehouse.search([('view_location_id', 'child_of', loc.id)], limit=1)
-
-                # 3) último recurso: mapear por prefijo de ubicación vs código de almacén (MX, MXMAY, etc.)
-                if not wh:
-                    prefix = (loc.complete_name.split('/')[0].strip() if loc.complete_name else False)
-                    if prefix:
-                        wh = Warehouse.search([('code', '=', prefix), ('company_id', 'in', [company.id, False])], limit=1)
-                        if not wh:
-                            wh = Warehouse.search([('code', '=', prefix)], limit=1)
-
-                wh_cache[loc.id] = wh or False
-
-            wh_id = wh.id if wh else False
-
-            key = (q.product_id.id, q.lot_id.id if q.lot_id else False, q.location_id.id, wh_id)
+            warehouse_id = wh.id if wh else False
+            key = (product_id, lot_id or False, location_id or False, warehouse_id or False)
             bucket = qty_map.get(key)
             if not bucket:
                 bucket = {'qty': 0.0, 'reserved': 0.0}
                 qty_map[key] = bucket
-            bucket['qty'] += (q.quantity or 0.0)
-            bucket['reserved'] += (q.reserved_quantity or 0.0)
+            bucket['qty'] += qty
+            bucket['reserved'] += reserved
 
         # Limpiar líneas previas
         self.po_lot_cost_line_ids.sudo().unlink()
