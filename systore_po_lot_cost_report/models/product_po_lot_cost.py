@@ -203,7 +203,6 @@ class ProductTemplate(models.Model):
                     qty_map[key] = bucket
                 bucket['qty'] += qty
                 bucket['reserved'] += reserved
-            qty_map = {}  # (product_id, lot_id, location_id, warehouse_id) -> {'qty': x, 'reserved': y}
             Warehouse = self.env['stock.warehouse'].sudo()
             wh_cache_local = {}
             for (product_id, lot_id, location_id, warehouse_id), bq in qty_map.items():
