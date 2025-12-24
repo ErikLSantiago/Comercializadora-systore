@@ -204,64 +204,6 @@ class ProductTemplate(models.Model):
             qty_map = {}  # (product_id, lot_id, location_id, warehouse_id) -> {'qty': x, 'reserved': y}
             Warehouse = self.env['stock.warehouse'].sudo()
             wh_cache_local = {}
-
-            for g in groups:
-                prod = g.get('product_id')
-                loc = g.get('location_id')
-                lot = g.get('lot_id')
-                product_id = prod[0] if isinstance(prod, (list, tuple)) and prod else False
-                location_id = loc[0] if isinstance(loc, (list, tuple)) and loc else False
-                lot_id = lot[0] if isinstance(lot, (list, tuple)) and lot else False
-
-                qty = (g.get('quantity_sum') if g.get('quantity_sum') is not None else g.get('quantity')) or 0.0
-                reserved = (g.get('reserved_quantity_sum') if g.get('reserved_quantity_sum') is not None else g.get('reserved_quantity')) or 0.0
-                if qty <= 0.0:
-                    continue
-
-                # Detectar almacén por jerarquía de ubicaciones (cache local por location_id)
-                wh = False
-                if location_id:
-                    if location_id in wh_cache_local:
-                        wh = wh_cache_local[location_id]
-                    else:
-                        loc_rec = self.env['stock.location'].browse(location_id)
-                        company = self.company_id or self.env.company
-                        wh = self._get_warehouse_from_location(loc_rec, company, Warehouse)
-                        wh_cache_local[location_id] = wh
-
-                warehouse_id = wh.id if wh else False
-                key = (product_id, lot_id or False, location_id or False, warehouse_id or False)
-                bucket = qty_map.get(key)
-                if not bucket:
-                    bucket = {'qty': 0.0, 'reserved': 0.0}
-                    qty_map[key] = bucket
-                bucket['qty'] += qty
-                bucket['reserved'] += reserved
-
-            # Limpiar líneas previas
-            self.po_lot_cost_line_ids.sudo().unlink()
-            # Limpiar resumen previo
-            self.env['product.po.lot.cost.wh.summary'].sudo().search([('product_tmpl_id', '=', self.id)]).unlink()
-
-            lines_to_create = []
-            if not qty_map:
-                # Si no se encontraron quants, creamos una línea informativa para facilitar diagnóstico
-                first_variant = self.product_variant_ids[:1]
-                if first_variant:
-                    lines_to_create.append({
-                        'company_id': company.id,
-                        'product_tmpl_id': self.id,
-                        'product_id': first_variant.id,
-                        'lot_id': False,
-                        'location_id': False,
-                        'warehouse_id': False,
-                        'qty_available': 0.0,
-                        'reserved_qty': 0.0,
-                        'uom_id': first_variant.uom_id.id,
-                        'currency_id': company.currency_id.id,
-                        'price_unit': 0.0,
-                        'note': _('No se encontraron quants internos para este producto. Revisa multi-compañía y company_id en quants (puede ser vacío).'),
-                    })
             for (product_id, lot_id, location_id, warehouse_id), bq in qty_map.items():
                 qty = bq.get('qty', 0.0)
                 reserved = bq.get('reserved', 0.0)
