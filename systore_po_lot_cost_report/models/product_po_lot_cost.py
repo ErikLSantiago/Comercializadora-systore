@@ -173,6 +173,8 @@ class ProductTemplate(models.Model):
             Warehouse = self.env['stock.warehouse'].sudo()
             wh_cache_local = {}
 
+            lines_to_create = []
+
             for q in quants:
                 # agrupación base por producto+lote+ubicación (+ almacén)
                 product_id = q.product_id.id
