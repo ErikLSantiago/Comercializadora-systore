@@ -121,7 +121,37 @@ class ProductTemplate(models.Model):
             tmpl.po_lot_cost_qty_total = qty_total
             tmpl.po_lot_cost_value_total = value_total_company
 
-    def action_refresh_po_lot_cost(self):
+    
+    def _get_warehouse_from_location(self, loc, company, Warehouse):
+        """Inferir almacén desde una ubicación interna."""
+        wh = False
+
+        # 1) Algunas implementaciones agregan warehouse_id directo en la ubicación
+        try:
+            if hasattr(loc, "warehouse_id") and loc.warehouse_id:
+                wh = loc.warehouse_id
+        except Exception:
+            wh = False
+
+        # 2) Inferir por jerarquía (lot_stock_id / view_location_id)
+        if not wh:
+            wh = Warehouse.search([("lot_stock_id", "parent_of", loc.id), ("company_id", "in", [company.id, False])], limit=1)
+        if not wh:
+            wh = Warehouse.search([("view_location_id", "parent_of", loc.id), ("company_id", "in", [company.id, False])], limit=1)
+        if not wh:
+            wh = Warehouse.search([("lot_stock_id", "child_of", loc.id), ("company_id", "in", [company.id, False])], limit=1)
+        if not wh:
+            wh = Warehouse.search([("view_location_id", "child_of", loc.id), ("company_id", "in", [company.id, False])], limit=1)
+
+        # 3) Último recurso: prefijo de la ubicación vs warehouse.code (MX, MXMAY, etc.)
+        if not wh:
+            prefix = (loc.complete_name.split("/")[0].strip() if loc.complete_name else False)
+            if prefix:
+                wh = Warehouse.search([("code", "=", prefix), ("company_id", "in", [company.id, False])], limit=1) or Warehouse.search([("code", "=", prefix)], limit=1)
+
+        return wh
+
+def action_refresh_po_lot_cost(self):
         self.ensure_one()
         if not self.product_variant_ids:
             raise UserError(_("Este producto no tiene variantes para analizar existencias."))
@@ -159,8 +189,8 @@ class ProductTemplate(models.Model):
             location_id = loc[0] if isinstance(loc, (list, tuple)) and loc else False
             lot_id = lot[0] if isinstance(lot, (list, tuple)) and lot else False
 
-            qty = g.get('quantity', 0.0) or 0.0
-            reserved = g.get('reserved_quantity', 0.0) or 0.0
+            qty = (g.get('quantity') if g.get('quantity') is not None else g.get('quantity_sum', 0.0)) or 0.0
+            reserved = (g.get('reserved_quantity') if g.get('reserved_quantity') is not None else g.get('reserved_quantity_sum', 0.0)) or 0.0
             if qty <= 0.0:
                 continue
 
