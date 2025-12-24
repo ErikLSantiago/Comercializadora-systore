@@ -121,9 +121,52 @@ class ProductTemplate(models.Model):
             tmpl.po_lot_cost_qty_total = qty_total
             tmpl.po_lot_cost_value_total = value_total_company
 
-    def _get_warehouse_from_location(self, loc, company, Warehouse):
-        """Inferir almacén desde una ubicación (stock.location)."""
-        wh = False
+    def _get_warehouse_from_location(self, location, company, Warehouse=None):
+        """Return stock.warehouse for a given location.
+
+        Uses parent_path to match against warehouse.view_location_id (or lot_stock_id) ancestors.
+        Cached per (company_id, location_id).
+        """
+        Warehouse = Warehouse or self.env['stock.warehouse'].sudo()
+        if not location:
+            return False
+        cache = getattr(self, '_po_lot_cost_wh_cache', None)
+        if cache is None:
+            cache = {}
+            self._po_lot_cost_wh_cache = cache
+
+        key = (company.id if company else False, location.id)
+        if key in cache:
+            return cache[key]
+
+        # Build ancestor ids set from parent_path (includes self)
+        ancestor_ids = set()
+        if location.parent_path:
+            try:
+                ancestor_ids = set(int(x) for x in location.parent_path.strip('/').split('/') if x)
+            except Exception:
+                ancestor_ids = set()
+
+        # Candidate warehouses (same company or global)
+        whs = Warehouse.search([('company_id', 'in', [company.id if company else False, False])])
+        best_wh = False
+        best_depth = -1
+        for wh in whs:
+            root_loc = wh.view_location_id or wh.lot_stock_id
+            if not root_loc:
+                continue
+            if root_loc.id in ancestor_ids:
+                # depth = number of ancestors up to root (more specific = larger depth)
+                depth = 0
+                if location.parent_path:
+                    depth = location.parent_path.count('/')  # rough proxy
+                if depth > best_depth:
+                    best_wh = wh
+                    best_depth = depth
+
+        cache[key] = best_wh
+        return best_wh
+
 
         # 1) Algunas implementaciones agregan warehouse_id directo en la ubicación
         if getattr(loc, 'warehouse_id', False):
@@ -173,7 +216,7 @@ class ProductTemplate(models.Model):
         domain = [
             ("product_id", "in", self.product_variant_ids.ids),
             ("company_id", "in", [company.id, False]),
-            ("location_id.usage", "in", ["internal", "transit"]),
+            ("location_id.usage", "=", "internal"),
         ]
 
         # Obtener quants internos (cantidad física) y agregarlos por producto+lote+ubicación
@@ -225,7 +268,7 @@ class ProductTemplate(models.Model):
             ('product_id', 'in', self.product_variant_ids.ids),
             ('state', 'in', ['assigned', 'partially_available']),
             ('company_id', 'in', [company.id, False]),
-            ('location_id.usage', 'in', ['internal', 'transit']),
+            ('location_id.usage', 'in', ['internal']),
         ]
         move_lines = MoveLine.search(ml_domain)
         # En v18 normalmente existe reserved_uom_qty; si no, aproximamos con product_uom_qty - qty_done
