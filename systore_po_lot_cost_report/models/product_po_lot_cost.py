@@ -204,7 +204,7 @@ class ProductTemplate(models.Model):
                     key = (product_id, lot_id0 or False, location_id0 or False)
                     reserved_map[key] = float(reserved_qty or 0.0)
 
-        qty_map = {}  # (product_id, lot_id, location_id, warehouse_id) -> {'qty': x, 'reserved': y}
+            qty_map = {}  # (product_id, lot_id, location_id, warehouse_id) -> {'qty': x, 'reserved': y}
             Warehouse = self.env['stock.warehouse'].sudo()
             wh_cache_local = {}
 
