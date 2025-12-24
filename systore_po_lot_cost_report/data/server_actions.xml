@@ -8,7 +8,8 @@
         <field name="binding_view_types">list</field>
         <field name="state">code</field>
         <field name="code">
-action = records.action_refresh_po_lot_cost()
+records.action_refresh_po_lot_cost()
+action = {'type': 'ir.actions.client', 'tag': 'reload'}
         </field>
     </record>
 </odoo>
