@@ -149,7 +149,12 @@ class ProductTemplate(models.Model):
 
 
     def action_refresh_po_lot_cost(self):
-            self.ensure_one()
+        # Allow multi-record execution (for server action on list view)
+        if len(self) > 1:
+            for rec in self:
+                rec.action_refresh_po_lot_cost()
+            return True
+
             if not self.product_variant_ids:
                 raise UserError(_("Este producto no tiene variantes para analizar existencias."))
 

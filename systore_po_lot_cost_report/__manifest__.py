@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*-
 {
     'name': 'Systore - Costos por Lote / Orden de Compra',
-    'version': '18.0.1.0.36',
+    'version': '18.0.1.0.37',
     'category': 'Inventory/Purchase',
     'summary': 'Reporte operativo de costo por lote ligado a Orden de Compra (sin revalorización contable).',
     'author': 'Systore',
@@ -10,6 +10,8 @@
     'data': [
         'security/ir.model.access.csv',
         'views/product_template_views.xml',
+    ,
+        'data/server_actions.xml'
     ],
     'application': False,
     'installable': True,
