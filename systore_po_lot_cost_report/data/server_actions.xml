@@ -8,7 +8,13 @@
         <field name="binding_view_types">list</field>
         <field name="state">code</field>
         <field name="code">
-records.action_refresh_po_lot_cost()
+
+# Bulk refresh for selected records; if none selected, use the current list domain
+recs = records
+if not recs:
+    dom = env.context.get('active_domain') or []
+    recs = env['product.template'].search(dom)
+recs.sudo().action_refresh_po_lot_cost()
 action = {'type': 'ir.actions.client', 'tag': 'reload'}
         </field>
     </record>
