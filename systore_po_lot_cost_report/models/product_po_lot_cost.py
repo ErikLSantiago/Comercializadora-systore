@@ -186,8 +186,8 @@ class ProductTemplate(models.Model):
                 location_id = loc[0] if isinstance(loc, (list, tuple)) and loc else False
                 lot_id = lot[0] if isinstance(lot, (list, tuple)) and lot else False
 
-                qty = (g.get('quantity') if g.get('quantity') is not None else g.get('quantity_sum', 0.0)) or 0.0
-                reserved = (g.get('reserved_quantity') if g.get('reserved_quantity') is not None else g.get('reserved_quantity_sum', 0.0)) or 0.0
+                qty = (g.get('quantity_sum') if g.get('quantity_sum') is not None else g.get('quantity')) or 0.0
+                reserved = (g.get('reserved_quantity_sum') if g.get('reserved_quantity_sum') is not None else g.get('reserved_quantity')) or 0.0
                 if qty <= 0.0:
                     continue
 
