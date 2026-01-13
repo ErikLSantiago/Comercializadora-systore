@@ -6,19 +6,8 @@
         <field name="inherit_id" ref="account.view_partner_property_form"/>
         <field name="arch" type="xml">
 
-            <!--
-                Odoo 18 cambió la estructura del bloque "accounting" en algunos sabores/localizaciones.
-                Por eso anclamos el campo junto a las propiedades contables estándar (cuenta por cobrar/pagar),
-                lo cual es mucho más estable.
-            -->
-
-            <!-- Intento 1: después de la cuenta por cobrar -->
-            <xpath expr="//field[@name='property_account_receivable_id']" position="after">
-                <field name="systore_income_account_id" groups="account.group_account_user"/>
-            </xpath>
-
-            <!-- Fallback: si no existe property_account_receivable_id en esta vista, usa property_account_payable_id -->
-            <xpath expr="//field[@name='property_account_payable_id']" position="after">
+            <!-- Insertar el campo una sola vez: toma el primer match entre CxC o CxP -->
+            <xpath expr="(//field[@name='property_account_receivable_id'] | //field[@name='property_account_payable_id'])[1]" position="after">
                 <field name="systore_income_account_id" groups="account.group_account_user"/>
             </xpath>
 
