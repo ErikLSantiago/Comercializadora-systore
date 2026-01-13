@@ -1,12 +1,30 @@
 # -*- coding: utf-8 -*-
 from odoo import api, models
+from odoo.fields import Datetime
+
+PARAM_KEY = "partner_income_account.cutoff_datetime"
 
 
 class AccountMove(models.Model):
     _inherit = "account.move"
 
+    def _cutoff_datetime(self):
+        val = self.env["ir.config_parameter"].sudo().get_param(PARAM_KEY)
+        return Datetime.from_string(val) if val else None
+
+    def _is_after_cutoff(self):
+        cutoff = self._cutoff_datetime()
+        if not cutoff:
+            # Safe default: only apply to records without create_date (created in this tx)
+            return self.filtered(lambda m: not m.create_date)
+        return self.filtered(lambda m: (not m.create_date) or (m.create_date >= cutoff))
+
     def _apply_partner_income_account(self):
-        for move in self:
+        moves = self._is_after_cutoff()
+        if not moves:
+            return
+
+        for move in moves:
             if move.move_type not in ("out_invoice", "out_refund"):
                 continue
             if move.state != "draft":
