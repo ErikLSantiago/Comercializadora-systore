@@ -1,0 +1,16 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <record id="view_partner_form_income_account" model="ir.ui.view">
+        <field name="name">res.partner.form.income.account</field>
+        <field name="model">res.partner</field>
+        <field name="inherit_id" ref="account.view_partner_property_form"/>
+        <field name="arch" type="xml">
+
+            <!-- Insertar el campo una sola vez: toma el primer match entre CxC o CxP -->
+            <xpath expr="(//field[@name='property_account_receivable_id'] | //field[@name='property_account_payable_id'])[1]" position="after">
+                <field name="systore_income_account_id" groups="account.group_account_user"/>
+            </xpath>
+
+        </field>
+    </record>
+</odoo>
