@@ -6,15 +6,18 @@
         <field name="model">account.bank.statement.line</field>
         <field name="inherit_id" ref="account_accountant.view_bank_statement_line_quick_create_form_bank_rec_widget"/>
         <field name="arch" type="xml">
-            <!-- Put our button in the header (if present), else at top of the form -->
-            <xpath expr="//header" position="inside">
-                <button name="action_open_marketplace_settlement"
-                        type="object"
-                        string="Marketplace Settlement"
-                        class="btn-primary"/>
+            <!-- Some builds don't have a <header> in the quick-create form. Insert button at top of the form instead. -->
+            <xpath expr="//form" position="inside">
+                <div class="mb-2">
+                    <button name="action_open_marketplace_settlement"
+                            type="object"
+                            string="Marketplace"
+                            class="btn btn-primary btn-sm"
+                            invisible="amount &lt;= 0"/>
+                </div>
             </xpath>
 
-            <xpath expr="//form//sheet" position="inside">
+            <xpath expr="//form" position="inside">
                 <group string="Marketplace">
                     <field name="marketplace_settlement_id" readonly="1"/>
                 </group>
