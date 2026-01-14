@@ -10,8 +10,7 @@
                 <button name="action_open_marketplace_settlement"
                         type="object"
                         string="Marketplace Settlement"
-                        class="btn-primary"
-                        attrs="{'invisible': [('amount','=',0)]}"/>
+                        class="btn-primary"/>
             </xpath>
             <xpath expr="//sheet//group" position="inside">
                 <field name="marketplace_settlement_id" readonly="1"/>

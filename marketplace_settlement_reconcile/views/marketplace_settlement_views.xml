@@ -22,8 +22,8 @@
         <field name="arch" type="xml">
             <form>
                 <header>
-                    <button name="action_set_draft" type="object" string="Set to Draft" states="imported" class="btn-secondary"/>
-                    <button name="action_post_and_reconcile" type="object" string="Post &amp; Reconcile" states="imported" class="btn-primary"/>
+                    <button name="action_set_draft" type="object" string="Set to Draft" class="btn-secondary" invisible="state != 'imported'"/>
+                    <button name="action_post_and_reconcile" type="object" string="Post &amp; Reconcile" class="btn-primary" invisible="state != 'imported'"/>
                     <field name="state" widget="statusbar" statusbar_visible="draft,imported,posted"/>
                 </header>
                 <sheet>
@@ -50,10 +50,10 @@
                     <separator string="Lines"/>
 
                     <div class="mb16">
-                        <button name="%(action_import_settlement_csv)d" type="action" string="Import CSV" class="btn-secondary" attrs="{'invisible': [('state','=','posted')]}"/>
+                        <button name="%(action_import_settlement_csv)d" type="action" string="Import CSV" class="btn-secondary" invisible="state == 'posted'"/>
                     </div>
 
-                    <field name="line_ids" attrs="{'readonly': [('state','=','posted')]}">
+                    <field name="line_ids" readonly="state == 'posted'">
                         <list editable="bottom">
                             <field name="order_ref"/>
                             <field name="sale_order_id"/>
