@@ -54,7 +54,7 @@
                     </div>
 
                     <field name="line_ids" attrs="{'readonly': [('state','=','posted')]}">
-                        <tree editable="bottom">
+                        <list editable="bottom">
                             <field name="order_ref"/>
                             <field name="sale_order_id"/>
                             <field name="invoice_id"/>
