@@ -23,7 +23,7 @@
             <form>
                 <header>
                     <button name="action_set_draft" type="object" string="Set to Draft" states="imported" class="btn-secondary"/>
-                    <button name="action_post_and_reconcile" type="object" string="Post & Reconcile" states="imported" class="btn-primary"/>
+                    <button name="action_post_and_reconcile" type="object" string="Post &amp; Reconcile" states="imported" class="btn-primary"/>
                     <field name="state" widget="statusbar" statusbar_visible="draft,imported,posted"/>
                 </header>
                 <sheet>
