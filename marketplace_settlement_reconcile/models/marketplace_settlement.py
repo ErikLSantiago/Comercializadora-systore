@@ -186,7 +186,38 @@ class MarketplaceSettlementLine(models.Model):
     sale_order_id = fields.Many2one("sale.order", string="Sales Order", ondelete="set null")
     invoice_id = fields.Many2one("account.move", string="Invoice", ondelete="set null")
 
-    amount_gross = fields.Monetary(string="Gross (Invoice Total)", readonly=True)
+
+    @api.depends("invoice_id", "invoice_id.amount_total", "invoice_id.amount_total_signed")
+    def _compute_amount_gross(self):
+        for rec in self:
+            inv = rec.invoice_id
+            if inv:
+                # amount_total is always in invoice currency; use it to match operational expectations
+                rec.amount_gross = inv.amount_total or 0.0
+            else:
+                rec.amount_gross = 0.0
+
+    @api.onchange("order_ref")
+    def _onchange_order_ref_link_documents(self):
+        for rec in self:
+            if not rec.order_ref:
+                continue
+            # Link Sales Order by name
+            so = self.env["sale.order"].search([("name", "=", rec.order_ref)], limit=1)
+            if so:
+                rec.sale_order_id = so
+                # Prefer posted customer invoice linked to the SO
+                inv = so.invoice_ids.filtered(lambda m: m.move_type in ("out_invoice", "out_refund") and m.state == "posted")
+                rec.invoice_id = inv[:1] if inv else so.invoice_ids[:1]
+            else:
+                # fallback: try to find invoice by invoice_origin
+                inv = self.env["account.move"].search([
+                    ("move_type", "in", ("out_invoice", "out_refund")),
+                    ("invoice_origin", "=", rec.order_ref),
+                ], limit=1, order="id desc")
+                rec.invoice_id = inv
+
+    amount_gross = fields.Monetary(string="Gross (Invoice Total)", compute="_compute_amount_gross", store=True, readonly=True)
     withheld_vat_amount = fields.Monetary(string="Withheld VAT")
     withheld_vat_account_id = fields.Many2one("account.account", string="Withheld VAT Account")
 
