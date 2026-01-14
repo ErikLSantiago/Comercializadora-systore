@@ -4,7 +4,7 @@
         <field name="name">marketplace.settlement.tree</field>
         <field name="model">marketplace.settlement</field>
         <field name="arch" type="xml">
-            <tree>
+            <list>
                 <field name="name"/>
                 <field name="state"/>
                 <field name="bank_statement_line_id"/>
@@ -12,7 +12,7 @@
                 <field name="amount_net"/>
                 <field name="amount_diff"/>
                 <field name="move_id"/>
-            </tree>
+            </list>
         </field>
     </record>
 
@@ -66,7 +66,7 @@
                             <field name="seller_commission_amount"/>
                             <field name="seller_commission_account_id"/>
                             <field name="amount_net" readonly="1"/>
-                        </tree>
+                        </list>
                     </field>
 
                 </sheet>
