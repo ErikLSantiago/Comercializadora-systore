@@ -24,7 +24,7 @@
                 <header>
                     <button name="action_validate" type="object" string="Validate" class="btn-secondary" invisible="state == 'posted'"/>
                     <button name="action_set_draft" type="object" string="Set to Draft" class="btn-secondary" invisible="state != 'imported'"/>
-                    <button name="action_post_and_reconcile" type="object" string="Post &amp; Reconcile" class="btn-primary" invisible="state != \'imported\' or not is_validated"/>
+                    <button name="action_post_and_reconcile" type="object" string="Post &amp; Reconcile" class="btn-primary" invisible="state != 'imported' or not is_validated"/>
                     <field name="state" widget="statusbar" statusbar_visible="draft,imported,posted"/>
                 </header>
                 <sheet>

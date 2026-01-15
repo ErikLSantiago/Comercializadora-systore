@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*-
 {
     "name": "Marketplace Settlement Reconcile (CSV)",
-    "version": "18.0.1.0.17",
+    "version": "18.0.1.0.18",
     "category": "Accounting",
     "summary": "Mass reconcile marketplace payouts against invoices using CSV settlement lines",
     "author": "Systore",

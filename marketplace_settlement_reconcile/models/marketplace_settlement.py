@@ -84,107 +84,76 @@ class MarketplaceSettlement(models.Model):
                 raise UserError(_("Please configure a Clearing Account (Accounting Settings)."))
 
 
-def action_validate(self):
-    """Validate settlement lines before posting.
+    def action_validate(self):
+        """Validate settlement lines before posting.
 
-    Primary checks:
-    - Each line must be linked to an invoice (so Gross is known).
-    - If a fee amount is provided, its account must be set.
-    - Per-line math: Gross == Net + Withheld VAT + Shipping + Commission (within rounding tolerance).
-    - Global math: SUM(Gross) == SUM(Net + fees) (within tolerance).
+        Checks:
+        - Lines exist.
+        - Each line has at least an Order Ref, Sales Order, or Invoice.
+        - If an amount is provided for VAT/Shipping/Commission, its account must be set.
+        - Sum of 'Net to Reconcile' matches Bank Amount within currency rounding tolerance.
+        """
+        for settlement in self:
+            errors = []
+            warnings = []
+            if not settlement.line_ids:
+                errors.append("No lines to validate.")
 
-    Bank amount check (flexible):
-    - Typical marketplaces deposit NET -> Bank == SUM(Net).
-    - Some flows show GROSS deposit and fees separately -> Bank may equal SUM(Gross).
-      We allow it but add a warning.
-    """
-    from odoo.exceptions import UserError
+            currency = settlement.currency_id or settlement.company_id.currency_id
+            rounding = (currency.rounding if currency else 0.01) or 0.01
+            tol = rounding * 2
 
-    for settlement in self:
-        errors = []
-        warnings = []
+            net_sum = 0.0
+            seen_orders = set()
 
-        if not settlement.line_ids:
-            raise UserError("Validation failed:\n- No lines to validate.")
+            for i, line in enumerate(settlement.line_ids, start=1):
+                if not (line.order_ref or line.sale_order_id or line.invoice_id):
+                    errors.append(f"Line {i}: missing Order Ref / Sales Order / Invoice.")
+                    continue
 
-        currency = settlement.currency_id or settlement.company_id.currency_id
-        rounding = currency.rounding if currency else 0.01
-        tol = rounding * 2
+                if line.order_ref:
+                    if line.order_ref in seen_orders:
+                        warnings.append(f"Line {i}: duplicate Order Ref '{line.order_ref}'.")
+                    seen_orders.add(line.order_ref)
 
-        gross_sum = 0.0
-        net_sum = 0.0
-        fee_sum = 0.0
+                if not line.invoice_id:
+                    warnings.append(f"Line {i}: no invoice linked.")
 
-        seen_orders = set()
-        for i, line in enumerate(settlement.line_ids, start=1):
-            if not line.order_ref and not line.sale_order_id and not line.invoice_id:
-                errors.append(f"Line {i}: missing Order Ref / Sales Order / Invoice.")
-                continue
+                if (line.withheld_vat_amount or 0.0) and not line.withheld_vat_account_id:
+                    errors.append(f"Line {i}: Withheld VAT account is required.")
+                if (line.shipping_amount or 0.0) and not line.shipping_account_id:
+                    errors.append(f"Line {i}: Shipping account is required.")
+                if (line.seller_commission_amount or 0.0) and not line.seller_commission_account_id:
+                    errors.append(f"Line {i}: Seller commission account is required.")
 
-            if line.order_ref:
-                if line.order_ref in seen_orders:
-                    warnings.append(f"Line {i}: duplicate Order Ref '{line.order_ref}'.")
-                seen_orders.add(line.order_ref)
+                net_sum += (line.amount_net or 0.0)
 
-            if not line.invoice_id:
-                errors.append(f"Line {i}: no invoice linked (required for validation).")
-                continue
-
-            if (line.withheld_vat_amount or 0.0) and not line.withheld_vat_account_id:
-                errors.append(f"Line {i}: Withheld VAT account is required.")
-            if (line.shipping_amount or 0.0) and not line.shipping_account_id:
-                errors.append(f"Line {i}: Shipping account is required.")
-            if (line.seller_commission_amount or 0.0) and not line.seller_commission_account_id:
-                errors.append(f"Line {i}: Seller commission account is required.")
-
-            gross = line.amount_gross or 0.0
-            fees = (line.withheld_vat_amount or 0.0) + (line.shipping_amount or 0.0) + (line.seller_commission_amount or 0.0)
-            net = line.amount_net or 0.0
-
-            if abs(gross - (net + fees)) > tol:
+            bank_amt = settlement.amount_bank or 0.0
+            diff = bank_amt - net_sum
+            if abs(diff) > tol:
                 errors.append(
-                    f"Line {i}: math mismatch. Gross ({gross:,.2f}) != Net ({net:,.2f}) + Fees ({fees:,.2f})."
+                    f"Bank Amount ({bank_amt:,.2f}) does not match sum of Net to Reconcile ({net_sum:,.2f}). "
+                    f"Difference: {diff:,.2f}."
                 )
 
-            gross_sum += gross
-            net_sum += net
-            fee_sum += fees
+            if errors:
+                raise UserError("Validation failed:\n- " + "\n- ".join(errors))
 
-        if abs(gross_sum - (net_sum + fee_sum)) > tol:
-            errors.append(
-                f"Totals mismatch. SUM(Gross) ({gross_sum:,.2f}) != SUM(Net) ({net_sum:,.2f}) + SUM(Fees) ({fee_sum:,.2f})."
-            )
+            notes = ""
+            if warnings:
+                notes = "Warnings:\n- " + "\n- ".join(warnings)
 
-        bank_amt = settlement.amount_bank or 0.0
-        bank_matches_net = abs(bank_amt - net_sum) <= tol
-        bank_matches_gross = abs(bank_amt - gross_sum) <= tol
-
-        if bank_matches_gross and not bank_matches_net:
-            warnings.append(
-                "Bank Amount matches SUM(Gross). Typical marketplace deposits are NET; "
-                "if fees are withheld, Bank Amount should match SUM(Net)."
-            )
-        elif not bank_matches_net and not bank_matches_gross:
-            warnings.append(
-                f"Bank Amount ({bank_amt:,.2f}) does not match SUM(Net) ({net_sum:,.2f}) nor SUM(Gross) ({gross_sum:,.2f}). "
-                "Review Bank Amount / lines."
-            )
-
-        if errors:
-            raise UserError("Validation failed:\n- " + "\n- ".join(errors))
-
-        settlement.write({
-            "is_validated": True,
-            "validation_notes": ("Warnings:\n- " + "\n- ".join(warnings)) if warnings else "",
-            "state": "imported" if settlement.state == "draft" else settlement.state,
-        })
+            settlement.write({
+                "is_validated": True,
+                "validation_notes": notes,
+            })
 
         return {
             "type": "ir.actions.client",
             "tag": "display_notification",
             "params": {
                 "title": "Validation OK",
-                "message": "Settlement validated successfully." + (("\n" + settlement.validation_notes) if warnings else ""),
+                "message": "Settlement validated successfully." + ("\n" + notes if notes else ""),
                 "type": "success",
                 "sticky": False,
             }
