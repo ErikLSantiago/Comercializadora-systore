@@ -82,8 +82,6 @@ class MarketplaceSettlement(models.Model):
                 raise UserError(_("Please configure a Settlement Journal (Accounting Settings)."))
             if not rec.clearing_account_id:
                 raise UserError(_("Please configure a Clearing Account (Accounting Settings)."))
-
-
     def action_validate(self):
         """Validate settlement lines before posting.
 
@@ -160,7 +158,7 @@ class MarketplaceSettlement(models.Model):
                 "next": {"type": "ir.actions.client", "tag": "reload"},
             }
         }
-def action_post_and_reconcile(self):
+    def action_post_and_reconcile(self):
         for rec in self:
             rec._ensure_config()
             if rec.move_id:
