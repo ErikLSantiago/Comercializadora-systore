@@ -190,6 +190,7 @@ def action_post_and_reconcile(self):
                 lines_vals.append((0, 0, {
                     "name": _("Settlement - %s") % (inv.name),
                     "account_id": receivable_account.id,
+                    "currency_id": currency.id,
                     "partner_id": inv.partner_id.id,
                     "credit": line.amount_gross if line.amount_gross > 0 else 0.0,
                     "debit": (-line.amount_gross) if line.amount_gross < 0 else 0.0,
@@ -201,6 +202,7 @@ def action_post_and_reconcile(self):
                 lines_vals.append((0, 0, {
                     "name": _("Net deposit - %s") % (inv.name),
                     "account_id": rec.clearing_account_id.id,
+                    "currency_id": currency.id,
                     "partner_id": False,
                     "debit": line.amount_net if line.amount_net > 0 else 0.0,
                     "credit": (-line.amount_net) if line.amount_net < 0 else 0.0,
@@ -220,6 +222,7 @@ def action_post_and_reconcile(self):
                     lines_vals.append((0, 0, {
                         "name": _("%s - %s") % (label, inv.name),
                         "account_id": acc.id,
+                    "currency_id": currency.id,
                         "partner_id": False,
                         "debit": amt if amt > 0 else 0.0,
                         "credit": (-amt) if amt < 0 else 0.0,
