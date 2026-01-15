@@ -55,7 +55,7 @@
                     </div>
 
                     <field name="line_ids" readonly="state == 'posted'">
-                        <list editable="bottom">
+                        <list editable="bottom" create="1" delete="1">
                             <field name="order_ref"/>
                             <field name="sale_order_id"/>
                             <field name="invoice_id"/>

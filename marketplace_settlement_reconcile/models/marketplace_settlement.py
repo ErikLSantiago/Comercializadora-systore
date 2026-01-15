@@ -171,7 +171,8 @@ class MarketplaceSettlement(models.Model):
             # For each invoice: credit receivable by gross; debit clearing by net; debit expense accounts by fees.
             lines_vals = []
             company = rec.company_id
-            currency = rec.currency_id
+            company_currency = company.currency_id
+            currency = rec.currency_id or company_currency
 
             for line in rec.line_ids:
                 inv = line.invoice_id
@@ -188,18 +189,15 @@ class MarketplaceSettlement(models.Model):
                 lines_vals.append((0, 0, {
                     "name": _("Settlement - %s") % (inv.name),
                     "account_id": receivable_account.id,
-                    "currency_id": currency.id,
                     "partner_id": inv.partner_id.id,
                     "credit": line.amount_gross if line.amount_gross > 0 else 0.0,
                     "debit": (-line.amount_gross) if line.amount_gross < 0 else 0.0,
-                    "amount_currency": 0.0,
                 }))
 
                 # Debit clearing by net
                 lines_vals.append((0, 0, {
                     "name": _("Net deposit - %s") % (inv.name),
                     "account_id": rec.clearing_account_id.id,
-                    "currency_id": currency.id,
                     "partner_id": False,
                     "debit": line.amount_net if line.amount_net > 0 else 0.0,
                     "credit": (-line.amount_net) if line.amount_net < 0 else 0.0,
@@ -219,7 +217,6 @@ class MarketplaceSettlement(models.Model):
                     lines_vals.append((0, 0, {
                         "name": _("%s - %s") % (label, inv.name),
                         "account_id": acc.id,
-                    "currency_id": currency.id,
                         "partner_id": False,
                         "debit": amt if amt > 0 else 0.0,
                         "credit": (-amt) if amt < 0 else 0.0,
@@ -234,7 +231,6 @@ class MarketplaceSettlement(models.Model):
                 lines_vals.append((0, 0, {
                     "name": _("Rounding adjustment"),
                     "account_id": rec.clearing_account_id.id,
-                    "currency_id": currency.id,
                     "partner_id": False,
                     "debit": (-diff) if diff < 0 else 0.0,
                     "credit": diff if diff > 0 else 0.0,
@@ -267,6 +263,46 @@ class MarketplaceSettlement(models.Model):
             # NOTE: Bank reconciliation (statement line) is left to the standard widget:
             # user matches the bank statement line with the clearing account lines from this move.
             return rec.action_open_form()
+
+    # -------------------------------------------------
+    # Action menu helpers (cancel/delete posted entry)
+    # -------------------------------------------------
+    def action_cancel_posted_entry(self):
+        """Cancel the settlement journal entry.
+
+        This is exposed as an *Action* entry in the form view.
+        """
+        for rec in self:
+            if not rec.move_id:
+                raise UserError(_("No posted entry to cancel."))
+            move = rec.move_id
+            # Move must be reset to draft before cancel in most configurations.
+            if move.state == "posted":
+                move.button_draft()
+            if hasattr(move, "button_cancel"):
+                move.button_cancel()
+            else:
+                # Fallback: mark as draft and leave it there.
+                rec.message_post(body=_('Posted entry was set back to draft (cancel not available).'))
+            rec.state = "imported"
+        return True
+
+    def action_delete_posted_entry(self):
+        """Delete the settlement journal entry (if allowed by accounting settings)."""
+        for rec in self:
+            if not rec.move_id:
+                raise UserError(_("No posted entry to delete."))
+            move = rec.move_id
+            # Ensure deletable: draft + not in lock dates, and journal allows it.
+            if move.state == "posted":
+                move.button_draft()
+            # Unlink can be blocked by journal settings / lock dates.
+            move_name = move.name
+            move.unlink()
+            rec.move_id = False
+            rec.state = "imported"
+            rec.message_post(body=_('Settlement entry %s was deleted.') % (move_name,))
+        return True
 
 class MarketplaceSettlementLine(models.Model):
     _name = "marketplace.settlement.line"
