@@ -10,6 +10,9 @@ class MarketplaceSettlement(models.Model):
 
     name = fields.Char(default=lambda self: _("New Settlement"), required=True, tracking=True)
     state = fields.Selection([
+
+    is_validated = fields.Boolean(string="Validated", default=False, readonly=True)
+    validation_notes = fields.Text(string="Validation Notes", readonly=True)
         ("draft", "Draft"),
         ("imported", "Imported"),
         ("posted", "Posted"),
@@ -78,6 +81,81 @@ class MarketplaceSettlement(models.Model):
                 raise UserError(_("Please configure a Settlement Journal (Accounting Settings)."))
             if not rec.clearing_account_id:
                 raise UserError(_("Please configure a Clearing Account (Accounting Settings)."))
+
+def action_validate(self):
+    """Validate settlement lines before posting.
+
+    Checks:
+    - Each line has a Sales Order and Invoice linked (or at least an invoice).
+    - Required accounts are set when amounts are provided.
+    - Sum of 'Net to Reconcile' matches Bank Amount (tolerance by currency rounding).
+    """
+    for settlement in self:
+        errors = []
+        warnings = []
+        if not settlement.line_ids:
+            errors.append("No lines to validate.")
+        currency = settlement.currency_id or settlement.company_id.currency_id
+        rounding = currency.rounding if currency else 0.01
+        tol = rounding * 2  # small tolerance
+        net_sum = 0.0
+
+        seen_orders = set()
+        for i, line in enumerate(settlement.line_ids, start=1):
+            if not line.order_ref and not line.sale_order_id and not line.invoice_id:
+                errors.append(f"Line {i}: missing Order Ref / Sales Order / Invoice.")
+                continue
+
+            if line.order_ref:
+                if line.order_ref in seen_orders:
+                    warnings.append(f"Line {i}: duplicate Order Ref '{line.order_ref}'.")
+                seen_orders.add(line.order_ref)
+
+            if not line.invoice_id:
+                warnings.append(f"Line {i}: no invoice linked. Gross will be 0 and reconciliation may fail.")
+            # Accounts required when amounts are non-zero
+            if (line.withheld_vat_amount or 0.0) and not line.withheld_vat_account_id:
+                errors.append(f"Line {i}: Withheld VAT account is required.")
+            if (line.shipping_amount or 0.0) and not line.shipping_account_id:
+                errors.append(f"Line {i}: Shipping account is required.")
+            if (line.seller_commission_amount or 0.0) and not line.seller_commission_account_id:
+                errors.append(f"Line {i}: Seller commission account is required.")
+
+            net_sum += (line.amount_net or 0.0)
+
+        bank_amt = settlement.amount_bank or 0.0
+        diff = bank_amt - net_sum
+        if abs(diff) > tol:
+            errors.append(
+                f"Bank Amount ({bank_amt:,.2f}) does not match sum of Net to Reconcile ({net_sum:,.2f}). "
+                f"Difference: {diff:,.2f}."
+            )
+
+        if errors:
+            raise UserError("Validation failed:\n- " + "\n- ".join(errors))
+
+        notes = ""
+        if warnings:
+            notes = "Warnings:\n- " + "\n- ".join(warnings)
+
+        settlement.write({
+            "is_validated": True,
+            "validation_notes": notes,
+            "state": "imported" if settlement.state == "draft" else settlement.state,
+        })
+
+        # Return a client notification
+        return {
+            "type": "ir.actions.client",
+            "tag": "display_notification",
+            "params": {
+                "title": "Validation OK",
+                "message": "Settlement validated successfully." + ("\n" + notes if notes else ""),
+                "type": "success",
+                "sticky": False,
+            }
+        }
+
 
     def action_post_and_reconcile(self):
         for rec in self:
