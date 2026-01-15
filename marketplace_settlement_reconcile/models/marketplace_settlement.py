@@ -158,131 +158,173 @@ class MarketplaceSettlement(models.Model):
                 "next": {"type": "ir.actions.client", "tag": "reload"},
             }
         }
+
     def action_post_and_reconcile(self):
         for rec in self:
             rec._ensure_config()
+            if rec.state != "imported":
+                raise UserError(_("Only imported settlements can be posted."))
+            if not rec.is_validated:
+                raise UserError(_("Please validate the settlement before posting."))
             if rec.move_id:
                 raise UserError(_("This settlement is already posted."))
 
-            if not rec.line_ids:
-                raise UserError(_("No lines to post. Import a CSV first."))
-
-            # Build a single balanced journal entry:
-            # For each invoice: credit receivable by gross; debit clearing by net; debit expense accounts by fees.
-            lines_vals = []
+            # Build settlement accounting entry:
+            move_lines = []
             company = rec.company_id
-            currency = rec.currency_id
+            company_currency = company.currency_id
+            currency = rec.currency_id or company_currency
 
-            for line in rec.line_ids:
+            # Helper to add a line (no amount_currency unless multi-currency is needed)
+            def _add_line(name, account, debit=0.0, credit=0.0, partner=False):
+                vals = {
+                    "name": name or rec.name,
+                    "account_id": account.id,
+                    "debit": debit,
+                    "credit": credit,
+                    "partner_id": partner.id if partner else False,
+                }
+                # Set currency only for multi-currency postings
+                if currency and company_currency and currency != company_currency:
+                    vals["currency_id"] = currency.id
+                    vals["amount_currency"] = (debit - credit)
+                return vals
+
+            settlement_date = rec.bank_statement_line_id.date if rec.bank_statement_line_id else fields.Date.context_today(self)
+
+            for line in rec.line_ids.filtered(lambda l: l.invoice_id):
                 inv = line.invoice_id
-                if not inv or inv.state != "posted" or inv.move_type not in ("out_invoice", "out_refund"):
-                    raise UserError(_("Each settlement line must have a posted customer invoice. Check line: %s") % (line.order_ref or line.id))
 
-                # Determine invoice receivable account
-                receivable_lines = inv.line_ids.filtered(lambda l: l.account_id.account_type == "asset_receivable" and not l.reconciled)
-                if not receivable_lines:
-                    raise UserError(_("Invoice %s has no open receivable line to reconcile.") % inv.name)
-                receivable_account = receivable_lines[0].account_id
+                # Receivable account from invoice
+                receivable_ml = inv.line_ids.filtered(lambda ml: ml.account_id.account_type == "asset_receivable")
+                if not receivable_ml:
+                    raise UserError(_("No receivable line found on invoice %s.") % inv.display_name)
+                receivable_account = receivable_ml[0].account_id
+                partner = inv.partner_id
 
-                # Credit receivable by gross
-                lines_vals.append((0, 0, {
-                    "name": _("Settlement - %s") % (inv.name),
-                    "account_id": receivable_account.id,
-                    "currency_id": currency.id,
-                    "partner_id": inv.partner_id.id,
-                    "credit": line.amount_gross if line.amount_gross > 0 else 0.0,
-                    "debit": (-line.amount_gross) if line.amount_gross < 0 else 0.0,
-                    "amount_currency": 0.0,
-                }))
+                gross = line.amount_gross or inv.amount_total
+                net = line.amount_net
 
-                # Debit clearing by net
-                lines_vals.append((0, 0, {
-                    "name": _("Net deposit - %s") % (inv.name),
-                    "account_id": rec.clearing_account_id.id,
-                    "currency_id": currency.id,
-                    "partner_id": False,
-                    "debit": line.amount_net if line.amount_net > 0 else 0.0,
-                    "credit": (-line.amount_net) if line.amount_net < 0 else 0.0,
-                }))
+                if not gross:
+                    continue
 
-                # Debit fees
-                fee_components = [
-                    ("Withheld VAT", line.withheld_vat_amount, line.withheld_vat_account_id),
-                    ("Shipping", line.shipping_amount, line.shipping_account_id),
-                    ("Seller Commission", line.seller_commission_amount, line.seller_commission_account_id),
-                ]
-                for label, amt, acc in fee_components:
-                    if not amt:
-                        continue
-                    if not acc:
-                        raise UserError(_("Missing account for %s on invoice %s.") % (label, inv.name))
-                    lines_vals.append((0, 0, {
-                        "name": _("%s - %s") % (label, inv.name),
-                        "account_id": acc.id,
-                    "currency_id": currency.id,
-                        "partner_id": False,
-                        "debit": amt if amt > 0 else 0.0,
-                        "credit": (-amt) if amt < 0 else 0.0,
-                    }))
+                # Debit clearing for net deposit
+                if net:
+                    move_lines.append(_add_line(_("Net deposit (%s)") % inv.display_name, rec.clearing_account_id, debit=net, partner=partner))
 
-            # --- Safety: ensure move is balanced (handle rounding differences) ---
-            total_debit = sum(v[2].get("debit", 0.0) for v in lines_vals)
-            total_credit = sum(v[2].get("credit", 0.0) for v in lines_vals)
-            diff = currency.round(total_debit - total_credit)
-            if diff:
-                # If debits > credits, add a credit line (and viceversa) on the clearing account.
-                lines_vals.append((0, 0, {
-                    "name": _("Rounding adjustment"),
-                    "account_id": rec.clearing_account_id.id,
-                    "currency_id": currency.id,
-                    "partner_id": False,
-                    "debit": (-diff) if diff < 0 else 0.0,
-                    "credit": diff if diff > 0 else 0.0,
-                }))
-            move = self.env["account.move"].create({
+                # Debit expenses (fees)
+                if line.withheld_vat_amount and line.withheld_vat_account_id:
+                    move_lines.append(_add_line(_("Withheld VAT (%s)") % inv.display_name, line.withheld_vat_account_id, debit=line.withheld_vat_amount, partner=partner))
+                if line.shipping_amount and line.shipping_account_id:
+                    move_lines.append(_add_line(_("Shipping cost (%s)") % inv.display_name, line.shipping_account_id, debit=line.shipping_amount, partner=partner))
+                if line.seller_commission_amount and line.seller_commission_account_id:
+                    move_lines.append(_add_line(_("Seller commission (%s)") % inv.display_name, line.seller_commission_account_id, debit=line.seller_commission_amount, partner=partner))
+
+                # Credit receivable for full invoice amount (marks invoice as paid when reconciled)
+                move_lines.append(_add_line(_("Customer receivable (%s)") % inv.display_name, receivable_account, credit=gross, partner=partner))
+
+            if not move_lines:
+                raise UserError(_("Nothing to post. Please add at least one line with an invoice."))
+
+            move_vals = {
                 "move_type": "entry",
-                "date": rec.bank_statement_line_id.date if rec.bank_statement_line_id else fields.Date.context_today(self),
-                "ref": rec.name,
                 "journal_id": rec.journal_id.id,
+                "date": settlement_date,
+                "ref": rec.name,
                 "company_id": rec.company_id.id,
-                "line_ids": lines_vals,
-            })
+                "line_ids": [(0, 0, vals) for vals in move_lines],
+            }
+            move = self.env["account.move"].create(move_vals)
+
+            # Ensure balanced before posting (avoid cryptic errors)
+            debit = sum(ml["debit"] for ml in move_lines)
+            credit = sum(ml["credit"] for ml in move_lines)
+            if not company_currency.is_zero(debit - credit):
+                raise UserError(_("The settlement entry is not balanced. Debit=%s Credit=%s Difference=%s") % (debit, credit, debit - credit))
+
             move.action_post()
             rec.move_id = move.id
+
+            # Reconcile each invoice receivable with the corresponding credit line from the settlement move
+            for line in rec.line_ids.filtered(lambda l: l.invoice_id):
+                inv = line.invoice_id
+                gross = line.amount_gross or inv.amount_total
+                if not gross:
+                    continue
+
+                inv_recv_lines = inv.line_ids.filtered(lambda ml: ml.account_id.account_type == "asset_receivable" and not ml.reconciled)
+                if not inv_recv_lines:
+                    continue
+                recv_account = inv_recv_lines[0].account_id
+
+                settlement_recv_lines = move.line_ids.filtered(
+                    lambda ml: ml.account_id.id == recv_account.id
+                    and ml.partner_id.id == inv.partner_id.id
+                    and ml.credit
+                    and not ml.reconciled
+                )
+
+                # pick the closest credit line by amount
+                target = settlement_recv_lines.filtered(lambda ml: company_currency.is_zero(ml.credit - gross))
+                target = target[:1] or settlement_recv_lines[:1]
+                if target and inv_recv_lines:
+                    (inv_recv_lines | target).reconcile()
+
+            # Reconcile clearing with the bank statement line by creating a bank move and linking it
+            if rec.bank_statement_line_id:
+                bsl = rec.bank_statement_line_id
+                bank_journal = bsl.journal_id
+                bank_account = bank_journal.default_account_id
+                if not bank_account:
+                    raise UserError(_("Please configure a default account on the bank journal %s.") % bank_journal.display_name)
+
+                amount = rec.amount_bank
+                if company_currency.is_zero(amount):
+                    amount = sum(rec.line_ids.mapped("amount_net"))
+
+                bank_move_lines = []
+                partner = bsl.partner_id
+                if amount > 0:
+                    bank_move_lines.append(_add_line(_("Bank deposit (%s)") % rec.name, bank_account, debit=amount, partner=partner))
+                    bank_move_lines.append(_add_line(_("Marketplace clearing (%s)") % rec.name, rec.clearing_account_id, credit=amount, partner=partner))
+                else:
+                    amt = abs(amount)
+                    bank_move_lines.append(_add_line(_("Bank payment (%s)") % rec.name, bank_account, credit=amt, partner=partner))
+                    bank_move_lines.append(_add_line(_("Marketplace clearing (%s)") % rec.name, rec.clearing_account_id, debit=amt, partner=partner))
+
+                bank_move = self.env["account.move"].create({
+                    "move_type": "entry",
+                    "journal_id": bank_journal.id,
+                    "date": bsl.date,
+                    "ref": rec.name,
+                    "company_id": rec.company_id.id,
+                    "line_ids": [(0, 0, vals) for vals in bank_move_lines],
+                })
+                bank_move.action_post()
+
+                # Link statement line to this move (so it shows as matched) - ignore if field is computed
+                write_vals = {}
+                if "move_id" in bsl._fields:
+                    write_vals["move_id"] = bank_move.id
+                if "is_reconciled" in bsl._fields:
+                    write_vals["is_reconciled"] = True
+                if "checked" in bsl._fields:
+                    write_vals["checked"] = True
+                if write_vals:
+                    bsl.write(write_vals)
+
+                # Reconcile clearing between settlement entry and bank entry
+                if not rec.clearing_account_id.reconcile:
+                    raise UserError(_("Clearing account %s must allow reconciliation.") % rec.clearing_account_id.display_name)
+
+                clearing_lines = (move.line_ids | bank_move.line_ids).filtered(
+                    lambda ml: ml.account_id.id == rec.clearing_account_id.id and not ml.reconciled
+                )
+                if clearing_lines:
+                    clearing_lines.reconcile()
+
             rec.state = "posted"
 
-            # Reconcile receivable lines per invoice
-            for line in rec.line_ids:
-                inv = line.invoice_id
-                inv_recv = inv.line_ids.filtered(lambda l: l.account_id.account_type == "asset_receivable" and not l.reconciled)
-                if not inv_recv:
-                    continue
-                # Find matching settlement receivable line in the move (same partner/account and opposite sign)
-                st_recv = move.line_ids.filtered(lambda l:
-                    l.account_id == inv_recv[0].account_id and l.partner_id == inv.partner_id and not l.reconciled
-                )
-                # reconcile all matching for safety
-                (inv_recv + st_recv).reconcile()
-
-            # NOTE: Bank reconciliation (statement line) is left to the standard widget:
-            # user matches the bank statement line with the clearing account lines from this move.
-            return rec.action_open_form()
-
-class MarketplaceSettlementLine(models.Model):
-    _name = "marketplace.settlement.line"
-    _description = "Marketplace Settlement Line"
-    _order = "id asc"
-
-    settlement_id = fields.Many2one("marketplace.settlement", required=True, ondelete="cascade")
-    company_id = fields.Many2one(related="settlement_id.company_id", store=True, readonly=True)
-    currency_id = fields.Many2one(related="settlement_id.currency_id", store=True, readonly=True)
-
-    order_ref = fields.Char(string="Order Reference", required=True)
-    sale_order_id = fields.Many2one("sale.order", string="Sales Order", ondelete="set null")
-    invoice_id = fields.Many2one("account.move", string="Invoice", ondelete="set null")
-
-
-    @api.depends("invoice_id", "invoice_id.amount_total", "invoice_id.amount_total_signed")
     def _compute_amount_gross(self):
         for rec in self:
             inv = rec.invoice_id
