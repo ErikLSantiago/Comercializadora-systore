@@ -157,10 +157,10 @@ class MarketplaceSettlement(models.Model):
                 "message": "Settlement validated successfully." + ("\n" + notes if notes else ""),
                 "type": "success",
                 "sticky": False,
+                "next": {"type": "ir.actions.client", "tag": "reload"},
             }
         }
-
-    def action_post_and_reconcile(self):
+def action_post_and_reconcile(self):
         for rec in self:
             rec._ensure_config()
             if rec.move_id:
