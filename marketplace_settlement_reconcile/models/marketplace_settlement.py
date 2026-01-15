@@ -225,6 +225,20 @@ class MarketplaceSettlement(models.Model):
                         "credit": (-amt) if amt < 0 else 0.0,
                     }))
 
+            # --- Safety: ensure move is balanced (handle rounding differences) ---
+            total_debit = sum(v[2].get("debit", 0.0) for v in lines_vals)
+            total_credit = sum(v[2].get("credit", 0.0) for v in lines_vals)
+            diff = currency.round(total_debit - total_credit)
+            if diff:
+                # If debits > credits, add a credit line (and viceversa) on the clearing account.
+                lines_vals.append((0, 0, {
+                    "name": _("Rounding adjustment"),
+                    "account_id": rec.clearing_account_id.id,
+                    "currency_id": currency.id,
+                    "partner_id": False,
+                    "debit": (-diff) if diff < 0 else 0.0,
+                    "credit": diff if diff > 0 else 0.0,
+                }))
             move = self.env["account.move"].create({
                 "move_type": "entry",
                 "date": rec.bank_statement_line_id.date if rec.bank_statement_line_id else fields.Date.context_today(self),
