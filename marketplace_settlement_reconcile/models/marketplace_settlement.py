@@ -144,9 +144,10 @@ class MarketplaceSettlement(models.Model):
                 notes = "Warnings:\n- " + "\n- ".join(warnings)
 
             settlement.write({
-                "is_validated": True,
-                "validation_notes": notes,
-            })
+                    "is_validated": True,
+                    "validation_notes": notes,
+                    "state": "imported" if settlement.state == "draft" else settlement.state,
+                })
 
         return {
             "type": "ir.actions.client",
