@@ -192,7 +192,6 @@ class MarketplaceSettlement(models.Model):
                     "partner_id": inv.partner_id.id,
                     "credit": line.amount_gross if line.amount_gross > 0 else 0.0,
                     "debit": (-line.amount_gross) if line.amount_gross < 0 else 0.0,
-                    "currency_id": currency.id if currency != company.currency_id else False,
                     "amount_currency": 0.0,
                 }))
 
