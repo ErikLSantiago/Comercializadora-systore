@@ -11,12 +11,13 @@ class MarketplaceSettlement(models.Model):
     name = fields.Char(default=lambda self: _("New Settlement"), required=True, tracking=True)
     state = fields.Selection([
 
-    is_validated = fields.Boolean(string="Validated", default=False, readonly=True)
-    validation_notes = fields.Text(string="Validation Notes", readonly=True)
         ("draft", "Draft"),
         ("imported", "Imported"),
         ("posted", "Posted"),
     ], default="draft", tracking=True)
+
+    is_validated = fields.Boolean(string="Validated", default=False, readonly=True)
+    validation_notes = fields.Text(string="Validation Notes", readonly=True)
 
     company_id = fields.Many2one("res.company", default=lambda self: self.env.company, required=True)
     currency_id = fields.Many2one("res.currency", default=lambda self: self.env.company.currency_id, required=True)
