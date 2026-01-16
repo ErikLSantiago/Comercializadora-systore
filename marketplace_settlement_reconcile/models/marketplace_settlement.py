@@ -76,6 +76,14 @@ class MarketplaceSettlement(models.Model):
     def action_mark_imported(self):
         self.write({"state": "imported"})
 
+    def action_download_csv_template(self):
+        """Return an action to download a sample CSV template with the expected headers."""
+        return {
+            "type": "ir.actions.act_url",
+            "url": "/marketplace_settlement_reconcile/static/template/marketplace_settlement_template.csv",
+            "target": "self",
+        }
+
     def _ensure_config(self):
         for rec in self:
             if not rec.journal_id:
@@ -260,8 +268,26 @@ class MarketplaceSettlement(models.Model):
                 # reconcile all matching for safety
                 (inv_recv + st_recv).reconcile()
 
-            # NOTE: Bank reconciliation (statement line) is left to the standard widget:
-            # user matches the bank statement line with the clearing account lines from this move.
+            # Mark the related bank statement line as checked/reconciled so it shows as
+            # "Conciliado" (Matched) in the bank reconciliation view.
+            st_line = rec.bank_statement_line_id
+            if st_line:
+                vals = {}
+                if 'checked' in st_line._fields:
+                    vals['checked'] = True
+                # 'is_reconciled' is sometimes computed; attempt to set only if it's writable.
+                if 'is_reconciled' in st_line._fields and not getattr(st_line._fields['is_reconciled'], 'compute', None):
+                    vals['is_reconciled'] = True
+                if vals:
+                    try:
+                        st_line.sudo().write(vals)
+                    except Exception:
+                        # If the field is computed/readonly in this database, at least keep it checked.
+                        if vals.get('checked'):
+                            try:
+                                st_line.sudo().write({'checked': True})
+                            except Exception:
+                                pass
             return rec.action_open_form()
 
     # -------------------------------------------------
