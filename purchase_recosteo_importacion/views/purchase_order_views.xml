@@ -20,7 +20,12 @@
                 <field name="x_exchange_rate" groups="purchase.group_purchase_user" placeholder="Ej. 17.5000"/>
             </xpath>
 
-            <xpath expr="//field[@name='order_line']/tree/field[@name='price_unit']" position="after">
+            <!--
+                Odoo 18 purchase order line tree structure can vary depending on localization/enterprise.
+                To avoid brittle xpaths (e.g. targeting price_unit which may be removed/replaced),
+                we inject our columns at the end of the order_line tree.
+            -->
+            <xpath expr="//field[@name='order_line']//tree" position="inside">
                 <field name="x_cost_gross_usd" optional="show"/>
                 <field name="x_cost_ship_usd" optional="show"/>
                 <field name="x_cost_gross_mxn" optional="show" readonly="1"/>
