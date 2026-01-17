@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*-
 {
     'name': 'Recosteo de compras (Importación fija + TC)',
-    'version': '18.0.1.0.5',
+    'version': '18.0.1.0.7',
     'category': 'Purchases',
     'summary': 'Recosteo unitario con importación fija por producto (MXN) y tipo de cambio manual.',
     'description': """Recosteo de compras con tipo de cambio manual, importación fija por producto (MXN) y botón para aplicar al price_unit.""",

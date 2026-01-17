@@ -9,8 +9,11 @@
         <field name="model">purchase.order.line</field>
         <field name="inherit_id" ref="purchase.purchase_order_line_tree"/>
         <field name="arch" type="xml">
-            <!-- Append our columns at the end of the tree (stable xpath) -->
-            <xpath expr="//tree" position="inside">
+            <!--
+                Odoo 17+ switched many list views from <tree> to <list>.
+                Use a union xpath to support both.
+            -->
+            <xpath expr="//tree | //list" position="inside">
                 <field name="x_cost_gross_usd" optional="show"/>
                 <field name="x_cost_ship_usd" optional="show"/>
                 <field name="x_cost_gross_mxn" optional="show" readonly="1"/>
