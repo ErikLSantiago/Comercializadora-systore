@@ -9,6 +9,7 @@
     "depends": ["account", "account_accountant", "sale_management"],
     "data": [
         "security/ir.model.access.csv",
+        "security/marketplace_settlement_security.xml",
         "views/res_config_settings_views.xml",
         "wizard/import_settlement_csv_views.xml",
         "views/marketplace_settlement_views.xml",

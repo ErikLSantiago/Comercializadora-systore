@@ -436,6 +436,14 @@ class MarketplaceSettlementLine(models.Model):
             rec.amount_fees_total = fees
             rec.amount_net = (rec.amount_gross or 0.0) - fees
 
+    def unlink(self):
+        # Allow deleting settlement lines only while the settlement is in Draft.
+        # This is important to avoid altering already validated/posted reconciliations.
+        for line in self:
+            if line.settlement_id and line.settlement_id.state != "draft":
+                raise UserError(_("You can only delete settlement lines while the settlement is in Draft."))
+        return super().unlink()
+
     def action_open_invoice(self):
         self.ensure_one()
         if not self.invoice_id:
