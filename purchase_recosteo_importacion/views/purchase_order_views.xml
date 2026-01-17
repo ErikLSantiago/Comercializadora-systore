@@ -21,7 +21,7 @@
 
             <!-- Force the one2many list view for order_line to our dedicated view so the columns are always available -->
             <xpath expr="//field[@name='order_line']" position="attributes">
-                <attribute name="context">{'tree_view_ref': 'purchase_recosteo_importacion.view_purchase_order_line_list_recost_base'}</attribute>
+                <attribute name="context">{'tree_view_ref': 'purchase_recosteo_importacion.view_purchase_order_line_list_recost_base', 'list_view_ref': 'purchase_recosteo_importacion.view_purchase_order_line_list_recost_base'}</attribute>
             </xpath>
         </field>
     </record>
