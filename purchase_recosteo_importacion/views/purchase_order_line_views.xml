@@ -1,26 +1,45 @@
 <?xml version="1.0" encoding="utf-8"?>
 <odoo>
     <!--
-        Odoo 18: the purchase order form may not embed an inline <tree> under order_line.
-        Therefore, we extend the purchase.order.line tree view directly.
+        Odoo 17/18: the Purchase Order form may reference a different list view for order_line
+        depending on installed modules and customizations.
+
+        To make sure the cost columns always appear in the column chooser, we define our own
+        list view for purchase.order.line and force the PO form to use it (tree_view_ref).
+
+        The view includes the common standard fields so normal purchasing UX keeps working.
     -->
-    <record id="view_purchase_order_line_tree_recost" model="ir.ui.view">
-        <field name="name">purchase.order.line.tree.recost</field>
+
+    <record id="view_purchase_order_line_list_recost_base" model="ir.ui.view">
+        <field name="name">purchase.order.line.list.recost.base</field>
         <field name="model">purchase.order.line</field>
-        <field name="inherit_id" ref="purchase.purchase_order_line_tree"/>
         <field name="arch" type="xml">
-            <!--
-                Odoo 17+ switched many list views from <tree> to <list>.
-                Use a union xpath to support both.
-            -->
-            <xpath expr="//tree | //list" position="inside">
+            <list editable="bottom">
+                <!-- Handle / sequence (if available) -->
+                <field name="sequence" widget="handle" optional="hide"/>
+
+                <!-- Section/Note support -->
+                <field name="display_type" invisible="1"/>
+
+                <!-- Core fields -->
+                <field name="product_id" options="{'no_open': False}"/>
+                <field name="name" optional="show"/>
+                <field name="product_qty"/>
+                <field name="product_uom" optional="show"/>
+                <field name="price_unit"/>
+
+                <!-- Our cost fields (ALWAYS AVAILABLE; user can show/hide) -->
                 <field name="x_cost_gross_usd" optional="show"/>
                 <field name="x_cost_ship_usd" optional="show"/>
                 <field name="x_cost_gross_mxn" optional="show" readonly="1"/>
                 <field name="x_cost_ship_mxn" optional="show" readonly="1"/>
                 <field name="x_import_fixed_mxn" optional="show"/>
                 <field name="x_cost_total_mxn" optional="show" readonly="1"/>
-            </xpath>
+
+                <!-- Taxes and subtotal -->
+                <field name="taxes_id" widget="many2many_tags" optional="show"/>
+                <field name="price_subtotal" optional="show"/>
+            </list>
         </field>
     </record>
 </odoo>

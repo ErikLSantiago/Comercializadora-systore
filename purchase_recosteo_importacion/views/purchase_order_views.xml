@@ -12,12 +12,16 @@
                     string="Recostear"
                     class="btn-primary"
                     groups="purchase.group_purchase_user"
-                    invisible="state not in ('draft','sent','to approve','purchase')"
                 />
             </xpath>
 
             <xpath expr="//field[@name='currency_id']" position="after">
                 <field name="x_exchange_rate" groups="purchase.group_purchase_user" placeholder="Ej. 17.5000"/>
+            </xpath>
+
+            <!-- Force the one2many list view for order_line to our dedicated view so the columns are always available -->
+            <xpath expr="//field[@name='order_line']" position="attributes">
+                <attribute name="context">{'tree_view_ref': 'purchase_recosteo_importacion.view_purchase_order_line_list_recost_base'}</attribute>
             </xpath>
         </field>
     </record>
