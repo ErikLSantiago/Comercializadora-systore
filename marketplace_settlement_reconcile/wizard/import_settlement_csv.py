@@ -18,10 +18,18 @@ class MarketplaceSettlementImportCSV(models.TransientModel):
         if not code:
             return False
         code = str(code).strip()
-        acc = self.env["account.account"].search([
-            ("code", "=", code),
-            ("company_id", "=", self.settlement_id.company_id.id),
-        ], limit=1)
+        Account = self.env["account.account"]
+        company = self.settlement_id.company_id
+
+        # Odoo 17/18: account.account can be multi-company via `company_ids` (M2M)
+        # and may not have `company_id` anymore. Keep backward compatibility.
+        domain = [("code", "=", code)]
+        if "company_id" in Account._fields:
+            domain.append(("company_id", "=", company.id))
+        elif "company_ids" in Account._fields:
+            domain.append(("company_ids", "in", company.id))
+
+        acc = Account.search(domain, limit=1)
         if not acc:
             raise UserError(_("Account with code '%s' not found in company '%s'.") % (code, self.settlement_id.company_id.display_name))
         return acc
