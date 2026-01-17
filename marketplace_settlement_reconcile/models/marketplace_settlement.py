@@ -90,6 +90,54 @@ class MarketplaceSettlement(models.Model):
                 raise UserError(_("Please configure a Settlement Journal (Accounting Settings)."))
             if not rec.clearing_account_id:
                 raise UserError(_("Please configure a Clearing Account (Accounting Settings)."))
+
+    def _create_bank_move_for_statement_line(self, st_line, clearing_account, ref=None):
+        """Create a bank journal entry for a bank statement line, using the clearing account as counterpart.
+
+        This is what makes the bank statement line appear as reconciled in the bank reconciliation widget.
+        """
+        self.ensure_one()
+
+        bank_journal = st_line.journal_id
+        if not bank_journal:
+            raise UserError(_("Bank Statement Line has no journal."))
+
+        bank_account = bank_journal.default_account_id
+        if not bank_account:
+            raise UserError(_("Please configure a Default Account on the bank journal '%s'.") % bank_journal.display_name)
+
+        amount = st_line.amount or 0.0
+        if amount == 0.0:
+            raise UserError(_("Bank statement amount is 0. Cannot create bank move."))
+
+        debit_bank = amount if amount > 0.0 else 0.0
+        credit_bank = -amount if amount < 0.0 else 0.0
+        debit_clear = credit_bank
+        credit_clear = debit_bank
+
+        move_vals = {
+            "move_type": "entry",
+            "journal_id": bank_journal.id,
+            "date": st_line.date or fields.Date.context_today(self),
+            "ref": ref or self.name,
+            "line_ids": [
+                (0, 0, {
+                    "name": ref or self.name,
+                    "account_id": bank_account.id,
+                    "debit": debit_bank,
+                    "credit": credit_bank,
+                    "partner_id": st_line.partner_id.id if st_line.partner_id else False,
+                }),
+                (0, 0, {
+                    "name": ref or self.name,
+                    "account_id": clearing_account.id,
+                    "debit": debit_clear,
+                    "credit": credit_clear,
+                    "partner_id": st_line.partner_id.id if st_line.partner_id else False,
+                }),
+            ],
+        }
+        return self.env["account.move"].sudo().create(move_vals)
     def action_validate(self):
         """Validate settlement lines before posting.
 
@@ -268,26 +316,84 @@ class MarketplaceSettlement(models.Model):
                 # reconcile all matching for safety
                 (inv_recv + st_recv).reconcile()
 
-            # Mark the related bank statement line as checked/reconciled so it shows as
-            # "Conciliado" (Matched) in the bank reconciliation view.
+            # --- Bank statement line reconciliation (mark as "Conciliado") ---
+            # Bank reconciliation widget expects a posted journal entry linked to the
+            # bank statement line (move_id) with a bank account line + counterpart.
+            # We therefore create (or reuse) a bank move in the bank journal:
+            #   Dr/Cr Bank account
+            #   Cr/Dr Clearing account
+            # and then reconcile the clearing account against the settlement move.
             st_line = rec.bank_statement_line_id
             if st_line:
-                vals = {}
-                if 'checked' in st_line._fields:
-                    vals['checked'] = True
-                # 'is_reconciled' is sometimes computed; attempt to set only if it's writable.
-                if 'is_reconciled' in st_line._fields and not getattr(st_line._fields['is_reconciled'], 'compute', None):
-                    vals['is_reconciled'] = True
-                if vals:
-                    try:
-                        st_line.sudo().write(vals)
-                    except Exception:
-                        # If the field is computed/readonly in this database, at least keep it checked.
-                        if vals.get('checked'):
-                            try:
-                                st_line.sudo().write({'checked': True})
-                            except Exception:
-                                pass
+                bank_move = st_line.move_id
+                if not bank_move:
+                    bank_journal = st_line.journal_id
+                    bank_account = bank_journal.default_account_id
+                    if not bank_account:
+                        raise UserError(
+                            _("Please configure the Default Account on the bank journal: %s")
+                            % bank_journal.display_name
+                        )
+
+                    amt = st_line.amount or 0.0
+                    # Positive amount = bank deposit
+                    bank_debit = amt if amt > 0 else 0.0
+                    bank_credit = -amt if amt < 0 else 0.0
+                    cp_debit = bank_credit
+                    cp_credit = bank_debit
+
+                    bank_move = (
+                        self.env["account.move"]
+                        .sudo()
+                        .create(
+                            {
+                                "move_type": "entry",
+                                "journal_id": bank_journal.id,
+                                "date": st_line.date or fields.Date.context_today(self),
+                                "ref": rec.name,
+                                "line_ids": [
+                                    (
+                                        0,
+                                        0,
+                                        {
+                                            "name": rec.name,
+                                            "account_id": bank_account.id,
+                                            "debit": bank_debit,
+                                            "credit": bank_credit,
+                                        },
+                                    ),
+                                    (
+                                        0,
+                                        0,
+                                        {
+                                            "name": rec.name,
+                                            "account_id": rec.clearing_account_id.id,
+                                            "debit": cp_debit,
+                                            "credit": cp_credit,
+                                        },
+                                    ),
+                                ],
+                            }
+                        )
+                    )
+                    bank_move.action_post()
+                    # Link the move to the bank statement line so Odoo shows it as matched.
+                    st_line.sudo().write({"move_id": bank_move.id})
+
+                # Reconcile clearing account between settlement move and bank move.
+                settlement_clearing = move.line_ids.filtered(
+                    lambda l: l.account_id == rec.clearing_account_id and not l.reconciled
+                )
+                bank_clearing = bank_move.line_ids.filtered(
+                    lambda l: l.account_id == rec.clearing_account_id and not l.reconciled
+                )
+                if settlement_clearing and bank_clearing:
+                    (settlement_clearing + bank_clearing).reconcile()
+
+                # Finally, mark the statement line as checked so it shows the green tick.
+                # (is_reconciled is computed by Odoo once the move exists and lines are reconciled)
+                st_line.sudo().write({"checked": True})
+
             return rec.action_open_form()
 
     # -------------------------------------------------
