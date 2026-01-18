@@ -42,7 +42,7 @@
                     <group>
                         <div class="o_form_label">Captura los costos unitarios en USD, revisa su conversión a MXN y presiona Recostear para impactar el precio unitario nativo.</div>
                     </group>
-                    <field name="order_line" context="{'tree_view_ref': 'purchase_recosteo_importacion.view_purchase_order_line_list_cost_breakdown', 'list_view_ref': 'purchase_recosteo_importacion.view_purchase_order_line_list_cost_breakdown'}" mode="tree"/>
+                    <field name="order_line" context="{'list_view_ref': 'purchase_recosteo_importacion.view_purchase_order_line_list_cost_breakdown'}" mode="list"/>
                 </page>
             </xpath>
         </field>
