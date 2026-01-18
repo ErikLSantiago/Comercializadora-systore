@@ -5,12 +5,13 @@ class PurchaseOrderLine(models.Model):
     _inherit = 'purchase.order.line'
 
     # Captura (unitario)
-    x_gross_usd = fields.Float(string='Costo bruto (USD)', digits=(16, 6), default=0.0)
-    x_ship_usd = fields.Float(string='Costo envío (USD)', digits=(16, 6), default=0.0)
+    # Nota: mostramos 2 decimales para facilitar captura.
+    x_gross_usd = fields.Float(string='USD Cost', digits=(16, 2), default=0.0)
+    x_ship_usd = fields.Float(string='USD Shipping', digits=(16, 2), default=0.0)
 
     # Importación (unitario, MXN) - se llena desde el producto
     x_import_mxn = fields.Monetary(
-        string='Costo importación (MXN)',
+        string='MXN Import',
         currency_field='currency_id',
         default=0.0,
         help='Costo unitario fijo de importación en MXN. Se sugiere desde el producto al seleccionarlo.',
@@ -18,7 +19,7 @@ class PurchaseOrderLine(models.Model):
 
     # Cálculos (unitario, MXN)
     x_gross_mxn = fields.Monetary(
-        string='Costo bruto (MXN)',
+        string='MXN Cost',
         currency_field='currency_id',
         compute='_compute_cost_breakdown_mxn',
         store=True,
@@ -26,7 +27,7 @@ class PurchaseOrderLine(models.Model):
     )
 
     x_ship_mxn = fields.Monetary(
-        string='Costo envío (MXN)',
+        string='MXN Shipping',
         currency_field='currency_id',
         compute='_compute_cost_breakdown_mxn',
         store=True,
@@ -34,7 +35,7 @@ class PurchaseOrderLine(models.Model):
     )
 
     x_calc_price_mxn = fields.Monetary(
-        string='Precio calculado (MXN)',
+        string='MXN Recost',
         currency_field='currency_id',
         compute='_compute_cost_breakdown_mxn',
         store=True,

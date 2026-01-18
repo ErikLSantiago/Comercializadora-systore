@@ -1,6 +1,6 @@
 {
     'name': 'Recosteo de Compras (MXN) - Desglose de Costos',
-    'version': '18.0.1.0.1',
+    'version': '18.0.1.0.2',
     'category': 'Purchases',
     'summary': 'Desglose de costos (USD→MXN) en pestaña dedicada y botón Recostear que impacta price_unit (MXN).',
     'author': 'Systore',
