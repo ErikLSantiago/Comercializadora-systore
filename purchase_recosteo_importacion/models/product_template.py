@@ -15,5 +15,6 @@ class ProductTemplate(models.Model):
         string='Costo fijo de importación (MXN)',
         currency_field='x_import_currency_id',
         help='Costo unitario fijo de importación en pesos mexicanos. Se copia a la línea de compra al seleccionar el producto.',
+        digits=(16, 2),
         default=0.0,
     )
