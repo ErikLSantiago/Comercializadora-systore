@@ -7,7 +7,7 @@ class PurchaseOrder(models.Model):
 
     x_exchange_rate = fields.Float(
         string='Tipo de cambio (TC)',
-        digits=(16, 2),
+        digits=(16, 4),
         default=0.0,
         help='Tipo de cambio USD→MXN utilizado para convertir costos capturados en USD a MXN.',
     )
