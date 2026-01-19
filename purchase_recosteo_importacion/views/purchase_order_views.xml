@@ -1,0 +1,53 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <!-- Custom list view for cost breakdown in the new tab -->
+    <record id="view_purchase_order_line_list_cost_breakdown" model="ir.ui.view">
+        <field name="name">purchase.order.line.list.cost.breakdown</field>
+        <field name="model">purchase.order.line</field>
+        <field name="arch" type="xml">
+            <list editable="bottom">
+                <field name="product_id"/>
+                <field name="product_qty"/>
+                <field name="price_unit" string="Origin cost"/>
+                <field name="x_gross_usd" string="USD Cost"/>
+                <field name="x_ship_usd" string="USD Shipping"/>
+                <field name="x_gross_mxn" string="MXN Cost"/>
+                <field name="x_ship_mxn" string="MXN Shipping"/>
+                <field name="x_import_mxn" string="MXN Import"/>
+                <field name="x_calc_price_mxn" string="MXN Recost"/>
+            </list>
+        </field>
+    </record>
+
+    <!-- Purchase order form: add exchange rate, Recostear button, and new tab -->
+    <record id="view_purchase_order_form_cost_breakdown" model="ir.ui.view">
+        <field name="name">purchase.order.form.cost.breakdown</field>
+        <field name="model">purchase.order</field>
+        <field name="inherit_id" ref="purchase.purchase_order_form"/>
+        <field name="priority">90</field>
+        <field name="arch" type="xml">
+            <!-- Exchange rate (TC) in header (explicit label) -->
+            <xpath expr="//field[@name='currency_id']" position="after">
+                <div class="o_row">
+                    <div class="o_form_label">Tipo de cambio (TC)</div>
+                    <field name="x_exchange_rate" class="oe_inline"/>
+                </div>
+            </xpath>
+
+            <!-- Recostear button -->
+            <xpath expr="//header" position="inside">
+                <button name="action_recostear" type="object" string="Recostear" class="btn-primary" invisible="state == 'cancel'"/>
+            </xpath>
+
+            <!-- New tab in notebook -->
+            <xpath expr="//notebook" position="inside">
+                <page string="Desglose costos" name="cost_breakdown">
+                    <group>
+                        <div class="o_form_label">Captura los costos unitarios en USD, revisa su conversión a MXN y presiona Recostear para impactar el precio unitario nativo.</div>
+                    </group>
+                    <field name="order_line" context="{'list_view_ref': 'purchase_recosteo_importacion.view_purchase_order_line_list_cost_breakdown'}" mode="list"/>
+                </page>
+            </xpath>
+        </field>
+    </record>
+</odoo>
