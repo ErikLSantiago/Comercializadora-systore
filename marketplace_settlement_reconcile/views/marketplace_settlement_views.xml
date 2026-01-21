@@ -1,0 +1,87 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <record id="view_marketplace_settlement_tree" model="ir.ui.view">
+        <field name="name">marketplace.settlement.tree</field>
+        <field name="model">marketplace.settlement</field>
+        <field name="arch" type="xml">
+            <list>
+                <field name="name"/>
+                <field name="state"/>
+                <field name="bank_statement_line_id"/>
+                <field name="amount_bank"/>
+                <field name="amount_net"/>
+                <field name="amount_diff"/>
+                <field name="move_id"/>
+            </list>
+        </field>
+    </record>
+
+    <record id="view_marketplace_settlement_form" model="ir.ui.view">
+        <field name="name">marketplace.settlement.form</field>
+        <field name="model">marketplace.settlement</field>
+        <field name="arch" type="xml">
+            <form>
+                <header>
+                    <button name="action_validate" type="object" string="Validate" class="btn-secondary" invisible="state == 'posted'"/>
+                    <button name="action_set_draft" type="object" string="Set to Draft" class="btn-secondary" invisible="state != 'imported'"/>
+                    <button name="action_post_and_reconcile" type="object" string="Post &amp; Reconcile" class="btn-primary" invisible="state != 'imported' or not is_validated"/>
+                    <field name="state" widget="statusbar" statusbar_visible="draft,imported,posted"/>
+                </header>
+                <sheet>
+                    <div class="oe_title">
+                        <h1><field name="name"/></h1>
+                    </div>
+
+                    <group>
+                        <group>
+                            <field name="company_id" readonly="1"/>
+                            <field name="currency_id" readonly="1"/>
+                            <field name="bank_statement_line_id" options="{'no_create': True}"/>
+                        </group>
+                        <group>
+                            <field name="amount_bank"/>
+                            <field name="amount_net" readonly="1"/>
+                            <field name="amount_diff" readonly="1"/>
+                            <field name="journal_id"/>
+                            <field name="clearing_account_id"/>
+                            <field name="move_id" readonly="1"/>
+                        </group>
+                    </group>
+
+                    <separator string="Lines"/>
+
+                    <div class="mb16">
+                        <button name="%(action_import_settlement_csv)d" type="action" string="Import CSV" class="btn-secondary" invisible="state == 'posted'"/>
+                    </div>
+
+                    <field name="line_ids" readonly="state == 'posted'">
+                        <list editable="bottom" create="1" delete="1">
+                            <field name="order_ref"/>
+                            <field name="sale_order_id"/>
+                            <field name="invoice_id"/>
+                            <field name="amount_gross" readonly="1"/>
+                            <field name="withheld_vat_amount"/>
+                            <field name="withheld_vat_account_id"/>
+                            <field name="shipping_amount"/>
+                            <field name="shipping_account_id"/>
+                            <field name="seller_commission_amount"/>
+                            <field name="seller_commission_account_id"/>
+                            <field name="amount_net" readonly="1"/>
+                        </list>
+                    </field>
+
+                </sheet>
+                <chatter/>
+            </form>
+        </field>
+    </record>
+
+    <record id="action_marketplace_settlement" model="ir.actions.act_window">
+        <field name="name">Marketplace Settlements</field>
+        <field name="res_model">marketplace.settlement</field>
+        <field name="view_mode">tree,form</field>
+    </record>
+
+    <menuitem id="menu_marketplace_settlement_root" name="Marketplace" parent="account.menu_finance" sequence="75"/>
+    <menuitem id="menu_marketplace_settlement" name="Settlements" parent="menu_marketplace_settlement_root" action="action_marketplace_settlement" sequence="10"/>
+</odoo>

@@ -1,0 +1,14 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <!-- Allow deleting settlement lines ONLY while the parent settlement is in Draft -->
+    <record id="rule_marketplace_settlement_line_unlink_draft_only" model="ir.rule">
+        <field name="name">Marketplace Settlement Line: delete only in draft</field>
+        <field name="model_id" ref="model_marketplace_settlement_line"/>
+        <field name="groups" eval="[(4, ref('base.group_user'))]"/>
+        <field name="domain_force">['|', ('settlement_id', '=', False), ('settlement_id.state', '=', 'draft')]</field>
+        <field name="perm_read" eval="0"/>
+        <field name="perm_write" eval="0"/>
+        <field name="perm_create" eval="0"/>
+        <field name="perm_unlink" eval="1"/>
+    </record>
+</odoo>
