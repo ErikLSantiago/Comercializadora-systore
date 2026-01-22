@@ -1,6 +1,7 @@
 <?xml version="1.0" encoding="utf-8"?>
 <odoo>
-    <!-- Custom list view for cost breakdown in the new tab -->
+
+    <!-- List view used in the "Desglose costos" tab -->
     <record id="view_purchase_order_line_list_cost_breakdown" model="ir.ui.view">
         <field name="name">purchase.order.line.list.cost.breakdown</field>
         <field name="model">purchase.order.line</field>
@@ -11,6 +12,7 @@
                 <field name="price_unit" string="Origin cost"/>
                 <field name="x_gross_usd" string="USD Cost"/>
                 <field name="x_ship_usd" string="USD Shipping"/>
+                <field name="x_total_usd" string="Total USD" sum="Total USD"/>
                 <field name="x_gross_mxn" string="MXN Cost"/>
                 <field name="x_ship_mxn" string="MXN Shipping"/>
                 <field name="x_import_mxn" string="MXN Import"/>
@@ -19,35 +21,64 @@
         </field>
     </record>
 
-    <!-- Purchase order form: add exchange rate, Recostear button, and new tab -->
+    <!-- Purchase Order form: add a dedicated tab and cost-bills buttons -->
     <record id="view_purchase_order_form_cost_breakdown" model="ir.ui.view">
         <field name="name">purchase.order.form.cost.breakdown</field>
         <field name="model">purchase.order</field>
         <field name="inherit_id" ref="purchase.purchase_order_form"/>
-        <field name="priority">90</field>
         <field name="arch" type="xml">
-            <!-- Exchange rate (TC) in header (explicit label) -->
-            <xpath expr="//field[@name='currency_id']" position="after">
-                <div class="o_row">
-                    <div class="o_form_label">Tipo de cambio (TC)</div>
-                    <field name="x_exchange_rate" class="oe_inline"/>
-                </div>
+
+            <!-- Smart button to open generated cost bills -->
+            <xpath expr="//sheet//div[@name='button_box']" position="inside">
+                <button name="action_view_cost_bills"
+                        type="object"
+                        class="oe_stat_button"
+                        icon="fa-file-text-o"
+                        invisible="x_cost_bills_count == 0">
+                    <field name="x_cost_bills_count" widget="statinfo" string="Facturas de costos"/>
+                </button>
             </xpath>
 
-            <!-- Recostear button -->
+            <!-- Add actions in header -->
             <xpath expr="//header" position="inside">
-                <button name="action_recostear" type="object" string="Recostear" class="btn-primary" invisible="state == 'cancel'"/>
+                <button name="action_recostear"
+                        type="object"
+                        string="Recostear"
+                        class="btn-primary"
+                        invisible="state == 'cancel'"/>
+                <button name="action_generate_cost_bills"
+                        type="object"
+                        string="Generar Facturas"
+                        class="btn-secondary"
+                        invisible="state == 'cancel'"/>
             </xpath>
 
-            <!-- New tab in notebook -->
+            <!-- Dedicated tab -->
             <xpath expr="//notebook" position="inside">
                 <page string="Desglose costos" name="cost_breakdown">
-                    <group>
-                        <div class="o_form_label">Captura los costos unitarios en USD, revisa su conversión a MXN y presiona Recostear para impactar el precio unitario nativo.</div>
+                    <group col="2">
+                        <label for="x_exchange_rate" string="Tipo de cambio (TC)"/>
+                        <field name="x_exchange_rate"/>
                     </group>
-                    <field name="order_line" context="{'list_view_ref': 'purchase_recosteo_importacion.view_purchase_order_line_list_cost_breakdown'}" mode="list"/>
+                    <div class="text-muted" style="margin-top: 6px;">
+                        Captura los costos unitarios en USD. El sistema los convierte a MXN usando el TC y suma la importación (MXN).
+                        Presiona <b>Recostear</b> para impactar el precio unitario nativo (MXN). Presiona <b>Generar 3 facturas</b> para crear las facturas (Proveedor/Envío/Importación).
+                    </div>
+
+                    <field name="order_line"
+                           mode="list"
+                           context="{'list_view_ref': 'purchase_recosteo_importacion.view_purchase_order_line_list_cost_breakdown'}"/>
                 </page>
             </xpath>
+
+            <!-- Keep fields available (hidden) -->
+            <xpath expr="//sheet" position="inside">
+                <field name="x_supplier_bill_id" invisible="1"/>
+                <field name="x_shipping_bill_id" invisible="1"/>
+                <field name="x_import_bill_id" invisible="1"/>
+            </xpath>
+
         </field>
     </record>
+
 </odoo>

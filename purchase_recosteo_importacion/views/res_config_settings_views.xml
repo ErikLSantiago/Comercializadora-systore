@@ -1,0 +1,19 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <record id="res_config_settings_view_form_purchase_recosteo_cost_bills" model="ir.ui.view">
+        <field name="name">res.config.settings.view.form.purchase.recosteo.cost.bills</field>
+        <field name="model">res.config.settings</field>
+        <field name="inherit_id" ref="base.res_config_settings_view_form"/>
+        <field name="arch" type="xml">
+            <!-- Compatible layout: insert a group inside the standard settings sheet -->
+            <xpath expr="//form" position="inside">
+                <group string="Facturación de costos (Proveedor / Envío / Importación)" name="purchase_recosteo_cost_bills">
+                    <field name="x_vendor_shipping_id"/>
+                    <field name="x_product_shipping_id"/>
+                    <field name="x_vendor_import_id"/>
+                    <field name="x_product_import_id"/>
+                </group>
+            </xpath>
+        </field>
+    </record>
+</odoo>

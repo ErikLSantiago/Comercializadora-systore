@@ -9,6 +9,25 @@ class PurchaseOrderLine(models.Model):
     x_gross_usd = fields.Float(string='USD Cost', digits=(16, 2), default=0.0)
     x_ship_usd = fields.Float(string='USD Shipping', digits=(16, 2), default=0.0)
 
+    # Total USD (referencia) = USD Cost * Qty
+    x_total_usd = fields.Float(
+        string='Total USD',
+        digits=(16, 2),
+        compute='_compute_total_usd',
+        store=True,
+        readonly=True,
+    )
+
+    @api.depends('x_gross_usd', 'product_qty')
+    def _compute_total_usd(self):
+        """Total USD (referencia) = USD Cost * Qty.
+
+        Se usa para visualización y subtotal en la pestaña "Desglose costos"
+        y para impresión en el PDF de cotización/OC.
+        """
+        for line in self:
+            line.x_total_usd = (line.x_gross_usd or 0.0) * (line.product_qty or 0.0)
+
     # Importación (unitario, MXN) - se llena desde el producto
     x_import_mxn = fields.Monetary(
         string='MXN Import',

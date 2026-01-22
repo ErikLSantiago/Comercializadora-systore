@@ -1,0 +1,92 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+
+  <!-- RFQ / Quotation -->
+  <template id="report_purchasequotation_document_usd_total" inherit_id="purchase.report_purchasequotation_document">
+    <xpath expr="//table[.//t[@t-foreach='o.order_line']]" position="after">
+      <div class="mt16">
+        <h4>USD Summary</h4>
+        <table class="table table-sm">
+          <thead>
+            <tr>
+              <th class="text-start">Producto</th>
+              <th class="text-end">Qty</th>
+              <th class="text-end">USD Cost</th>
+              <th class="text-end">Total USD</th>
+            </tr>
+          </thead>
+          <tbody>
+            <t t-set="usd_total_sum" t-value="0.0"/>
+            <t t-foreach="o.order_line" t-as="l">
+              <t t-set="line_total_usd" t-value="(l.x_gross_usd or 0.0) * (l.product_qty or 0.0)"/>
+              <t t-set="usd_total_sum" t-value="usd_total_sum + line_total_usd"/>
+              <tr>
+                <td class="text-start">
+                  <span t-field="l.product_id"/>
+                </td>
+                <td class="text-end">
+                  <span t-field="l.product_qty"/>
+                </td>
+                <td class="text-end">
+                  <span t-esc="('%.2f' % (l.x_gross_usd or 0.0))"/>
+                </td>
+                <td class="text-end">
+                  <span t-esc="('%.2f' % line_total_usd)"/>
+                </td>
+              </tr>
+            </t>
+            <tr class="border-top">
+              <td colspan="3" class="text-end"><strong>Subtotal</strong></td>
+              <td class="text-end"><strong t-esc="('%.2f' % usd_total_sum)"/></td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    </xpath>
+  </template>
+
+  <!-- Purchase Order -->
+  <template id="report_purchaseorder_document_usd_total" inherit_id="purchase.report_purchaseorder_document">
+    <xpath expr="//table[.//t[@t-foreach='o.order_line']]" position="after">
+      <div class="mt16">
+        <h4>USD Summary</h4>
+        <table class="table table-sm">
+          <thead>
+            <tr>
+              <th class="text-start">Producto</th>
+              <th class="text-end">Qty</th>
+              <th class="text-end">USD Cost</th>
+              <th class="text-end">Total USD</th>
+            </tr>
+          </thead>
+          <tbody>
+            <t t-set="usd_total_sum" t-value="0.0"/>
+            <t t-foreach="o.order_line" t-as="l">
+              <t t-set="line_total_usd" t-value="(l.x_gross_usd or 0.0) * (l.product_qty or 0.0)"/>
+              <t t-set="usd_total_sum" t-value="usd_total_sum + line_total_usd"/>
+              <tr>
+                <td class="text-start">
+                  <span t-field="l.product_id"/>
+                </td>
+                <td class="text-end">
+                  <span t-field="l.product_qty"/>
+                </td>
+                <td class="text-end">
+                  <span t-esc="('%.2f' % (l.x_gross_usd or 0.0))"/>
+                </td>
+                <td class="text-end">
+                  <span t-esc="('%.2f' % line_total_usd)"/>
+                </td>
+              </tr>
+            </t>
+            <tr class="border-top">
+              <td colspan="3" class="text-end"><strong>Subtotal</strong></td>
+              <td class="text-end"><strong t-esc="('%.2f' % usd_total_sum)"/></td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    </xpath>
+  </template>
+
+</odoo>
