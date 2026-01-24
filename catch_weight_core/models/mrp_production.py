@@ -1,4 +1,4 @@
-from odoo import models, _
+from odoo import models, fields, _
 from odoo.exceptions import UserError
 
 class MrpProduction(models.Model):
