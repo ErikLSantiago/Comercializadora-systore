@@ -19,11 +19,11 @@
 
         <separator string="Detalle (por peso)"/>
         <field name="line_ids">
-          <tree editable="bottom">
+          <list editable="bottom">
             <field name="is_waste"/>
             <field name="weight_g"/>
             <field name="qty_units"/>
-          </tree>
+          </list>
         </field>
 
         <footer>
