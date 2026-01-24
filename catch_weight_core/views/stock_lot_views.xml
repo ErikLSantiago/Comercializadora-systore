@@ -1,0 +1,25 @@
+<odoo>
+  <record id="view_stock_lot_form_cw" model="ir.ui.view">
+    <field name="name">stock.lot.form.catch.weight</field>
+    <field name="model">stock.lot</field>
+    <field name="inherit_id" ref="stock.view_production_lot_form"/>
+    <field name="arch" type="xml">
+      <xpath expr="//sheet/group" position="inside">
+        <group string="Catch Weight">
+          <field name="x_weight_g"/>
+        </group>
+      </xpath>
+    </field>
+  </record>
+
+  <record id="view_stock_lot_tree_cw" model="ir.ui.view">
+    <field name="name">stock.lot.tree.catch.weight</field>
+    <field name="model">stock.lot</field>
+    <field name="inherit_id" ref="stock.view_production_lot_tree"/>
+    <field name="arch" type="xml">
+      <xpath expr="//tree/field[@name='name']" position="after">
+        <field name="x_weight_g"/>
+      </xpath>
+    </field>
+  </record>
+</odoo>
