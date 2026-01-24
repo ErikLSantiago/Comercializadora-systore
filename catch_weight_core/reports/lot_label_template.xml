@@ -11,7 +11,7 @@
             <span>Barcode (Code128):</span>
             <div class="barcode">
               <t t-set="barcode_value" t-value="lot.name"/>
-              <img t-att-src="'/report/barcode/Code128/%s?width=600&height=120&humanreadable=1' % barcode_value"/>
+              <img t-att-src="'/report/barcode/Code128/%s?width=600&amp;height=120&amp;humanreadable=1' % barcode_value"/>
             </div>
           </div>
         </div>
