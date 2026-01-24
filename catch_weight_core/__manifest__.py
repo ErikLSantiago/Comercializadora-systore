@@ -1,9 +1,10 @@
 {
     "name": "Catch Weight Core (MRP/Stock)",
-    "version": "19.0.1.0.0",
+    "version": "19.0.1.0",
     "category": "Manufacturing",
     "summary": "Catch-weight production by lot (SKU-weight-date), weight balance & FIFO costing by weight, waste by-product, lot labels.",
     "depends": ["mrp", "stock", "product", "stock_account"],
+    "license": "LGPL-3",
     "data": [
         "security/security.xml",
         "security/ir.model.access.csv",
