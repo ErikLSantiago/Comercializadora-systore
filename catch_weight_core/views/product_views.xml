@@ -7,7 +7,7 @@
       <xpath expr="//page[@name='inventory']/group" position="inside">
         <group string="Catch Weight">
           <field name="x_is_catch_weight"/>
-          <field name="x_shelf_life_days" attrs="{'invisible':[('x_is_catch_weight','=',False)]}"/>
+          <field name="x_shelf_life_days" invisible="not x_is_catch_weight"/>
         </group>
       </xpath>
     </field>
