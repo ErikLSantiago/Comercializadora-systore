@@ -1,0 +1,13 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<odoo>
+    <record id="view_sale_order_line_tree_mc_lot" model="ir.ui.view">
+        <field name="name">sale.order.line.tree.mc.lot</field>
+        <field name="model">sale.order</field>
+        <field name="inherit_id" ref="sale.view_order_form"/>
+        <field name="arch" type="xml">
+            <xpath expr="//field[@name='order_line']/list//field[@name='price_unit']" position="after">
+                <field name="x_sale_lot_id" optional="show"/>
+            </xpath>
+        </field>
+    </record>
+</odoo>
