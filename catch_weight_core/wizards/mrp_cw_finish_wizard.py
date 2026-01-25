@@ -230,28 +230,55 @@ class MrpCwFinishWizard(models.TransientModel):
 
         seq = 1
         for line in good_lines:
-            # Create one lot/serial per produced unit so each piece can carry its own weight.
             units = int(line.qty_units or 0)
             if units <= 0:
                 continue
-            for _i in range(units):
+            # If pieces are identical and product is not tracked by serial, allow a single lot with qty>1
+            if finished_product.tracking != 'serial' and units > 1:
                 lot = self.env['stock.lot'].create({
                     'name': self._make_lot_name(finished_product, self.production_date, seq, weight_g=line.weight_g),
                     'product_id': finished_product.id,
                     'company_id': prod.company_id.id,
                 })
-                main_move.move_line_ids.create({
+                if 'x_cw_weight_g' in lot._fields:
+                    lot.x_cw_weight_g = int(line.weight_g or 0)
+                ml_vals = {
                     'move_id': main_move.id,
                     'product_id': finished_product.id,
-                    'product_uom_id': unit_uom.id,
-                    'qty_done': 1.0,
-                    'lot_id': lot.id,
+                    'product_uom_id': finished_uom.id,
+                    'qty_done': units,
                     'location_id': main_move.location_id.id,
                     'location_dest_id': main_move.location_dest_id.id,
                     'company_id': prod.company_id.id,
-                })
+                }
+                if finished_product.tracking != 'none':
+                    ml_vals['lot_id'] = lot.id
+                main_move_line_vals_list.append(ml_vals)
                 seq += 1
+                continue
 
+            # Serial-tracked (or qty=1): one lot per unit
+            for _ in range(units):
+                lot = self.env['stock.lot'].create({
+                    'name': self._make_lot_name(finished_product, self.production_date, seq, weight_g=line.weight_g),
+                    'product_id': finished_product.id,
+                    'company_id': prod.company_id.id,
+                })
+                if 'x_cw_weight_g' in lot._fields:
+                    lot.x_cw_weight_g = int(line.weight_g or 0)
+                ml_vals = {
+                    'move_id': main_move.id,
+                    'product_id': finished_product.id,
+                    'product_uom_id': finished_uom.id,
+                    'qty_done': 1.0,
+                    'location_id': main_move.location_id.id,
+                    'location_dest_id': main_move.location_dest_id.id,
+                    'company_id': prod.company_id.id,
+                }
+                if finished_product.tracking != 'none':
+                    ml_vals['lot_id'] = lot.id
+                main_move_line_vals_list.append(ml_vals)
+                seq += 1
         # --- Waste / byproduct move (optional)
         waste_lines = self.line_ids.filtered(lambda l: l.is_waste and l.qty_units)
         if waste_lines and self.waste_product_id:
@@ -281,7 +308,10 @@ class MrpCwFinishWizard(models.TransientModel):
                 if waste_move.product_uom != waste_uom:
                     waste_move.product_uom = waste_uom
                 if 'cost_share' in waste_move._fields:
-                    waste_move.cost_share = 0.0
+                    total_good_w = sum((l.weight_g or 0.0) * (l.qty_units or 0.0) for l in good_lines)
+                    total_waste_w = sum((l.weight_g or 0.0) * (l.qty_units or 0.0) for l in waste_lines)
+                    total_w = total_good_w + total_waste_w
+                    waste_move.cost_share = (total_waste_w / total_w * 100.0) if total_w else 0.0
 
             waste_move.move_line_ids.unlink()
             for line in waste_lines:
