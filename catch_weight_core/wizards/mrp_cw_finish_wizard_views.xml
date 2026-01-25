@@ -7,7 +7,7 @@
         <group>
           <field name="production_id" readonly="1"/>
           <field name="production_date"/>
-          <field name="waste_product_id"/>
+          <field name="waste_product_id"/ domain="[(&#39;type&#39;,&#39;=&#39;,&#39;product&#39;)]">
         </group>
 
         <group>
