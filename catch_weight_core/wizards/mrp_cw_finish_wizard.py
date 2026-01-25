@@ -228,26 +228,27 @@ class MrpCwFinishWizard(models.TransientModel):
 
         seq = 1
         for line in good_lines:
-            lot = self.env['stock.lot'].create({
-                'name': self._make_lot_name(finished_product, self.production_date, seq),
-                'product_id': finished_product.id,
-                'company_id': prod.company_id.id,
-            })
-            # Store weight on lot if we have the custom field
-            if 'x_cw_weight_g' in lot._fields:
-                lot.x_cw_weight_g = int(line.weight_g or 0)
-
-            self.env['stock.move.line'].create({
-                'move_id': main_move.id,
-                'product_id': finished_product.id,
-                'product_uom_id': unit_uom.id,
-                'qty_done': line.qty_units,
-                'lot_id': lot.id,
-                'location_id': main_move.location_id.id,
-                'location_dest_id': main_move.location_dest_id.id,
-                'company_id': prod.company_id.id,
-            })
-            seq += 1
+            # Create one lot/serial per produced unit so each piece can carry its own weight.
+            units = int(line.qty_units or 0)
+            if units <= 0:
+                continue
+            for _i in range(units):
+                lot = self.env['stock.lot'].create({
+                    'name': self._make_lot_name(finished_product, self.production_date, seq, weight_g=line.weight_g),
+                    'product_id': finished_product.id,
+                    'company_id': prod.company_id.id,
+                })
+                main_move.move_line_ids.create({
+                    'move_id': main_move.id,
+                    'product_id': finished_product.id,
+                    'product_uom_id': unit_uom.id,
+                    'qty_done': 1.0,
+                    'lot_id': lot.id,
+                    'location_id': main_move.location_id.id,
+                    'location_dest_id': main_move.location_dest_id.id,
+                    'company_id': prod.company_id.id,
+                })
+                seq += 1
 
         # --- Waste / byproduct move (optional)
         waste_lines = self.line_ids.filtered(lambda l: l.is_waste and l.qty_units)
@@ -283,7 +284,7 @@ class MrpCwFinishWizard(models.TransientModel):
             waste_move.move_line_ids.unlink()
             for line in waste_lines:
                 lot = self.env['stock.lot'].create({
-                    'name': self._make_lot_name(waste_product, self.production_date, seq),
+                    'name': self._make_lot_name(waste_product, self.production_date, seq, weight_g=line.weight_g),
                     'product_id': waste_product.id,
                     'company_id': prod.company_id.id,
                 })
