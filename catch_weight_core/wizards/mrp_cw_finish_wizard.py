@@ -227,6 +227,7 @@ class MrpCwFinishWizard(models.TransientModel):
 
         # Reset any existing done lines so we don't double-produce.
         main_move.move_line_ids.unlink()
+        main_move_line_vals_list = []
 
         seq = 1
         for line in good_lines:
@@ -337,6 +338,9 @@ class MrpCwFinishWizard(models.TransientModel):
                     'company_id': prod.company_id.id,
                 })
                 seq += 1
+
+        if main_move_line_vals_list:
+            self.env['stock.move.line'].create(main_move_line_vals_list)
 
         # Keep a reference to consumed value for future costing logic
         self.cw_consumed_value = consumed_value
