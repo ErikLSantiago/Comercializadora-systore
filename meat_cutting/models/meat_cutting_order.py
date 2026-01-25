@@ -2,6 +2,7 @@ from odoo import api, fields, models, _
 from odoo.exceptions import UserError
 from odoo.tools.float_utils import float_is_zero
 
+
 class MeatCuttingOrder(models.Model):
     _name = "meat.cutting.order"
     _description = "Orden de Despiece"
@@ -19,14 +20,26 @@ class MeatCuttingOrder(models.Model):
     company_id = fields.Many2one("res.company", default=lambda self: self.env.company, required=True)
 
     product_src_id = fields.Many2one("product.product", required=True, string="Producto Origen")
-    lot_src_id = fields.Many2one("stock.lot", required=True, string="Lote Origen",
-                                 domain="[('product_id','=',product_src_id)]")
-    location_src_id = fields.Many2one("stock.location", required=True, string="Ubicación Origen",
-                                      domain="[('usage','=','internal')]")
+    lot_src_id = fields.Many2one(
+        "stock.lot",
+        required=True,
+        string="Lote Origen",
+        domain="[('product_id','=',product_src_id)]",
+    )
+    location_src_id = fields.Many2one(
+        "stock.location",
+        required=True,
+        string="Ubicación Origen",
+        domain="[('usage','=','internal')]",
+    )
 
     # Opcional: si viene vacío, se usa un default (picking type / compañía)
-    location_dest_id = fields.Many2one("stock.location", string="Ubicación Destino",
-                                       required=False, domain="[('usage','=','internal')]")
+    location_dest_id = fields.Many2one(
+        "stock.location",
+        string="Ubicación Destino",
+        required=False,
+        domain="[('usage','=','internal')]",
+    )
 
     weight_consume_kg = fields.Float(string="Peso a Consumir (kg)", required=True, digits="Product Unit of Measure")
     tolerance_kg = fields.Float(string="Tolerancia (kg)", default=0.01, digits="Product Unit of Measure")
@@ -42,7 +55,7 @@ class MeatCuttingOrder(models.Model):
         string="Ubicación Técnica (Despiece)",
         required=True,
         default=lambda self: self.env.ref("meat_cutting.stock_location_meat_cutting_production"),
-        domain="[('usage','in',('production','inventory'))]"
+        domain="[('usage','in',('production','inventory'))]",
     )
 
     @api.model_create_multi
@@ -63,149 +76,145 @@ class MeatCuttingOrder(models.Model):
             o._check_weights()
             o.state = "calculated"
 
-def _check_weights(self):
-    self.ensure_one()
-    if self.weight_consume_kg <= 0:
-        raise UserError(_("El peso a consumir debe ser > 0."))
+    def _check_weights(self):
+        self.ensure_one()
+        if self.weight_consume_kg <= 0:
+            raise UserError(_("El peso a consumir debe ser > 0."))
 
-    if not self.line_ids:
-        raise UserError(_("Agrega al menos una línea de producto resultante."))
+        if not self.line_ids:
+            raise UserError(_("Agrega al menos una línea de producto resultante."))
 
-    for l in self.line_ids:
-        if l.qty_done <= 0 or l.weight_unit_kg <= 0:
-            raise UserError(_("Cantidad y peso por unidad deben ser > 0 en todas las líneas."))
+        for l in self.line_ids:
+            if l.qty_done <= 0 or l.weight_unit_kg <= 0:
+                raise UserError(_("Cantidad y peso por unidad deben ser > 0 en todas las líneas."))
 
-        # Lote obligatorio solo si el producto es tracking por LOTE (no serial)
-        if l.product_id.tracking == "lot" and not l.lot_id:
-            raise UserError(_("El lote es obligatorio para productos con seguimiento por Lote: %s") % (l.product_id.display_name,))
+            # Lote obligatorio solo si el producto es tracking por LOTE (no serial)
+            if l.product_id.tracking == "lot" and not l.lot_id:
+                raise UserError(_("El lote es obligatorio para productos con seguimiento por Lote: %s") % l.product_id.display_name)
 
-    diff = self.weight_total_produced_kg - self.weight_consume_kg
-    if abs(diff) > self.tolerance_kg:
-        raise UserError(_(
-            "La suma de pesos producidos (%s kg) no cuadra con el peso consumido (%s kg). "
-            "Diferencia: %s kg (tolerancia %s kg)."
-        ) % (self.weight_total_produced_kg, self.weight_consume_kg, diff, self.tolerance_kg))
+            # Serial requiere cantidad entera
+            if l.product_id.tracking == "serial":
+                qty_int = int(l.qty_done)
+                if float(qty_int) != float(l.qty_done):
+                    raise UserError(_("Para productos con seguimiento por Número de serie, la cantidad debe ser un entero. Producto: %s") % l.product_id.display_name)
 
-def _next_serial_name(self):
-    """Genera el siguiente número de serie para productos resultantes."""
-    self.ensure_one()
-    return self.env["ir.sequence"].next_by_code("meat_cutting.serial") or _("SERIAL")
+        diff = self.weight_total_produced_kg - self.weight_consume_kg
+        if abs(diff) > self.tolerance_kg:
+            raise UserError(_(
+                "La suma de pesos producidos (%s kg) no cuadra con el peso consumido (%s kg). "
+                "Diferencia: %s kg (tolerancia %s kg)."
+            ) % (self.weight_total_produced_kg, self.weight_consume_kg, diff, self.tolerance_kg))
 
-def _get_default_dest_location(self, picking_type):
-    # 1) Lo que eligió el usuario
-    if self.location_dest_id:
-        return self.location_dest_id
-    # 2) Default del tipo de operación
-    if picking_type.default_location_dest_id:
-        return picking_type.default_location_dest_id
-    # 3) Fallback: ubicación principal de stock (si existe en el build)
-    company_stock_loc = getattr(self.company_id, "stock_location_id", False)
-    if company_stock_loc:
-        return company_stock_loc
-    raise UserError(_("No hay una ubicación destino por defecto configurada."))
+    def _next_serial_name(self):
+        self.ensure_one()
+        return self.env["ir.sequence"].next_by_code("meat_cutting.serial") or _("C-0000")
 
+    def _get_default_dest_location(self, picking_type):
+        if self.location_dest_id:
+            return self.location_dest_id
+        if picking_type.default_location_dest_id:
+            return picking_type.default_location_dest_id
+        company_stock_loc = getattr(self.company_id, "stock_location_id", False)
+        if company_stock_loc:
+            return company_stock_loc
+        raise UserError(_("No hay una ubicación destino por defecto configurada."))
 
-def action_confirm(self):
-    for o in self:
-        o._check_weights()
-        if o.picking_id:
-            raise UserError(_("Esta orden ya tiene un picking asociado."))
+    def action_confirm(self):
+        for o in self:
+            o._check_weights()
+            if o.picking_id:
+                raise UserError(_("Esta orden ya tiene un picking asociado."))
 
-        picking_type = o.env.ref("meat_cutting.picking_type_meat_cutting")
-        o.picking_type_id = picking_type.id
+            picking_type = o.env.ref("meat_cutting.picking_type_meat_cutting")
+            o.picking_type_id = picking_type.id
+            dest = o._get_default_dest_location(picking_type)
 
-        dest = o._get_default_dest_location(picking_type)
-
-        picking = o.env["stock.picking"].create({
-            "picking_type_id": picking_type.id,
-            "location_id": o.location_src_id.id,
-            "location_dest_id": dest.id,
-            "origin": o.name,
-            "company_id": o.company_id.id,
-        })
-        o.picking_id = picking.id
-
-        # MOVE SALIDA (consumo en kg): Existencias -> Ubicación Técnica (Producción/Despiece)
-        move_out = o.env["stock.move"].create({
-            "name": _("Consumo %s") % (o.product_src_id.display_name),
-            "product_id": o.product_src_id.id,
-            "product_uom": o.product_src_id.uom_id.id,
-            "product_uom_qty": o.weight_consume_kg,
-            "location_id": o.location_src_id.id,
-            "location_dest_id": o.production_location_id.id,
-            "picking_id": picking.id,
-            "company_id": o.company_id.id,
-            "x_cutting_order_id": o.id,
-            "x_weight_total_kg": o.weight_consume_kg,
-        })
-        o.env["stock.move.line"].create({
-            "move_id": move_out.id,
-            "picking_id": picking.id,
-            "product_id": o.product_src_id.id,
-            "product_uom_id": o.product_src_id.uom_id.id,
-            "qty_done": o.weight_consume_kg,
-            "location_id": o.location_src_id.id,
-            "location_dest_id": o.production_location_id.id,
-            "lot_id": o.lot_src_id.id,
-            "company_id": o.company_id.id,
-        })
-
-        # MOVES ENTRADA (uno por línea = una capa): Ubicación Técnica -> Destino final
-        for l in o.line_ids:
-            move_in = o.env["stock.move"].create({
-                "name": _("Resultado %s") % (l.product_id.display_name),
-                "product_id": l.product_id.id,
-                "product_uom": l.product_id.uom_id.id,
-                "product_uom_qty": l.qty_done,
-                "location_id": o.production_location_id.id,
+            picking = o.env["stock.picking"].create({
+                "picking_type_id": picking_type.id,
+                "location_id": o.location_src_id.id,
                 "location_dest_id": dest.id,
+                "origin": o.name,
+                "company_id": o.company_id.id,
+            })
+            o.picking_id = picking.id
+
+            # Consumo (kg) Existencias -> Ubicación Técnica (Producción/Despiece)
+            move_out = o.env["stock.move"].create({
+                "name": _("Consumo %s") % o.product_src_id.display_name,
+                "product_id": o.product_src_id.id,
+                "product_uom": o.product_src_id.uom_id.id,
+                "product_uom_qty": o.weight_consume_kg,
+                "location_id": o.location_src_id.id,
+                "location_dest_id": o.production_location_id.id,
                 "picking_id": picking.id,
                 "company_id": o.company_id.id,
                 "x_cutting_order_id": o.id,
-                "x_weight_total_kg": l.weight_total_kg,
+                "x_weight_total_kg": o.weight_consume_kg,
+            })
+            o.env["stock.move.line"].create({
+                "move_id": move_out.id,
+                "picking_id": picking.id,
+                "product_id": o.product_src_id.id,
+                "product_uom_id": o.product_src_id.uom_id.id,
+                "qty_done": o.weight_consume_kg,
+                "location_id": o.location_src_id.id,
+                "location_dest_id": o.production_location_id.id,
+                "lot_id": o.lot_src_id.id,
+                "company_id": o.company_id.id,
             })
 
-            if l.product_id.tracking == "serial":
-                # 1 pieza = 1 serial = 1 move line
-                qty_int = int(l.qty_done)
-                if float(qty_int) != float(l.qty_done):
-                    raise UserError(_("Para productos con seguimiento por Número de serie, la cantidad debe ser un entero. Producto: %s") % (l.product_id.display_name,))
-                for _i in range(qty_int):
-                    serial_name = o._next_serial_name()
-                    lot = o.env["stock.lot"].create({
-                        "name": serial_name,
-                        "product_id": l.product_id.id,
-                        "company_id": o.company_id.id,
-                        "x_weight_kg": l.weight_unit_kg,
-                    })
+            # Entradas (pzas) Ubicación Técnica -> Destino final
+            for l in o.line_ids:
+                move_in = o.env["stock.move"].create({
+                    "name": _("Resultado %s") % l.product_id.display_name,
+                    "product_id": l.product_id.id,
+                    "product_uom": l.product_id.uom_id.id,
+                    "product_uom_qty": l.qty_done,
+                    "location_id": o.production_location_id.id,
+                    "location_dest_id": dest.id,
+                    "picking_id": picking.id,
+                    "company_id": o.company_id.id,
+                    "x_cutting_order_id": o.id,
+                    "x_weight_total_kg": l.weight_total_kg,
+                })
+
+                if l.product_id.tracking == "serial":
+                    qty_int = int(l.qty_done)
+                    for _i in range(qty_int):
+                        serial_name = o._next_serial_name()
+                        lot = o.env["stock.lot"].create({
+                            "name": serial_name,
+                            "product_id": l.product_id.id,
+                            "company_id": o.company_id.id,
+                            "x_weight_kg": l.weight_unit_kg,
+                        })
+                        o.env["stock.move.line"].create({
+                            "move_id": move_in.id,
+                            "picking_id": picking.id,
+                            "product_id": l.product_id.id,
+                            "product_uom_id": l.product_id.uom_id.id,
+                            "qty_done": 1.0,
+                            "location_id": o.production_location_id.id,
+                            "location_dest_id": dest.id,
+                            "lot_id": lot.id,
+                            "x_weight_kg": l.weight_unit_kg,
+                            "company_id": o.company_id.id,
+                        })
+                else:
                     o.env["stock.move.line"].create({
                         "move_id": move_in.id,
                         "picking_id": picking.id,
                         "product_id": l.product_id.id,
                         "product_uom_id": l.product_id.uom_id.id,
-                        "qty_done": 1.0,
+                        "qty_done": l.qty_done,
                         "location_id": o.production_location_id.id,
                         "location_dest_id": dest.id,
-                        "lot_id": lot.id,
+                        "lot_id": l.lot_id.id if l.lot_id else False,
                         "x_weight_kg": l.weight_unit_kg,
                         "company_id": o.company_id.id,
                     })
-            else:
-                # Lote o sin tracking: una línea con qty_done total
-                o.env["stock.move.line"].create({
-                    "move_id": move_in.id,
-                    "picking_id": picking.id,
-                    "product_id": l.product_id.id,
-                    "product_uom_id": l.product_id.uom_id.id,
-                    "qty_done": l.qty_done,
-                    "location_id": o.production_location_id.id,
-                    "location_dest_id": dest.id,
-                    "lot_id": l.lot_id.id if l.lot_id else False,
-                    "x_weight_kg": l.weight_unit_kg,
-                    "company_id": o.company_id.id,
-                })
 
-        o.state = "confirmed"
+            o.state = "confirmed"
 
     def action_done(self):
         for o in self:
@@ -215,10 +224,9 @@ def action_confirm(self):
             if not o.picking_id:
                 raise UserError(_("No hay picking asociado."))
 
-            # Validar picking (genera SVL real del consumo FIFO si corresponde)
             o.picking_id.button_validate()
 
-            # Distribución contable por peso hacia los moves de entrada (capas por línea)
+            # Distribución contable (SVL) - si tu build tiene firma distinta, ajustamos con el traceback.
             o._apply_weight_cost_distribution()
 
             o.state = "done"
@@ -228,16 +236,14 @@ def action_confirm(self):
         picking = self.picking_id
         moves = picking.move_ids_without_package
 
-        # Move de salida (consumo): desde location_src -> production_location
         move_out = moves.filtered(lambda m: m.product_id.id == self.product_src_id.id and m.location_id.id == self.location_src_id.id)
         move_ins = moves - move_out
 
         if not move_out:
             raise UserError(_("No se encontró el movimiento de consumo."))
 
-        # Valor real consumido (FIFO) desde SVL del move de salida
         svls_out = self.env["stock.valuation.layer"].search([("stock_move_id", "in", move_out.ids)])
-        value_consumed = -sum(svls_out.mapped("value"))  # salida suele ser negativa
+        value_consumed = -sum(svls_out.mapped("value"))
 
         if float_is_zero(value_consumed, precision_rounding=0.00001):
             raise UserError(_("No se detectó valor consumido en SVL. Revisa FIFO/valuación automatizada en el producto origen."))
@@ -255,15 +261,14 @@ def action_confirm(self):
                 value_line = value_consumed * (w / total_weight)
                 remaining -= value_line
             else:
-                value_line = remaining  # cierre exacto
+                value_line = remaining
 
-            qty = sum(m.move_line_ids.mapped('qty_done'))
+            qty = sum(m.move_line_ids.mapped("qty_done")) or 0.0
             if qty <= 0:
                 continue
 
             unit_cost = value_line / qty
 
-            # Crear SVL de entrada con valor_line y unit_cost
             svl = self.env["stock.valuation.layer"].create({
                 "stock_move_id": m.id,
                 "company_id": self.company_id.id,
@@ -271,15 +276,12 @@ def action_confirm(self):
                 "quantity": qty,
                 "unit_cost": unit_cost,
                 "value": value_line,
-                "description": _("Despiece %s") % (self.name),
+                "description": _("Despiece %s") % self.name,
             })
 
-            # Contabilizar la valuación de ese SVL (método de stock_account)
-            # Si tu build tiene firma distinta, se ajusta.
             if hasattr(m, "_account_entry_move"):
                 m._account_entry_move(svl.quantity, svl.description, svl.id, svl.value)
-            else:
-                raise UserError(_("No se encontró el método contable _account_entry_move en stock.move (stock_account)."))
+            # Si tu build no expone este método, necesitamos el traceback para ajustar.
 
 class MeatCuttingOrderLine(models.Model):
     _name = "meat.cutting.order.line"
@@ -291,6 +293,7 @@ class MeatCuttingOrderLine(models.Model):
     weight_unit_kg = fields.Float(string="Peso por Unidad (kg)", required=True, digits="Product Unit of Measure")
     weight_total_kg = fields.Float(string="Peso Total (kg)", compute="_compute_weight_total", store=True)
 
+    # Opcional para serial (se auto-genera). Obligatorio si tracking=lot (validación en _check_weights)
     lot_id = fields.Many2one("stock.lot", required=False, string="Lote Resultante",
                              domain="[('product_id','=',product_id)]")
 
