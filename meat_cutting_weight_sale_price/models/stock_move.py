@@ -1,10 +1,10 @@
-from odoo import models
+from odoo import api, models
 
 class StockMove(models.Model):
     _inherit = "stock.move"
 
-    def _action_assign(self):
-        res = super()._action_assign()
+    def _action_assign(self, force_qty=False):
+        res = super()._action_assign(force_qty=force_qty)
         sale_lines = self.mapped("sale_line_id").filtered(lambda l: l)
         for line in sale_lines:
             line._mc_recompute_price_from_reserved_serials()
@@ -22,8 +22,8 @@ class StockMoveLine(models.Model):
                 line._mc_recompute_price_from_reserved_serials()
         return res
 
-    @classmethod
-    def create(cls, vals_list):
+    @api.model_create_multi
+    def create(self, vals_list):
         records = super().create(vals_list)
         sale_lines = records.mapped("move_id.sale_line_id").filtered(lambda l: l)
         for line in sale_lines:
