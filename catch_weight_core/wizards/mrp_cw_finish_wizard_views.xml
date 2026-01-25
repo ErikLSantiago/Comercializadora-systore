@@ -1,0 +1,36 @@
+<odoo>
+  <record id="view_mrp_cw_finish_wizard_form" model="ir.ui.view">
+    <field name="name">mrp.cw.finish.wizard.form</field>
+    <field name="model">mrp.cw.finish.wizard</field>
+    <field name="arch" type="xml">
+      <form string="Finalizar Producción (Catch Weight)">
+        <group>
+          <field name="production_id" readonly="1"/>
+          <field name="production_date"/>
+          <field name="waste_product_id"/>
+        </group>
+
+        <group>
+          <field name="consumed_weight_g" readonly="1"/>
+          <field name="produced_good_weight_g" readonly="1"/>
+          <field name="waste_weight_g" readonly="1"/>
+          <field name="diff_weight_g" readonly="1"/>
+        </group>
+
+        <separator string="Detalle (por peso)"/>
+        <field name="line_ids">
+          <list editable="bottom">
+            <field name="is_waste"/>
+            <field name="weight_g"/>
+            <field name="qty_units"/>
+          </list>
+        </field>
+
+        <footer>
+          <button string="Aplicar y cerrar" type="object" name="action_apply_and_mark_done" class="btn-primary"/>
+          <button string="Cancelar" special="cancel" class="btn-secondary"/>
+        </footer>
+      </form>
+    </field>
+  </record>
+</odoo>

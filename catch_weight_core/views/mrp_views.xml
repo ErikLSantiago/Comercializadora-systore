@@ -1,0 +1,23 @@
+<odoo>
+  <record id="view_mrp_production_form_cw_hint" model="ir.ui.view">
+    <field name="name">mrp.production.form.catch.weight.hint</field>
+    <field name="model">mrp.production</field>
+    <field name="inherit_id" ref="mrp.mrp_production_form_view"/>
+    <field name="arch" type="xml">
+      <xpath expr="//button[@name='button_mark_done']" position="after">
+        <button name="button_mark_done" type="object" string="Finalizar (CW)" class="btn-primary"
+                invisible="not x_is_catch_weight"/>
+      </xpath>
+      <xpath expr="//sheet" position="inside">
+        <field name="x_is_catch_weight" invisible="1"/>
+      </xpath>
+      <xpath expr="//sheet/notebook" position="inside">
+        <page string="Catch Weight" invisible="not x_is_catch_weight">
+          <group>
+            <p class="text-muted">Al finalizar, se abrirá un asistente para capturar pesos, merma y calcular costos por peso.</p>
+          </group>
+        </page>
+      </xpath>
+    </field>
+  </record>
+</odoo>

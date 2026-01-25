@@ -1,0 +1,6 @@
+<odoo>
+  <record id="group_catch_weight_manager" model="res.groups">
+    <field name="name">Catch Weight Manager</field>
+    <field name="category_id" ref="base.module_category_manufacturing"/>
+  </record>
+</odoo>
