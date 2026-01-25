@@ -7,6 +7,7 @@
     "data": [
         "security/ir.model.access.csv",
         "views/stock_picking_type_data.xml",
+        "views/stock_lot_views.xml",
         "views/meat_cutting_order_views.xml",
     ],
     "installable": True,

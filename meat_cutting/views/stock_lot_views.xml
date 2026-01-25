@@ -1,0 +1,25 @@
+<odoo>
+  <!-- Añadir Peso (kg) a la vista de lista de Números de serie / Lotes -->
+  <record id="view_stock_lot_list_inherit_meat_cutting" model="ir.ui.view">
+    <field name="name">stock.lot.list.inherit.meat_cutting</field>
+    <field name="model">stock.lot</field>
+    <field name="inherit_id" ref="stock.view_production_lot_tree"/>
+    <field name="arch" type="xml">
+      <xpath expr="//list/field[@name='name']" position="after">
+        <field name="x_weight_kg" optional="show"/>
+      </xpath>
+    </field>
+  </record>
+
+  <!-- Añadir Peso (kg) a la vista de formulario -->
+  <record id="view_stock_lot_form_inherit_meat_cutting" model="ir.ui.view">
+    <field name="name">stock.lot.form.inherit.meat_cutting</field>
+    <field name="model">stock.lot</field>
+    <field name="inherit_id" ref="stock.view_production_lot_form"/>
+    <field name="arch" type="xml">
+      <xpath expr="//group" position="inside">
+        <field name="x_weight_kg"/>
+      </xpath>
+    </field>
+  </record>
+</odoo>
