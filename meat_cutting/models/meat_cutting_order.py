@@ -105,132 +105,107 @@ def _get_default_dest_location(self, picking_type):
     raise UserError(_("No hay una ubicación destino por defecto configurada."))
 
 
-    def action_confirm(self):
-        for o in self:
-            o._check_weights()
-            if o.picking_id:
-                raise UserError(_("Esta orden ya tiene un picking asociado."))
+def action_confirm(self):
+    for o in self:
+        o._check_weights()
+        if o.picking_id:
+            raise UserError(_("Esta orden ya tiene un picking asociado."))
 
-            picking_type = self.env.ref("meat_cutting.picking_type_meat_cutting")
-            o.picking_type_id = picking_type.id
+        picking_type = o.env.ref("meat_cutting.picking_type_meat_cutting")
+        o.picking_type_id = picking_type.id
 
-            dest = o._get_default_dest_location(picking_type)
+        dest = o._get_default_dest_location(picking_type)
 
-            picking = self.env["stock.picking"].create({
-                "picking_type_id": picking_type.id,
-                "location_id": o.location_src_id.id,
+        picking = o.env["stock.picking"].create({
+            "picking_type_id": picking_type.id,
+            "location_id": o.location_src_id.id,
+            "location_dest_id": dest.id,
+            "origin": o.name,
+            "company_id": o.company_id.id,
+        })
+        o.picking_id = picking.id
+
+        # MOVE SALIDA (consumo en kg): Existencias -> Ubicación Técnica (Producción/Despiece)
+        move_out = o.env["stock.move"].create({
+            "name": _("Consumo %s") % (o.product_src_id.display_name),
+            "product_id": o.product_src_id.id,
+            "product_uom": o.product_src_id.uom_id.id,
+            "product_uom_qty": o.weight_consume_kg,
+            "location_id": o.location_src_id.id,
+            "location_dest_id": o.production_location_id.id,
+            "picking_id": picking.id,
+            "company_id": o.company_id.id,
+            "x_cutting_order_id": o.id,
+            "x_weight_total_kg": o.weight_consume_kg,
+        })
+        o.env["stock.move.line"].create({
+            "move_id": move_out.id,
+            "picking_id": picking.id,
+            "product_id": o.product_src_id.id,
+            "product_uom_id": o.product_src_id.uom_id.id,
+            "qty_done": o.weight_consume_kg,
+            "location_id": o.location_src_id.id,
+            "location_dest_id": o.production_location_id.id,
+            "lot_id": o.lot_src_id.id,
+            "company_id": o.company_id.id,
+        })
+
+        # MOVES ENTRADA (uno por línea = una capa): Ubicación Técnica -> Destino final
+        for l in o.line_ids:
+            move_in = o.env["stock.move"].create({
+                "name": _("Resultado %s") % (l.product_id.display_name),
+                "product_id": l.product_id.id,
+                "product_uom": l.product_id.uom_id.id,
+                "product_uom_qty": l.qty_done,
+                "location_id": o.production_location_id.id,
                 "location_dest_id": dest.id,
-                "origin": o.name,
-                "company_id": o.company_id.id,
-            })
-            o.picking_id = picking.id
-
-            # MOVE SALIDA (consumo en kg): Existencias -> Ubicación Técnica (Producción/Despiece)
-            move_out = self.env["stock.move"].create({
-                "name": _("Consumo %s") % (o.product_src_id.display_name),
-                "product_id": o.product_src_id.id,
-                "product_uom": o.product_src_id.uom_id.id,
-                "product_uom_qty": o.weight_consume_kg,
-                "location_id": o.location_src_id.id,
-                "location_dest_id": o.production_location_id.id,
                 "picking_id": picking.id,
                 "company_id": o.company_id.id,
                 "x_cutting_order_id": o.id,
-                "x_weight_total_kg": o.weight_consume_kg,
+                "x_weight_total_kg": l.weight_total_kg,
             })
-            self.env["stock.move.line"].create({
-                "move_id": move_out.id,
-                "picking_id": picking.id,
-                "product_id": o.product_src_id.id,
-                "product_uom_id": o.product_src_id.uom_id.id,
-                "qty_done": o.weight_consume_kg,
-                "location_id": o.location_src_id.id,
-                "location_dest_id": o.production_location_id.id,
-                "lot_id": o.lot_src_id.id,
-                "company_id": o.company_id.id,
-            })
-# MOVES ENTRADA
-for l in o.line_ids:
-    tracking = l.product_id.tracking
 
-    move_in = self.env["stock.move"].create({
-        "name": _("Resultado %s") % (l.product_id.display_name),
-        "product_id": l.product_id.id,
-        "product_uom": l.product_id.uom_id.id,
-        "product_uom_qty": l.qty_done,
-        "location_id": o.production_location_id.id,
-        "location_dest_id": dest.id,
-        "picking_id": picking.id,
-        "company_id": o.company_id.id,
-        "x_cutting_order_id": o.id,
-        "x_weight_total_kg": l.weight_total_kg,
-    })
+            if l.product_id.tracking == "serial":
+                # 1 pieza = 1 serial = 1 move line
+                qty_int = int(l.qty_done)
+                if float(qty_int) != float(l.qty_done):
+                    raise UserError(_("Para productos con seguimiento por Número de serie, la cantidad debe ser un entero. Producto: %s") % (l.product_id.display_name,))
+                for _i in range(qty_int):
+                    serial_name = o._next_serial_name()
+                    lot = o.env["stock.lot"].create({
+                        "name": serial_name,
+                        "product_id": l.product_id.id,
+                        "company_id": o.company_id.id,
+                        "x_weight_kg": l.weight_unit_kg,
+                    })
+                    o.env["stock.move.line"].create({
+                        "move_id": move_in.id,
+                        "picking_id": picking.id,
+                        "product_id": l.product_id.id,
+                        "product_uom_id": l.product_id.uom_id.id,
+                        "qty_done": 1.0,
+                        "location_id": o.production_location_id.id,
+                        "location_dest_id": dest.id,
+                        "lot_id": lot.id,
+                        "x_weight_kg": l.weight_unit_kg,
+                        "company_id": o.company_id.id,
+                    })
+            else:
+                # Lote o sin tracking: una línea con qty_done total
+                o.env["stock.move.line"].create({
+                    "move_id": move_in.id,
+                    "picking_id": picking.id,
+                    "product_id": l.product_id.id,
+                    "product_uom_id": l.product_id.uom_id.id,
+                    "qty_done": l.qty_done,
+                    "location_id": o.production_location_id.id,
+                    "location_dest_id": dest.id,
+                    "lot_id": l.lot_id.id if l.lot_id else False,
+                    "x_weight_kg": l.weight_unit_kg,
+                    "company_id": o.company_id.id,
+                })
 
-    # --- SERIAL TRACKING: 1 pieza = 1 serial ---
-    if tracking == "serial":
-        seq = self.env["ir.sequence"]
-        for i in range(int(l.qty_done)):
-            serial_name = seq.next_by_code("stock.lot.serial") or _("SERIAL")
-            lot = self.env["stock.lot"].create({
-                "name": serial_name,
-                "product_id": l.product_id.id,
-                "company_id": o.company_id.id,
-                "x_weight_kg": l.weight_unit_kg,
-            })
-            self.env["stock.move.line"].create({
-                "move_id": move_in.id,
-                "picking_id": picking.id,
-                "product_id": l.product_id.id,
-                "product_uom_id": l.product_id.uom_id.id,
-                "qty_done": 1,
-                "location_id": o.production_location_id.id,
-                "location_dest_id": dest.id,
-                "lot_id": lot.id,
-                "company_id": o.company_id.id,
-            })
-    else:
-        # --- LOTE / SIN TRACKING ---
-        if l.product_id.tracking == "serial":
-    # 1 pieza = 1 serial = 1 move line
-    qty_int = int(l.qty_done)
-    if qty_int != l.qty_done:
-        raise UserError(_("Para productos con seguimiento por Número de serie, la cantidad debe ser un entero. Producto: %s") % (l.product_id.display_name,))
-    for _i in range(qty_int):
-        serial_name = o._next_serial_name()
-        lot = self.env["stock.lot"].create({
-            "name": serial_name,
-            "product_id": l.product_id.id,
-            "company_id": o.company_id.id,
-            "x_weight_kg": l.weight_unit_kg,
-        })
-        self.env["stock.move.line"].create({
-            "move_id": move_in.id,
-            "picking_id": picking.id,
-            "product_id": l.product_id.id,
-            "product_uom_id": l.product_id.uom_id.id,
-            "qty_done": 1.0,
-            "location_id": o.production_location_id.id,
-            "location_dest_id": dest.id,
-            "lot_id": lot.id,
-            "x_weight_kg": l.weight_unit_kg,
-            "company_id": o.company_id.id,
-        })
-else:
-    # Lote o sin tracking: una línea con qty_done total
-    self.env["stock.move.line"].create({
-        "move_id": move_in.id,
-        "picking_id": picking.id,
-        "product_id": l.product_id.id,
-        "product_uom_id": l.product_id.uom_id.id,
-        "qty_done": l.qty_done,
-        "location_id": o.production_location_id.id,
-        "location_dest_id": dest.id,
-        "lot_id": l.lot_id.id if l.lot_id else False,
-        "x_weight_kg": l.weight_unit_kg,
-        "company_id": o.company_id.id,
-    })
-
-            o.state = "confirmed"
+        o.state = "confirmed"
 
     def action_done(self):
         for o in self:
