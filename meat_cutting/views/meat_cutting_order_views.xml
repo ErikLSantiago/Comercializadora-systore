@@ -54,7 +54,7 @@
                   <field name="qty_done"/>
                   <field name="weight_unit_kg"/>
                   <field name="weight_total_kg" readonly="1"/>
-                  <field name="lot_id" placeholder="(Opcional para serial)"/>
+                  <field name="lot_id"/>
                 </list>
               </field>
             </page>
