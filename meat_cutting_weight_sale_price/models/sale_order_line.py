@@ -18,7 +18,7 @@ class SaleOrderLine(models.Model):
         help="Cantidad de seriales/lotes ya reservados para esta línea (según movimientos de stock).",
     )
 
-    @api.depends("move_ids.move_line_ids.lot_id", "move_ids.reserved_availability")
+    @api.depends("move_ids.move_line_ids.lot_id")
     def _compute_x_reserved_serial_count(self):
         for line in self:
             lots = line.move_ids.move_line_ids.mapped("lot_id")
