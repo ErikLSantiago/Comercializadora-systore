@@ -218,7 +218,7 @@ class MeatCuttingOrder(models.Model):
             else:
                 value_line = remaining  # cierre exacto
 
-            qty = m.quantity_done
+            qty = sum(m.move_line_ids.mapped('qty_done'))
             if qty <= 0:
                 continue
 
