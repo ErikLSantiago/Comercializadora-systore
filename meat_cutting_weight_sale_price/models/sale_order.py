@@ -8,11 +8,11 @@ class SaleOrderLine(models.Model):
     x_reserved_serial_count = fields.Integer(string="Seriales reservados", readonly=True, copy=False)
 
     def _mc_get_reserved_serial_move_lines(self):
-    self.ensure_one()
-    # Moves ligados a esta línea (cualquier entrega / transferencia generada desde la SO)
-    moves = self.move_ids.filtered(lambda m: m.state not in ("cancel",))
-    mls = moves.mapped("move_line_ids").filtered(lambda ml: ml.lot_id)
-    return mls
+        self.ensure_one()
+        # Moves de salida ligados a esta línea (entrega)
+        moves = self.move_ids.filtered(lambda m: m.state not in ("cancel",) and m.location_dest_id.usage == "customer")
+        mls = moves.mapped("move_line_ids").filtered(lambda ml: ml.lot_id)
+        return mls
 
     def _mc_reserved_qty(self, ml):
         for fname in ("reserved_uom_qty", "quantity", "product_uom_qty"):
