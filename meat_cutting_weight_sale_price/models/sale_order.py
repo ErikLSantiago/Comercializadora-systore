@@ -4,6 +4,18 @@ from odoo import api, fields, models, _
 class SaleOrder(models.Model):
     _inherit = "sale.order"
 
+    x_reserved_serial_count = fields.Integer(
+        string="Seriales reservados",
+        compute="_compute_x_reserved_serial_count",
+        help="Suma de seriales/lotes reservados en las líneas.",
+    )
+
+    @api.depends("order_line.x_reserved_serial_count")
+    def _compute_x_reserved_serial_count(self):
+        for order in self:
+            order.x_reserved_serial_count = sum(order.order_line.mapped("x_reserved_serial_count"))
+
+
     def action_open_weight_price_wizard(self):
         self.ensure_one()
         return {
