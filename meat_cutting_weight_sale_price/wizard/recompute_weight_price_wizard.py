@@ -117,6 +117,13 @@ class MeatCuttingRecomputeWeightPriceWizard(models.TransientModel):
         line.unlink()
         self.env["sale.order.line"].create(new_lines_vals)
 
-        # Recompute totals
-        so._amount_all()
+        # Recompute totals (Odoo 17+ uses _compute_amounts)
+        if hasattr(so, "_compute_amounts"):
+            so._compute_amounts()
+        elif hasattr(so, "_amount_all"):
+            so._amount_all()
+        else:
+            # Fallback: recompute stored fields lazily
+            so.invalidate_recordset()
+
         return {"type": "ir.actions.act_window_close"}
