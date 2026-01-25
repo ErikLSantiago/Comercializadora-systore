@@ -23,9 +23,9 @@
     <field name="arch" type="xml">
       <form string="Orden de Despiece">
         <header>
-          <button name="action_calculate" type="object" string="Calcular" states="draft" class="btn-primary"/>
-          <button name="action_confirm" type="object" string="Confirmar" states="draft,calculated" class="btn-primary"/>
-          <button name="action_done" type="object" string="Aplicar / Hecho" states="confirmed" class="btn-success"/>
+          <button name="action_calculate" type="object" string="Calcular" class="btn-primary" invisible="state != 'draft'"/>
+          <button name="action_confirm" type="object" string="Confirmar" class="btn-primary" invisible="state not in ('draft','calculated')"/>
+          <button name="action_done" type="object" string="Aplicar / Hecho" class="btn-success" invisible="state != 'confirmed'"/>
           <field name="state" widget="statusbar" statusbar_visible="draft,calculated,confirmed,done"/>
         </header>
 
