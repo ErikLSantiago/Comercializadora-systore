@@ -1,6 +1,7 @@
+<?xml version="1.0" encoding="utf-8"?>
 <odoo>
   <record id="view_meat_cutting_order_tree" model="ir.ui.view">
-    <field name="name">meat.cutting.order.tree</field>
+    <field name="name">meat.cutting.order.list</field>
     <field name="model">meat.cutting.order</field>
     <field name="arch" type="xml">
       <list>
@@ -48,7 +49,7 @@
           <notebook>
             <page string="Resultados">
               <field name="line_ids">
-                <tree editable="bottom">
+                <list editable="bottom">
                   <field name="product_id"/>
                   <field name="qty_done"/>
                   <field name="weight_unit_kg"/>
@@ -70,6 +71,8 @@
   </record>
 
   <menuitem id="menu_meat_cutting_root" name="Despiece" parent="stock.menu_stock_root" sequence="50"/>
-  <menuitem id="menu_meat_cutting_orders" name="Órdenes de Despiece" parent="menu_meat_cutting_root"
-            action="action_meat_cutting_order" sequence="10"/>
+  <menuitem id="menu_meat_cutting_orders" name="Órdenes de Despiece"
+            parent="menu_meat_cutting_root"
+            action="action_meat_cutting_order"
+            sequence="10"/>
 </odoo>
