@@ -1,3 +1,0 @@
-id,name,model_id:id,group_id:id,perm_read,perm_write,perm_create,perm_unlink
-access_mrp_cw_finish_wizard,access_mrp_cw_finish_wizard,model_mrp_cw_finish_wizard,catch_weight_core.group_catch_weight_manager,1,1,1,1
-access_mrp_cw_finish_wizard_line,access_mrp_cw_finish_wizard_line,model_mrp_cw_finish_wizard_line,catch_weight_core.group_catch_weight_manager,1,1,1,1
