@@ -226,7 +226,7 @@ for l in o.line_ids:
             "company_id": o.company_id.id,
         })
 
-            o.state = "confirmed"
+        o.state = "confirmed"
 
     def action_done(self):
         for o in self:
