@@ -1,5 +1,22 @@
 <?xml version="1.0" encoding="utf-8"?>
 <odoo>
+    <!-- Botón en encabezado de la Orden de Venta -->
+    <record id="view_sale_order_form_weight_button" model="ir.ui.view">
+        <field name="name">sale.order.form.meat_cutting.weight.button</field>
+        <field name="model">sale.order</field>
+        <field name="inherit_id" ref="sale.view_order_form"/>
+        <field name="arch" type="xml">
+            <xpath expr="//header" position="inside">
+                <button name="action_recompute_weight_prices"
+                        type="object"
+                        string="Calcular precios (peso)"
+                        class="btn-secondary"
+                        invisible="state not in ('draft','sent','sale')"/>
+            </xpath>
+        </field>
+    </record>
+
+    <!-- Info en la línea de venta -->
     <record id="view_sale_order_form_weight_info" model="ir.ui.view">
         <field name="name">sale.order.form.meat_cutting.weight.info</field>
         <field name="model">sale.order</field>
