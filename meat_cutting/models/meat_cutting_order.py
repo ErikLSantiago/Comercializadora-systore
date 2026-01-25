@@ -162,57 +162,69 @@ class MeatCuttingOrder(models.Model):
                 "lot_id": o.lot_src_id.id,
                 "company_id": o.company_id.id,
             })
-
-            # Entradas (pzas) Ubicación Técnica -> Destino final
-            for l in o.line_ids:
-                move_in = o.env["stock.move"].create({
-                    "name": _("Resultado %s") % l.product_id.display_name,
-                    "product_id": l.product_id.id,
-                    "product_uom": l.product_id.uom_id.id,
-                    "product_uom_qty": l.qty_done,
-                    "location_id": o.production_location_id.id,
-                    "location_dest_id": dest.id,
-                    "picking_id": picking.id,
-                    "company_id": o.company_id.id,
-                    "x_cutting_order_id": o.id,
-                    "x_weight_total_kg": l.weight_total_kg,
-                })
-
-                if l.product_id.tracking == "serial":
-                    qty_int = int(l.qty_done)
-                    for _i in range(qty_int):
-                        serial_name = o._next_serial_name()
-                        lot = o.env["stock.lot"].create({
-                            "name": serial_name,
-                            "product_id": l.product_id.id,
-                            "company_id": o.company_id.id,
-                            "x_weight_kg": l.weight_unit_kg,
-                        })
-                        o.env["stock.move.line"].create({
-                            "move_id": move_in.id,
-                            "picking_id": picking.id,
-                            "product_id": l.product_id.id,
-                            "product_uom_id": l.product_id.uom_id.id,
-                            "qty_done": 1.0,
-                            "location_id": o.production_location_id.id,
-                            "location_dest_id": dest.id,
-                            "lot_id": lot.id,
-                            "x_weight_kg": l.weight_unit_kg,
-                            "company_id": o.company_id.id,
-                        })
-                else:
-                    o.env["stock.move.line"].create({
-                        "move_id": move_in.id,
-                        "picking_id": picking.id,
-                        "product_id": l.product_id.id,
-                        "product_uom_id": l.product_id.uom_id.id,
-                        "qty_done": l.qty_done,
-                        "location_id": o.production_location_id.id,
-                        "location_dest_id": dest.id,
-                        "lot_id": l.lot_id.id if l.lot_id else False,
-                        "x_weight_kg": l.weight_unit_kg,
-                        "company_id": o.company_id.id,
-                    })
+# Entradas (pzas) Ubicación Técnica -> Destino final
+for l in o.line_ids:
+    if l.product_id.tracking == "serial":
+        qty_int = int(l.qty_done)
+        for _i in range(qty_int):
+            # Crear un move por pieza para tener SVL/capa separada
+            move_in = o.env["stock.move"].create({
+                "name": _("Resultado %s") % l.product_id.display_name,
+                "product_id": l.product_id.id,
+                "product_uom": l.product_id.uom_id.id,
+                "product_uom_qty": 1.0,
+                "location_id": o.production_location_id.id,
+                "location_dest_id": dest.id,
+                "picking_id": picking.id,
+                "company_id": o.company_id.id,
+                "x_cutting_order_id": o.id,
+                "x_weight_total_kg": l.weight_unit_kg,
+            })
+            serial_base = o._next_serial_name()
+            lot = o.env["stock.lot"].create({
+                "name": f"{l.weight_unit_kg:.3f}-KG-{serial_base}",
+                "x_serial_code": serial_base,
+                "product_id": l.product_id.id,
+                "company_id": o.company_id.id,
+                "x_weight_kg": l.weight_unit_kg,
+            })
+            o.env["stock.move.line"].create({
+                "move_id": move_in.id,
+                "picking_id": picking.id,
+                "product_id": l.product_id.id,
+                "product_uom_id": l.product_id.uom_id.id,
+                "qty_done": 1.0,
+                "location_id": o.production_location_id.id,
+                "location_dest_id": dest.id,
+                "lot_id": lot.id,
+                "x_weight_kg": l.weight_unit_kg,
+                "company_id": o.company_id.id,
+            })
+    else:
+        move_in = o.env["stock.move"].create({
+            "name": _("Resultado %s") % l.product_id.display_name,
+            "product_id": l.product_id.id,
+            "product_uom": l.product_id.uom_id.id,
+            "product_uom_qty": l.qty_done,
+            "location_id": o.production_location_id.id,
+            "location_dest_id": dest.id,
+            "picking_id": picking.id,
+            "company_id": o.company_id.id,
+            "x_cutting_order_id": o.id,
+            "x_weight_total_kg": l.weight_total_kg,
+        })
+        o.env["stock.move.line"].create({
+            "move_id": move_in.id,
+            "picking_id": picking.id,
+            "product_id": l.product_id.id,
+            "product_uom_id": l.product_id.uom_id.id,
+            "qty_done": l.qty_done,
+            "location_id": o.production_location_id.id,
+            "location_dest_id": dest.id,
+            "lot_id": l.lot_id.id if l.lot_id else False,
+            "x_weight_kg": l.weight_unit_kg,
+            "company_id": o.company_id.id,
+        })
 
             o.state = "confirmed"
 
