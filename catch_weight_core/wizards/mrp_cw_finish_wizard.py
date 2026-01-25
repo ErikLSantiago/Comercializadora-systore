@@ -74,7 +74,7 @@ class MrpCwFinishWizard(models.TransientModel):
         for mv in prod.move_raw_ids.filtered(lambda m: m.state != "cancel"):
             if mv.product_uom.category_id != weight_category:
                 raise UserError(_("UoM del consumo '%s' no pertenece a la categoría de peso.") % mv.display_name)
-            qty = mv.quantity_done or mv.product_uom_qty
+            qty = getattr(mv, 'quantity_done', 0.0) or mv.product_uom_qty
             qty_g = mv.product_uom._compute_quantity(qty, uom_g)
             consumed_g += qty_g
 
