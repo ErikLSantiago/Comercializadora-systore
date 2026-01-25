@@ -4,8 +4,13 @@ class StockLot(models.Model):
     _inherit = "stock.lot"
 
     x_weight_kg = fields.Float(string="Peso (kg)", digits="Product Unit of Measure")
-    x_serial_code = fields.Char(string="Serial base", help="Código base del serial sin peso (ej. C-0001).")
 
     def name_get(self):
-        # Si el nombre ya viene con el formato técnico, lo mostramos tal cual.
-        return [(lot.id, lot.name or "") for lot in self]
+        res = []
+        for lot in self:
+            if lot.x_weight_kg:
+                # Formato: 0.200-KG-C-0001
+                res.append((lot.id, f"{lot.x_weight_kg:.3f}-KG-{lot.name}"))
+            else:
+                res.append((lot.id, lot.name))
+        return res
