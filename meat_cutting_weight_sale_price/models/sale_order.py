@@ -1,4 +1,4 @@
-from odoo import api, fields, models, _
+from odoo import fields, models, _
 from odoo.tools.float_utils import float_is_zero
 
 
@@ -16,14 +16,14 @@ class SaleOrderLine(models.Model):
         return moves.mapped("move_line_ids").filtered(lambda ml: ml.lot_id)
 
     def _mc_recompute_price_from_reserved_serials(self):
-        """Recalcula price_unit según peso real de los seriales reservados."""
+        """Recalcula price_unit según peso real (lot.x_weight_kg) de los seriales reservados."""
         self.ensure_one()
         tmpl = self.product_id.product_tmpl_id
 
-        if not tmpl.x_use_weight_sale_price:
+        if not getattr(tmpl, "x_use_weight_sale_price", False):
             return False
 
-        price_per_weight = tmpl.x_price_per_weight or 0.0
+        price_per_weight = getattr(tmpl, "x_price_per_weight", 0.0) or 0.0
         if float_is_zero(price_per_weight, precision_rounding=0.000001):
             return False
 
@@ -35,21 +35,15 @@ class SaleOrderLine(models.Model):
         if "x_weight_kg" not in lots._fields:
             return False
 
-        total_weight_kg = sum((lots.mapped("x_weight_kg")))  # pesos ya guardados en kg
+        total_weight_kg = sum([w or 0.0 for w in lots.mapped("x_weight_kg")])
         if float_is_zero(total_weight_kg, precision_rounding=0.000001):
             return False
 
-        # Convertir peso según UoM configurada en el producto (por ahora soportamos kg y g)
-        uom = tmpl.x_price_weight_uom_id
-        if uom and uom.category_id and uom.category_id == self.env.ref("uom.product_uom_categ_kgm", raise_if_not_found=False):
-            # Si el usuario puso precio por "g", convertir kg -> g
-            if uom and uom.name and uom.name.lower() in ("g", "gram", "gramo", "gramos"):
-                weight_in_uom = total_weight_kg * 1000.0
-            else:
-                weight_in_uom = total_weight_kg
-        else:
-            # Si no hay categoría o no es peso, asumir kg
-            weight_in_uom = total_weight_kg
+        # Convertir según UoM configurada (kg por defecto; si es "g" entonces kg->g)
+        uom = getattr(tmpl, "x_price_weight_uom_id", False)
+        weight_in_uom = total_weight_kg
+        if uom and getattr(uom, "name", "") and uom.name.strip().lower() in ("g", "gram", "gramo", "gramos"):
+            weight_in_uom = total_weight_kg * 1000.0
 
         total_price = weight_in_uom * price_per_weight
 
@@ -72,7 +66,9 @@ class SaleOrder(models.Model):
     def action_recompute_weight_prices(self):
         """Botón manual: recalcula precio por peso para líneas marcadas."""
         for order in self:
-            lines = order.order_line.filtered(lambda l: l.product_id and l.product_id.product_tmpl_id.x_use_weight_sale_price)
+            lines = order.order_line.filtered(
+                lambda l: l.product_id and getattr(l.product_id.product_tmpl_id, "x_use_weight_sale_price", False)
+            )
             for line in lines:
                 line._mc_recompute_price_from_reserved_serials()
         return True
