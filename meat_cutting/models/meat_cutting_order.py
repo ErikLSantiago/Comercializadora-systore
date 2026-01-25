@@ -32,8 +32,6 @@ class MeatCuttingOrder(models.Model):
         string="Ubicación Origen",
         domain="[('usage','=','internal')]",
     )
-
-    # Opcional: si viene vacío, se usa un default (picking type / compañía)
     location_dest_id = fields.Many2one(
         "stock.location",
         string="Ubicación Destino",
@@ -88,11 +86,9 @@ class MeatCuttingOrder(models.Model):
             if l.qty_done <= 0 or l.weight_unit_kg <= 0:
                 raise UserError(_("Cantidad y peso por unidad deben ser > 0 en todas las líneas."))
 
-            # Lote obligatorio solo si el producto es tracking por LOTE (no serial)
             if l.product_id.tracking == "lot" and not l.lot_id:
                 raise UserError(_("El lote es obligatorio para productos con seguimiento por Lote: %s") % l.product_id.display_name)
 
-            # Serial requiere cantidad entera
             if l.product_id.tracking == "serial":
                 qty_int = int(l.qty_done)
                 if float(qty_int) != float(l.qty_done):
@@ -162,71 +158,71 @@ class MeatCuttingOrder(models.Model):
                 "lot_id": o.lot_src_id.id,
                 "company_id": o.company_id.id,
             })
-# Entradas (pzas) Ubicación Técnica -> Destino final
-for l in o.line_ids:
-    if l.product_id.tracking == "serial":
-        qty_int = int(l.qty_done)
-        for _i in range(qty_int):
-            # Crear un move por pieza para tener SVL/capa separada
-            move_in = o.env["stock.move"].create({
-                "name": _("Resultado %s") % l.product_id.display_name,
-                "product_id": l.product_id.id,
-                "product_uom": l.product_id.uom_id.id,
-                "product_uom_qty": 1.0,
-                "location_id": o.production_location_id.id,
-                "location_dest_id": dest.id,
-                "picking_id": picking.id,
-                "company_id": o.company_id.id,
-                "x_cutting_order_id": o.id,
-                "x_weight_total_kg": l.weight_unit_kg,
-            })
-            serial_base = o._next_serial_name()
-            lot = o.env["stock.lot"].create({
-                "name": f"{l.weight_unit_kg:.3f}-KG-{serial_base}",
-                "x_serial_code": serial_base,
-                "product_id": l.product_id.id,
-                "company_id": o.company_id.id,
-                "x_weight_kg": l.weight_unit_kg,
-            })
-            o.env["stock.move.line"].create({
-                "move_id": move_in.id,
-                "picking_id": picking.id,
-                "product_id": l.product_id.id,
-                "product_uom_id": l.product_id.uom_id.id,
-                "qty_done": 1.0,
-                "location_id": o.production_location_id.id,
-                "location_dest_id": dest.id,
-                "lot_id": lot.id,
-                "x_weight_kg": l.weight_unit_kg,
-                "company_id": o.company_id.id,
-            })
-    else:
-        move_in = o.env["stock.move"].create({
-            "name": _("Resultado %s") % l.product_id.display_name,
-            "product_id": l.product_id.id,
-            "product_uom": l.product_id.uom_id.id,
-            "product_uom_qty": l.qty_done,
-            "location_id": o.production_location_id.id,
-            "location_dest_id": dest.id,
-            "picking_id": picking.id,
-            "company_id": o.company_id.id,
-            "x_cutting_order_id": o.id,
-            "x_weight_total_kg": l.weight_total_kg,
-        })
-        o.env["stock.move.line"].create({
-            "move_id": move_in.id,
-            "picking_id": picking.id,
-            "product_id": l.product_id.id,
-            "product_uom_id": l.product_id.uom_id.id,
-            "qty_done": l.qty_done,
-            "location_id": o.production_location_id.id,
-            "location_dest_id": dest.id,
-            "lot_id": l.lot_id.id if l.lot_id else False,
-            "x_weight_kg": l.weight_unit_kg,
-            "company_id": o.company_id.id,
-        })
 
-        o.state = "confirmed"
+            # Entradas: para serial -> 1 move por pieza; para otros -> 1 move por línea
+            for l in o.line_ids:
+                if l.product_id.tracking == "serial":
+                    qty_int = int(l.qty_done)
+                    for _i in range(qty_int):
+                        move_in = o.env["stock.move"].create({
+                            "name": _("Resultado %s") % l.product_id.display_name,
+                            "product_id": l.product_id.id,
+                            "product_uom": l.product_id.uom_id.id,
+                            "product_uom_qty": 1.0,
+                            "location_id": o.production_location_id.id,
+                            "location_dest_id": dest.id,
+                            "picking_id": picking.id,
+                            "company_id": o.company_id.id,
+                            "x_cutting_order_id": o.id,
+                            "x_weight_total_kg": l.weight_unit_kg,
+                        })
+                        serial_base = o._next_serial_name()
+                        lot = o.env["stock.lot"].create({
+                            "name": f"{l.weight_unit_kg:.3f}-KG-{serial_base}",
+                            "x_serial_code": serial_base,
+                            "product_id": l.product_id.id,
+                            "company_id": o.company_id.id,
+                            "x_weight_kg": l.weight_unit_kg,
+                        })
+                        o.env["stock.move.line"].create({
+                            "move_id": move_in.id,
+                            "picking_id": picking.id,
+                            "product_id": l.product_id.id,
+                            "product_uom_id": l.product_id.uom_id.id,
+                            "qty_done": 1.0,
+                            "location_id": o.production_location_id.id,
+                            "location_dest_id": dest.id,
+                            "lot_id": lot.id,
+                            "x_weight_kg": l.weight_unit_kg,
+                            "company_id": o.company_id.id,
+                        })
+                else:
+                    move_in = o.env["stock.move"].create({
+                        "name": _("Resultado %s") % l.product_id.display_name,
+                        "product_id": l.product_id.id,
+                        "product_uom": l.product_id.uom_id.id,
+                        "product_uom_qty": l.qty_done,
+                        "location_id": o.production_location_id.id,
+                        "location_dest_id": dest.id,
+                        "picking_id": picking.id,
+                        "company_id": o.company_id.id,
+                        "x_cutting_order_id": o.id,
+                        "x_weight_total_kg": l.weight_total_kg,
+                    })
+                    o.env["stock.move.line"].create({
+                        "move_id": move_in.id,
+                        "picking_id": picking.id,
+                        "product_id": l.product_id.id,
+                        "product_uom_id": l.product_id.uom_id.id,
+                        "qty_done": l.qty_done,
+                        "location_id": o.production_location_id.id,
+                        "location_dest_id": dest.id,
+                        "lot_id": l.lot_id.id if l.lot_id else False,
+                        "x_weight_kg": l.weight_unit_kg,
+                        "company_id": o.company_id.id,
+                    })
+
+            o.state = "confirmed"
 
     def action_done(self):
         for o in self:
@@ -237,17 +233,12 @@ for l in o.line_ids:
                 raise UserError(_("No hay picking asociado."))
 
             o.picking_id.button_validate()
-
-            # Distribución contable (SVL) - si tu build tiene firma distinta, ajustamos con el traceback.
             o._apply_weight_cost_distribution()
-
             o.state = "done"
-
 
     def _apply_weight_cost_distribution(self):
         """Distribuye el valor consumido del origen hacia los movimientos de entrada (resultantes),
-        actualizando SVL existentes (creados por la validación del picking) y ajustando el valor de quants
-        para que el reporte de existencias muestre el valor por número de serie/lote.
+        actualizando SVL existentes y ajustando el valor de quants (para que el listado de existencias muestre valor por serial).
         """
         self.ensure_one()
         picking = self.picking_id
@@ -259,7 +250,6 @@ for l in o.line_ids:
         if not move_out:
             raise UserError(_("No se encontró el movimiento de consumo."))
 
-        # Valor consumido (FIFO por lote)
         svls_out = self.env["stock.valuation.layer"].search([("stock_move_id", "in", move_out.ids)])
         value_consumed = -sum(svls_out.mapped("value"))  # salida es negativa
 
@@ -287,7 +277,6 @@ for l in o.line_ids:
 
             unit_cost = value_line / qty
 
-            # 1) Actualizar SVL(s) existentes del move
             svls_in = self.env["stock.valuation.layer"].search([("stock_move_id", "=", m.id)])
             old_value = sum(svls_in.mapped("value")) if svls_in else 0.0
             diff_value = value_line - old_value
@@ -319,24 +308,21 @@ for l in o.line_ids:
                 })
                 diff_value = value_line
 
-            # 2) Ajuste contable: registrar SOLO la diferencia
+            # Ajuste contable solo por la diferencia (soporta firmas distintas)
             if not float_is_zero(diff_value, precision_rounding=0.00001) and hasattr(m, "_account_entry_move"):
-                svl_for_call = self.env["stock.valuation.layer"].search([("stock_move_id","=",m.id)], limit=1)
+                svl_for_call = self.env["stock.valuation.layer"].search([("stock_move_id", "=", m.id)], limit=1)
                 try:
                     m._account_entry_move(qty, _("Despiece %s") % self.name, svl_for_call.id if svl_for_call else False, diff_value)
                 except TypeError:
                     m._account_entry_move(qty, _("Despiece %s") % self.name, svl_for_call, diff_value)
 
-            # 3) Forzar valor en quants (para que el listado de existencias muestre valor por serial/lote)
+            # Ajuste quants para reflejar valor en inventario por serial/lote
             Quant = self.env["stock.quant"]
             for ml in m.move_line_ids:
-                quant_domain = [
-                    ("product_id", "=", m.product_id.id),
-                    ("location_id", "=", m.location_dest_id.id),
-                ]
+                domain = [("product_id", "=", m.product_id.id), ("location_id", "=", m.location_dest_id.id)]
                 if ml.lot_id:
-                    quant_domain.append(("lot_id", "=", ml.lot_id.id))
-                q = Quant.search(quant_domain, limit=1)
+                    domain.append(("lot_id", "=", ml.lot_id.id))
+                q = Quant.search(domain, limit=1)
                 if not q:
                     continue
                 ml_qty = ml.qty_done or 0.0
@@ -350,8 +336,6 @@ for l in o.line_ids:
                     q.write(vals)
 
 
-
-
 class MeatCuttingOrderLine(models.Model):
     _name = "meat.cutting.order.line"
     _description = "Líneas de Despiece"
@@ -362,7 +346,6 @@ class MeatCuttingOrderLine(models.Model):
     weight_unit_kg = fields.Float(string="Peso por Unidad (kg)", required=True, digits="Product Unit of Measure")
     weight_total_kg = fields.Float(string="Peso Total (kg)", compute="_compute_weight_total", store=True)
 
-    # Opcional para serial (se auto-genera). Obligatorio si tracking=lot (validación en _check_weights)
     lot_id = fields.Many2one("stock.lot", required=False, string="Lote Resultante",
                              domain="[('product_id','=',product_id)]")
 
