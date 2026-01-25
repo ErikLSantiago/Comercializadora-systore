@@ -19,7 +19,7 @@ class MrpCwFinishWizard(models.TransientModel):
     production_date = fields.Datetime("Fecha de producción", required=True, default=fields.Datetime.now)
 
     line_ids = fields.One2many("mrp.cw.finish.wizard.line", "wizard_id", string="Detalle por peso")
-    waste_product_id = fields.Many2one("product.product", string="Producto Merma", domain=[('product_tmpl_id.type','=','product')])
+    waste_product_id = fields.Many2one("product.product", string="Producto Merma", domain=[("type","=","product")])
 
     consumed_weight_g = fields.Integer("Consumido (g)", compute="_compute_totals")
     produced_good_weight_g = fields.Integer("Bueno (g)", compute="_compute_totals")
@@ -89,9 +89,54 @@ class MrpCwFinishWizard(models.TransientModel):
     def _get_consumed_value_fifo(self):
         self.ensure_one()
         prod = self.production_id
+        # Nota: el wizard se ejecuta ANTES de cerrar la MO, por lo que normalmente
+        # aún no existen SVLs en los movimientos de consumo. Por eso:
+        # 1) si ya hay SVL en el move (caso raro / reintentos), se usa.
+        # 2) si no hay SVL, se estima el costo FIFO desde las capas disponibles (remaining_qty/value).
+        StockValLayer = self.env["stock.valuation.layer"]
+
+        def _move_qty_in_product_uom(move):
+            """Obtiene la cantidad relevante del move en la UoM del producto."""
+            qty = 0.0
+            # En Odoo 19 los campos han cambiado entre modelos; tomamos el primero que exista.
+            for fname in ("quantity", "quantity_done", "product_uom_qty"):
+                if fname in move._fields:
+                    qty = float(getattr(move, fname) or 0.0)
+                    if qty:
+                        break
+            return move.product_uom._compute_quantity(qty, move.product_id.uom_id, rounding_method="HALF-UP")
+
         consumed_value = 0.0
         for mv in prod.move_raw_ids.filtered(lambda m: m.state != "cancel"):
-            consumed_value += sum(mv.stock_valuation_layer_ids.mapped("value"))
+            if mv.stock_valuation_layer_ids:
+                consumed_value += sum(mv.stock_valuation_layer_ids.mapped("value"))
+                continue
+
+            qty_to_consume = _move_qty_in_product_uom(mv)
+            if qty_to_consume <= 0:
+                continue
+
+            # FIFO: tomar capas con qty restante
+            layers = StockValLayer.search(
+                [
+                    ("product_id", "=", mv.product_id.id),
+                    ("company_id", "=", mv.company_id.id),
+                    ("remaining_qty", ">", 0),
+                ],
+                order="create_date,id",
+            )
+            remaining = qty_to_consume
+            for layer in layers:
+                if remaining <= 0:
+                    break
+                take = min(remaining, layer.remaining_qty)
+                # Valor proporcional
+                unit_val = (layer.remaining_value / layer.remaining_qty) if layer.remaining_qty else 0.0
+                consumed_value += take * unit_val
+                remaining -= take
+
+            # Si no alcanzan las capas, dejamos que el validado posterior lo detenga.
+
         return abs(consumed_value)
 
     def _get_or_create_lot(self, product, weight_g, prod_date):
