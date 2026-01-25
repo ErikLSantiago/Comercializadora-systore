@@ -19,7 +19,7 @@ class MrpCwFinishWizard(models.TransientModel):
     production_date = fields.Datetime("Fecha de producción", required=True, default=fields.Datetime.now)
 
     line_ids = fields.One2many("mrp.cw.finish.wizard.line", "wizard_id", string="Detalle por peso")
-    waste_product_id = fields.Many2one("product.product", string="Producto Merma", domain=[("detailed_type","=","product")])
+    waste_product_id = fields.Many2one("product.product", string="Producto Merma", domain=[('product_tmpl_id.detailed_type','=','product')])
 
     consumed_weight_g = fields.Integer("Consumido (g)", compute="_compute_totals")
     produced_good_weight_g = fields.Integer("Bueno (g)", compute="_compute_totals")
