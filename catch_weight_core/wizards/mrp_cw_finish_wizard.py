@@ -265,8 +265,7 @@ class MrpCwFinishWizard(models.TransientModel):
                 "company_id": prod.company_id.id,
                 "picking_type_id": prod.picking_type_id.id,
                 "state": "draft",
-                "is_byproduct": True,
-                "picking_type_id": prod.picking_type_id.id,
+                                "picking_type_id": prod.picking_type_id.id,
             })
 
             seq = 1
