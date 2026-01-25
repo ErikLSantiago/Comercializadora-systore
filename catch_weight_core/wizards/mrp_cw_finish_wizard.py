@@ -81,7 +81,7 @@ class MrpCwFinishWizard(models.TransientModel):
         return int(round(consumed_g))
 
     def _convert_g_to_uom(self, grams_int, target_uom, weight_category):
-        uom_g, _ = self._get_uom_gram_in_weight_category()
+        uom_g, weight_cat = self._get_uom_gram_in_weight_category()
         if target_uom.category_id != weight_category:
             raise UserError(_("La UoM destino no está en la categoría de peso."))
         return uom_g._compute_quantity(float(grams_int), target_uom)
