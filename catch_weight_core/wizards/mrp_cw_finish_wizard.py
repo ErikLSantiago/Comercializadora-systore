@@ -162,58 +162,133 @@ class MrpCwFinishWizard(models.TransientModel):
         return self.env["stock.lot"].create(vals)
 
     def _replace_finished_moves_by_weight(self, consumed_value):
+        """Populate finished/byproduct move lines in *units*.
+
+        Odoo's `mrp.production.button_mark_done()` processes only moves linked
+        to the production (move_finished_ids / move_byproduct_ids). Earlier
+        versions created standalone `stock.move` records that were not always
+        picked up by the standard workflow, so no inventory/cost was generated.
+
+        This method:
+        - Writes lot-tracked move lines for the main finished product.
+        - Creates/updates byproduct (waste) moves if needed (cost_share=0).
+        - Stores the entered weight (g) on the lot via `x_cw_weight_g` if that
+          custom field exists.
+        """
         self.ensure_one()
         prod = self.production_id
+        if not prod:
+            return
+
         finished_product = prod.product_id
+        unit_uom = finished_product.uom_id
 
-        good_weight_g = sum(l.weight_g * l.qty_units for l in self.line_ids.filtered(lambda x: not x.is_waste and x.qty_units > 0))
-        if good_weight_g <= 0:
-            raise UserError(_("El peso producido bueno debe ser > 0."))
+        # --- Main finished move (good pieces)
+        good_lines = self.line_ids.filtered(lambda l: not l.is_waste and l.qty_units)
+        total_good_units = sum(good_lines.mapped('qty_units'))
 
-        cost_per_g = consumed_value / float(good_weight_g)
-
-        # Cancelar moves anteriores del terminado (si existen)
-        old_moves = prod.move_finished_ids.filtered(lambda m: m.product_id == finished_product and m.state != "cancel")
-        if old_moves:
-            old_moves._action_cancel()
-
-        created_moves = self.env["stock.move"]
-        total_units = 0.0
-
-        for l in self.line_ids.filtered(lambda x: not x.is_waste and x.qty_units > 0):
-            lot = self._get_or_create_lot(finished_product, l.weight_g, self.production_date)
-            unit_cost = float(l.weight_g) * cost_per_g  # costo por pieza según peso
-            qty_units = float(l.qty_units)
-
-            mv = self.env["stock.move"].create({
-                "name": finished_product.display_name,
-                "product_id": finished_product.id,
-                "product_uom": finished_product.uom_id.id,
-                "product_uom_qty": qty_units,
-                "location_id": prod.location_src_id.id,
-                "location_dest_id": prod.location_dest_id.id,
-                "production_id": prod.id,
-                "company_id": prod.company_id.id,
-                "date": self.production_date,
-                "price_unit": unit_cost,
+        main_move = prod.move_finished_ids.filtered(lambda m: m.product_id == finished_product)[:1]
+        if not main_move:
+            # Fallback: create a move linked to the production.
+            main_move = self.env['stock.move'].create({
+                'name': finished_product.display_name,
+                'product_id': finished_product.id,
+                'product_uom': unit_uom.id,
+                'product_uom_qty': total_good_units,
+                'location_id': prod.location_src_id.id,
+                'location_dest_id': prod.location_dest_id.id,
+                'company_id': prod.company_id.id,
+                'production_id': prod.id,
+                'picking_type_id': prod.picking_type_id.id,
             })
+        else:
+            # Ensure expected qty equals what we will produce.
+            main_move.product_uom_qty = total_good_units
+            if main_move.product_uom != unit_uom:
+                main_move.product_uom = unit_uom
 
-            self.env["stock.move.line"].create({
-                "move_id": mv.id,
-                "product_id": finished_product.id,
-                "product_uom_id": finished_product.uom_id.id,
-                "qty_done": qty_units,
-                "lot_id": lot.id,
-                "location_id": prod.location_src_id.id,
-                "location_dest_id": prod.location_dest_id.id,
+        # Reset any existing done lines so we don't double-produce.
+        main_move.move_line_ids.unlink()
+
+        seq = 1
+        for line in good_lines:
+            lot = self.env['stock.lot'].create({
+                'name': self._make_lot_name(finished_product, self.production_date, seq),
+                'product_id': finished_product.id,
+                'company_id': prod.company_id.id,
             })
+            # Store weight on lot if we have the custom field
+            if 'x_cw_weight_g' in lot._fields:
+                lot.x_cw_weight_g = int(line.weight_g or 0)
 
-            created_moves |= mv
-            total_units += qty_units
+            self.env['stock.move.line'].create({
+                'move_id': main_move.id,
+                'product_id': finished_product.id,
+                'product_uom_id': unit_uom.id,
+                'qty_done': line.qty_units,
+                'lot_id': lot.id,
+                'location_id': main_move.location_id.id,
+                'location_dest_id': main_move.location_dest_id.id,
+                'company_id': prod.company_id.id,
+            })
+            seq += 1
 
-        # Ajustar cantidad producida planificada a lo realmente producido (para cerrar limpio)
-        prod.product_qty = total_units
-        return created_moves, cost_per_g
+        # --- Waste / byproduct move (optional)
+        waste_lines = self.line_ids.filtered(lambda l: l.is_waste and l.qty_units)
+        if waste_lines and self.waste_product_id:
+            waste_product = self.waste_product_id
+            waste_uom = waste_product.uom_id
+            total_waste_units = sum(waste_lines.mapped('qty_units'))
+
+            waste_move = prod.move_byproduct_ids.filtered(lambda m: m.product_id == waste_product)[:1]
+            if not waste_move:
+                vals = {
+                    'name': waste_product.display_name,
+                    'product_id': waste_product.id,
+                    'product_uom': waste_uom.id,
+                    'product_uom_qty': total_waste_units,
+                    'location_id': prod.location_src_id.id,
+                    'location_dest_id': prod.location_dest_id.id,
+                    'company_id': prod.company_id.id,
+                    'production_id': prod.id,
+                    'picking_type_id': prod.picking_type_id.id,
+                }
+                # cost_share is the supported knob to exclude byproducts from cost allocation
+                if 'cost_share' in self.env['stock.move']._fields:
+                    vals['cost_share'] = 0.0
+                waste_move = self.env['stock.move'].create(vals)
+            else:
+                waste_move.product_uom_qty = total_waste_units
+                if waste_move.product_uom != waste_uom:
+                    waste_move.product_uom = waste_uom
+                if 'cost_share' in waste_move._fields:
+                    waste_move.cost_share = 0.0
+
+            waste_move.move_line_ids.unlink()
+            for line in waste_lines:
+                lot = self.env['stock.lot'].create({
+                    'name': self._make_lot_name(waste_product, self.production_date, seq),
+                    'product_id': waste_product.id,
+                    'company_id': prod.company_id.id,
+                })
+                if 'x_cw_weight_g' in lot._fields:
+                    lot.x_cw_weight_g = int(line.weight_g or 0)
+
+                self.env['stock.move.line'].create({
+                    'move_id': waste_move.id,
+                    'product_id': waste_product.id,
+                    'product_uom_id': waste_uom.id,
+                    'qty_done': line.qty_units,
+                    'lot_id': lot.id,
+                    'location_id': waste_move.location_id.id,
+                    'location_dest_id': waste_move.location_dest_id.id,
+                    'company_id': prod.company_id.id,
+                })
+                seq += 1
+
+        # Keep a reference to consumed value for future costing logic
+        self._cw_consumed_value = consumed_value
+
 
     def action_apply_and_mark_done(self):
         self.ensure_one()
@@ -243,41 +318,6 @@ class MrpCwFinishWizard(models.TransientModel):
 
         # Crear moves terminados por peso/lote
         self._replace_finished_moves_by_weight(consumed_value)
-
-        # Merma inventariable (by-product) con price_unit=0
-        if waste_g > 0:
-            if not self.waste_product_id:
-                raise UserError(_("Hay merma pero no seleccionaste el producto de merma."))
-
-            uom_g, weight_cat = self._get_uom_gram_in_weight_category()
-            waste_qty_in_uom = self._convert_g_to_uom(int(waste_g), self.waste_product_id.uom_id, weight_cat)
-
-            waste_move = prod.move_byproduct_ids.filtered(lambda m: m.product_id == self.waste_product_id and m.state != "cancel")
-            if waste_move:
-                waste_move = waste_move[0]
-                waste_move.move_line_ids.unlink()
-            else:
-                waste_move = self.env["stock.move"].create({
-                    "name": _("Merma"),
-                    "product_id": self.waste_product_id.id,
-                    "product_uom": self.waste_product_id.uom_id.id,
-                    "product_uom_qty": waste_qty_in_uom,
-                    "location_id": prod.location_src_id.id,
-                    "location_dest_id": prod.location_dest_id.id,
-                    "production_id": prod.id,
-                    "company_id": prod.company_id.id,
-                    "date": self.production_date,
-                    "price_unit": 0.0,
-                })
-
-            self.env["stock.move.line"].create({
-                "move_id": waste_move.id,
-                "product_id": self.waste_product_id.id,
-                "product_uom_id": waste_move.product_uom.id,
-                "qty_done": waste_qty_in_uom,
-                "location_id": waste_move.location_id.id,
-                "location_dest_id": waste_move.location_dest_id.id,
-            })
 
         # Cerrar OF (evitar loop y saltar wizard)
         ctx = dict(self.env.context, cw_from_wizard=True)
