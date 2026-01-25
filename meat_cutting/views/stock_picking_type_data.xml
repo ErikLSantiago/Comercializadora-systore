@@ -7,6 +7,14 @@
     <field name="company_id" eval="False"/>
   </record>
 
+<record id="seq_meat_cutting_serial" model="ir.sequence">
+  <field name="name">Meat Cutting Serial</field>
+  <field name="code">meat_cutting.serial</field>
+  <field name="prefix">C-</field>
+  <field name="padding">4</field>
+  <field name="company_id" eval="False"/>
+</record>
+
   <!-- Ubicación técnica para despiece -->
   <record id="stock_location_meat_cutting_production" model="stock.location">
     <field name="name">Despiece / Producción</field>
