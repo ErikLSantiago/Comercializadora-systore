@@ -63,47 +63,47 @@ class MeatCuttingOrder(models.Model):
             o._check_weights()
             o.state = "calculated"
 
-    def _check_weights(self):
-        self.ensure_one()
-        if self.weight_consume_kg <= 0:
-            raise UserError(_("El peso a consumir debe ser > 0."))
+def _check_weights(self):
+    self.ensure_one()
+    if self.weight_consume_kg <= 0:
+        raise UserError(_("El peso a consumir debe ser > 0."))
 
-        if not self.line_ids:
-            raise UserError(_("Agrega al menos una línea de producto resultante."))
+    if not self.line_ids:
+        raise UserError(_("Agrega al menos una línea de producto resultante."))
 
-        for l in self.line_ids:
-    if l.qty_done <= 0 or l.weight_unit_kg <= 0:
-        raise UserError(_("Cantidad y peso por unidad deben ser > 0 en todas las líneas."))
+    for l in self.line_ids:
+        if l.qty_done <= 0 or l.weight_unit_kg <= 0:
+            raise UserError(_("Cantidad y peso por unidad deben ser > 0 en todas las líneas."))
 
-    # Lote obligatorio solo si el producto es tracking por LOTE (no serial)
-    if l.product_id.tracking == "lot" and not l.lot_id:
-        raise UserError(_("El lote es obligatorio para productos con seguimiento por Lote: %s") % (l.product_id.display_name,))
+        # Lote obligatorio solo si el producto es tracking por LOTE (no serial)
+        if l.product_id.tracking == "lot" and not l.lot_id:
+            raise UserError(_("El lote es obligatorio para productos con seguimiento por Lote: %s") % (l.product_id.display_name,))
 
-        diff = self.weight_total_produced_kg - self.weight_consume_kg
-        if abs(diff) > self.tolerance_kg:
-            raise UserError(_(
-                "La suma de pesos producidos (%s kg) no cuadra con el peso consumido (%s kg). "
-                "Diferencia: %s kg (tolerancia %s kg)."
-            ) % (self.weight_total_produced_kg, self.weight_consume_kg, diff, self.tolerance_kg))
+    diff = self.weight_total_produced_kg - self.weight_consume_kg
+    if abs(diff) > self.tolerance_kg:
+        raise UserError(_(
+            "La suma de pesos producidos (%s kg) no cuadra con el peso consumido (%s kg). "
+            "Diferencia: %s kg (tolerancia %s kg)."
+        ) % (self.weight_total_produced_kg, self.weight_consume_kg, diff, self.tolerance_kg))
 
-    
 def _next_serial_name(self):
     """Genera el siguiente número de serie para productos resultantes."""
     self.ensure_one()
     return self.env["ir.sequence"].next_by_code("meat_cutting.serial") or _("SERIAL")
 
 def _get_default_dest_location(self, picking_type):
-        # 1) Lo que eligió el usuario
-        if self.location_dest_id:
-            return self.location_dest_id
-        # 2) Default del tipo de operación
-        if picking_type.default_location_dest_id:
-            return picking_type.default_location_dest_id
-        # 3) Fallback: ubicación principal de stock (si existe)
-        company_stock_loc = getattr(self.company_id, "stock_location_id", False)
-        if company_stock_loc:
-            return company_stock_loc
-        raise UserError(_("No hay una ubicación destino por defecto configurada."))
+    # 1) Lo que eligió el usuario
+    if self.location_dest_id:
+        return self.location_dest_id
+    # 2) Default del tipo de operación
+    if picking_type.default_location_dest_id:
+        return picking_type.default_location_dest_id
+    # 3) Fallback: ubicación principal de stock (si existe en el build)
+    company_stock_loc = getattr(self.company_id, "stock_location_id", False)
+    if company_stock_loc:
+        return company_stock_loc
+    raise UserError(_("No hay una ubicación destino por defecto configurada."))
+
 
     def action_confirm(self):
         for o in self:
