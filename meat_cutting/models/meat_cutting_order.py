@@ -183,7 +183,8 @@ class MeatCuttingOrder(models.Model):
                     for _i in range(qty_int):
                         serial_name = o._next_serial_name()
                         lot = o.env["stock.lot"].create({
-                            "name": serial_name,
+                            "name": f"{l.weight_unit_kg:.3f}-KG-{serial_name}",
+                            "x_serial_code": serial_name,
                             "product_id": l.product_id.id,
                             "company_id": o.company_id.id,
                             "x_weight_kg": l.weight_unit_kg,
