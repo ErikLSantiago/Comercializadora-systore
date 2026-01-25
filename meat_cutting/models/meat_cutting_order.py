@@ -231,110 +231,113 @@ class MeatCuttingOrder(models.Model):
 
             o.state = "done"
 
-def _apply_weight_cost_distribution(self):
-    """Distribuye el valor consumido del origen hacia los movimientos de entrada (resultantes),
-    actualizando SVL existentes (creados por la validación del picking) y ajustando el valor de quants
-    para que el reporte de existencias muestre el valor por número de serie/lote.
-    """
-    self.ensure_one()
-    picking = self.picking_id
-    moves = picking.move_ids_without_package
 
-    move_out = moves.filtered(lambda m: m.product_id.id == self.product_src_id.id and m.location_id.id == self.location_src_id.id)
-    move_ins = (moves - move_out)
+    def _apply_weight_cost_distribution(self):
+        """Distribuye el valor consumido del origen hacia los movimientos de entrada (resultantes),
+        actualizando SVL existentes (creados por la validación del picking) y ajustando el valor de quants
+        para que el reporte de existencias muestre el valor por número de serie/lote.
+        """
+        self.ensure_one()
+        picking = self.picking_id
+        moves = picking.move_ids_without_package
 
-    if not move_out:
-        raise UserError(_("No se encontró el movimiento de consumo."))
+        move_out = moves.filtered(lambda m: m.product_id.id == self.product_src_id.id and m.location_id.id == self.location_src_id.id)
+        move_ins = (moves - move_out)
 
-    # Valor consumido (FIFO por lote)
-    svls_out = self.env["stock.valuation.layer"].search([("stock_move_id", "in", move_out.ids)])
-    value_consumed = -sum(svls_out.mapped("value"))  # salida es negativa
+        if not move_out:
+            raise UserError(_("No se encontró el movimiento de consumo."))
 
-    if float_is_zero(value_consumed, precision_rounding=0.00001):
-        raise UserError(_("No se detectó valor consumido en SVL. Revisa FIFO/valuación automatizada en el producto origen."))
+        # Valor consumido (FIFO por lote)
+        svls_out = self.env["stock.valuation.layer"].search([("stock_move_id", "in", move_out.ids)])
+        value_consumed = -sum(svls_out.mapped("value"))  # salida es negativa
 
-    total_weight = sum(move_ins.mapped("x_weight_total_kg"))
-    if float_is_zero(total_weight, precision_rounding=0.00001):
-        raise UserError(_("Peso total de entradas es 0."))
+        if float_is_zero(value_consumed, precision_rounding=0.00001):
+            raise UserError(_("No se detectó valor consumido en SVL. Revisa FIFO/valuación automatizada en el producto origen."))
 
-    remaining = value_consumed
-    move_ins_sorted = move_ins.sorted(key=lambda m: m.id)
+        total_weight = sum(move_ins.mapped("x_weight_total_kg"))
+        if float_is_zero(total_weight, precision_rounding=0.00001):
+            raise UserError(_("Peso total de entradas es 0."))
 
-    for idx, m in enumerate(move_ins_sorted, start=1):
-        w = m.x_weight_total_kg or 0.0
-        if idx < len(move_ins_sorted):
-            value_line = value_consumed * (w / total_weight)
-            remaining -= value_line
-        else:
-            value_line = remaining
+        remaining = value_consumed
+        move_ins_sorted = move_ins.sorted(key=lambda m: m.id)
 
-        qty = sum(m.move_line_ids.mapped("qty_done")) or 0.0
-        if qty <= 0:
-            continue
+        for idx, m in enumerate(move_ins_sorted, start=1):
+            w = m.x_weight_total_kg or 0.0
+            if idx < len(move_ins_sorted):
+                value_line = value_consumed * (w / total_weight)
+                remaining -= value_line
+            else:
+                value_line = remaining
 
-        unit_cost = value_line / qty
-
-        # 1) Actualizar SVL(s) existentes del move
-        svls_in = self.env["stock.valuation.layer"].search([("stock_move_id", "=", m.id)])
-        old_value = sum(svls_in.mapped("value")) if svls_in else 0.0
-        diff_value = value_line - old_value
-
-        if svls_in:
-            first = svls_in[0]
-            first.write({
-                "unit_cost": unit_cost,
-                "value": value_line,
-                "remaining_value": value_line,
-                "remaining_qty": qty,
-                "quantity": qty,
-                "description": _("Despiece %s") % self.name,
-            })
-            if len(svls_in) > 1:
-                for extra in svls_in[1:]:
-                    extra.write({"unit_cost": 0.0, "value": 0.0, "remaining_value": 0.0, "remaining_qty": 0.0})
-        else:
-            self.env["stock.valuation.layer"].create({
-                "stock_move_id": m.id,
-                "company_id": self.company_id.id,
-                "product_id": m.product_id.id,
-                "quantity": qty,
-                "unit_cost": unit_cost,
-                "value": value_line,
-                "remaining_value": value_line,
-                "remaining_qty": qty,
-                "description": _("Despiece %s") % self.name,
-            })
-            diff_value = value_line
-
-        # 2) Ajuste contable: registrar SOLO la diferencia
-        if not float_is_zero(diff_value, precision_rounding=0.00001) and hasattr(m, "_account_entry_move"):
-            svl_for_call = self.env["stock.valuation.layer"].search([("stock_move_id","=",m.id)], limit=1)
-            try:
-                m._account_entry_move(qty, _("Despiece %s") % self.name, svl_for_call.id if svl_for_call else False, diff_value)
-            except TypeError:
-                m._account_entry_move(qty, _("Despiece %s") % self.name, svl_for_call, diff_value)
-
-        # 3) Forzar valor en quants (para que el listado de existencias muestre valor por serial/lote)
-        Quant = self.env["stock.quant"]
-        for ml in m.move_line_ids:
-            quant_domain = [
-                ("product_id", "=", m.product_id.id),
-                ("location_id", "=", m.location_dest_id.id),
-            ]
-            if ml.lot_id:
-                quant_domain.append(("lot_id", "=", ml.lot_id.id))
-            q = Quant.search(quant_domain, limit=1)
-            if not q:
+            qty = sum(m.move_line_ids.mapped("qty_done")) or 0.0
+            if qty <= 0:
                 continue
-            ml_qty = ml.qty_done or 0.0
-            q_value = unit_cost * ml_qty
-            vals = {}
-            if "value" in q._fields:
-                vals["value"] = q_value
-            if "inventory_value" in q._fields:
-                vals["inventory_value"] = q_value
-            if vals:
-                q.write(vals)
+
+            unit_cost = value_line / qty
+
+            # 1) Actualizar SVL(s) existentes del move
+            svls_in = self.env["stock.valuation.layer"].search([("stock_move_id", "=", m.id)])
+            old_value = sum(svls_in.mapped("value")) if svls_in else 0.0
+            diff_value = value_line - old_value
+
+            if svls_in:
+                first = svls_in[0]
+                first.write({
+                    "unit_cost": unit_cost,
+                    "value": value_line,
+                    "remaining_value": value_line,
+                    "remaining_qty": qty,
+                    "quantity": qty,
+                    "description": _("Despiece %s") % self.name,
+                })
+                if len(svls_in) > 1:
+                    for extra in svls_in[1:]:
+                        extra.write({"unit_cost": 0.0, "value": 0.0, "remaining_value": 0.0, "remaining_qty": 0.0})
+            else:
+                self.env["stock.valuation.layer"].create({
+                    "stock_move_id": m.id,
+                    "company_id": self.company_id.id,
+                    "product_id": m.product_id.id,
+                    "quantity": qty,
+                    "unit_cost": unit_cost,
+                    "value": value_line,
+                    "remaining_value": value_line,
+                    "remaining_qty": qty,
+                    "description": _("Despiece %s") % self.name,
+                })
+                diff_value = value_line
+
+            # 2) Ajuste contable: registrar SOLO la diferencia
+            if not float_is_zero(diff_value, precision_rounding=0.00001) and hasattr(m, "_account_entry_move"):
+                svl_for_call = self.env["stock.valuation.layer"].search([("stock_move_id","=",m.id)], limit=1)
+                try:
+                    m._account_entry_move(qty, _("Despiece %s") % self.name, svl_for_call.id if svl_for_call else False, diff_value)
+                except TypeError:
+                    m._account_entry_move(qty, _("Despiece %s") % self.name, svl_for_call, diff_value)
+
+            # 3) Forzar valor en quants (para que el listado de existencias muestre valor por serial/lote)
+            Quant = self.env["stock.quant"]
+            for ml in m.move_line_ids:
+                quant_domain = [
+                    ("product_id", "=", m.product_id.id),
+                    ("location_id", "=", m.location_dest_id.id),
+                ]
+                if ml.lot_id:
+                    quant_domain.append(("lot_id", "=", ml.lot_id.id))
+                q = Quant.search(quant_domain, limit=1)
+                if not q:
+                    continue
+                ml_qty = ml.qty_done or 0.0
+                q_value = unit_cost * ml_qty
+                vals = {}
+                if "value" in q._fields:
+                    vals["value"] = q_value
+                if "inventory_value" in q._fields:
+                    vals["inventory_value"] = q_value
+                if vals:
+                    q.write(vals)
+
+
 
 
 class MeatCuttingOrderLine(models.Model):
