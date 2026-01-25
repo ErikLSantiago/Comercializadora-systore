@@ -18,6 +18,11 @@ class MrpCwFinishWizard(models.TransientModel):
     production_id = fields.Many2one("mrp.production", required=True, readonly=True)
     production_date = fields.Datetime("Fecha de producción", required=True, default=fields.Datetime.now)
 
+    company_id = fields.Many2one("res.company", related="production_id.company_id", readonly=True)
+    currency_id = fields.Many2one("res.currency", related="company_id.currency_id", readonly=True)
+    cw_consumed_value = fields.Monetary(string="Valor consumido", currency_field="currency_id", readonly=True)
+
+
     line_ids = fields.One2many("mrp.cw.finish.wizard.line", "wizard_id", string="Detalle por peso")
     waste_product_id = fields.Many2one("product.product", string="Producto Merma", domain=[("type","=","product")])
 
@@ -298,7 +303,7 @@ class MrpCwFinishWizard(models.TransientModel):
                 seq += 1
 
         # Keep a reference to consumed value for future costing logic
-        self._cw_consumed_value = consumed_value
+        self.cw_consumed_value = consumed_value
 
 
     def action_apply_and_mark_done(self):
