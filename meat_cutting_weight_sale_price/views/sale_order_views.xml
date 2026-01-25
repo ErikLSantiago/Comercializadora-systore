@@ -5,7 +5,16 @@
         <field name="model">sale.order</field>
         <field name="inherit_id" ref="sale.view_order_form"/>
         <field name="arch" type="xml">
-            <xpath expr="//field[@name='order_line']/form//group" position="inside">
+            <xpath expr="//header" position="inside">
+    <button name="action_recompute_weight_prices"
+            type="object"
+            string="Calcular precios (peso)"
+            class="btn-secondary"
+            invisible="state not in ('draft','sent','sale')"/>
+</xpath>
+
+<xpath expr="//field[@name='order_line']/form//group" position="inside">
+
                 <group string="Peso reservado" col="4">
                     <field name="x_reserved_serial_count" readonly="1"/>
                     <field name="x_reserved_weight_kg" readonly="1"/>

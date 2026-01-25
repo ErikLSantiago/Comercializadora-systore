@@ -63,3 +63,16 @@ class SaleOrderLine(models.Model):
                 "x_reserved_weight_kg": total_weight_kg,
                 "x_reserved_serial_count": serial_count,
             })
+
+
+class SaleOrder(models.Model):
+    _inherit = "sale.order"
+
+    def action_recompute_weight_prices(self):
+        """Botón manual: recalcula precio por peso según seriales reservados en la entrega."""
+        for order in self:
+            # Recalcular solo líneas marcadas
+            lines = order.order_line.filtered(lambda l: l.product_id.product_tmpl_id.x_use_weight_sale_price)
+            for line in lines:
+                line._mc_recompute_price_from_reserved_serials()
+        return True
