@@ -91,7 +91,7 @@ class MrpCwFinishWizard(models.TransientModel):
             raise UserError(_("La UoM destino no está en la categoría de peso."))
         return uom_g._compute_quantity(float(grams_int), target_uom)
 
-    def _make_lot_name(self, product, production_date, seq):
+    def _make_lot_name(self, product, production_date, seq, weight_g=None):
         """Build a deterministic lot name for CW-produced items.
 
         We keep this stable across versions so lots can be traced easily.
@@ -100,6 +100,8 @@ class MrpCwFinishWizard(models.TransientModel):
         sku = (product.default_code or product.display_name or 'CW').replace(' ', '').upper()
         dt = fields.Datetime.to_datetime(production_date) if production_date else fields.Datetime.now()
         date_str = dt.strftime('%Y%m%d')
+        if weight_g is not None:
+            return f"{sku}-{int(weight_g)}G-{date_str}-{int(seq):04d}"
         return f"{sku}-{date_str}-{int(seq):04d}"
 
     def _get_consumed_value_fifo(self):
