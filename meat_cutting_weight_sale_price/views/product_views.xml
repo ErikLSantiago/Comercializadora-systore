@@ -10,7 +10,7 @@
                     <field name="x_use_weight_sale_price"/>
                     <field name="x_price_per_weight" invisible="not x_use_weight_sale_price"/>
                     <field name="x_price_weight_uom_id" invisible="not x_use_weight_sale_price"/>
-                    <label string="El precio se recalcula al reservar seriales en la entrega." colspan="4"/>
+                    <label class="o_form_label" string="El precio se recalcula al reservar seriales en la entrega."/>
                 </group>
             </xpath>
         </field>
