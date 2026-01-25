@@ -4,6 +4,9 @@ from odoo.exceptions import UserError
 class MrpProduction(models.Model):
     _inherit = "mrp.production"
 
+
+    x_is_catch_weight = fields.Boolean(related="product_id.product_tmpl_id.x_is_catch_weight", readonly=True)
+
     def button_mark_done(self):
         # Interceptar el cierre para productos catch-weight y abrir wizard
         self.ensure_one()
