@@ -245,7 +245,9 @@ class MrpCwFinishWizard(models.TransientModel):
                 ml_vals = {
                     'move_id': main_move.id,
                     'product_id': finished_product.id,
-                    'product_uom_id': finished_uom.id,
+                    # Use the same UoM as the main finished move.
+                    # In this demo flow we enforce piece outputs to be expressed in Units.
+                    'product_uom_id': unit_uom.id,
                     'qty_done': units,
                     'location_id': main_move.location_id.id,
                     'location_dest_id': main_move.location_dest_id.id,
@@ -269,7 +271,8 @@ class MrpCwFinishWizard(models.TransientModel):
                 ml_vals = {
                     'move_id': main_move.id,
                     'product_id': finished_product.id,
-                    'product_uom_id': finished_uom.id,
+                    # Use the same UoM as the main finished move.
+                    'product_uom_id': unit_uom.id,
                     'qty_done': 1.0,
                     'location_id': main_move.location_id.id,
                     'location_dest_id': main_move.location_dest_id.id,
