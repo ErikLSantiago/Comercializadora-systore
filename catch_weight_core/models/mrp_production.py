@@ -19,7 +19,7 @@ class MrpProduction(models.Model):
                 "target": "new",
                 "context": {
                     "default_production_id": self.id,
-                    "default_production_date": self.env["fields.datetime"].now(),
+                    "default_production_date": fields.Datetime.now(),
                 },
             }
         return super().button_mark_done()
