@@ -40,25 +40,25 @@
     <!-- Página de producto -->
     <template id="mc_web_product_page" inherit_id="website_sale.product">
         <xpath expr="//div[@id='product_details']//h1" position="after">
-            <t t-if="product.product_tmpl_id.x_use_weight_sale_price">
+            <t t-if="product.x_use_weight_sale_price">
                 <div class="text-muted mt-2">
                     <span>1 pieza</span>
-                    <t t-if="product.product_tmpl_id.x_web_avg_weight">
+                    <t t-if="product.x_web_avg_weight">
                         <span> | </span>
                         <span>Peso aprox. </span>
-                        <t t-esc="product.product_tmpl_id.x_web_avg_weight"/>
+                        <t t-esc="product.x_web_avg_weight"/>
                         <span> </span>
-                        <t t-esc="product.product_tmpl_id.x_price_weight_uom_id.name or ''"/>
+                        <t t-esc="product.x_price_weight_uom_id.name or ''"/>
                     </t>
                     <span> (precio final por peso)</span>
                 </div>
 
                 <div class="mt-1">
                     <span class="h4">
-                        <t t-esc="product.product_tmpl_id.x_weight_sale_price"/>
+                        <t t-esc="product.x_weight_sale_price"/>
                     </span>
                     <span class="ms-1">/</span>
-                    <t t-esc="product.product_tmpl_id.x_price_weight_uom_id.name or ''"/>
+                    <t t-esc="product.x_price_weight_uom_id.name or ''"/>
                 </div>
 
             </t>
