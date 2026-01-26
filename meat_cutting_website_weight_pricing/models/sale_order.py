@@ -172,8 +172,8 @@ class SaleOrder(models.Model):
                         lot_parts.append(lot.name)
 
                 line.x_web_reserved_lot_display = ", ".join(lot_parts)
-                line.x_web_reserved_lot_ids = [(6, 0, lots.ids)]
-
+                lot_ids = [l.id for l in lots] if isinstance(lots, list) else lots.ids
+                line.x_web_reserved_lot_ids = [(6, 0, lot_ids)]
                 # Para que el cliente lo vea en el resumen (carrito/checkout), anexamos al nombre de la línea
                 if line.x_web_reserved_lot_display:
                     marker = "Lote:"
