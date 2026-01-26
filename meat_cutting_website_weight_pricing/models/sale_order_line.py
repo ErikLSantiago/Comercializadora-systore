@@ -21,52 +21,45 @@ class SaleOrderLine(models.Model):
         readonly=True,
         copy=False,
     )
-
     def mc_web_compute_price_from_lots(self, lots):
-        """Compute unit price from the given reserved lots (recordset or list)."""
-        self.ensure_one()
+        """Compute price_unit based on selected lots and weight-based price.
 
-        # `lots` may come as a python list (records) or list of ids, convert to recordset.
-        if isinstance(lots, list):
-            if lots and isinstance(lots[0], int):
-                lots = self.env['stock.lot'].browse(lots)
-            else:
-                lots = self.env['stock.lot'].browse([l.id for l in lots if getattr(l, 'id', None)])
-        lots = lots.filtered(lambda l: l and l.exists())
-        if not lots:
-            return False
+        We also set the line description to include the selected lot/serial numbers so the
+        customer can understand why the amount changes.
+        """
+        for line in self:
+            tmpl = line.product_id.product_tmpl_id
+            if not getattr(tmpl, 'x_use_weight_sale_price', False):
+                continue
 
-        tmpl = self.product_id.product_tmpl_id
-        if not getattr(tmpl, "x_use_weight_sale_price", False):
-            return False
+            # Ensure recordset
+            if isinstance(lots, list):
+                lots = line.env['stock.lot'].browse([l.id if hasattr(l, 'id') else int(l) for l in lots])
 
-        price_per_weight = getattr(tmpl, "x_weight_sale_price", 0.0) or 0.0
-        price_uom = getattr(tmpl, "x_price_weight_uom_id", False)
-        if not price_uom or not price_per_weight:
-            return False
+            lots = lots.exists()
+            if not lots:
+                continue
 
-        total_kg = sum(lots.mapped("x_weight_kg") or [0.0])
+            price_per_weight = getattr(tmpl, 'x_weight_sale_price', 0.0) or 0.0
+            if not price_per_weight:
+                continue
 
-        # Convert KG -> UoM configurada para precio
-        kg_uom = self.env.ref("uom.product_uom_kgm", raise_if_not_found=False)
-        if kg_uom and kg_uom.category_id != price_uom.category_id:
-            kg_uom = False
-        if not kg_uom:
-            kg_uom = self.env["uom.uom"].search(
-                [
-                    ("category_id", "=", price_uom.category_id.id),
-                    ("uom_type", "=", "reference"),
-                ],
-                limit=1,
-            )
+            # Sum real weights from lots (expected field from meat_cutting / weight module)
+            total_weight = sum((getattr(l, 'x_weight_kg', 0.0) or 0.0) for l in lots)
+            if not total_weight:
+                continue
 
-        qty_in_price_uom = kg_uom._compute_quantity(total_kg, price_uom) if kg_uom else total_kg
+            # unit price is the *total* line price divided by qty pieces
+            qty = line.product_uom_qty or 1.0
+            total_price = total_weight * price_per_weight
+            line.price_unit = total_price / qty
 
-        currency = self.order_id.currency_id or self.env.company.currency_id
-        total_price = currency.round(qty_in_price_uom * price_per_weight)
+            # Put lot numbers in the line description (safe for web + backend)
+            lot_names = ', '.join(lots.mapped('name'))
+            base_lines = (line.name or '').splitlines()
+            # remove previous "Lotes:" line if exists
+            base_lines = [l for l in base_lines if not l.strip().lower().startswith('lotes:')]
+            base_name = '\n'.join(base_lines).strip()
+            line.name = (base_name + ('\nLotes: %s' % lot_names)).strip()
 
-        qty = self.product_uom_qty or 0.0
-        unit_price = total_price / qty if qty else total_price
 
-        self.write({"price_unit": unit_price})
-        return True
