@@ -6,7 +6,7 @@
         <field name="inherit_id" ref="product.product_template_only_form_view"/>
         <field name="arch" type="xml">
             <xpath expr="//sheet[@name='product_form']//group" position="inside">
-                <group string="Precio por peso (Web)" attrs="{'invisible': [('x_use_weight_sale_price','=',False)]}">
+                <group string="Precio por peso (Web)" modifiers='{"invisible": [["x_use_weight_sale_price", "=", false]]}'>
                     <label for="x_web_avg_weight" class="o_form_label"/>
                     <div>
                         <field name="x_web_avg_weight"/>
