@@ -157,6 +157,32 @@ class SaleOrder(models.Model):
                         "reserved_until": reserved_until,
                     })
 
+                # Guardar info de lotes para mostrar al cliente (checkout)
+                lot_parts = []
+                for lot in selected_lots:
+                    # Intentamos obtener el peso individual (kg) desde el lote/serial
+                    w = 0.0
+                    for fname in ("x_mc_weight_kg", "x_weight_kg", "x_lot_weight_kg", "mc_weight_kg", "weight_kg"):
+                        if hasattr(lot, fname):
+                            w = float(getattr(lot, fname) or 0.0)
+                            break
+                    if w:
+                        lot_parts.append(f"{lot.name} ({w:.3f} kg)")
+                    else:
+                        lot_parts.append(lot.name)
+
+                sol.x_web_reserved_lot_display = ", ".join(lot_parts)
+
+                # Para que el cliente lo vea en el resumen (carrito/checkout), anexamos al nombre de la línea
+                if sol.x_web_reserved_lot_display:
+                    marker = "Lote:"
+                    current_name = sol.name or sol.product_id.display_name
+                    if marker in current_name:
+                        base_name = current_name.split(marker)[0].rstrip()
+                        sol.name = f"{base_name} {marker} {sol.x_web_reserved_lot_display}"
+                    else:
+                        sol.name = f"{current_name} {marker} {sol.x_web_reserved_lot_display}"
+
                 # convertir kg -> uom objetivo
                 total_weight_in_uom = uom_kg._compute_quantity(total_weight_kg, target_uom)
                 price_total = total_weight_in_uom * price_per_weight
