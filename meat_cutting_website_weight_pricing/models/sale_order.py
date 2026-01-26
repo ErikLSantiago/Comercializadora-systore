@@ -131,11 +131,11 @@ class SaleOrder(models.Model):
                     continue
 
                 tmpl = line.product_id.product_tmpl_id
-                price_per_weight = tmpl.x_price_per_weight or 0.0
+                price_per_weight = tmpl.x_weight_sale_price or 0.0
                 target_uom = tmpl.x_price_weight_uom_id or uom_kg
 
                 if float_is_zero(price_per_weight, precision_rounding=0.000001):
-                    raise UserError(_("El producto %s no tiene 'Precio en peso' configurado.") % tmpl.display_name)
+                    raise UserError(_("El producto %s no tiene 'Precio por peso' configurado (x_weight_sale_price).") % tmpl.display_name)
 
                 lots, remaining = so._mc_available_lots_fefo(line.product_id, location, qty)
                 if remaining > 0:
@@ -159,7 +159,7 @@ class SaleOrder(models.Model):
 
                 # Guardar info de lotes para mostrar al cliente (checkout)
                 lot_parts = []
-                for lot in selected_lots:
+                for lot in lots:
                     # Intentamos obtener el peso individual (kg) desde el lote/serial
                     w = 0.0
                     for fname in ("x_mc_weight_kg", "x_weight_kg", "x_lot_weight_kg", "mc_weight_kg", "weight_kg"):
@@ -171,24 +171,21 @@ class SaleOrder(models.Model):
                     else:
                         lot_parts.append(lot.name)
 
-                sol.x_web_reserved_lot_display = ", ".join(lot_parts)
+                line.x_web_reserved_lot_display = ", ".join(lot_parts)
+                line.x_web_reserved_lot_ids = [(6, 0, lots.ids)]
 
                 # Para que el cliente lo vea en el resumen (carrito/checkout), anexamos al nombre de la línea
-                if sol.x_web_reserved_lot_display:
+                if line.x_web_reserved_lot_display:
                     marker = "Lote:"
-                    current_name = sol.name or sol.product_id.display_name
+                    current_name = line.name or line.product_id.display_name
                     if marker in current_name:
                         base_name = current_name.split(marker)[0].rstrip()
-                        sol.name = f"{base_name} {marker} {sol.x_web_reserved_lot_display}"
+                        line.name = f"{base_name} {marker} {line.x_web_reserved_lot_display}"
                     else:
-                        sol.name = f"{current_name} {marker} {sol.x_web_reserved_lot_display}"
+                        line.name = f"{current_name} {marker} {line.x_web_reserved_lot_display}"
 
-                # convertir kg -> uom objetivo
-                total_weight_in_uom = uom_kg._compute_quantity(total_weight_kg, target_uom)
-                price_total = total_weight_in_uom * price_per_weight
-                price_unit = price_total / qty
-
-                line.write({"price_unit": price_unit})
+                # Recalcular precio unitario en función de lotes seleccionados
+                line.mc_web_compute_price_from_lots(lots)
 
             so.write({"mc_web_reserved_until": reserved_until})
         return True
