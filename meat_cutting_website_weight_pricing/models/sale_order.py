@@ -32,6 +32,12 @@ class SaleOrder(models.Model):
             raise UserError(_("No se encontró una ubicación interna para reservar existencias."))
         return loc
 
+
+
+    def _mc_web_get_source_location(self):
+        """Alias usado por el flujo web (checkout) para obtener la ubicación fuente."""
+        self.ensure_one()
+        return self._mc_get_reservation_location()
     def _mc_expiration_field_name(self):
         lot_model = self.env["stock.lot"]
         for fname in ["expiration_date", "use_date", "life_date", "removal_date"]:
