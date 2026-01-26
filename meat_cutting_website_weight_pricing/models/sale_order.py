@@ -172,20 +172,11 @@ class SaleOrder(models.Model):
                         lot_parts.append(lot.name)
 
                 line.x_web_reserved_lot_display = ", ".join(lot_parts)
-                lot_ids = [l.id for l in lots] if isinstance(lots, list) else lots.ids
-                line.x_web_reserved_lot_ids = [(6, 0, lot_ids)]
-                # Para que el cliente lo vea en el resumen (carrito/checkout), anexamos al nombre de la línea
-                if line.x_web_reserved_lot_display:
-                    marker = "Lote:"
-                    current_name = line.name or line.product_id.display_name
-                    if marker in current_name:
-                        base_name = current_name.split(marker)[0].rstrip()
-                        line.name = f"{base_name} {marker} {line.x_web_reserved_lot_display}"
-                    else:
-                        line.name = f"{current_name} {marker} {line.x_web_reserved_lot_display}"
-
-                # Recalcular precio unitario en función de lotes seleccionados
-                line.mc_web_compute_price_from_lots(lots)
+                # `lots` can be a python list (of records) depending on selector implementation.
+                lots_rs = self.env['stock.lot'].browse([l.id for l in lots]) if isinstance(lots, list) else lots
+                line.x_web_reserved_lot_ids = [(6, 0, lots_rs.ids)]
+                # Recompute price from the reserved lots
+                line.mc_web_compute_price_from_lots(lots_rs)
 
             so.write({"mc_web_reserved_until": reserved_until})
         return True

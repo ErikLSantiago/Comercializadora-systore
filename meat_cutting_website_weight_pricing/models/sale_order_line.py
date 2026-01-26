@@ -23,14 +23,15 @@ class SaleOrderLine(models.Model):
     )
 
     def mc_web_compute_price_from_lots(self, lots):
-        """Recalculate price_unit based on reserved lots weight.
-
-        La línea se mantiene en 'Piezas' (unidades). Se calcula:
-            price_unit = (total_price_por_peso) / cantidad_de_piezas
-
-        Asume que el peso por lote está en KG en: stock.lot.x_weight_kg
-        """
+        """Compute unit price from the given reserved lots (recordset or list)."""
         self.ensure_one()
+
+        # `lots` may come as a python list (records) or list of ids, convert to recordset.
+        if isinstance(lots, list):
+            if lots and isinstance(lots[0], int):
+                lots = self.env['stock.lot'].browse(lots)
+            else:
+                lots = self.env['stock.lot'].browse([l.id for l in lots if getattr(l, 'id', None)])
         lots = lots.filtered(lambda l: l and l.exists())
         if not lots:
             return False
