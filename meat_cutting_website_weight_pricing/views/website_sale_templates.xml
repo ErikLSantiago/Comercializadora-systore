@@ -14,24 +14,24 @@
     <!-- Tarjeta de producto / grid -->
     <template id="mc_web_products_item" inherit_id="website_sale.products_item">
         <xpath expr="//div[contains(@class,'o_wsale_product_information')]" position="inside">
-            <t t-if="product.product_tmpl_id.x_use_weight_sale_price">
+            <t t-if="product.x_use_weight_sale_price">
                 <div class="text-muted small mt-1">
                     <span>1 pieza</span>
-                    <t t-if="product.product_tmpl_id.x_web_avg_weight">
+                    <t t-if="product.x_web_avg_weight">
                         <span> | </span>
                         <span>Peso aprox. </span>
-                        <t t-esc="product.product_tmpl_id.x_web_avg_weight"/>
+                        <t t-esc="product.x_web_avg_weight"/>
                         <span> </span>
-                        <t t-esc="product.product_tmpl_id.x_price_weight_uom_id.name or ''"/>
+                        <t t-esc="product.x_price_weight_uom_id.name or ''"/>
                     </t>
                     <span> (precio final por peso)</span>
                 </div>
                 <div class="mt-1">
                     <strong>
-                        <t t-esc="product.product_tmpl_id.x_price_per_weight"/>
+                        <t t-esc="product.x_price_per_weight"/>
                     </strong>
                     <span> / </span>
-                    <t t-esc="product.product_tmpl_id.x_price_weight_uom_id.name or ''"/>
+                    <t t-esc="product.x_price_weight_uom_id.name or ''"/>
                 </div>
             </t>
         </xpath>
