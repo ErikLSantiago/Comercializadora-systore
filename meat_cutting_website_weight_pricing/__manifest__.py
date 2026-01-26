@@ -7,7 +7,7 @@
     "depends": ["website_sale", "sale_stock", "stock", "meat_cutting", "meat_cutting_weight_sale_price"],
     "data": ["security/ir.model.access.csv", "data/cron.xml", "views/product_views.xml", "views/website_sale_templates.xml"],
     "assets": {"web.assets_frontend": []},
-    "installable": true,
-    "application": false,
+    "installable": True,
+    "application": False,
     "license": "LGPL-3",
 }
