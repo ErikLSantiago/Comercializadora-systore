@@ -2,7 +2,7 @@
 <odoo>
     <!-- Mensaje de bloqueo en carrito -->
     <template id="mc_web_cart_warning" inherit_id="website_sale.cart">
-        <xpath expr="//div[@id='wrapwrap']" position="inside">
+        <xpath expr="//t[@t-call='website.layout']" position="inside">
             <t t-if="mc_web_weight_error">
                 <div class="alert alert-warning" role="alert">
                     <t t-esc="mc_web_weight_error"/>
