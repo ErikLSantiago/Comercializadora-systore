@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-from datetime import timedelta, datetime
+from datetime import timedelta
 
 from odoo import _, api, fields, models
 from odoo.exceptions import UserError
@@ -32,55 +32,48 @@ class SaleOrder(models.Model):
             raise UserError(_("No se encontró una ubicación interna para reservar existencias."))
         return loc
 
-
-
-    def _mc_web_get_source_location(self):
-        """Alias usado por el flujo web (checkout) para obtener la ubicación fuente."""
-        self.ensure_one()
-        return self._mc_get_reservation_location()
     def _mc_expiration_field_name(self):
         lot_model = self.env["stock.lot"]
         for fname in ["expiration_date", "use_date", "life_date", "removal_date"]:
             if fname in lot_model._fields:
                 return fname
         return None
-    def _mc_available_lots_fefo(self, tmpl, location, qty_pieces):
-        """Return a stock.lot recordset (serials) to use for the given qty_pieces.
 
-        We pick FEFO (expiration_date asc, then create_date asc) and only lots with >0 qty in the
-        given internal location.
+    def _mc_available_lots_fefo(self, product, location, qty_needed):
+        """Devuelve una lista de lotes disponibles ordenados por FEFO.
+        Excluye lotes ya reservados (no expirados) por otros pedidos.
         """
-        self.ensure_one()
-        if qty_pieces <= 0:
-            return self.env['stock.lot']
+        Quant = self.env["stock.quant"]
+        now = fields.Datetime.now()
 
-        # Quants in the source location for this product
-        Quant = self.env['stock.quant'].sudo()
-        lots = self.env['stock.lot'].sudo().search([
-            ('product_id', '=', tmpl.product_variant_id.id),
-        ])
+        # lotes reservados vigentes por otros pedidos
+        reserved = self.env["mc.web.reservation"].search([
+            ("product_id", "=", product.id),
+            ("reserved_until", ">", now),
+            ("order_id", "!=", self.id),
+        ]).mapped("lot_id").ids
 
-        # Build available lots list with their available qty in that location
-        candidates = []
-        for lot in lots:
-            qty = sum(Quant.search([
-                ('product_id', '=', tmpl.product_variant_id.id),
-                ('location_id', 'child_of', location.id),
-                ('lot_id', '=', lot.id),
-            ]).mapped('quantity'))
-            if qty > 0:
-                candidates.append(lot)
+        domain = [
+            ("product_id", "=", product.id),
+            ("location_id", "child_of", location.id),
+            ("quantity", ">", 0),
+            ("lot_id", "!=", False),
+        ]
+        if reserved:
+            domain.append(("lot_id", "not in", reserved))
 
-        # Sort FEFO: expiration_date first (None at the end), then create_date
-        def _fefo_key(l):
-            exp = l.expiration_date or datetime.max
-            return (exp, l.create_date or datetime.max, l.id)
+        quants = Quant.search(domain)
+        # consolidar por lote (1 pieza = 1 quant normalmente, pero por seguridad sumamos disponibilidad)
+        lot_qty = {}
+        for q in quants:
+            lot = q.lot_id
+            if not lot:
+                continue
+            lot_qty.setdefault(lot.id, {"lot": lot, "qty": 0.0})
+            lot_qty[lot.id]["qty"] += (q.quantity - q.reserved_quantity)
 
-        candidates.sort(key=_fefo_key)
-
-        chosen = candidates[:qty_pieces]
-        return self.env['stock.lot'].browse([l.id for l in chosen])
-
+        candidates = [v for v in lot_qty.values() if v["qty"] > 0]
+        exp_field = self._mc_expiration_field_name()
 
         def exp_dt(lot):
             if not exp_field:
@@ -103,33 +96,78 @@ class SaleOrder(models.Model):
             remaining -= take
 
         return chosen, remaining
+
     def mc_web_reserve_and_recompute(self):
-        """Web step: select FEFO lots and recompute the unit price.
-
-        For now we **only** select lots and recompute price + show selected lot(s).
-        Reservation will be hardened later (no quant reservation is performed here).
+        """Reserva lotes/series para líneas con precio por peso y recalcula precio_unit.
+        Se ejecuta en checkout (antes de pago) para cobrar el valor exacto.
         """
-        for order in self:
-            location = order._mc_web_get_source_location()
-            if not location:
-                continue
+        for so in self:
+            so.ensure_one()
+            now = fields.Datetime.now()
 
-            for line in order.order_line.filtered(lambda l: l.product_id and l.product_id.tracking in ('lot', 'serial')):
+            # limpiar reservas expiradas del propio pedido
+            so.mc_web_reservation_ids.filtered(lambda r: r.reserved_until and r.reserved_until <= now).unlink()
+
+            # si ya tiene reserva vigente, la reutilizamos (pero recalculamos precios por si cambiaron reglas)
+            minutes = so._mc_get_reservation_minutes()
+            reserved_until = now + timedelta(minutes=minutes)
+            location = so._mc_get_reservation_location()
+
+            # validar líneas
+            weight_lines = so.order_line.filtered(lambda l: l.product_id and l.product_id.product_tmpl_id.x_use_weight_sale_price)
+            if not weight_lines:
+                return True
+
+            # borrar reservas previas del pedido y volver a reservar (simple y seguro)
+            so.mc_web_reservation_ids.unlink()
+
+            uom_kg = self.env.ref("uom.product_uom_kgm", raise_if_not_found=False)
+            if not uom_kg:
+                raise UserError(_("No se encontró la unidad de medida KG (uom.product_uom_kgm)."))
+
+            for line in weight_lines:
+                qty = int(line.product_uom_qty or 0)
+                if qty <= 0:
+                    continue
+
                 tmpl = line.product_id.product_tmpl_id
+                price_per_weight = tmpl.x_price_per_weight or 0.0
+                target_uom = tmpl.x_price_weight_uom_id or uom_kg
 
-                # Only apply to products using weight sale price logic (module 2)
-                if not getattr(tmpl, 'x_use_weight_sale_price', False):
-                    continue
+                if float_is_zero(price_per_weight, precision_rounding=0.000001):
+                    raise UserError(_("El producto %s no tiene 'Precio en peso' configurado.") % tmpl.display_name)
 
-                qty_pieces = int(line.product_uom_qty or 0)
-                if qty_pieces <= 0:
-                    continue
+                lots, remaining = so._mc_available_lots_fefo(line.product_id, location, qty)
+                if remaining > 0:
+                    raise UserError(_(
+                        "No hay suficientes piezas disponibles para %s.\n"
+                        "Requeridas: %s, disponibles: %s.\n"
+                        "Tip: Revisa existencias en %s."
+                    ) % (line.product_id.display_name, qty, qty-remaining, location.complete_name))
 
-                lots = order._mc_available_lots_fefo(tmpl, location, qty_pieces)
-                line.x_web_reserved_lot_ids = [(6, 0, lots.ids)]
-                line.mc_web_compute_price_from_lots(lots)
+                # crear reservas y calcular peso
+                total_weight_kg = 0.0
+                for lot in lots:
+                    w = getattr(lot, "x_weight_kg", 0.0) or 0.0
+                    total_weight_kg += w
+                    self.env["mc.web.reservation"].create({
+                        "order_id": so.id,
+                        "order_line_id": line.id,
+                        "lot_id": lot.id,
+                        "reserved_until": reserved_until,
+                    })
 
+                # convertir kg -> uom objetivo
+                total_weight_in_uom = uom_kg._compute_quantity(total_weight_kg, target_uom)
+                price_total = total_weight_in_uom * price_per_weight
+                price_unit = price_total / qty
 
+                line.write({"price_unit": price_unit})
+
+            so.write({"mc_web_reserved_until": reserved_until})
+        return True
+
+    @api.model
     def _mc_web_cron_release_expired(self):
         """Cron: libera reservas expiradas."""
         now = fields.Datetime.now()
