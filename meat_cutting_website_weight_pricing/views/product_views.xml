@@ -1,0 +1,19 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <record id="view_product_template_form_mc_web_weight" model="ir.ui.view">
+        <field name="name">product.template.form.mc.web.weight</field>
+        <field name="model">product.template</field>
+        <field name="inherit_id" ref="product.product_template_only_form_view"/>
+        <field name="arch" type="xml">
+            <xpath expr="//sheet[@name='product_form']//group" position="inside">
+                <group string="Precio por peso (Web)" attrs="{'invisible': [('x_use_weight_sale_price','=',False)]}">
+                    <label for="x_web_avg_weight" class="o_form_label"/>
+                    <div>
+                        <field name="x_web_avg_weight"/>
+                        <span class="o_form_label"> (mostrar como “Peso aprox.” en el sitio)</span>
+                    </div>
+                </group>
+            </xpath>
+        </field>
+    </record>
+</odoo>

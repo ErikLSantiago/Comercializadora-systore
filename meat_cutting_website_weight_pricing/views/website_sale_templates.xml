@@ -1,0 +1,71 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <!-- Mensaje de bloqueo en carrito -->
+    <template id="mc_web_cart_warning" inherit_id="website_sale.cart">
+        <xpath expr="//div[contains(@class,'oe_cart')]" position="before">
+            <t t-if="mc_web_weight_error">
+                <div class="alert alert-warning" role="alert">
+                    <t t-esc="mc_web_weight_error"/>
+                </div>
+            </t>
+        </xpath>
+    </template>
+
+    <!-- Tarjeta de producto / grid -->
+    <template id="mc_web_products_item" inherit_id="website_sale.products_item">
+        <xpath expr="//div[contains(@class,'o_wsale_product_information')]" position="inside">
+            <t t-if="product.product_tmpl_id.x_use_weight_sale_price">
+                <div class="text-muted small mt-1">
+                    <span>1 pieza</span>
+                    <t t-if="product.product_tmpl_id.x_web_avg_weight">
+                        <span> | </span>
+                        <span>Peso aprox. </span>
+                        <t t-esc="product.product_tmpl_id.x_web_avg_weight"/>
+                        <span> </span>
+                        <t t-esc="product.product_tmpl_id.x_price_weight_uom_id.name or ''"/>
+                    </t>
+                    <span> (precio final por peso)</span>
+                </div>
+                <div class="mt-1">
+                    <strong>
+                        <t t-esc="product.product_tmpl_id.x_price_per_weight"/>
+                    </strong>
+                    <span> / </span>
+                    <t t-esc="product.product_tmpl_id.x_price_weight_uom_id.name or ''"/>
+                </div>
+            </t>
+        </xpath>
+    </template>
+
+    <!-- Página de producto -->
+    <template id="mc_web_product_page" inherit_id="website_sale.product">
+        <xpath expr="//div[@id='product_details']//h1" position="after">
+            <t t-if="product.product_tmpl_id.x_use_weight_sale_price">
+                <div class="text-muted mt-2">
+                    <span>1 pieza</span>
+                    <t t-if="product.product_tmpl_id.x_web_avg_weight">
+                        <span> | </span>
+                        <span>Peso aprox. </span>
+                        <t t-esc="product.product_tmpl_id.x_web_avg_weight"/>
+                        <span> </span>
+                        <t t-esc="product.product_tmpl_id.x_price_weight_uom_id.name or ''"/>
+                    </t>
+                    <span> (precio final por peso)</span>
+                </div>
+            </t>
+        </xpath>
+
+        <!-- Reemplazar visual de precio para productos por peso -->
+        <xpath expr="//div[@id='product_details']//div[contains(@class,'product_price')]" position="inside">
+            <t t-if="product.product_tmpl_id.x_use_weight_sale_price">
+                <div class="mt-1">
+                    <span class="h4">
+                        <t t-esc="product.product_tmpl_id.x_price_per_weight"/>
+                    </span>
+                    <span> / </span>
+                    <t t-esc="product.product_tmpl_id.x_price_weight_uom_id.name or ''"/>
+                </div>
+            </t>
+        </xpath>
+    </template>
+</odoo>
