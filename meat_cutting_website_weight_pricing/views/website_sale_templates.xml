@@ -52,19 +52,15 @@
                     </t>
                     <span> (precio final por peso)</span>
                 </div>
-            </t>
-        </xpath>
 
-        <!-- Reemplazar visual de precio para productos por peso -->
-        <xpath expr="//div[@id='product_details']//div[contains(@class,'product_price')]" position="inside">
-            <t t-if="product.product_tmpl_id.x_use_weight_sale_price">
                 <div class="mt-1">
                     <span class="h4">
-                        <t t-esc="product.product_tmpl_id.x_price_per_weight"/>
+                        <t t-esc="product.product_tmpl_id.x_weight_sale_price"/>
                     </span>
-                    <span> / </span>
+                    <span class="ms-1">/</span>
                     <t t-esc="product.product_tmpl_id.x_price_weight_uom_id.name or ''"/>
                 </div>
+
             </t>
         </xpath>
     </template>
