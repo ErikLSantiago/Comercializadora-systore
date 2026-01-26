@@ -26,8 +26,7 @@ class SaleOrderLine(models.Model):
 
         reservations = Reservation.search([
             ('order_line_id', 'in', line_ids),
-            ('state', '=', 'reserved'),
-        ])
+            ])
 
         lots_by_line = {}
         for r in reservations:
