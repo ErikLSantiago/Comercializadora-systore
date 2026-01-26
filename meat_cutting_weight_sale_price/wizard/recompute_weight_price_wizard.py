@@ -15,11 +15,19 @@ class MeatCuttingRecomputeWeightPriceWizard(models.TransientModel):
         required=True,
     )
     # Seriales/lotes a vender (uno por pieza)
+    available_lot_ids = fields.Many2many(
+        "stock.lot",
+        string="Seriales disponibles",
+        compute="_compute_available_lot_ids",
+        store=False,
+        readonly=True,
+        help="Solo se muestran los seriales con disponibilidad real (en stock y sin reservar).",
+    )
     lot_ids = fields.Many2many(
         "stock.lot",
         string="Seriales / Lotes",
         help="Selecciona las piezas (seriales) que se venderán en esta línea. Se creará una línea por cada serial.",
-        domain="[('product_id', '=', product_id)]",
+        domain="[('id', 'in', available_lot_ids), ('product_id', '=', product_id)]",
     )
 
     product_id = fields.Many2one(related="line_id.product_id", store=False, readonly=True)
@@ -38,6 +46,40 @@ class MeatCuttingRecomputeWeightPriceWizard(models.TransientModel):
             tmpl = wiz.line_id.product_id.product_tmpl_id
             wiz.price_per_weight = tmpl.x_price_per_weight or 0.0
             wiz.price_weight_uom_id = tmpl.x_price_weight_uom_id
+
+    @api.depends("sale_order_id", "line_id", "product_id")
+    def _compute_available_lot_ids(self):
+        """Limitar a seriales disponibles (quants con disponibilidad > 0)."""
+        StockQuant = self.env["stock.quant"].sudo()
+        for wiz in self:
+            wiz.available_lot_ids = [(5, 0, 0)]
+            if not wiz.product_id or not wiz.sale_order_id:
+                continue
+
+            # Ubicación de stock del almacén de la orden (fallback a Stock)
+            stock_location = False
+            if getattr(wiz.sale_order_id, "warehouse_id", False) and wiz.sale_order_id.warehouse_id.lot_stock_id:
+                stock_location = wiz.sale_order_id.warehouse_id.lot_stock_id
+            if not stock_location:
+                stock_location = self.env.ref("stock.stock_location_stock", raise_if_not_found=False)
+
+            if not stock_location:
+                continue
+
+            # Buscar quants con disponibilidad (quantity - reserved_quantity) > 0
+            domain = [
+                ("product_id", "=", wiz.product_id.id),
+                ("location_id", "child_of", stock_location.id),
+                ("lot_id", "!=", False),
+            ]
+            # multi-company safety
+            if wiz.sale_order_id.company_id:
+                domain.append(("company_id", "in", [False, wiz.sale_order_id.company_id.id]))
+
+            quants = StockQuant.search(domain)
+            available_quants = quants.filtered(lambda q: (q.quantity or 0.0) - (getattr(q, "reserved_quantity", 0.0) or 0.0) > 0)
+            lots = available_quants.mapped("lot_id")
+            wiz.available_lot_ids = [(6, 0, lots.ids)]
 
     def _convert_weight_to_uom(self, weight_kg, target_uom):
         """Convert kg -> target uom (kg or g typically)."""
