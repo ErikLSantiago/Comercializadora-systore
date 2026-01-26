@@ -131,11 +131,11 @@ class SaleOrder(models.Model):
                     continue
 
                 tmpl = line.product_id.product_tmpl_id
-                price_per_weight = tmpl.x_weight_sale_price or 0.0
+                price_per_weight = getattr(tmpl, 'x_price_per_weight', 0.0) or 0.0
                 target_uom = tmpl.x_price_weight_uom_id or uom_kg
 
                 if float_is_zero(price_per_weight, precision_rounding=0.000001):
-                    raise UserError(_("El producto %s no tiene 'Precio por peso' configurado (x_weight_sale_price).") % tmpl.display_name)
+                    raise UserError(_("El producto %s no tiene 'Precio por peso' configurado (x_price_per_weight).") % tmpl.display_name)
 
                 lots, remaining = so._mc_available_lots_fefo(line.product_id, location, qty)
                 if remaining > 0:

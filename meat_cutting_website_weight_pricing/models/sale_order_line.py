@@ -28,7 +28,7 @@ class SaleOrderLine(models.Model):
             return
 
         total_weight = sum(lots.mapped("x_weight_kg")) or 0.0
-        price_per_kg = tmpl.x_weight_sale_price or 0.0
+        price_per_kg = getattr(tmpl, 'x_price_per_weight', 0.0) or 0.0
 
         # Total a cobrar = peso_total * precio_por_kg
         total_price = total_weight * price_per_kg
