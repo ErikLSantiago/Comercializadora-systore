@@ -1,98 +1,22 @@
 <?xml version="1.0" encoding="utf-8"?>
 <odoo>
-    <!-- Mensaje de bloqueo en carrito -->
-    <template id="mc_web_cart_warning" inherit_id="website_sale.cart">
-        <xpath expr="." position="inside">
-            <t t-if="mc_web_weight_error">
-                <div class="alert alert-warning" role="alert">
-                    <t t-esc="mc_web_weight_error"/>
-                </div>
+  <!-- Payment page: inject a small lot summary block (JS will move it into the order summary sidebar) -->
+  <template id="mc_web_checkout_summary_lot" inherit_id="website_sale.payment" name="MC Web: Checkout Summary Lot (Payment)">
+    <xpath expr="." position="inside">
+      <t t-set="mc_order" t-value="website_sale_order or sale_order or order"/>
+      <t t-if="mc_order and mc_order.order_line.filtered(lambda l: l.mc_web_lot_display)">
+        <div id="mc_web_lot_block" class="d-none">
+          <div class="fw-bold mb-1">Unidad de peso asignada</div>
+          <ul class="list-unstyled mb-0 small">
+            <t t-foreach="mc_order.order_line.filtered(lambda l: l.mc_web_lot_display)" t-as="l">
+              <li>
+                <span t-esc="l.product_id.display_name"/>:
+                <span t-esc="l.mc_web_lot_display"/>
+              </li>
             </t>
-        </xpath>
-    </template>
-
-
-  <!-- Checkout Summary: mostramos lote asignado dentro del resumen de la orden (payment) -->
-    <template id="mc_web_checkout_summary_lot" inherit_id="website_sale.payment" name="MC Web: Checkout Summary Lot (Payment)">
-        <!--
-          Odoo 18 (y temas) pueden cambiar el HTML del resumen.
-          Para evitar errores por XPATH que no exista, enganchamos al <aside>
-          del checkout (sidebar del resumen) y agregamos el bloque al final.
-        -->
-        <xpath expr="(//aside | //div[contains(@class, 'o_wsale_checkout_summary')] | //div[contains(@class, 'o_wsale_cart_summary')] | //div[contains(@class, 'o_wsale_payment_summary')] | //div[contains(@id, 'order_summary')] | //div[contains(@id, 'o_wsale_order_summary')] | //section[contains(@class, 'o_wsale_payment')] )[1]" position="inside">
-            <t t-set="mc_order" t-value="website_sale_order"/>
-            <t t-if="mc_order and mc_order.order_line.filtered(lambda l: l.mc_web_lot_display)">
-                <div class="mt-3 pt-3 border-top">
-                    <div class="fw-bold mb-1">Unidad de peso asignada</div>
-                    <ul class="list-unstyled mb-0 small">
-                        <t t-foreach="mc_order.order_line.filtered(lambda l: l.mc_web_lot_display)" t-as="l">
-                            <li>
-                                <span t-esc="l.product_id.display_name"/>:
-                                <span t-esc="l.mc_web_lot_display"/>
-                            </li>
-                        </t>
-                    </ul>
-                </div>
-            </t>
-        </xpath>
-    </template>
-
-
-<!-- Tarjeta de producto / grid -->
-    <template id="mc_web_products_item" inherit_id="website_sale.products_item">
-        <xpath expr="//div[contains(@class,'o_wsale_product_information')]" position="inside">
-            <t t-if="product.x_use_weight_sale_price">
-                <div class="text-muted small mt-1">
-                    <span>1 pieza</span>
-                    <t t-if="product.x_web_avg_weight">
-                        <span> | </span>
-                        <span>Peso aprox. </span>
-                        <t t-esc="product.x_web_avg_weight"/>
-                        <span> </span>
-                        <t t-esc="product.x_price_weight_uom_id.name or ''"/>
-                    </t>
-                    <span> (precio final por peso)</span>
-                </div>
-                <div class="mt-1">
-                    <strong>
-                        <t t-esc="product.x_price_per_weight"/>
-                    </strong>
-                    <span> / </span>
-                    <t t-esc="product.x_price_weight_uom_id.name or ''"/>
-                </div>
-            </t>
-        </xpath>
-    </template>
-
-    <!-- Página de producto -->
-    <template id="mc_web_product_page" inherit_id="website_sale.product">
-        <xpath expr="//div[@id='product_details']//h1" position="after">
-            <t t-if="product.x_use_weight_sale_price">
-                <div class="text-muted mt-2">
-                    <span>1 pieza</span>
-                    <t t-if="product.x_web_avg_weight">
-                        <span> | </span>
-                        <span>Peso aprox. </span>
-                        <t t-esc="product.x_web_avg_weight"/>
-                        <span> </span>
-                        <t t-esc="product.x_price_weight_uom_id.name or ''"/>
-                    </t>
-                    <span> (precio final por peso)</span>
-                </div>
-
-                <div class="mt-1">
-    <t t-set="mc_price" t-value="(product._fields.get('x_weight_sale_price') and product.x_weight_sale_price) or (product._fields.get('x_price_per_weight') and product.x_price_per_weight)"/>
-    <t t-if="mc_price">
-        <span class="h4"><t t-esc="mc_price"/></span>
-        <t t-if="product._fields.get('x_price_weight_uom_id') and product.x_price_weight_uom_id">
-            <span class="ms-1">/</span>
-            <t t-esc="product.x_price_weight_uom_id.name"/>
-        </t>
-    </t>
-</div>
-
-            </t>
-        </xpath>
-    </template>
+          </ul>
+        </div>
+      </t>
+    </xpath>
+  </template>
 </odoo>
-
