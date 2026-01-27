@@ -70,7 +70,7 @@
 
     <!-- MC Web: Mostrar unidad/lote asignado dentro del resumen de la orden en Checkout (Payment) -->
     <template id="mc_web_checkout_summary_lot" inherit_id="website_sale.payment" name="MC Web: Checkout Summary Lot">
-        <xpath expr="//table[@id='cart_products']" position="after">
+        <xpath expr="//div[@id='cart_total']" position="before">
             <t t-if="website_sale_order and website_sale_order.order_line.filtered(lambda l: getattr(l, 'mc_web_lot_display', False))">
                 <div class="mt-3 pt-3 border-top">
                     <div class="fw-bold mb-1">Unidad de peso asignada</div>
