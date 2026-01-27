@@ -12,25 +12,27 @@
     </template>
 
 
-  <!-- Checkout Summary: mostrar unidad de peso (lote) asignada dentro del resumen de la orden -->
-  <template id="mc_web_checkout_summary_lot" inherit_id="website_sale.checkout_summary">
-    <!-- Insertamos al final del resumen (sidebar) -->
-    <xpath expr="." position="inside">
-      <t t-if="website_sale_order and website_sale_order.order_line.filtered(lambda l: l.mc_web_lot_display)">
-        <div class="mt-3 pt-3 border-top">
-          <div class="fw-bold mb-1">Unidad de peso asignada</div>
-          <ul class="list-unstyled mb-0 small">
-            <t t-foreach="website_sale_order.order_line.filtered(lambda l: l.mc_web_lot_display)" t-as="l">
-              <li>
-                <span t-esc="l.product_id.display_name"/>:
-                <span t-esc="l.mc_web_lot_display"/>
-              </li>
+  <!-- Checkout Summary: mostramos lote asignado dentro del resumen de la orden (payment) -->
+    <template id="mc_web_checkout_summary_lot" inherit_id="website_sale.payment" name="MC Web: Checkout Summary Lot (Payment)">
+        <!-- Insertamos debajo del listado de líneas del resumen -->
+        <xpath expr="//ul[.//t[contains(@t-foreach, 'order_line')]]" position="after">
+            <t t-set="mc_order" t-value="website_sale_order"/>
+            <t t-if="mc_order and mc_order.order_line.filtered(lambda l: l.mc_web_lot_display)">
+                <div class="mt-3 pt-3 border-top">
+                    <div class="fw-bold mb-1">Unidad de peso asignada</div>
+                    <ul class="list-unstyled mb-0 small">
+                        <t t-foreach="mc_order.order_line.filtered(lambda l: l.mc_web_lot_display)" t-as="l">
+                            <li>
+                                <span t-esc="l.product_id.display_name"/>:
+                                <span t-esc="l.mc_web_lot_display"/>
+                            </li>
+                        </t>
+                    </ul>
+                </div>
             </t>
-          </ul>
-        </div>
-      </t>
-    </xpath>
-  </template>
+        </xpath>
+    </template>
+
 
 <!-- Tarjeta de producto / grid -->
     <template id="mc_web_products_item" inherit_id="website_sale.products_item">
