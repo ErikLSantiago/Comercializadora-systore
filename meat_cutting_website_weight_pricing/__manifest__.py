@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*-
 {
     "name": "Meat Cutting - Website Weight Pricing (Checkout Reservation)",
-    "version": "1.0.1",
+    "version": "1.0.2",
     "category": "Sales/Website",
     "summary": "Show price per weight on website and reserve lots at checkout to compute exact price.",
     "depends": ["website_sale", "sale_stock", "stock", "meat_cutting", "meat_cutting_weight_sale_price"],

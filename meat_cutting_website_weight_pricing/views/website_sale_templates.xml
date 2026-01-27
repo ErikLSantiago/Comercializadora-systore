@@ -19,7 +19,7 @@
           Para evitar errores por XPATH que no exista, enganchamos al <aside>
           del checkout (sidebar del resumen) y agregamos el bloque al final.
         -->
-        <xpath expr="//aside" position="inside">
+        <xpath expr="(//aside | //div[contains(@class, 'o_wsale_checkout_summary')] | //div[contains(@class, 'o_wsale_cart_summary')] | //div[contains(@class, 'o_wsale_payment_summary')] | //div[contains(@id, 'order_summary')] | //div[contains(@id, 'o_wsale_order_summary')] | //section[contains(@class, 'o_wsale_payment')] )[1]" position="inside">
             <t t-set="mc_order" t-value="website_sale_order"/>
             <t t-if="mc_order and mc_order.order_line.filtered(lambda l: l.mc_web_lot_display)">
                 <div class="mt-3 pt-3 border-top">
