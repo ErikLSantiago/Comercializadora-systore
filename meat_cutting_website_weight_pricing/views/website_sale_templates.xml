@@ -68,11 +68,18 @@
         </xpath>
     </template>
 
-    <!-- MC Web: Mostrar unidad/lote asignado dentro del resumen de la orden en Checkout (Payment) -->
+    <!--
+        MC Web: Mostrar unidad/lote asignado dentro del resumen de la orden en Checkout (Payment)
+
+        Nota:
+        En Odoo 18 (y dependiendo del tema), la estructura del resumen de orden puede variar, por lo que evitamos
+        xpaths frágiles (cart_total, cart_products, etc.). Renderizamos el bloque en el template y lo movemos con JS.
+    -->
     <template id="mc_web_checkout_summary_lot" inherit_id="website_sale.payment" name="MC Web: Checkout Summary Lot">
-        <xpath expr="//div[@id='cart_total']" position="before">
+        <xpath expr="." position="inside">
             <t t-if="website_sale_order and website_sale_order.order_line.filtered(lambda l: getattr(l, 'mc_web_lot_display', False))">
-                <div class="mt-3 pt-3 border-top">
+                <!-- Se inserta oculto y se reubica dentro del Resumen de la orden vía JS -->
+                <div id="mc_web_lot_summary_block" class="mt-3 pt-3 border-top d-none">
                     <div class="fw-bold mb-1">Unidad de peso asignada</div>
                     <ul class="list-unstyled mb-0 small">
                         <t t-foreach="website_sale_order.order_line.filtered(lambda l: getattr(l, 'mc_web_lot_display', False))" t-as="l">
