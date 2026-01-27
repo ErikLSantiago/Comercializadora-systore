@@ -13,7 +13,7 @@
 
   <!-- Checkout / Payment: mostrar lote(s) asignados en el resumen -->
   <template id="mc_web_payment_lot_summary" inherit_id="website_sale.payment">
-    <xpath expr="." position="inside">
+    <xpath expr="//t[1]" position="inside">
       <t t-set="mc_order" t-value="website_sale_order"/>
       <t t-if="mc_order and mc_order.order_line.filtered(lambda l: l.mc_web_lot_display)">
         <div class="alert alert-info mt-2" role="alert">
