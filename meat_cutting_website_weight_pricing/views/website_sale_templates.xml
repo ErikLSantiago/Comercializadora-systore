@@ -77,12 +77,15 @@
     -->
     <template id="mc_web_checkout_summary_lot" inherit_id="website_sale.payment" name="MC Web: Checkout Summary Lot">
         <xpath expr="." position="inside">
-            <t t-if="website_sale_order and website_sale_order.order_line.filtered(lambda l: getattr(l, 'mc_web_lot_display', False))">
+            <!-- Nota: En Odoo v18, usar lambdas en QWeb puede fallar por safe_eval. Evitamos lambda y usamos filtered('field'). -->
+            <t t-if="website_sale_order">
+                <t t-set="mc_lines_with_lot" t-value="website_sale_order.order_line.filtered('mc_web_lot_display')"/>
+                <t t-if="mc_lines_with_lot">
                 <!-- Se inserta oculto y se reubica dentro del Resumen de la orden vía JS -->
                 <div id="mc_web_lot_summary_block" class="mt-3 pt-3 border-top d-none">
                     <div class="fw-bold mb-1">Unidad de peso asignada</div>
                     <ul class="list-unstyled mb-0 small">
-                        <t t-foreach="website_sale_order.order_line.filtered(lambda l: getattr(l, 'mc_web_lot_display', False))" t-as="l">
+                        <t t-foreach="mc_lines_with_lot" t-as="l">
                             <li>
                                 <span t-esc="l.product_id.display_name"/>:
                                 <span t-esc="l.mc_web_lot_display"/>
@@ -90,6 +93,7 @@
                         </t>
                     </ul>
                 </div>
+                </t>
             </t>
         </xpath>
     </template>
