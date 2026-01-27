@@ -1,39 +1,37 @@
+# -*- coding: utf-8 -*-
 from odoo import api, fields, models
 
-
 class SaleOrderLine(models.Model):
-    _inherit = 'sale.order.line'
+    _inherit = "sale.order.line"
 
     mc_web_lot_display = fields.Char(
-        string='Lote asignado (Web)',
-        compute='_compute_mc_web_lot_display',
-        help='Lote(s) que el sistema asignó para esta línea durante el checkout web.',
+        string="Unidad de peso asignada",
+        compute="_compute_mc_web_lot_display",
+        help="Número(s) de lote/serie asignado(s) en el checkout para explicar el precio final por peso."
     )
 
-    @api.depends(
-        'order_id',
-        'order_id.mc_web_reservation_ids',
-        'order_id.mc_web_reservation_ids.order_line_id',
-        'order_id.mc_web_reservation_ids.lot_id',
-    )
+    @api.depends("order_id", "product_id", "product_uom_qty")
     def _compute_mc_web_lot_display(self):
-        Reservation = self.env['mc.web.reservation'].sudo()
-        line_ids = self.ids
-        if not line_ids:
-            for line in self:
-                line.mc_web_lot_display = False
-            return
+        # Default
+        for line in self:
+            line.mc_web_lot_display = False
 
-        reservations = Reservation.search([
-            ('order_line_id', 'in', line_ids),
-            ])
-
-        lots_by_line = {}
+        # Preferimos la reserva (mc.web.reservation) si existe
+        Reservation = self.env["mc.web.reservation"].sudo()
+        reservations = Reservation.search([("order_line_id", "in", self.ids)])
+        by_line = {}
         for r in reservations:
-            if r.order_line_id and r.lot_id:
-                lots_by_line.setdefault(r.order_line_id.id, []).append(r.lot_id.name)
+            by_line.setdefault(r.order_line_id.id, []).append(r.lot_id.display_name or r.lot_id.name)
 
         for line in self:
-            names = lots_by_line.get(line.id) or []
-            # If qty > 1, show multiple lots separated by comma.
-            line.mc_web_lot_display = ', '.join(names) if names else False
+            names = by_line.get(line.id)
+            if names:
+                # Si hubiera varias piezas, mostramos todas separadas por coma
+                line.mc_web_lot_display = ", ".join([n for n in names if n])
+                continue
+
+            # Fallback: si el módulo/instancia trae lot_id en la línea (algunas configuraciones lo agregan),
+            # lo mostramos también.
+            lot = getattr(line, "lot_id", False)
+            if lot:
+                line.mc_web_lot_display = lot.display_name or lot.name
