@@ -14,8 +14,12 @@
 
   <!-- Checkout Summary: mostramos lote asignado dentro del resumen de la orden (payment) -->
     <template id="mc_web_checkout_summary_lot" inherit_id="website_sale.payment" name="MC Web: Checkout Summary Lot (Payment)">
-        <!-- Insertamos debajo del listado de líneas del resumen -->
-        <xpath expr="//ul[.//t[contains(@t-foreach, 'order_line')]]" position="after">
+        <!--
+          Odoo 18 (y temas) pueden cambiar el HTML del resumen.
+          Para evitar errores por XPATH que no exista, enganchamos al <aside>
+          del checkout (sidebar del resumen) y agregamos el bloque al final.
+        -->
+        <xpath expr="//aside" position="inside">
             <t t-set="mc_order" t-value="website_sale_order"/>
             <t t-if="mc_order and mc_order.order_line.filtered(lambda l: l.mc_web_lot_display)">
                 <div class="mt-3 pt-3 border-top">
