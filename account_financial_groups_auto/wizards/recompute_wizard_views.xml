@@ -1,0 +1,21 @@
+<odoo>
+    <record id="view_fin_group_recompute_wizard_form" model="ir.ui.view">
+        <field name="name">account.financial.group.recompute.wizard.form</field>
+        <field name="model">account.financial.group.recompute.wizard</field>
+        <field name="arch" type="xml">
+            <form string="Recalcular grupos financieros">
+                <sheet>
+                    <group>
+                        <field name="company_id" groups="base.group_multi_company"/>
+                        <field name="only_empty"/>
+                        <field name="force" invisible="only_empty == True"/>
+                    </group>
+                    <footer>
+                        <button string="Aplicar" type="object" name="action_recompute" class="btn-primary"/>
+                        <button string="Cancelar" special="cancel" class="btn-secondary"/>
+                    </footer>
+                </sheet>
+            </form>
+        </field>
+    </record>
+</odoo>

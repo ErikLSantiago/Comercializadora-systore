@@ -1,0 +1,38 @@
+<odoo>
+    <record id="view_account_account_form_inherit_fin_group" model="ir.ui.view">
+        <field name="name">account.account.form.inherit.fin.group</field>
+        <field name="model">account.account</field>
+        <field name="inherit_id" ref="account.view_account_form"/>
+        <field name="arch" type="xml">
+            <xpath expr="//sheet//group" position="inside">
+                <field name="financial_group_id" groups="account.group_account_manager"/>
+                <field name="financial_group_locked" groups="account.group_account_manager"/>
+            </xpath>
+        </field>
+    </record>
+
+    <record id="view_account_account_tree_inherit_fin_group" model="ir.ui.view">
+        <field name="name">account.account.tree.inherit.fin.group</field>
+        <field name="model">account.account</field>
+        <field name="inherit_id" ref="account.view_account_list"/>
+        <field name="arch" type="xml">
+            <xpath expr="//list|//tree" position="inside">
+                <field name="financial_group_id" optional="show" groups="account.group_account_manager"/>
+                <field name="financial_group_locked" optional="hide" groups="account.group_account_manager"/>
+            </xpath>
+        </field>
+    </record>
+
+    <record id="action_fin_group_recompute_wizard" model="ir.actions.act_window">
+        <field name="name">Recalcular grupos financieros</field>
+        <field name="res_model">account.financial.group.recompute.wizard</field>
+        <field name="view_mode">form</field>
+        <field name="target">new</field>
+    </record>
+
+    <menuitem id="menu_fin_group_recompute"
+              name="Recalcular grupos (por reglas)"
+              parent="menu_account_financial_group"
+              action="action_fin_group_recompute_wizard"
+              sequence="20"/>
+</odoo>
