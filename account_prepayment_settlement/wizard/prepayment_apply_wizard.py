@@ -20,8 +20,8 @@ class AccountPrepaymentApplyWizard(models.TransientModel):
     prepayment_account_id = fields.Many2one(
         "account.account",
         required=True,
-        domain="[('company_ids', 'in', company_id), ('account_type', 'in', ('asset_current','asset_non_current','liability_current','liability_non_current'))]",
-        help="Cuenta de anticipo (activo o pasivo) que se aplicará contra la factura.",
+        domain="[('company_ids', 'in', company_id), ('account_type', 'in', ('asset_current','asset_non_current','liability_current','liability_non_current','asset_receivable','liability_payable'))]",
+        help="Cuenta de anticipo que se aplicará contra la factura. Puede ser de activo, pasivo, CxC o CxP.",
     )
     amount = fields.Monetary(required=True)
     currency_id = fields.Many2one(related="move_id.currency_id", readonly=True)
@@ -38,6 +38,39 @@ class AccountPrepaymentApplyWizard(models.TransientModel):
             return False
         return lines.sorted(key=lambda l: abs(l.amount_residual), reverse=True)[0]
 
+    def _auto_reconcile_prepayment_line(self, settle_line):
+        """Si la cuenta de anticipo es CxC/CxP, intenta conciliarla con apuntes abiertos
+        del mismo partner y misma cuenta, empezando por los más antiguos."""
+        self.ensure_one()
+        account = settle_line.account_id
+        if account.account_type not in ("asset_receivable", "liability_payable"):
+            return
+
+        candidate_lines = self.env["account.move.line"].search([
+            ("account_id", "=", account.id),
+            ("partner_id", "=", settle_line.partner_id.id),
+            ("reconciled", "=", False),
+            ("id", "!=", settle_line.id),
+            ("parent_state", "=", "posted"),
+            ("company_id", "=", self.company_id.id),
+        ], order="date asc, id asc")
+
+        if not candidate_lines:
+            return
+
+        lines_to_reconcile = settle_line
+        for line in candidate_lines:
+            if line.balance == 0:
+                continue
+            # Debe ser signo opuesto para poder conciliarse
+            if line.balance * settle_line.balance < 0:
+                lines_to_reconcile += line
+                if abs(sum(lines_to_reconcile.mapped("balance"))) < 0.00001:
+                    break
+
+        if len(lines_to_reconcile) > 1:
+            lines_to_reconcile.reconcile()
+
     def action_apply(self):
         self.ensure_one()
         move = self.move_id
@@ -52,7 +85,6 @@ class AccountPrepaymentApplyWizard(models.TransientModel):
         if self.amount <= 0:
             raise UserError(_("El monto debe ser mayor a 0."))
 
-        # Moneda: MXN (misma moneda que compañía)
         if move.currency_id != move.company_id.currency_id:
             raise UserError(_("Este módulo está pensado para una sola moneda (misma que la compañía)."))
 
@@ -63,9 +95,6 @@ class AccountPrepaymentApplyWizard(models.TransientModel):
         is_payable = open_line.account_id.account_type == "liability_payable"
         amount = self.amount
 
-        # Asiento:
-        # Vendor bill:   DR Payable / CR Prepayment
-        # Customer inv:  CR Receivable / DR Prepayment
         if is_payable:
             line_arap = (0, 0, {
                 "name": self.memo or _("Aplicación de anticipo"),
@@ -106,12 +135,18 @@ class AccountPrepaymentApplyWizard(models.TransientModel):
         })
         settle_move.action_post()
 
-        settle_line = settle_move.line_ids.filtered(
+        settle_invoice_line = settle_move.line_ids.filtered(
             lambda l: l.account_id.id == open_line.account_id.id and not l.reconciled
-        )
-        if not settle_line:
+        )[:1]
+        if not settle_invoice_line:
             raise UserError(_("No se encontró línea conciliable en el asiento generado."))
 
-        (open_line + settle_line).reconcile()
+        (open_line + settle_invoice_line).reconcile()
+
+        settle_prepayment_line = settle_move.line_ids.filtered(
+            lambda l: l.account_id.id == self.prepayment_account_id.id and not l.reconciled
+        )[:1]
+        if settle_prepayment_line:
+            self._auto_reconcile_prepayment_line(settle_prepayment_line)
 
         return {"type": "ir.actions.act_window_close"}
