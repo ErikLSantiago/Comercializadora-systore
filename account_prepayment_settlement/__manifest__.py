@@ -1,6 +1,6 @@
 {
     "name": "Prepayment Settlement for Invoices",
-    "version": "18.0.1.1.0",
+    "version": "18.0.1.2.0",
     "category": "Accounting",
     "summary": "Pay vendor bills/customer invoices using asset/liability prepayment accounts (no bank).",
     "depends": ["account"],

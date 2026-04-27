@@ -20,8 +20,8 @@ class AccountPrepaymentApplyWizard(models.TransientModel):
     prepayment_account_id = fields.Many2one(
         "account.account",
         required=True,
-        domain="[('company_ids', 'in', company_id), ('account_type', 'in', ('asset_current','asset_non_current','liability_current','liability_non_current','asset_receivable','liability_payable'))]",
-        help="Cuenta de anticipo que se aplicará contra la factura. Puede ser de activo, pasivo, CxC o CxP.",
+        domain="[('company_ids', 'in', company_id), ('account_type', 'in', ('asset_current','asset_non_current','liability_current','liability_non_current','asset_receivable','liability_payable','income_other'))]",
+        help="Cuenta de anticipo que se aplicará contra la factura. Puede ser de activo, pasivo, CxC, CxP u otros ingresos.",
     )
     amount = fields.Monetary(required=True)
     currency_id = fields.Many2one(related="move_id.currency_id", readonly=True)
