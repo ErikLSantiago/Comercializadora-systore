@@ -1,0 +1,26 @@
+{
+    'name': 'Stock UPC Validation',
+    'version': '18.0.1.3.0',
+    'summary': 'Validate UPC/EAN on stock receipts/picking, capture NS/IMEI, and tracking on pack operations.',
+    'author': 'Systore',
+    'license': 'LGPL-3',
+    'depends': [
+        'stock',
+        'purchase',
+        'delivery',
+        'product_multiple_barcodes',
+        'adicional_serial_number',
+    ],
+    'data': [
+        'security/ir.model.access.csv',
+        'data/stock_picking_type_defaults.xml',
+        'wizard/stock_receipt_upc_wizard_views.xml',
+        'wizard/stock_picking_upc_wizard_views.xml',
+        'wizard/stock_pack_tracking_wizard_views.xml',
+        'views/stock_picking_type_views.xml',
+        'views/stock_picking_views.xml',
+    ],
+    'post_init_hook': 'post_init_hook',
+    'installable': True,
+    'application': False,
+}

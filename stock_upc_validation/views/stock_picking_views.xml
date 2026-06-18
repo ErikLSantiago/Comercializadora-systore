@@ -1,0 +1,16 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<odoo>
+    <record id="view_picking_form_tracking_ref_pack" model="ir.ui.view">
+        <field name="name">stock.picking.form.tracking.ref.pack</field>
+        <field name="model">stock.picking</field>
+        <field name="inherit_id" ref="stock.view_picking_form"/>
+        <field name="arch" type="xml">
+            <xpath expr="//field[@name='origin']" position="after">
+                <field name="systore_require_tracking_on_pack" invisible="1"/>
+                <field name="carrier_tracking_ref" string="Número de guía" placeholder="Escanee o capture la guía"
+                       invisible="not systore_require_tracking_on_pack"
+                       readonly="state in ('done', 'cancel')"/>
+            </xpath>
+        </field>
+    </record>
+</odoo>
