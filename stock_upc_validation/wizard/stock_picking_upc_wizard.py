@@ -6,29 +6,105 @@ class StockPickingUPCWizard(models.TransientModel):
     _name = 'stock.picking.upc.wizard'
     _description = 'Validar UPC/EAN en recolección'
 
-    picking_id = fields.Many2one('stock.picking', string='Traslado', required=True, readonly=True)
+    picking_id = fields.Many2one('stock.picking', string='Traslado', readonly=True)
+    batch_id = fields.Many2one('stock.picking.batch', string='Batch', readonly=True)
     picking_type_id = fields.Many2one(related='picking_id.picking_type_id', string='Tipo de operación', readonly=True)
     require_tracking_on_pack = fields.Boolean(related='picking_id.systore_require_tracking_on_pack', readonly=True)
+    require_serial_imei = fields.Boolean(related='picking_id.systore_require_tracking_on_pack', readonly=True)
     tracking_ref = fields.Char(string='Número de guía')
     line_ids = fields.One2many('stock.picking.upc.wizard.line', 'wizard_id', string='Productos a validar')
 
     @api.model
     def create_from_picking(self, picking):
         picking.ensure_one()
-        scans_per_product = max(picking.picking_type_id.systore_upc_validation_per_product or 1, 1)
         values = []
-        for product in picking._systore_picking_products_to_validate():
-            for scan_no in range(scans_per_product):
+
+        # PACK: validar pieza por pieza para capturar NS/IMEI individual.
+        if picking.systore_require_tracking_on_pack:
+            scan_count_by_product = {}
+            moves = picking.move_ids_without_package.filtered(
+                lambda m: m.state not in ('done', 'cancel')
+                and m.product_id
+                and m.product_id.type in ('product', 'consu')
+            )
+            for move in moves.sorted(key=lambda m: (getattr(m, 'sequence', 0) or 0, m.id)):
+                qty = int(round(picking._systore_move_effective_qty(move) or 0.0))
+                if qty <= 0:
+                    qty = int(round(move.product_uom_qty or 0.0))
+                for _idx in range(max(qty, 1)):
+                    scan_count_by_product[move.product_id.id] = scan_count_by_product.get(move.product_id.id, 0) + 1
+                    values.append((0, 0, {
+                        'product_id': move.product_id.id,
+                        'lot_id': False,
+                        'scan_no': scan_count_by_product[move.product_id.id],
+                        'demand_qty': 1.0,
+                        'upc_ean': False,
+                        'serial_imei': False,
+                    }))
+        else:
+            # PICK / recolección: validar de forma masiva por producto.
+            # Una línea escaneada representa toda la demanda del producto, aunque venga de varios lotes nativos.
+            grouped = picking._systore_pick_validation_groups()
+            seq = 0
+            for group in grouped:
+                seq += 1
                 values.append((0, 0, {
-                    'product_id': product.id,
-                    'scan_no': scan_no + 1,
+                    'product_id': group['product_id'],
+                    'lot_id': group.get('lot_id') or False,
+                    'scan_no': seq,
+                    'demand_qty': group.get('demand_qty') or 0.0,
                     'upc_ean': False,
                     'serial_imei': False,
                 }))
+
         return self.create({
             'picking_id': picking.id,
             'line_ids': values,
         })
+
+    @api.model
+    def create_from_batch(self, batch):
+        batch.ensure_one()
+        values = []
+        groups = {}
+        order = []
+
+        pickings = batch.picking_ids.filtered(lambda p: p._systore_needs_upc_picking_wizard())
+        for picking in pickings.sorted(key=lambda p: (p.name or '', p.id)):
+            for group in picking._systore_pick_validation_groups():
+                product_id = group['product_id']
+                if product_id not in groups:
+                    groups[product_id] = {
+                        'product_id': product_id,
+                        'lot_id': False,
+                        'demand_qty': 0.0,
+                    }
+                    order.append(product_id)
+                groups[product_id]['demand_qty'] += group.get('demand_qty') or 0.0
+
+        seq = 0
+        for product_id in order:
+            seq += 1
+            group = groups[product_id]
+            values.append((0, 0, {
+                'product_id': group['product_id'],
+                'lot_id': False,
+                'scan_no': seq,
+                'demand_qty': group.get('demand_qty') or 0.0,
+                'upc_ean': False,
+                'serial_imei': False,
+            }))
+
+        return self.create({
+            'batch_id': batch.id,
+            'line_ids': values,
+        })
+
+    def _target_pickings(self):
+        self.ensure_one()
+        if self.batch_id:
+            return self.batch_id.picking_ids.filtered(lambda p: p._systore_needs_upc_picking_wizard())
+        return self.picking_id
 
     def action_confirm(self):
         self.ensure_one()
@@ -43,8 +119,23 @@ class StockPickingUPCWizard(models.TransientModel):
 
         for line in self.line_ids:
             line._validate_scanned_barcode()
-            line._validate_serial_imei()
-        self._create_additional_serials()
+            if self.require_serial_imei:
+                line._validate_serial_imei()
+        if self.require_serial_imei:
+            self._create_additional_serials()
+        if self.batch_id:
+            pickings = self._target_pickings()
+            if not pickings:
+                raise UserError(_('No hay traslados pendientes para validar en este batch.'))
+            pickings.sudo().write(vals)
+            batch = self.batch_id.with_context(
+                systore_skip_upc_batch_wizard=True,
+                systore_skip_upc_picking_wizard=True,
+            )
+            if hasattr(batch, 'button_validate'):
+                return batch.button_validate()
+            return batch.action_done()
+
         self.picking_id.sudo().write(vals)
         return self.picking_id.with_context(systore_skip_upc_picking_wizard=True).button_validate()
 
@@ -91,7 +182,9 @@ class StockPickingUPCWizardLine(models.TransientModel):
 
     wizard_id = fields.Many2one('stock.picking.upc.wizard', required=True, ondelete='cascade')
     product_id = fields.Many2one('product.product', string='Producto esperado', required=True, readonly=True)
+    lot_id = fields.Many2one('stock.lot', string='Lote', readonly=True)
     scan_no = fields.Integer(string='#', readonly=True)
+    demand_qty = fields.Float(string='Demanda', readonly=True)
     upc_ean = fields.Char(string='UPC/EAN escaneado')
     serial_imei = fields.Char(string='NS/IMEI')
 

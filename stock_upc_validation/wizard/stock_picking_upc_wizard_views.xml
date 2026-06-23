@@ -7,20 +7,24 @@
             <form string="Validar UPC/EAN de recolección">
                 <sheet>
                     <group>
-                        <field name="picking_id"/>
-                        <field name="picking_type_id"/>
+                        <field name="picking_id" invisible="not picking_id"/>
+                        <field name="batch_id" invisible="not batch_id"/>
+                        <field name="picking_type_id" invisible="not picking_id"/>
                         <field name="require_tracking_on_pack" invisible="1"/>
+                        <field name="require_serial_imei" invisible="1"/>
                         <field name="tracking_ref" string="Número de guía" placeholder="Escanee o capture la guía" invisible="not require_tracking_on_pack"/>
                     </group>
                     <p class="text-muted">
-                        Escanee el UPC/EAN del producto físico y capture el NS/IMEI. El sistema solo permitirá avanzar si el UPC/EAN pertenece al producto esperado y guardará el NS/IMEI en el registro alterno de números de serie.
+                        Escanee el UPC/EAN del producto físico. En operaciones de empaque, también capture el NS/IMEI y el sistema lo guardará en el registro alterno de números de serie.
                     </p>
                     <field name="line_ids" mode="list">
                         <list editable="bottom" create="0" delete="0">
                             <field name="scan_no" string="#"/>
                             <field name="product_id"/>
+                            <field name="lot_id" optional="hide" column_invisible="1"/>
+                            <field name="demand_qty" string="Demanda"/>
                             <field name="upc_ean" placeholder="Escanee UPC/EAN"/>
-                            <field name="serial_imei" string="NS/IMEI" placeholder="Escanee o capture NS/IMEI"/>
+                            <field name="serial_imei" string="NS/IMEI" placeholder="Escanee o capture NS/IMEI" column_invisible="not parent.require_serial_imei"/>
                         </list>
                     </field>
                 </sheet>

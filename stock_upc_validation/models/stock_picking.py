@@ -17,6 +17,25 @@ class StockPicking(models.Model):
         readonly=True,
     )
 
+    def write(self, vals):
+        # Cuando se agregan traslados a un Batch Picking, permite excluir automáticamente
+        # las órdenes parciales sin bloquear la asignación del resto.
+        if vals.get('batch_id') and not self.env.context.get('systore_skip_partial_batch_filter'):
+            to_skip = self.filtered(lambda p: p._systore_should_exclude_from_batch())
+            to_write = self - to_skip
+            result = True
+            if to_write:
+                result = super(StockPicking, to_write.with_context(systore_skip_partial_batch_filter=True)).write(vals)
+            if to_skip:
+                batch = self.env['stock.picking.batch'].browse(vals.get('batch_id'))
+                if batch.exists() and hasattr(batch, 'message_post'):
+                    names = ', '.join(to_skip.mapped('name'))
+                    batch.message_post(body=_(
+                        'Se excluyeron las siguientes recolecciones del Batch Picking porque tienen productos parcialmente disponibles: %s'
+                    ) % names)
+            return result
+        return super().write(vals)
+
     def button_validate(self):
         # Recepción: primero conserva el flujo de registro UPC/EAN.
         # Recolección/Empaque: el wizard de UPC/EAN también puede capturar la guía,
@@ -73,9 +92,25 @@ class StockPicking(models.Model):
         self._systore_propagate_pack_tracking_to_outgoing()
         return result
 
+    def _systore_warehouse_is_allowed(self, field_name):
+        self.ensure_one()
+        warehouse = self.picking_type_id.warehouse_id
+        if not warehouse:
+            return False
+        allowed_warehouses = getattr(self.company_id, field_name)
+        return warehouse in allowed_warehouses
+
+    def _systore_upc_receipt_enabled_for_warehouse(self):
+        return self._systore_warehouse_is_allowed('systore_upc_receipt_warehouse_ids')
+
+    def _systore_upc_validation_enabled_for_warehouse(self):
+        return self._systore_warehouse_is_allowed('systore_upc_validation_warehouse_ids')
+
     def _systore_needs_upc_receipt_wizard(self):
         self.ensure_one()
         if self.picking_type_id.code != 'incoming':
+            return False
+        if not self._systore_upc_receipt_enabled_for_warehouse():
             return False
         if not self.picking_type_id.systore_require_upc_on_receipt:
             return False
@@ -92,9 +127,40 @@ class StockPicking(models.Model):
                 products |= move.product_id
         return products
 
+    def _systore_receipt_validation_groups(self):
+        """Return receipt wizard rows grouped by product with demand and current qty."""
+        self.ensure_one()
+        groups = {}
+        order = []
+        moves = self.move_ids_without_package.filtered(
+            lambda m: m.state not in ('done', 'cancel')
+            and m.product_id
+            and m.product_id.type in ('product', 'consu')
+        )
+        for move in moves.sorted(key=lambda m: (getattr(m, 'sequence', 0) or 0, m.id)):
+            key = move.product_id.id
+            if key not in groups:
+                groups[key] = {
+                    'product_id': move.product_id.id,
+                    'demand_qty': 0.0,
+                    'quantity': 0.0,
+                }
+                order.append(key)
+            groups[key]['demand_qty'] += move.product_uom_qty or 0.0
+            current_qty = self._systore_move_effective_qty(move)
+            groups[key]['quantity'] += current_qty or 0.0
+
+        for key in order:
+            if float_is_zero(groups[key]['quantity'], precision_rounding=self.env['product.product'].browse(key).uom_id.rounding):
+                groups[key]['quantity'] = groups[key]['demand_qty']
+
+        return [groups[key] for key in order]
+
     def _systore_needs_upc_picking_wizard(self):
         self.ensure_one()
         if self.picking_type_id.code == 'incoming':
+            return False
+        if not self._systore_upc_validation_enabled_for_warehouse():
             return False
         if not self.picking_type_id.systore_require_upc_on_picking:
             return False
@@ -135,9 +201,46 @@ class StockPicking(models.Model):
             qty = move.product_uom_qty or 0.0
         return qty
 
+
+    def _systore_pick_validation_groups(self):
+        """Return validation rows for PICK grouped only by product.
+
+        Important: this intentionally ignores stock.lot. In this flow the operator
+        validates the product/UPC for the total demand of the product, even when
+        Odoo reserved that product from several native lots.
+        """
+        self.ensure_one()
+        groups = {}
+        order = []
+
+        moves = self.move_ids_without_package.filtered(
+            lambda m: m.state not in ('done', 'cancel')
+            and m.product_id
+            and m.product_id.type in ('product', 'consu')
+        )
+        for move in moves.sorted(key=lambda m: (getattr(m, 'sequence', 0) or 0, m.id)):
+            qty = self._systore_move_effective_qty(move)
+            if float_is_zero(qty, precision_rounding=move.product_uom.rounding):
+                qty = move.product_uom_qty or 0.0
+            if float_is_zero(qty, precision_rounding=move.product_uom.rounding):
+                continue
+            key = move.product_id.id
+            if key not in groups:
+                groups[key] = {
+                    'product_id': move.product_id.id,
+                    'lot_id': False,
+                    'demand_qty': 0.0,
+                }
+                order.append(key)
+            groups[key]['demand_qty'] += qty
+
+        return [groups[key] for key in order]
+
     def _systore_needs_pack_tracking_wizard(self):
         self.ensure_one()
         if self.state in ('done', 'cancel'):
+            return False
+        if not self._systore_upc_validation_enabled_for_warehouse():
             return False
         if not self.picking_type_id.systore_require_tracking_on_pack:
             return False

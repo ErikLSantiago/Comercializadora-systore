@@ -28,6 +28,17 @@ def _activate_defaults(env):
     ])
     pack_types.write({'systore_require_tracking_on_pack': True})
 
+    # Por compatibilidad, si la compañía aún no tiene almacenes configurados,
+    # se activan todos sus almacenes para recepción y salida. Después el usuario
+    # puede segmentar y dejar fuera almacenes externos/full.
+    companies = env['res.company'].search([])
+    for company in companies:
+        warehouses = env['stock.warehouse'].search([('company_id', '=', company.id)])
+        if warehouses and not company.systore_upc_receipt_warehouse_ids:
+            company.systore_upc_receipt_warehouse_ids = [(6, 0, warehouses.ids)]
+        if warehouses and not company.systore_upc_validation_warehouse_ids:
+            company.systore_upc_validation_warehouse_ids = [(6, 0, warehouses.ids)]
+
 
 def post_init_hook(env):
     _activate_defaults(env)

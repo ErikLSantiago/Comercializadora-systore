@@ -11,11 +11,13 @@
                         <field name="origin" string="Documento origen / lote automático"/>
                     </group>
                     <p class="text-muted">
-                        Capture o escanee el UPC/EAN correspondiente a cada producto recibido. Al confirmar, el código se validará contra los UPC múltiples y el documento origen se asignará como lote.
+                        Capture la cantidad recibida y escanee el UPC/EAN correspondiente a cada producto. Si la recepción llega parcial, ajuste la columna Cantidad; Odoo conservará su flujo nativo de backorder cuando aplique.
                     </p>
                     <field name="line_ids" mode="list">
                         <list editable="bottom" create="0" delete="0">
                             <field name="product_id"/>
+                            <field name="demand_qty" string="Demanda"/>
+                            <field name="quantity" string="Cantidad"/>
                             <field name="upc_ean" placeholder="Escanee UPC/EAN"/>
                         </list>
                     </field>

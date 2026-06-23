@@ -1,5 +1,6 @@
 from odoo import _, api, fields, models
 from odoo.exceptions import UserError, ValidationError
+from odoo.tools.float_utils import float_compare, float_is_zero
 
 
 class StockReceiptUPCWizard(models.TransientModel):
@@ -14,9 +15,12 @@ class StockReceiptUPCWizard(models.TransientModel):
     def create_from_picking(self, picking):
         picking.ensure_one()
         values = []
-        for product in picking._systore_receipt_products_to_validate():
+        groups = picking._systore_receipt_validation_groups()
+        for group in groups:
             values.append((0, 0, {
-                'product_id': product.id,
+                'product_id': group['product_id'],
+                'demand_qty': group.get('demand_qty') or 0.0,
+                'quantity': group.get('quantity') or group.get('demand_qty') or 0.0,
                 # Se deja vacío intencionalmente para obligar al operador a escanear/capturar
                 # el UPC/EAN en cada recepción, aunque el producto ya tenga códigos registrados.
                 'upc_ean': False,
@@ -32,11 +36,61 @@ class StockReceiptUPCWizard(models.TransientModel):
             raise UserError(_('No hay productos para validar.'))
 
         for line in self.line_ids:
+            line._validate_quantity()
             line._validate_and_register_barcode()
 
+        self._apply_received_quantities()
         self._assign_origin_as_lot()
 
         return self.picking_id.with_context(systore_skip_upc_receipt_wizard=True).button_validate()
+
+    def _apply_received_quantities(self):
+        """Apply the quantity captured in the wizard to the receipt before validation.
+
+        This allows partial receipts from the UPC wizard itself. Odoo will keep its
+        native backorder flow when the captured quantity is lower than demand.
+        """
+        self.ensure_one()
+        picking = self.picking_id
+        for wizard_line in self.line_ids:
+            remaining = wizard_line.quantity or 0.0
+            product_moves = picking.move_ids_without_package.filtered(
+                lambda m: m.state not in ('done', 'cancel') and m.product_id.id == wizard_line.product_id.id
+            ).sorted(key=lambda m: (getattr(m, 'sequence', 0) or 0, m.id))
+
+            for move in product_moves:
+                rounding = move.product_uom.rounding
+                move_demand = move.product_uom_qty or 0.0
+                qty_for_move = min(remaining, move_demand)
+                remaining -= qty_for_move
+
+                # Odoo 18 commonly uses stock.move.quantity as the processed qty.
+                # Fallbacks are kept for safer upgrades/customizations.
+                if 'quantity' in move._fields:
+                    move.quantity = qty_for_move
+                elif 'quantity_done' in move._fields:
+                    move.quantity_done = qty_for_move
+                elif 'qty_done' in move._fields:
+                    move.qty_done = qty_for_move
+
+                self._set_move_line_quantity(move, qty_for_move)
+
+                if float_is_zero(remaining, precision_rounding=rounding):
+                    remaining = 0.0
+                    break
+
+    def _set_move_line_quantity(self, move, qty):
+        lines = move.move_line_ids
+        if not lines:
+            return
+        remaining = qty or 0.0
+        for idx, ml in enumerate(lines.sorted(key=lambda l: l.id)):
+            line_qty = remaining if idx == 0 else 0.0
+            if 'quantity' in ml._fields:
+                ml.quantity = line_qty
+            elif 'qty_done' in ml._fields:
+                ml.qty_done = line_qty
+            remaining = 0.0
 
     def _assign_origin_as_lot(self):
         self.ensure_one()
@@ -85,7 +139,21 @@ class StockReceiptUPCWizardLine(models.TransientModel):
 
     wizard_id = fields.Many2one('stock.receipt.upc.wizard', required=True, ondelete='cascade')
     product_id = fields.Many2one('product.product', string='Producto', required=True, readonly=True)
+    demand_qty = fields.Float(string='Demanda', readonly=True)
+    quantity = fields.Float(string='Cantidad')
     upc_ean = fields.Char(string='UPC/EAN')
+
+    def _validate_quantity(self):
+        self.ensure_one()
+        rounding = self.product_id.uom_id.rounding
+        qty = self.quantity or 0.0
+        if float_compare(qty, 0.0, precision_rounding=rounding) < 0:
+            raise ValidationError(_('La cantidad recibida de %s no puede ser negativa.') % self.product_id.display_name)
+        if float_compare(qty, self.demand_qty or 0.0, precision_rounding=rounding) > 0:
+            raise ValidationError(_(
+                'La cantidad recibida de %s no puede ser mayor a la demanda (%s).'
+            ) % (self.product_id.display_name, self.demand_qty))
+        self.quantity = qty
 
     def _validate_and_register_barcode(self):
         self.ensure_one()
