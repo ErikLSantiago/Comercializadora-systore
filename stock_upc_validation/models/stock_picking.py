@@ -1,6 +1,6 @@
-from odoo import _, fields, models
+from odoo import _, api, fields, models
 from odoo.exceptions import UserError
-from odoo.tools.float_utils import float_is_zero
+from odoo.tools.float_utils import float_compare, float_is_zero
 
 
 class StockPicking(models.Model):
@@ -16,6 +16,50 @@ class StockPicking(models.Model):
         related='picking_type_id.systore_require_tracking_on_pack',
         readonly=True,
     )
+    systore_batch_readiness_state = fields.Selection(
+        selection=[
+            ('complete', 'Completa'),
+            ('partial', 'Parcial'),
+        ],
+        string='Estado para lote',
+        compute='_compute_systore_batch_readiness_state',
+        store=True,
+        readonly=True,
+        help='Indica si la operación está completa o parcial comparando Demanda contra Cantidad lista/reservada. Se usa para excluir parciales de Batch Picking.',
+    )
+
+    @api.depends('state', 'move_ids_without_package.product_uom_qty', 'move_ids_without_package.quantity', 'move_ids_without_package.state', 'move_ids_without_package.move_line_ids.quantity', 'move_ids_without_package.move_line_ids.state')
+    def _compute_systore_batch_readiness_state(self):
+        for picking in self:
+            if picking.state in ('done', 'cancel'):
+                picking.systore_batch_readiness_state = 'complete'
+                continue
+            demand, ready = picking._systore_batch_demand_ready_qty()
+            if float_is_zero(demand, precision_rounding=0.00001):
+                picking.systore_batch_readiness_state = 'complete'
+            elif float_compare(ready, demand, precision_rounding=0.00001) < 0:
+                picking.systore_batch_readiness_state = 'partial'
+            else:
+                picking.systore_batch_readiness_state = 'complete'
+
+    def write(self, vals):
+        # Cuando se agregan traslados a un Batch Picking, permite excluir automáticamente
+        # las órdenes parciales sin bloquear la asignación del resto.
+        if vals.get('batch_id') and not self.env.context.get('systore_skip_partial_batch_filter'):
+            to_skip = self.filtered(lambda p: p._systore_should_exclude_from_batch())
+            to_write = self - to_skip
+            result = True
+            if to_write:
+                result = super(StockPicking, to_write.with_context(systore_skip_partial_batch_filter=True)).write(vals)
+            if to_skip:
+                batch = self.env['stock.picking.batch'].browse(vals.get('batch_id'))
+                if batch.exists() and hasattr(batch, 'message_post'):
+                    names = ', '.join(to_skip.mapped('name'))
+                    batch.message_post(body=_(
+                        'Se excluyeron las siguientes recolecciones del Batch Picking porque tienen productos parcialmente disponibles: %s'
+                    ) % names)
+            return result
+        return super().write(vals)
 
     def button_validate(self):
         # Recepción: primero conserva el flujo de registro UPC/EAN.
@@ -216,6 +260,79 @@ class StockPicking(models.Model):
             groups[key]['demand_qty'] += qty
 
         return [groups[key] for key in order]
+
+
+
+    def _systore_should_exclude_from_batch(self):
+        """Return True when this picking should not be assigned to a Batch Picking.
+
+        Business rule: with the company option enabled, exclude a picking when the
+        operation is marked as Parcial. This intentionally does not depend on the
+        UPC warehouse configuration, so the Batch filter can be used as an
+        operational rule from the transfer status itself.
+        """
+        self.ensure_one()
+        if not self.company_id.systore_exclude_partial_pickings_from_batch:
+            return False
+        if self.state in ('done', 'cancel'):
+            return False
+        return self.systore_batch_readiness_state == 'partial'
+
+    def _systore_batch_demand_ready_qty(self):
+        """Return total demand and ready qty for Batch Picking eligibility.
+
+        The UI shows the same idea as Demanda vs Cantidad. We intentionally check
+        the whole picking, not only a single move, because a sales order with one
+        ready line and another waiting line must be excluded entirely.
+        """
+        self.ensure_one()
+        demand = 0.0
+        ready = 0.0
+        moves = self.move_ids_without_package.filtered(
+            lambda m: m.state not in ('done', 'cancel')
+            and m.product_id
+            and m.product_id.type in ('product', 'consu')
+        )
+        for move in moves:
+            move_demand = move.product_uom_qty or 0.0
+            if float_is_zero(move_demand, precision_rounding=move.product_uom.rounding):
+                continue
+            demand += move_demand
+            ready += min(self._systore_move_ready_qty_for_batch(move), move_demand)
+        return demand, ready
+
+    def _systore_move_ready_qty_for_batch(self, move):
+        """Return quantity that is actually ready/reserved for the move.
+
+        Prefer move lines because they reflect what is visible as ready quantity
+        in detailed operations. If a line is still waiting, it usually has no
+        usable move line quantity. Fallbacks are kept for Odoo/custom flows.
+        """
+        qty = 0.0
+        for ml in move.move_line_ids:
+            if ml.state in ('done', 'cancel'):
+                continue
+            if 'quantity' in ml._fields:
+                qty += ml.quantity or 0.0
+            elif 'reserved_uom_qty' in ml._fields:
+                qty += ml.reserved_uom_qty or 0.0
+            elif 'reserved_quantity' in ml._fields:
+                qty += ml.reserved_quantity or 0.0
+            elif 'product_uom_qty' in ml._fields:
+                qty += ml.product_uom_qty or 0.0
+
+        if qty:
+            return qty
+
+        # Odoo 18 stock.move.quantity is commonly the ready/done quantity shown
+        # in operations. Some customizations only expose reserved_availability.
+        if 'quantity' in move._fields:
+            return move.quantity or 0.0
+        if 'reserved_availability' in move._fields:
+            return move.reserved_availability or 0.0
+        if 'availability' in move._fields:
+            return move.availability or 0.0
+        return 0.0
 
     def _systore_needs_pack_tracking_wizard(self):
         self.ensure_one()

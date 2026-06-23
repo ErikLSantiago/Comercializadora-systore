@@ -14,3 +14,9 @@ class ResConfigSettings(models.TransientModel):
         readonly=False,
         string='Almacenes con validación UPC/NS/IMEI en salida',
     )
+
+    systore_exclude_partial_pickings_from_batch = fields.Boolean(
+        related='company_id.systore_exclude_partial_pickings_from_batch',
+        readonly=False,
+        string='Excluir órdenes parciales de Batch Picking',
+    )

@@ -13,6 +13,9 @@
                     <setting string="Validación en salida/empaque" help="Seleccione únicamente los almacenes donde el personal debe validar UPC/EAN en PICK y capturar NS/IMEI y guía en PACK. Los almacenes no seleccionados no abrirán estos wizards.">
                         <field name="systore_upc_validation_warehouse_ids" widget="many2many_tags" options="{'no_create': True}"/>
                     </setting>
+                    <setting string="Excluir parciales de Batch Picking" help="Cuando esté activo, las recolecciones que no tengan todos sus productos disponibles/listos no se asignarán al Batch Picking. Aplica sobre los almacenes configurados en validación de salida/empaque.">
+                        <field name="systore_exclude_partial_pickings_from_batch"/>
+                    </setting>
                 </block>
             </xpath>
         </field>
