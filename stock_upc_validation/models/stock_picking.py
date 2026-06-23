@@ -17,25 +17,6 @@ class StockPicking(models.Model):
         readonly=True,
     )
 
-    def write(self, vals):
-        # Cuando se agregan traslados a un Batch Picking, permite excluir automáticamente
-        # las órdenes parciales sin bloquear la asignación del resto.
-        if vals.get('batch_id') and not self.env.context.get('systore_skip_partial_batch_filter'):
-            to_skip = self.filtered(lambda p: p._systore_should_exclude_from_batch())
-            to_write = self - to_skip
-            result = True
-            if to_write:
-                result = super(StockPicking, to_write.with_context(systore_skip_partial_batch_filter=True)).write(vals)
-            if to_skip:
-                batch = self.env['stock.picking.batch'].browse(vals.get('batch_id'))
-                if batch.exists() and hasattr(batch, 'message_post'):
-                    names = ', '.join(to_skip.mapped('name'))
-                    batch.message_post(body=_(
-                        'Se excluyeron las siguientes recolecciones del Batch Picking porque tienen productos parcialmente disponibles: %s'
-                    ) % names)
-            return result
-        return super().write(vals)
-
     def button_validate(self):
         # Recepción: primero conserva el flujo de registro UPC/EAN.
         # Recolección/Empaque: el wizard de UPC/EAN también puede capturar la guía,

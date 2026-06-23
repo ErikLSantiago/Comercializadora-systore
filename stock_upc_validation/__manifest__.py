@@ -1,6 +1,6 @@
 {
     'name': 'Stock UPC Validation',
-    'version': '18.0.1.9.0',
+    'version': '18.0.1.8.0',
     'summary': 'Validate UPC/EAN on stock receipts/picking, capture NS/IMEI, and tracking on pack operations.',
     'author': 'Systore',
     'license': 'LGPL-3',
