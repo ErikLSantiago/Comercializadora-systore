@@ -17,12 +17,19 @@ class ProductPoLotCostLine(models.Model):
     location_id = fields.Many2one('stock.location', string='Ubicación', readonly=True, index=True)
     warehouse_id = fields.Many2one('stock.warehouse', string='Almacén', readonly=True, index=True)
 
+    is_transit = fields.Boolean(string='En tránsito', readonly=True, index=True)
+    transit_state = fields.Selection([
+        ('stock', 'Stock'),
+        ('transit', 'Tránsito'),
+    ], string='Estado', default='stock', readonly=True, index=True)
+
     purchase_order_id = fields.Many2one("purchase.order", string="Orden de compra", index=True)
     purchase_order_line_id = fields.Many2one("purchase.order.line", string="Línea OC", index=True)
     vendor_id = fields.Many2one("res.partner", string="Proveedor", index=True)
     date_order = fields.Datetime(string="Fecha OC", index=True)
 
-    qty_available = fields.Float(string="Cantidad disponible", digits="Product Unit of Measure")
+    qty_available = fields.Float(string="Cantidad reporte", digits="Product Unit of Measure")
+    qty_on_hand = fields.Float(string="Piezas a la mano", digits="Product Unit of Measure", readonly=True)
     reserved_qty = fields.Float(string="Reservadas", digits="Product Unit of Measure", readonly=True)
     uom_id = fields.Many2one("uom.uom", string="UdM", readonly=True)
 
@@ -160,11 +167,41 @@ class ProductTemplate(models.Model):
 
         cache[key] = wh or False
         return cache[key]
-    def action_refresh_po_lot_cost(self):
-        """Rebuild lot/PO cost lines and warehouse summary for the selected product(s)."""
+    def _systore_refresh_po_lot_cost_no_reload(self):
+        """Rebuild report lines without returning a UI reload action.
+
+        Used by automatic hooks such as purchase.order.button_confirm.
+        """
         for rec in self:
             rec._action_refresh_po_lot_cost_single()
+        return True
+
+    def action_refresh_po_lot_cost(self):
+        """Rebuild lot/PO cost lines and warehouse summary for the selected product(s)."""
+        self._systore_refresh_po_lot_cost_no_reload()
         return {'type': 'ir.actions.client', 'tag': 'reload'}
+
+    def _get_move_pending_qty_in_product_uom(self, move, product):
+        """Return pending quantity from an incoming stock.move in product default UoM.
+
+        Odoo versions/customizations may expose done/reserved quantities with slightly
+        different technical fields. This helper keeps the module tolerant while using
+        the same purchase cost method: pending units * purchase.order.line.price_unit.
+        """
+        ordered_qty = move.product_uom_qty or 0.0
+
+        done_qty = 0.0
+        if 'quantity_done' in move._fields:
+            done_qty = move.quantity_done or 0.0
+        # En movimientos abiertos de recepción no descontamos reservas/asignaciones: lo
+        # relevante es lo pendiente de llegar. Si hubo recepción parcial, Odoo normalmente
+        # deja el movimiento abierto con la cantidad restante.
+
+        pending = max(ordered_qty - done_qty, 0.0)
+        move_uom = move.product_uom or product.uom_id
+        if move_uom and move_uom != product.uom_id:
+            pending = move_uom._compute_quantity(pending, product.uom_id)
+        return pending
 
     def _action_refresh_po_lot_cost_single(self):
         self.ensure_one()
@@ -322,17 +359,90 @@ class ProductTemplate(models.Model):
                 "product_id": product_id,
                 "lot_id": lot_id or False,
                 "location_id": location_id or False,
+                "warehouse_id": warehouse_id or False,
                 "purchase_order_id": purchase_order.id if purchase_order else False,
                 "purchase_order_line_id": po_line.id if po_line else False,
                 "vendor_id": vendor.id if vendor else False,
                 "date_order": date_order,
                 "qty_available": qty,
+                "qty_on_hand": max(qty - reserved, 0.0),
                 "reserved_qty": reserved,
                 "uom_id": product.uom_id.id,
                 "currency_id": currency.id if currency else company.currency_id.id,
                 "price_unit": price_unit,
+                "is_transit": False,
+                "transit_state": "stock",
                 "note": note,
             })
+
+        # Complemento: compras confirmadas pendientes de recibir.
+        # Se muestran como "Tránsito" tomando la ubicación destino del movimiento de recepción.
+        po_line_domain = [
+            ('order_id.state', 'in', ['purchase', 'done']),
+            ('order_id.company_id', '=', company.id),
+            ('product_id', 'in', self.product_variant_ids.ids),
+        ]
+        po_lines_pending = POLine.search(po_line_domain)
+        for po_line in po_lines_pending:
+            product = po_line.product_id
+            if not product:
+                continue
+
+            # Preferimos movimientos reales de recepción porque ahí está la ubicación destino.
+            pending_by_dest = {}  # (location_id, warehouse_id) -> qty pending in product.uom_id
+            moves = po_line.move_ids.filtered(lambda m: m.state not in ('done', 'cancel') and m.location_dest_id and m.location_dest_id.usage == 'internal')
+            for move in moves:
+                pending_qty = self._get_move_pending_qty_in_product_uom(move, product)
+                if pending_qty <= 0.0:
+                    continue
+                dest = move.location_dest_id
+                wh = self._get_warehouse_from_location(dest, company, Warehouse, cache=wh_cache) if dest else False
+                key = (dest.id if dest else False, wh.id if wh else False)
+                pending_by_dest[key] = pending_by_dest.get(key, 0.0) + pending_qty
+
+            # Fallback: si aún no hay movimientos de recepción, usamos qty pendiente de la línea
+            # y tratamos de resolver el almacén desde picking_type/default_location_dest_id.
+            if not pending_by_dest:
+                ordered_qty = po_line.product_uom._compute_quantity(po_line.product_qty or 0.0, product.uom_id) if po_line.product_uom and po_line.product_uom != product.uom_id else (po_line.product_qty or 0.0)
+                received_qty = po_line.product_uom._compute_quantity(po_line.qty_received or 0.0, product.uom_id) if po_line.product_uom and po_line.product_uom != product.uom_id else (po_line.qty_received or 0.0)
+                pending_qty = max(ordered_qty - received_qty, 0.0)
+                if pending_qty > 0.0:
+                    picking_type = po_line.order_id.picking_type_id
+                    dest = picking_type.default_location_dest_id if picking_type else False
+                    wh = picking_type.warehouse_id if picking_type and picking_type.warehouse_id else (self._get_warehouse_from_location(dest, company, Warehouse, cache=wh_cache) if dest else False)
+                    key = (dest.id if dest else False, wh.id if wh else False)
+                    pending_by_dest[key] = pending_by_dest.get(key, 0.0) + pending_qty
+
+            for (location_id, warehouse_id), pending_qty in pending_by_dest.items():
+                if pending_qty <= 0.0:
+                    continue
+                currency = po_line.currency_id or po_line.order_id.currency_id or company.currency_id
+                note = _('Compra confirmada pendiente de recibir')
+                if po_line.product_uom and po_line.product_uom != product.uom_id:
+                    note = _('%s. UdM OC: %s, UdM producto: %s') % (note, po_line.product_uom.display_name, product.uom_id.display_name)
+                lines_to_create.append({
+                    'company_id': company.id,
+                    'product_tmpl_id': self.id,
+                    'product_id': product.id,
+                    'lot_id': False,
+                    'location_id': location_id or False,
+                    'warehouse_id': warehouse_id or False,
+                    'purchase_order_id': po_line.order_id.id,
+                    'purchase_order_line_id': po_line.id,
+                    'vendor_id': po_line.order_id.partner_id.id if po_line.order_id.partner_id else False,
+                    'date_order': po_line.order_id.date_order,
+                    'qty_available': pending_qty,
+                    # En tránsito todavía no está físicamente a la mano.
+                    # La columna permite comparar lo pendiente contra lo realmente disponible.
+                    'qty_on_hand': 0.0,
+                    'reserved_qty': 0.0,
+                    'uom_id': product.uom_id.id,
+                    'currency_id': currency.id,
+                    'price_unit': po_line.price_unit or 0.0,
+                    'is_transit': True,
+                    'transit_state': 'transit',
+                    'note': note,
+                })
 
         created_lines = self.env["product.po.lot.cost.line"]
         if lines_to_create:
@@ -356,6 +466,8 @@ class ProductTemplate(models.Model):
                     if wh2:
                         wh_id = wh2.id
                         wh_name = wh2.display_name
+            if line.is_transit:
+                wh_name = _('%s / Tránsito') % (wh_name or 'Sin almacén')
             qty = line.qty_available or 0.0
             val = (line.qty_available or 0.0) * (line.price_unit or 0.0)
             if line.currency_id and line.currency_id != company_currency:
@@ -383,3 +495,46 @@ class ProductTemplate(models.Model):
             self.env["product.po.lot.cost.wh.summary"].sudo().create(summary_vals)
 
         return {"type": "ir.actions.client", "tag": "reload"}
+
+class PurchaseOrder(models.Model):
+    _inherit = "purchase.order"
+
+    def _systore_refresh_po_lot_cost_products(self):
+        """Refresh the PO/Lot cost report for products affected by this PO.
+
+        The report is stored on product.template, so after confirming a PO we
+        rebuild the related product lines to immediately show the new tránsito.
+        """
+        templates = self.mapped('order_line.product_id.product_tmpl_id')
+        if templates:
+            templates.sudo()._systore_refresh_po_lot_cost_no_reload()
+
+    def button_confirm(self):
+        res = super().button_confirm()
+        self._systore_refresh_po_lot_cost_products()
+        return res
+
+
+class PurchaseOrderLine(models.Model):
+    _inherit = "purchase.order.line"
+
+    @api.model_create_multi
+    def create(self, vals_list):
+        lines = super().create(vals_list)
+        confirmed_lines = lines.filtered(lambda l: l.order_id.state in ('purchase', 'done'))
+        templates = confirmed_lines.mapped('product_id.product_tmpl_id')
+        if templates:
+            templates.sudo()._systore_refresh_po_lot_cost_no_reload()
+        return lines
+
+    def write(self, vals):
+        old_templates = self.mapped('product_id.product_tmpl_id')
+        res = super().write(vals)
+        fields_that_affect_report = {'product_id', 'product_qty', 'qty_received', 'product_uom', 'price_unit', 'order_id'}
+        if fields_that_affect_report.intersection(vals):
+            lines = self.filtered(lambda l: l.order_id.state in ('purchase', 'done'))
+            templates = old_templates | lines.mapped('product_id.product_tmpl_id')
+            if templates:
+                templates.sudo()._systore_refresh_po_lot_cost_no_reload()
+        return res
+
