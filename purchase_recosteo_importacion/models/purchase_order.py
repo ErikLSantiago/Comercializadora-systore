@@ -42,7 +42,12 @@ class PurchaseOrder(models.Model):
             order.x_cost_bills_count = sum(bool(x) for x in [order.x_supplier_bill_id, order.x_shipping_bill_id, order.x_import_bill_id])
 
     def action_recostear(self):
-        """Impacta el costo unitario calculado (MXN) a price_unit nativo."""
+        """Impacta el costo unitario calculado (MXN) a price_unit nativo.
+
+        Si ya existen las facturas de costos generadas por este módulo, también
+        sincroniza sus importes. Cuando una factura está publicada, intenta
+        regresarla a borrador, actualizarla y publicarla nuevamente.
+        """
         for order in self:
             # Permitimos recostear incluso con mercancía recibida (según el flujo del usuario)
             # y en la práctica pueden ajustar el TC varias veces.
@@ -57,7 +62,119 @@ class PurchaseOrder(models.Model):
                     continue
                 line.price_unit = line.x_calc_price_mxn or 0.0
 
+            order._sync_cost_bills_after_recosteo()
+
         return True
+
+    def _get_cost_bill_amounts_and_lines(self):
+        """Prepara las líneas y totales actuales para las 3 facturas de costos."""
+        self.ensure_one()
+        supplier_lines = []
+        shipping_total = 0.0
+        import_total = 0.0
+
+        for line in self.order_line:
+            if line.display_type:
+                continue
+
+            qty = line.product_qty or 0.0
+            if qty <= 0:
+                continue
+
+            supplier_lines.append((0, 0, {
+                "product_id": line.product_id.id,
+                "name": line.name or line.product_id.display_name,
+                "quantity": qty,
+                "price_unit": line.x_gross_mxn or 0.0,
+                "tax_ids": [(6, 0, line.taxes_id.ids)] if line.taxes_id else [],
+            }))
+
+            shipping_total += qty * (line.x_ship_mxn or 0.0)
+            import_total += qty * (line.x_import_mxn or 0.0)
+
+        return supplier_lines, shipping_total, import_total
+
+    def _prepare_single_service_invoice_line(self, product, name, amount):
+        self.ensure_one()
+        return (0, 0, {
+            "product_id": product.id,
+            "name": name,
+            "quantity": 1.0,
+            "price_unit": amount,
+            "tax_ids": [(6, 0, product.supplier_taxes_id.ids)] if product.supplier_taxes_id else [],
+        })
+
+    def _ensure_cost_bill_can_be_reposted(self, bill):
+        """Valida que una factura publicada pueda ser reabierta de forma segura."""
+        if not bill or bill.state != "posted":
+            return
+
+        # Si existen pagos o conciliaciones, Odoo normalmente no permite regresar a borrador
+        # sin romper trazabilidad contable. En ese caso detenemos el recosteo con un mensaje claro.
+        if bill.payment_state in ("paid", "in_payment", "partial"):
+            raise UserError(_(
+                "La factura %(bill)s ya tiene pagos o conciliaciones (%(state)s). "
+                "No puede regresarse automáticamente a borrador para recostearse."
+            ) % {
+                "bill": bill.display_name,
+                "state": bill.payment_state,
+            })
+
+    def _rewrite_cost_bill_lines(self, bill, invoice_line_commands):
+        """Reemplaza las líneas de factura por los importes recalculados."""
+        bill.invoice_line_ids.unlink()
+        bill.write({"invoice_line_ids": invoice_line_commands})
+
+    def _update_cost_bill(self, bill, invoice_line_commands):
+        """Actualiza una factura de costo, aunque esté publicada, si Odoo lo permite."""
+        if not bill or bill.state == "cancel":
+            return
+
+        was_posted = bill.state == "posted"
+        if was_posted:
+            self._ensure_cost_bill_can_be_reposted(bill)
+            bill.button_draft()
+
+        self._rewrite_cost_bill_lines(bill, invoice_line_commands)
+
+        if was_posted:
+            bill.action_post()
+
+    def _sync_cost_bills_after_recosteo(self):
+        """Sincroniza las 3 facturas de costos generadas por el módulo tras recostear."""
+        for order in self:
+            bills = order.x_supplier_bill_id | order.x_shipping_bill_id | order.x_import_bill_id
+            if not bills:
+                continue
+
+            company = order.company_id
+            if order.x_shipping_bill_id and not company.x_product_shipping_id:
+                raise UserError(_("Configura el 'Producto de servicio Envío' en Ajustes antes de actualizar la factura de envío."))
+            if order.x_import_bill_id and not company.x_product_import_id:
+                raise UserError(_("Configura el 'Producto de servicio Importación' en Ajustes antes de actualizar la factura de importación."))
+
+            supplier_lines, shipping_total, import_total = order._get_cost_bill_amounts_and_lines()
+            if order.x_supplier_bill_id and not supplier_lines:
+                raise UserError(_("No hay líneas facturables en la orden para actualizar la factura de proveedor."))
+
+            if order.x_supplier_bill_id:
+                order._update_cost_bill(order.x_supplier_bill_id, supplier_lines)
+
+            if order.x_shipping_bill_id:
+                shipping_line = [order._prepare_single_service_invoice_line(
+                    company.x_product_shipping_id,
+                    _("Shipping - %s") % (order.name,),
+                    shipping_total,
+                )]
+                order._update_cost_bill(order.x_shipping_bill_id, shipping_line)
+
+            if order.x_import_bill_id:
+                import_line = [order._prepare_single_service_invoice_line(
+                    company.x_product_import_id,
+                    _("Import - %s") % (order.name,),
+                    import_total,
+                )]
+                order._update_cost_bill(order.x_import_bill_id, import_line)
 
     # -------------------------------------------------------------------------
     # Facturación separada (Opción 1): Proveedor / Envío / Importación
