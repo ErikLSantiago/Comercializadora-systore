@@ -1,0 +1,17 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <record id="view_stock_picking_batch_form_summary_button" model="ir.ui.view">
+        <field name="name">stock.picking.batch.form.summary.button</field>
+        <field name="model">stock.picking.batch</field>
+        <field name="inherit_id" ref="stock_picking_batch.stock_picking_batch_form"/>
+        <field name="arch" type="xml">
+            <xpath expr="//header" position="inside">
+                <button name="%(stock_upc_validation.action_report_stock_upc_batch_summary)d"
+                        string="Imprimir resumen"
+                        type="action"
+                        class="btn-secondary"
+                        icon="fa-print"/>
+            </xpath>
+        </field>
+    </record>
+</odoo>

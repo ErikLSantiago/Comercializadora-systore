@@ -1,5 +1,6 @@
 from . import models
 from . import wizard
+from . import report
 
 
 def _activate_defaults(env):

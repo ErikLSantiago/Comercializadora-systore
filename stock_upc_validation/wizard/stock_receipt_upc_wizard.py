@@ -24,6 +24,7 @@ class StockReceiptUPCWizard(models.TransientModel):
                 # Se deja vacío intencionalmente para obligar al operador a escanear/capturar
                 # el UPC/EAN en cada recepción, aunque el producto ya tenga códigos registrados.
                 'upc_ean': False,
+                'skip_upc_validation': False,
             }))
         return self.create({
             'picking_id': picking.id,
@@ -39,10 +40,25 @@ class StockReceiptUPCWizard(models.TransientModel):
             line._validate_quantity()
             line._validate_and_register_barcode()
 
+        self._post_skip_upc_message()
         self._apply_received_quantities()
         self._assign_origin_as_lot()
 
         return self.picking_id.with_context(systore_skip_upc_receipt_wizard=True).button_validate()
+
+    def _post_skip_upc_message(self):
+        self.ensure_one()
+        skipped_lines = self.line_ids.filtered('skip_upc_validation')
+        if not skipped_lines:
+            return
+
+        products = ''.join('<li>%s</li>' % line.product_id.display_name for line in skipped_lines)
+        body = _(
+            '<b>Validación UPC/EAN omitida</b><br/>'
+            'El usuario <b>%s</b> omitió la validación UPC/EAN para los siguientes productos:<ul>%s</ul>'
+            'Motivo: <b>El producto no cuenta con UPC/EAN.</b>'
+        ) % (self.env.user.display_name, products)
+        self.picking_id.sudo().message_post(body=body)
 
     def _apply_received_quantities(self):
         """Apply the quantity captured in the wizard to the receipt before validation.
@@ -142,6 +158,7 @@ class StockReceiptUPCWizardLine(models.TransientModel):
     demand_qty = fields.Float(string='Demanda', readonly=True)
     quantity = fields.Float(string='Cantidad')
     upc_ean = fields.Char(string='UPC/EAN')
+    skip_upc_validation = fields.Boolean(string='El producto no cuenta con UPC/EAN')
 
     def _validate_quantity(self):
         self.ensure_one()
@@ -157,6 +174,10 @@ class StockReceiptUPCWizardLine(models.TransientModel):
 
     def _validate_and_register_barcode(self):
         self.ensure_one()
+        if self.skip_upc_validation:
+            self.upc_ean = False
+            return True
+
         barcode = (self.upc_ean or '').strip()
         if not barcode:
             raise ValidationError(_('Debe capturar un UPC/EAN para %s.') % self.product_id.display_name)

@@ -15,16 +15,17 @@
                         <field name="tracking_ref" string="Número de guía" placeholder="Escanee o capture la guía" invisible="not require_tracking_on_pack"/>
                     </group>
                     <p class="text-muted">
-                        Escanee el UPC/EAN del producto físico. En operaciones de empaque, también capture el NS/IMEI y el sistema lo guardará en el registro alterno de números de serie.
+                        Escanee el UPC/EAN del producto físico. En operaciones de empaque, también capture el NS/IMEI. Si elimina líneas, sólo se procesarán las líneas restantes y Odoo conservará su flujo nativo de parcial/backorder.
                     </p>
                     <field name="line_ids" mode="list">
-                        <list editable="bottom" create="0" delete="0">
+                        <list editable="bottom" create="0" delete="1">
                             <field name="scan_no" string="#"/>
                             <field name="product_id"/>
                             <field name="lot_id" optional="hide" column_invisible="1"/>
                             <field name="demand_qty" string="Demanda"/>
-                            <field name="upc_ean" placeholder="Escanee UPC/EAN"/>
-                            <field name="serial_imei" string="NS/IMEI" placeholder="Escanee o capture NS/IMEI" column_invisible="not parent.require_serial_imei"/>
+                            <field name="upc_ean" placeholder="Escanee UPC/EAN" readonly="skip_upc_validation"/>
+                            <field name="skip_upc_validation" string="El producto no cuenta con UPC/EAN"/>
+                            <field name="serial_imei" string="NS/IMEI" placeholder="Escanee o capture NS/IMEI" column_invisible="not parent.require_serial_imei" readonly="skip_upc_validation"/>
                         </list>
                     </field>
                 </sheet>

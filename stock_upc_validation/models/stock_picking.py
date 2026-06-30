@@ -187,8 +187,16 @@ class StockPicking(models.Model):
             return False
         if not self._systore_upc_validation_enabled_for_warehouse():
             return False
-        if not self.picking_type_id.systore_require_upc_on_picking:
+
+        # Recolección/salida usan el check general de UPC/EAN.
+        # Empaque con guía debe abrir el wizard completo porque ahí también se captura
+        # UPC/EAN por pieza y NS/IMEI; si no, caería al wizard simple de sólo guía.
+        if not (
+            self.picking_type_id.systore_require_upc_on_picking
+            or self.picking_type_id.systore_require_tracking_on_pack
+        ):
             return False
+
         if self.systore_upc_picking_validated:
             return False
         if self.state in ('done', 'cancel'):
