@@ -25,3 +25,8 @@ Agrega una pestaña en **Producto** llamada **"Costos por Lote/OC"** que genera 
 - product
 - stock
 - purchase
+
+
+## 18.0.1.0.47
+- Agrega configuración Open Box en producto: ¿Es open box? y SKU Origen.
+- Para productos Open Box, el desglose por lote/OC toma la línea de compra del SKU origen y calcula el costo operativo con 15% de descuento.

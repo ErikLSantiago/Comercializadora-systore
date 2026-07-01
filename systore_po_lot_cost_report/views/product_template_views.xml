@@ -46,12 +46,18 @@
         <field name="arch" type="xml">
             <xpath expr="//page[@name='inventory']" position="after">
                 <page string="Costos por Lote/OC" name="po_lot_cost_report_page">
-                    <group>
-                        <button name="action_refresh_po_lot_cost"
-                                type="object"
-                                string="Actualizar"
-                                class="btn-primary"
-                                icon="fa-refresh"/>
+                    <group string="Configuración Open Box">
+                        <group>
+                            <field name="systore_is_open_box"/>
+                            <field name="systore_open_box_origin_sku" invisible="not systore_is_open_box" placeholder="Ej. MG7N4LL/A"/>
+                        </group>
+                        <group>
+                            <button name="action_refresh_po_lot_cost"
+                                    type="object"
+                                    string="Actualizar"
+                                    class="btn-primary"
+                                    icon="fa-refresh"/>
+                        </group>
                     </group>
 
                     <group>

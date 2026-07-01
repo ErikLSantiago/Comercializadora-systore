@@ -85,6 +85,15 @@ class ProductTemplate(models.Model):
         readonly=True,
     )
 
+    systore_is_open_box = fields.Boolean(
+        string="¿Es open box?",
+        help="Cuando está activo, el reporte toma el costo desde el SKU origen y aplica el descuento operativo de Open Box.",
+    )
+    systore_open_box_origin_sku = fields.Char(
+        string="SKU Origen",
+        help="SKU del producto original usado para localizar la línea de Orden de Compra y calcular el costo del Open Box.",
+    )
+
     po_lot_cost_wh_summary_ids = fields.One2many(
         'product.po.lot.cost.wh.summary',
         'product_tmpl_id',
@@ -167,6 +176,32 @@ class ProductTemplate(models.Model):
 
         cache[key] = wh or False
         return cache[key]
+
+    def _systore_get_open_box_origin_product(self):
+        """Return the origin product used to cost Open Box items.
+
+        Open Box SKUs do not appear in purchase orders. When the product is
+        marked as Open Box, we use SKU Origen to find the original product in
+        purchase.order.line and then apply a 15% discount to that purchase cost.
+        """
+        self.ensure_one()
+        if not self.systore_is_open_box:
+            return False
+        origin_sku = (self.systore_open_box_origin_sku or '').strip()
+        if not origin_sku:
+            return False
+        return self.env['product.product'].sudo().with_context(active_test=False).search([
+            ('default_code', '=', origin_sku),
+            ('company_id', 'in', [self.company_id.id if self.company_id else self.env.company.id, False]),
+        ], limit=1)
+
+    def _systore_apply_open_box_cost_rule(self, price_unit):
+        """Open Box operational cost rule: origin purchase cost less 15%."""
+        self.ensure_one()
+        if self.systore_is_open_box:
+            return (price_unit or 0.0) * 0.85
+        return price_unit or 0.0
+
     def _systore_refresh_po_lot_cost_no_reload(self):
         """Rebuild report lines without returning a UI reload action.
 
@@ -209,6 +244,7 @@ class ProductTemplate(models.Model):
             raise UserError(_("Este producto no tiene variantes para analizar existencias."))
 
         company = self.env.company
+        open_box_origin_product = self._systore_get_open_box_origin_product()
 
 
         wh_cache = {}
@@ -332,22 +368,36 @@ class ProductTemplate(models.Model):
                 purchase_order = PO.search([("name", "=", lot.name), ("company_id", "=", company.id)], limit=1)
 
                 if purchase_order:
+                    cost_lookup_product = open_box_origin_product if self.systore_is_open_box and open_box_origin_product else product
                     po_line = POLine.search([
                         ("order_id", "=", purchase_order.id),
-                        ("product_id", "=", product_id),
+                        ("product_id", "=", cost_lookup_product.id),
                     ], order="id desc", limit=1)
 
                     if po_line:
                         currency = po_line.currency_id or purchase_order.currency_id or currency
-                        price_unit = po_line.price_unit or 0.0
+                        price_unit = self._systore_apply_open_box_cost_rule(po_line.price_unit or 0.0)
                         vendor = purchase_order.partner_id
                         date_order = purchase_order.date_order
+                        notes = []
+                        if self.systore_is_open_box:
+                            if open_box_origin_product:
+                                notes.append(_("Open Box: costo tomado del SKU origen %s menos 15%%") % (open_box_origin_product.default_code or open_box_origin_product.display_name,))
+                            else:
+                                notes.append(_("Open Box: falta configurar SKU Origen válido"))
                         if po_line.product_uom and po_line.product_uom != product.uom_id:
-                            note = _("UdM OC: %s, UdM producto: %s (revisar conversión)") % (
+                            notes.append(_("UdM OC: %s, UdM producto: %s (revisar conversión)") % (
                                 po_line.product_uom.display_name, product.uom_id.display_name
-                            )
+                            ))
+                        note = ". ".join(notes) if notes else False
                     else:
-                        note = _("No se encontró línea de OC para este producto en %s") % (purchase_order.name,)
+                        if self.systore_is_open_box:
+                            if open_box_origin_product:
+                                note = _("Open Box: no se encontró línea de OC para el SKU origen %s en %s") % (open_box_origin_product.default_code or open_box_origin_product.display_name, purchase_order.name)
+                            else:
+                                note = _("Open Box: falta configurar SKU Origen válido")
+                        else:
+                            note = _("No se encontró línea de OC para este producto en %s") % (purchase_order.name,)
                 else:
                     note = _("No se encontró Orden de Compra con nombre = lote (%s)") % lot.name
             else:
