@@ -57,12 +57,13 @@
             <xpath expr="//notebook" position="inside">
                 <page string="Desglose costos" name="cost_breakdown">
                     <group col="2">
-                        <label for="x_exchange_rate" string="Tipo de cambio (TC)"/>
-                        <field name="x_exchange_rate"/>
+                        <field name="x_exchange_rate" string="Tipo de cambio (TC)"/>
+                        <field name="x_shipping_vendor_id" string="Proveedor logístico"/>
+                        <field name="x_import_vendor_id" string="Proveedor de importación"/>
                     </group>
                     <div class="text-muted" style="margin-top: 6px;">
                         Captura los costos unitarios en USD. El sistema los convierte a MXN usando el TC y suma la importación (MXN).
-                        Presiona <b>Recostear</b> para impactar el precio unitario nativo (MXN). Presiona <b>Generar 3 facturas</b> para crear las facturas (Proveedor/Envío/Importación).
+                        Presiona <b>Recostear</b> para impactar el precio unitario nativo (MXN). Presiona <b>Generar Facturas</b> para crear las facturas (Proveedor/Envío/Importación) con los proveedores seleccionados en esta orden.
                     </div>
 
                     <field name="order_line"

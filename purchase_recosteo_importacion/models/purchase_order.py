@@ -12,6 +12,28 @@ class PurchaseOrder(models.Model):
         help="Tipo de cambio USD→MXN utilizado para convertir costos capturados en USD a MXN.",
     )
 
+    x_shipping_vendor_id = fields.Many2one(
+        "res.partner",
+        string="Proveedor logístico",
+        default=lambda self: self.env.company.x_vendor_shipping_id,
+        check_company=True,
+        help="Proveedor al que se emitirá la factura agregada de envío para esta orden.",
+    )
+    x_import_vendor_id = fields.Many2one(
+        "res.partner",
+        string="Proveedor de importación",
+        default=lambda self: self.env.company.x_vendor_import_id,
+        check_company=True,
+        help="Proveedor al que se emitirá la factura agregada de importación para esta orden.",
+    )
+
+    @api.onchange("company_id")
+    def _onchange_company_id_cost_bill_vendors(self):
+        for order in self:
+            if order.company_id:
+                order.x_shipping_vendor_id = order.company_id.x_vendor_shipping_id
+                order.x_import_vendor_id = order.company_id.x_vendor_import_id
+
     x_supplier_bill_id = fields.Many2one(
         "account.move",
         string="Factura Proveedor",
@@ -45,8 +67,8 @@ class PurchaseOrder(models.Model):
         """Impacta el costo unitario calculado (MXN) a price_unit nativo.
 
         Si ya existen las facturas de costos generadas por este módulo, también
-        sincroniza sus importes. Cuando una factura está publicada, intenta
-        regresarla a borrador, actualizarla y publicarla nuevamente.
+        sincroniza únicamente las que continúen en borrador. Las facturas ya
+        confirmadas o canceladas se conservan sin cambios y no bloquean el recosteo.
         """
         for order in self:
             # Permitimos recostear incluso con mercancía recibida (según el flujo del usuario)
@@ -126,22 +148,19 @@ class PurchaseOrder(models.Model):
         bill.write({"invoice_line_ids": invoice_line_commands})
 
     def _update_cost_bill(self, bill, invoice_line_commands):
-        """Actualiza una factura de costo, aunque esté publicada, si Odoo lo permite."""
-        if not bill or bill.state == "cancel":
-            return
+        """Actualiza únicamente las facturas de costo que continúen en borrador.
 
-        was_posted = bill.state == "posted"
-        if was_posted:
-            self._ensure_cost_bill_can_be_reposted(bill)
-            bill.button_draft()
+        Una factura confirmada o cancelada se mantiene intacta. Esto permite que
+        las otras facturas del conjunto que aún estén en borrador sí se actualicen
+        durante el recosteo, sin intentar reabrir documentos contables publicados.
+        """
+        if not bill or bill.state != "draft":
+            return
 
         self._rewrite_cost_bill_lines(bill, invoice_line_commands)
 
-        if was_posted:
-            bill.action_post()
-
     def _sync_cost_bills_after_recosteo(self):
-        """Sincroniza las 3 facturas de costos generadas por el módulo tras recostear."""
+        """Sincroniza las facturas de costos que aún estén en borrador tras recostear."""
         for order in self:
             bills = order.x_supplier_bill_id | order.x_shipping_bill_id | order.x_import_bill_id
             if not bills:
@@ -193,10 +212,10 @@ class PurchaseOrder(models.Model):
             raise UserError(_("Ya existen facturas de costos generadas para esta orden. Revisa el botón 'Facturas de costos'."))
 
         company = self.company_id
-        if not company.x_vendor_shipping_id:
-            raise UserError(_("Configura el 'Vendor Envío' en Ajustes antes de generar la factura de envío."))
-        if not company.x_vendor_import_id:
-            raise UserError(_("Configura el 'Vendor Importación' en Ajustes antes de generar la factura de importación."))
+        if not self.x_shipping_vendor_id:
+            raise UserError(_("Selecciona el 'Proveedor logístico' en la orden antes de generar la factura de envío."))
+        if not self.x_import_vendor_id:
+            raise UserError(_("Selecciona el 'Proveedor de importación' en la orden antes de generar la factura de importación."))
         if not company.x_product_shipping_id:
             raise UserError(_("Configura el 'Producto de servicio Envío' en Ajustes antes de generar la factura de envío."))
         if not company.x_product_import_id:
@@ -247,7 +266,7 @@ class PurchaseOrder(models.Model):
         shipping_product = company.x_product_shipping_id
         shipping_bill = Move.create({
             "move_type": "in_invoice",
-            "partner_id": company.x_vendor_shipping_id.id,
+            "partner_id": self.x_shipping_vendor_id.id,
             "invoice_date": today,
             "currency_id": self.currency_id.id,
             "invoice_origin": self.name,
@@ -265,7 +284,7 @@ class PurchaseOrder(models.Model):
         import_product = company.x_product_import_id
         import_bill = Move.create({
             "move_type": "in_invoice",
-            "partner_id": company.x_vendor_import_id.id,
+            "partner_id": self.x_import_vendor_id.id,
             "invoice_date": today,
             "currency_id": self.currency_id.id,
             "invoice_origin": self.name,

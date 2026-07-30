@@ -6,13 +6,13 @@ class ResCompany(models.Model):
 
     x_vendor_shipping_id = fields.Many2one(
         "res.partner",
-        string="Vendor Envío",
-        help="Proveedor/Contacto a quien se le facturará el costo de envío agregado.",
+        string="Proveedor logístico",
+        help="Proveedor logístico predeterminado para las nuevas órdenes de compra. Puede cambiarse en cada orden antes de generar las facturas.",
     )
     x_vendor_import_id = fields.Many2one(
         "res.partner",
-        string="Vendor Importación",
-        help="Proveedor/Contacto a quien se le facturará el costo de importación agregado.",
+        string="Proveedor de importación",
+        help="Proveedor de importación predeterminado para las nuevas órdenes de compra. Puede cambiarse en cada orden antes de generar las facturas.",
     )
 
     x_product_shipping_id = fields.Many2one(

@@ -8,9 +8,9 @@
             <!-- Compatible layout: insert a group inside the standard settings sheet -->
             <xpath expr="//form" position="inside">
                 <group string="Facturación de costos (Proveedor / Envío / Importación)" name="purchase_recosteo_cost_bills">
-                    <field name="x_vendor_shipping_id"/>
+                    <field name="x_vendor_shipping_id" string="Proveedor logístico"/>
                     <field name="x_product_shipping_id"/>
-                    <field name="x_vendor_import_id"/>
+                    <field name="x_vendor_import_id" string="Proveedor de importación"/>
                     <field name="x_product_import_id"/>
                 </group>
             </xpath>
