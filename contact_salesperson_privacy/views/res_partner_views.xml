@@ -1,0 +1,16 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <record id="view_partner_form_contact_privacy" model="ir.ui.view">
+        <field name="name">res.partner.form.contact.privacy</field>
+        <field name="model">res.partner</field>
+        <field name="inherit_id" ref="base.view_partner_form"/>
+        <field name="arch" type="xml">
+            <xpath expr="//sheet/notebook" position="before">
+                <group string="Privacidad de contacto" groups="contact_salesperson_privacy.group_contact_privacy_all">
+                    <field name="user_id" string="Vendedor responsable"/>
+                    <field name="contact_allowed_user_ids" widget="many2many_tags" options="{'no_create': True}"/>
+                </group>
+            </xpath>
+        </field>
+    </record>
+</odoo>

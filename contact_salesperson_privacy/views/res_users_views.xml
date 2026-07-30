@@ -1,0 +1,19 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <record id="view_users_form_contact_privacy_note" model="ir.ui.view">
+        <field name="name">res.users.form.contact.privacy.note</field>
+        <field name="model">res.users</field>
+        <field name="inherit_id" ref="base.view_users_form"/>
+        <field name="arch" type="xml">
+            <xpath expr="//page[@name='access_rights']" position="inside">
+                <group string="Ayuda: privacidad de contactos" groups="base.group_system">
+                    <div class="text-muted">
+                        Seleccione en Derechos de acceso el perfil “Restringido” para vendedores
+                        o “Alfa” para usuarios que deban consultar toda la base de contactos.
+                    </div>
+                </group>
+            </xpath>
+        </field>
+    </record>
+</odoo>
+

@@ -1,0 +1,39 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <record id="module_category_contact_privacy" model="ir.module.category">
+        <field name="name">Privacidad de contactos</field>
+        <field name="description">Define el alcance de contactos para cada usuario.</field>
+        <field name="sequence">35</field>
+    </record>
+
+    <record id="group_contact_privacy_restricted" model="res.groups">
+        <field name="name">Restringido: solo contactos asignados</field>
+        <field name="category_id" ref="module_category_contact_privacy"/>
+        <field name="implied_ids" eval="[(4, ref('base.group_user'))]"/>
+        <field name="comment">Solo permite consultar contactos no restringidos o asignados al usuario.</field>
+    </record>
+
+    <record id="group_contact_privacy_all" model="res.groups">
+        <field name="name">Alfa: todos los contactos</field>
+        <field name="category_id" ref="module_category_contact_privacy"/>
+        <field name="implied_ids" eval="[(4, ref('group_contact_privacy_restricted'))]"/>
+        <field name="comment">Permite consultar todos los contactos conforme a las reglas normales de Odoo.</field>
+    </record>
+
+    <record id="rule_partner_salesperson_privacy" model="ir.rule">
+        <field name="name">Contactos: exclusivamente asignados</field>
+        <field name="model_id" ref="base.model_res_partner"/>
+        <field name="domain_force">[(1, '=', 1)] if not user.has_group('contact_salesperson_privacy.group_contact_privacy_restricted') or user.has_group('contact_salesperson_privacy.group_contact_privacy_all') else [
+            '|', '|', '|', '|',
+            ('user_id', '=', user.id),
+            ('contact_allowed_user_ids', 'in', [user.id]),
+            ('commercial_partner_id.user_id', '=', user.id),
+            ('commercial_partner_id.contact_allowed_user_ids', 'in', [user.id]),
+            ('id', '=', user.partner_id.id)
+        ]</field>
+        <field name="perm_read" eval="True"/>
+        <field name="perm_write" eval="True"/>
+        <field name="perm_create" eval="True"/>
+        <field name="perm_unlink" eval="True"/>
+    </record>
+</odoo>
