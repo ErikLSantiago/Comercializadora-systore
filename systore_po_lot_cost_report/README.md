@@ -40,3 +40,12 @@ Agrega una pestaña en **Producto** llamada **"Costos por Lote/OC"** que genera 
 - Las líneas en Tránsito muestran 0 días y no tienen Fecha de ingreso hasta que exista recepción.
 - Los productos Open Box buscan la recepción del SKU Origen usando el mismo nombre de lote, conservando la antigüedad de la mercancía original.
 - Al validar una recepción Proveedor → Interno, el reporte se refresca automáticamente para retirar Tránsito y comenzar a mostrar la antigüedad real.
+
+
+## v18.0.1.0.49 - Días en ubicación
+
+- Añade la columna **Días en ubicación** al desglose por Lote/OC.
+- El contador mide desde cuándo el lote mantiene existencia positiva de forma continua en la ubicación actual.
+- Entradas parciales adicionales no reinician el contador. Si el lote sale completamente y vuelve a entrar, el contador comienza de nuevo.
+- Las transferencias que tocan ubicaciones internas refrescan automáticamente el reporte.
+- **Días en inventario** permanece independiente y continúa contando desde la primera recepción Proveedor → Interno.

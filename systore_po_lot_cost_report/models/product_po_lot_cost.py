@@ -39,6 +39,18 @@ class ProductPoLotCostLine(models.Model):
         store=False,
         help="Días transcurridos desde la primera recepción validada desde Proveedor hacia una ubicación interna. En tránsito se muestra 0.",
     )
+    location_since_date = fields.Date(
+        string="Desde ubicación",
+        readonly=True,
+        index=True,
+        help="Fecha desde la que el lote mantiene existencia positiva de forma continua en la ubicación actual.",
+    )
+    location_days = fields.Integer(
+        string="Días en ubicación",
+        compute="_compute_location_days",
+        store=False,
+        help="Días que el lote ha permanecido de forma continua en la ubicación actual. Una entrada parcial adicional no reinicia el contador; si el lote sale completamente y vuelve a entrar, el contador comienza de nuevo.",
+    )
 
     qty_available = fields.Float(string="Cantidad reporte", digits="Product Unit of Measure")
     qty_on_hand = fields.Float(string="Piezas a la mano", digits="Product Unit of Measure", readonly=True)
@@ -69,6 +81,15 @@ class ProductPoLotCostLine(models.Model):
                 continue
             today = fields.Date.context_today(rec)
             rec.inventory_days = max((today - rec.inventory_entry_date).days, 0)
+
+    @api.depends("location_since_date", "is_transit")
+    def _compute_location_days(self):
+        for rec in self:
+            if rec.is_transit or not rec.location_since_date:
+                rec.location_days = 0
+                continue
+            today = fields.Date.context_today(rec)
+            rec.location_days = max((today - rec.location_since_date).days, 0)
 
 
 class ProductPoLotCostWarehouseSummary(models.Model):
@@ -284,6 +305,89 @@ class ProductTemplate(models.Model):
         # user's timezone so a receipt around midnight is displayed consistently.
         return fields.Datetime.context_timestamp(self, first_dt).date()
 
+    def _systore_get_location_since_date(self, lot, product, location, current_qty):
+        """Return the start date of the current continuous stay in ``location``.
+
+        Starting from the quantity that exists now for the product/lot/location, we
+        replay completed move lines backwards.  The relevant date is the inbound
+        movement that changed the historical balance from zero (or negative) to
+        positive for the *current* uninterrupted stay.  Therefore:
+
+        * a later partial inbound does not reset the age while older units remain;
+        * a transfer that empties the lot from the location ends that stay; and
+        * when the lot returns later, the counter starts from the new inbound date.
+
+        This is intentionally independent from the PO.  The PO determines the global
+        inventory age, while the stock movement history determines location age.
+        """
+        self.ensure_one()
+        if not lot or not product or not location or not current_qty or current_qty <= 0:
+            return False
+
+        company = self.company_id or self.env.company
+        MoveLine = self.env['stock.move.line'].sudo()
+        domain = [
+            ('state', '=', 'done'),
+            ('company_id', 'in', [company.id, False]),
+            ('product_id', '=', product.id),
+            ('lot_id', '=', lot.id),
+            '|',
+                ('location_id', '=', location.id),
+                ('location_dest_id', '=', location.id),
+        ]
+        if 'quantity_product_uom' in MoveLine._fields:
+            domain.insert(4, ('quantity_product_uom', '>', 0.0))
+
+        move_lines = MoveLine.search(domain, order='date desc, id desc')
+        if not move_lines:
+            # Defensive fallback for historical migrations that recreated lot records
+            # while preserving the visible lot name.
+            fallback_domain = [
+                ('state', '=', 'done'),
+                ('company_id', 'in', [company.id, False]),
+                ('product_id', '=', product.id),
+                ('lot_id.name', '=', lot.name),
+                '|',
+                    ('location_id', '=', location.id),
+                    ('location_dest_id', '=', location.id),
+            ]
+            if 'quantity_product_uom' in MoveLine._fields:
+                fallback_domain.insert(4, ('quantity_product_uom', '>', 0.0))
+            move_lines = MoveLine.search(fallback_domain, order='date desc, id desc')
+
+        qty_after = float(current_qty)
+        rounding = product.uom_id.rounding or 0.01
+        epsilon = rounding / 2.0
+
+        for ml in move_lines:
+            if 'quantity_product_uom' in ml._fields:
+                qty = ml.quantity_product_uom or 0.0
+            else:
+                qty = ml.product_uom_id._compute_quantity(ml.quantity or 0.0, product.uom_id)
+            if qty <= 0.0:
+                continue
+
+            entered = ml.location_dest_id.id == location.id and ml.location_id.id != location.id
+            left = ml.location_id.id == location.id and ml.location_dest_id.id != location.id
+            if not entered and not left:
+                continue
+
+            if entered:
+                qty_before = qty_after - qty
+                # This inbound movement started the current uninterrupted positive
+                # balance in the location.
+                if qty_after > epsilon and qty_before <= epsilon:
+                    event_dt = ml.date or (ml.picking_id.date_done if ml.picking_id else False)
+                    if event_dt:
+                        event_dt = fields.Datetime.to_datetime(event_dt)
+                        return fields.Datetime.context_timestamp(self, event_dt).date()
+                qty_after = qty_before
+            elif left:
+                # Going backwards, an outbound movement adds the quantity back.
+                qty_after += qty
+
+        return False
+
     def _systore_refresh_po_lot_cost_no_reload(self):
         """Rebuild report lines without returning a UI reload action.
 
@@ -331,6 +435,7 @@ class ProductTemplate(models.Model):
 
         wh_cache = {}
         entry_date_cache = {}  # (lot_name, lookup_product_id, purchase_order_id) -> date/False
+        location_since_cache = {}  # (lot_id, product_id, location_id, rounded_current_qty) -> date/False
         # Limpiar líneas previas para evitar duplicados/histórico en cada actualización
         self.po_lot_cost_line_ids.sudo().unlink()
         self.po_lot_cost_wh_summary_ids.sudo().unlink()
@@ -446,6 +551,7 @@ class ProductTemplate(models.Model):
             vendor = False
             date_order = False
             inventory_entry_date = False
+            location_since_date = False
             note = False
 
             if lot and lot.name:
@@ -504,6 +610,23 @@ class ProductTemplate(models.Model):
                     missing_entry_note = _("No se encontró una recepción validada Proveedor → Interno para calcular antigüedad")
                     note = ". ".join([n for n in [note, missing_entry_note] if n])
 
+                if location_id:
+                    current_location = self.env['stock.location'].browse(location_id)
+                    loc_cache_key = (
+                        lot.id,
+                        product.id,
+                        current_location.id,
+                        round(qty, 6),
+                    )
+                    if loc_cache_key not in location_since_cache:
+                        location_since_cache[loc_cache_key] = self._systore_get_location_since_date(
+                            lot, product, current_location, qty
+                        )
+                    location_since_date = location_since_cache[loc_cache_key]
+                    if not location_since_date:
+                        missing_loc_note = _("No se encontró historial suficiente para calcular días en la ubicación actual")
+                        note = ". ".join([n for n in [note, missing_loc_note] if n])
+
             lines_to_create.append({
                 "company_id": company.id,
                 "product_tmpl_id": self.id,
@@ -516,6 +639,7 @@ class ProductTemplate(models.Model):
                 "vendor_id": vendor.id if vendor else False,
                 "date_order": date_order,
                 "inventory_entry_date": inventory_entry_date,
+                "location_since_date": location_since_date,
                 "qty_available": qty,
                 "qty_on_hand": max(qty - reserved, 0.0),
                 "reserved_qty": reserved,
@@ -585,6 +709,7 @@ class ProductTemplate(models.Model):
                     'date_order': po_line.order_id.date_order,
                     # Todavía no ha ingresado físicamente: no inicia antigüedad.
                     'inventory_entry_date': False,
+                    'location_since_date': False,
                     'qty_available': pending_qty,
                     # En tránsito todavía no está físicamente a la mano.
                     # La columna permite comparar lo pendiente contra lo realmente disponible.
@@ -655,25 +780,28 @@ class StockPicking(models.Model):
     _inherit = "stock.picking"
 
     def _action_done(self):
-        """Refresh the report after a Vendor -> Internal receipt is completed.
+        """Refresh the report after any completed transfer touching internal stock.
 
-        This keeps tránsito and inventory age synchronized immediately after the
-        receipt is validated. A savepoint protects the core stock validation flow:
-        a report-refresh issue must not invalidate the warehouse operation itself.
+        Receipts update Tránsito and global inventory age. Internal transfers update
+        the current location and restart location age only when the lot had actually
+        left the destination before returning. Deliveries also refresh the report so
+        quantities/locations do not remain stale.
+
+        A savepoint protects the core stock validation flow: the operational report
+        must never block a warehouse transfer.
         """
-        incoming_templates = self.move_ids.filtered(
-            lambda m: m.location_id.usage == 'supplier' and m.location_dest_id.usage == 'internal'
+        affected_templates = self.move_ids.filtered(
+            lambda m: m.location_id.usage == 'internal' or m.location_dest_id.usage == 'internal'
         ).mapped('product_id.product_tmpl_id')
 
         res = super()._action_done()
 
-        if incoming_templates:
+        if affected_templates:
             try:
                 with self.env.cr.savepoint():
-                    incoming_templates.sudo()._systore_refresh_po_lot_cost_no_reload()
+                    affected_templates.sudo()._systore_refresh_po_lot_cost_no_reload()
             except Exception:
-                # The operational report must never block a validated stock receipt.
-                _logger.exception("Could not refresh PO/Lot cost report after receipt validation")
+                _logger.exception("Could not refresh PO/Lot cost report after stock transfer validation")
         return res
 
 
