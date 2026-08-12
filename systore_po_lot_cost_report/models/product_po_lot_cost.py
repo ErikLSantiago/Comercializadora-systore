@@ -1,6 +1,11 @@
 # -*- coding: utf-8 -*-
+import logging
+
 from odoo import api, fields, models, _
 from odoo.exceptions import UserError
+
+
+_logger = logging.getLogger(__name__)
 
 
 class ProductPoLotCostLine(models.Model):
@@ -27,6 +32,13 @@ class ProductPoLotCostLine(models.Model):
     purchase_order_line_id = fields.Many2one("purchase.order.line", string="Línea OC", index=True)
     vendor_id = fields.Many2one("res.partner", string="Proveedor", index=True)
     date_order = fields.Datetime(string="Fecha OC", index=True)
+    inventory_entry_date = fields.Date(string="Fecha de ingreso", readonly=True, index=True)
+    inventory_days = fields.Integer(
+        string="Días en inventario",
+        compute="_compute_inventory_days",
+        store=False,
+        help="Días transcurridos desde la primera recepción validada desde Proveedor hacia una ubicación interna. En tránsito se muestra 0.",
+    )
 
     qty_available = fields.Float(string="Cantidad reporte", digits="Product Unit of Measure")
     qty_on_hand = fields.Float(string="Piezas a la mano", digits="Product Unit of Measure", readonly=True)
@@ -49,7 +61,14 @@ class ProductPoLotCostLine(models.Model):
         for rec in self:
             rec.value_subtotal = (rec.qty_available or 0.0) * (rec.price_unit or 0.0)
 
-
+    @api.depends("inventory_entry_date", "is_transit")
+    def _compute_inventory_days(self):
+        for rec in self:
+            if rec.is_transit or not rec.inventory_entry_date:
+                rec.inventory_days = 0
+                continue
+            today = fields.Date.context_today(rec)
+            rec.inventory_days = max((today - rec.inventory_entry_date).days, 0)
 
 
 class ProductPoLotCostWarehouseSummary(models.Model):
@@ -202,6 +221,69 @@ class ProductTemplate(models.Model):
             return (price_unit or 0.0) * 0.85
         return price_unit or 0.0
 
+    def _systore_get_first_inventory_entry_date(self, lot, product, purchase_order=False):
+        """Return the first validated Vendor -> Internal receipt date for a lot/product.
+
+        The current warehouse is intentionally ignored: once the merchandise enters
+        an internal location, later internal transfers must not reset its age.
+
+        For Open Box, ``product`` is the configured origin SKU and the lookup is done
+        by lot *name*, not lot record id. This lets an Open Box lot keep the age of the
+        original purchased SKU even when the transformation creates another stock.lot
+        record for the new product.
+        """
+        self.ensure_one()
+        if not lot or not lot.name or not product:
+            return False
+
+        company = self.company_id or self.env.company
+        MoveLine = self.env['stock.move.line'].sudo()
+        Move = self.env['stock.move'].sudo()
+
+        base_domain = [
+            ('state', '=', 'done'),
+            ('company_id', 'in', [company.id, False]),
+            ('product_id', '=', product.id),
+            ('lot_id.name', '=', lot.name),
+            ('location_id.usage', '=', 'supplier'),
+            ('location_dest_id.usage', '=', 'internal'),
+        ]
+
+        move_lines = MoveLine.browse([])
+        # When purchase_stock is present, this makes the PO relationship explicit.
+        # We keep a fallback without it for historical/custom receipts where that
+        # relation may not have been preserved.
+        if purchase_order and 'purchase_line_id' in Move._fields:
+            move_lines = MoveLine.search(base_domain + [
+                ('move_id.purchase_line_id.order_id', '=', purchase_order.id),
+            ])
+        if not move_lines:
+            move_lines = MoveLine.search(base_domain)
+
+        first_dt = False
+        for ml in move_lines:
+            candidate = False
+            picking = ml.picking_id
+            if picking and 'date_done' in picking._fields and picking.date_done:
+                candidate = picking.date_done
+            elif 'date' in ml._fields and ml.date:
+                candidate = ml.date
+            elif ml.move_id and 'date' in ml.move_id._fields and ml.move_id.date:
+                candidate = ml.move_id.date
+
+            if not candidate:
+                continue
+            candidate = fields.Datetime.to_datetime(candidate)
+            if not first_dt or candidate < first_dt:
+                first_dt = candidate
+
+        if not first_dt:
+            return False
+
+        # Store only the calendar date shown to the user; convert using the active
+        # user's timezone so a receipt around midnight is displayed consistently.
+        return fields.Datetime.context_timestamp(self, first_dt).date()
+
     def _systore_refresh_po_lot_cost_no_reload(self):
         """Rebuild report lines without returning a UI reload action.
 
@@ -248,6 +330,7 @@ class ProductTemplate(models.Model):
 
 
         wh_cache = {}
+        entry_date_cache = {}  # (lot_name, lookup_product_id, purchase_order_id) -> date/False
         # Limpiar líneas previas para evitar duplicados/histórico en cada actualización
         self.po_lot_cost_line_ids.sudo().unlink()
         self.po_lot_cost_wh_summary_ids.sudo().unlink()
@@ -362,6 +445,7 @@ class ProductTemplate(models.Model):
             price_unit = 0.0
             vendor = False
             date_order = False
+            inventory_entry_date = False
             note = False
 
             if lot and lot.name:
@@ -403,6 +487,23 @@ class ProductTemplate(models.Model):
             else:
                 note = _("Sin lote: no se puede ligar a OC (por estándar: lote=PO)")
 
+            if lot and lot.name:
+                entry_lookup_product = open_box_origin_product if self.systore_is_open_box and open_box_origin_product else product
+                cache_key = (
+                    lot.name,
+                    entry_lookup_product.id if entry_lookup_product else False,
+                    purchase_order.id if purchase_order else False,
+                )
+                if cache_key not in entry_date_cache:
+                    entry_date_cache[cache_key] = self._systore_get_first_inventory_entry_date(
+                        lot, entry_lookup_product, purchase_order=purchase_order
+                    )
+                inventory_entry_date = entry_date_cache[cache_key]
+
+                if not inventory_entry_date:
+                    missing_entry_note = _("No se encontró una recepción validada Proveedor → Interno para calcular antigüedad")
+                    note = ". ".join([n for n in [note, missing_entry_note] if n])
+
             lines_to_create.append({
                 "company_id": company.id,
                 "product_tmpl_id": self.id,
@@ -414,6 +515,7 @@ class ProductTemplate(models.Model):
                 "purchase_order_line_id": po_line.id if po_line else False,
                 "vendor_id": vendor.id if vendor else False,
                 "date_order": date_order,
+                "inventory_entry_date": inventory_entry_date,
                 "qty_available": qty,
                 "qty_on_hand": max(qty - reserved, 0.0),
                 "reserved_qty": reserved,
@@ -481,6 +583,8 @@ class ProductTemplate(models.Model):
                     'purchase_order_line_id': po_line.id,
                     'vendor_id': po_line.order_id.partner_id.id if po_line.order_id.partner_id else False,
                     'date_order': po_line.order_id.date_order,
+                    # Todavía no ha ingresado físicamente: no inicia antigüedad.
+                    'inventory_entry_date': False,
                     'qty_available': pending_qty,
                     # En tránsito todavía no está físicamente a la mano.
                     # La columna permite comparar lo pendiente contra lo realmente disponible.
@@ -545,6 +649,33 @@ class ProductTemplate(models.Model):
             self.env["product.po.lot.cost.wh.summary"].sudo().create(summary_vals)
 
         return {"type": "ir.actions.client", "tag": "reload"}
+
+
+class StockPicking(models.Model):
+    _inherit = "stock.picking"
+
+    def _action_done(self):
+        """Refresh the report after a Vendor -> Internal receipt is completed.
+
+        This keeps tránsito and inventory age synchronized immediately after the
+        receipt is validated. A savepoint protects the core stock validation flow:
+        a report-refresh issue must not invalidate the warehouse operation itself.
+        """
+        incoming_templates = self.move_ids.filtered(
+            lambda m: m.location_id.usage == 'supplier' and m.location_dest_id.usage == 'internal'
+        ).mapped('product_id.product_tmpl_id')
+
+        res = super()._action_done()
+
+        if incoming_templates:
+            try:
+                with self.env.cr.savepoint():
+                    incoming_templates.sudo()._systore_refresh_po_lot_cost_no_reload()
+            except Exception:
+                # The operational report must never block a validated stock receipt.
+                _logger.exception("Could not refresh PO/Lot cost report after receipt validation")
+        return res
+
 
 class PurchaseOrder(models.Model):
     _inherit = "purchase.order"
