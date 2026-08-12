@@ -11,6 +11,7 @@
                 <field name="lot_id"/>
                 <field name="warehouse_id"/>
                 <field name="location_id"/>
+                <field name="location_days"/>
                 <field name="product_id"/>
                 <field name="qty_available"/>
                 <field name="qty_on_hand"/>
@@ -81,7 +82,7 @@
 
                     <p class="text-muted" style="margin-top: 8px;">
                         Este reporte es <b>operativo</b>: toma la cantidad disponible por lote (stock.quant), agrega compras confirmadas pendientes de recibir como <b>Tránsito</b>, usa el costo actual de la OC
-                        (purchase.order.line.price_unit) y calcula la antigüedad desde la primera recepción validada de <b>Proveedor → Interno</b>. Los movimientos internos posteriores no reinician los días. No revaloriza ni modifica asientos contables.
+                        (purchase.order.line.price_unit), calcula los <b>Días en inventario</b> desde la primera recepción validada de <b>Proveedor → Interno</b> y los <b>Días en ubicación</b> desde que el lote mantiene existencia positiva de forma continua en su ubicación actual. No revaloriza ni modifica asientos contables.
                     </p>
                 </page>
             </xpath>
