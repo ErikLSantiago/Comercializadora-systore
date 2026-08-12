@@ -30,3 +30,13 @@ Agrega una pestaña en **Producto** llamada **"Costos por Lote/OC"** que genera 
 ## 18.0.1.0.47
 - Agrega configuración Open Box en producto: ¿Es open box? y SKU Origen.
 - Para productos Open Box, el desglose por lote/OC toma la línea de compra del SKU origen y calcula el costo operativo con 15% de descuento.
+
+
+## 18.0.1.0.48
+- Agrega **Fecha de ingreso** al desglose por Lote/OC.
+- Agrega **Días en inventario**, calculados dinámicamente contra la fecha actual.
+- La fecha base es la primera recepción validada desde una ubicación de proveedor hacia una ubicación interna.
+- Los traslados entre almacenes no reinician la antigüedad.
+- Las líneas en Tránsito muestran 0 días y no tienen Fecha de ingreso hasta que exista recepción.
+- Los productos Open Box buscan la recepción del SKU Origen usando el mismo nombre de lote, conservando la antigüedad de la mercancía original.
+- Al validar una recepción Proveedor → Interno, el reporte se refresca automáticamente para retirar Tránsito y comenzar a mostrar la antigüedad real.
