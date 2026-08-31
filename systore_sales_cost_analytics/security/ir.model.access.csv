@@ -1,0 +1,4 @@
+id,name,model_id:id,group_id:id,perm_read,perm_write,perm_create,perm_unlink
+access_systore_sales_cost_line_user,systore.sales.cost.line user,model_systore_sales_cost_line,base.group_user,1,0,0,0
+access_systore_sales_cost_line_manager,systore.sales.cost.line manager,model_systore_sales_cost_line,account.group_account_manager,1,1,1,1
+access_systore_sales_cost_rebuild_wizard,systore.sales.cost.rebuild.wizard,model_systore_sales_cost_rebuild_wizard,account.group_account_manager,1,1,1,1
