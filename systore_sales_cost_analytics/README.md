@@ -1,39 +1,29 @@
-# Systore - Analítica Ventas, Facturación y Costos (Odoo 18)
+# Systore Analytics - Ventas, Facturación y Costos
 
-Primera versión del motor analítico que consolida:
+Versión 18.0.1.0.1 para Odoo 18.
 
-1. Facturación (`account.move` / `account.move.line`).
-2. Ventas y movimientos físicos (`sale.order`, `stock.move.line`).
-3. Lote usado para surtir la operación (`stock.lot`).
-4. Compra y costo (`purchase.order`, `purchase.order.line`).
+## Objetivo
 
-## Reglas implementadas
+Consolidar en una sola línea analítica la factura, la orden/origen de venta, los datos comerciales de `sale.order`, el movimiento físico por lote y el costo de la orden de compra asociada.
 
-- **Orden base**: extrae `PR-#########`; si no existe ese patrón, usa los primeros 12 caracteres del origen.
-- **Code Orden**: `Orden base + SKU` para auditoría/fallback.
-- **Code Cost**: `Lote + SKU` para auditoría/fallback.
-- Prioriza relaciones nativas `account.move.line -> sale_line_ids -> stock.move -> stock.move.line`.
-- Si no existe relación nativa, busca por **Orden base + SKU**.
-- La OC se resuelve con la regla operativa actual **`lote.name == purchase.order.name`**.
-- Si está instalado el módulo de costo por lote y el producto es Open Box, reconoce sus campos y aplica la regla de costo del SKU origen menos 15%.
-- Cuenta contable configurable como **Venta**, **Tránsito / devolución bruta** u **Otro**.
-- La devolución contable (cuenta de tránsito) se mantiene separada del retorno físico desde una ubicación cliente.
+## Conciliación
 
-## Medidas
+- Orden base: patrón `PR-#########` (fallback: primeros 12 caracteres).
+- Factura ↔ movimiento: relación nativa de Odoo; fallback por Orden base + SKU.
+- Movimiento ↔ compra: Lote + SKU, bajo la regla operativa donde el nombre del lote coincide con el nombre de la OC.
+- Estado de venta: `Devolución` cuando la cuenta está clasificada como `Tránsito / devolución bruta`; en los demás casos `Venta`.
 
-- Venta contable = crédito - débito.
-- Venta asignada = venta contable distribuida entre los lotes/movimientos de la línea facturada.
-- Costo asignado = costo unitario convertido a moneda de compañía × cantidad conciliada.
-- Utilidad y margen.
+## Cambios 18.0.1.0.1
 
-## Uso inicial sugerido
+- Añade `Orden de venta / Origen` tomada del movimiento/picking, con fallback al origen de factura.
+- Añade `Canal de venta` desde `sale.order.x_studio_canal_venta_1`.
+- Añade `Número de orden mkp` desde `sale.order.x_studio_nmero_de_orden_mkp`.
+- Muestra `Proveedor` y `Nombre del producto` en el reporte principal.
+- Añade `Estado de venta`: Venta / Devolución.
+- Retira `Costo asignado` de las vistas del reporte; se conserva únicamente como cálculo técnico interno para Utilidad.
+- Deja `Costo unitario` como la única columna de costo visible.
+- Corrige Margen %: Odoo recibe ahora la razón decimal esperada por el widget `percentage` (por ejemplo -1.0141 = -101.41%).
 
-1. Instalar el módulo.
-2. En Plan contable, clasificar las cuentas de ventas y tránsito con **Clasificación Systore**.
-3. Ir a **Systore Analytics > Actualizar reporte**.
-4. Reconstruir primero un rango corto (por ejemplo 2–3 de agosto) y comparar contra el Excel de conciliación.
-5. Revisar el filtro **Con incidencias** antes de ampliar el rango.
+## Después de actualizar el módulo
 
-## Alcance v1
-
-Esta versión busca validar primero el motor de conciliación. Los campos personalizados de costos adicionales (flete, importación, recosteo, etc.) se pueden sumar cuando se identifiquen sus nombres técnicos en la base de Odoo.
+Ejecutar **Systore Analytics → Actualizar reporte** para regenerar el rango que se quiera validar; de esta forma también se recalculan Margen, Canal de venta, Número de orden mkp y Origen.

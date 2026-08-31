@@ -18,6 +18,7 @@ class SystoreSalesCostLine(models.Model):
     invoice_line_id = fields.Many2one('account.move.line', string='Línea factura', index=True, readonly=True, ondelete='cascade')
     move_name = fields.Char(string='Número factura', index=True, readonly=True)
     invoice_origin = fields.Char(string='Origen factura', index=True, readonly=True)
+    sale_origin = fields.Char(string='Orden de venta / Origen', index=True, readonly=True)
     order_base = fields.Char(string='Orden base', index=True, readonly=True)
     ref = fields.Char(string='Referencia', readonly=True)
 
@@ -28,7 +29,7 @@ class SystoreSalesCostLine(models.Model):
     partner_id = fields.Many2one('res.partner', string='Cliente', index=True, readonly=True)
     product_id = fields.Many2one('product.product', string='Producto', index=True, readonly=True)
     sku = fields.Char(string='SKU', index=True, readonly=True)
-    product_name = fields.Char(string='Descripción producto', readonly=True)
+    product_name = fields.Char(string='Nombre del producto', readonly=True)
 
     invoice_quantity = fields.Float(string='Cantidad facturada', readonly=True)
     matched_quantity = fields.Float(string='Cantidad conciliada', readonly=True)
@@ -40,6 +41,12 @@ class SystoreSalesCostLine(models.Model):
         help='Venta contable distribuida proporcionalmente entre los lotes conciliados.')
 
     sale_order_id = fields.Many2one('sale.order', string='Pedido de venta', index=True, readonly=True)
+    sales_channel = fields.Char(string='Canal de venta', index=True, readonly=True)
+    marketplace_order_number = fields.Char(string='Número de orden mkp', index=True, readonly=True)
+    sale_state = fields.Selection([
+        ('sale', 'Venta'),
+        ('return', 'Devolución'),
+    ], string='Estado de venta', compute='_compute_sale_state', store=True, index=True, readonly=True)
     sale_order_line_id = fields.Many2one('sale.order.line', string='Línea de venta', index=True, readonly=True)
     stock_move_line_id = fields.Many2one('stock.move.line', string='Movimiento de stock', index=True, readonly=True)
     picking_id = fields.Many2one('stock.picking', string='Transferencia', index=True, readonly=True)
@@ -92,11 +99,17 @@ class SystoreSalesCostLine(models.Model):
         for rec in self:
             rec.is_transit_return = rec.account_analytics_type == 'transit_return'
 
+    @api.depends('account_analytics_type')
+    def _compute_sale_state(self):
+        for rec in self:
+            rec.sale_state = 'return' if rec.account_analytics_type == 'transit_return' else 'sale'
+
     @api.depends('allocated_sale_amount', 'allocated_cost')
     def _compute_profit(self):
         for rec in self:
             rec.gross_profit = (rec.allocated_sale_amount or 0.0) - (rec.allocated_cost or 0.0)
-            rec.gross_margin = (rec.gross_profit / rec.allocated_sale_amount * 100.0) if rec.allocated_sale_amount else 0.0
+            # El widget percentage de Odoo espera una razón (0.25 = 25 %), no 25.
+            rec.gross_margin = (rec.gross_profit / rec.allocated_sale_amount) if rec.allocated_sale_amount else 0.0
 
     @api.depends('move_name', 'sku', 'lot_name')
     def _compute_display_name(self):
@@ -187,6 +200,42 @@ class SystoreSalesCostLine(models.Model):
         return (po, pol, pol.currency_id or po.currency_id, (pol.price_unit or 0.0) * discount_factor, po.partner_id, '')
 
     @api.model
+    def _systore_field_display(self, record, field_name):
+        """Devuelve un valor legible de un campo Studio sin asumir su tipo."""
+        if not record or field_name not in record._fields:
+            return ''
+        value = record[field_name]
+        field = record._fields[field_name]
+        if not value:
+            return ''
+        if field.type == 'many2one':
+            return value.display_name or ''
+        if field.type in ('many2many', 'one2many'):
+            return ', '.join(value.mapped('display_name'))
+        if field.type == 'selection':
+            selection = field._description_selection(record.env)
+            return dict(selection).get(value, value)
+        return str(value)
+
+    @api.model
+    def _systore_sale_context(self, aml, ml=None, order_base=''):
+        """Obtiene línea/pedido de venta, priorizando la relación del movimiento físico."""
+        sale_line = self.env['sale.order.line']
+        if ml and ml.move_id and 'sale_line_id' in ml.move_id._fields and ml.move_id.sale_line_id:
+            sale_line = ml.move_id.sale_line_id
+        elif 'sale_line_ids' in aml._fields and aml.sale_line_ids:
+            sale_line = aml.sale_line_ids[:1]
+
+        sale_order = sale_line.order_id if sale_line else self.env['sale.order']
+        if not sale_order and order_base:
+            # Fallback para instalaciones donde la factura perdió el enlace nativo a sale.order.line.
+            sale_order = self.env['sale.order'].sudo().search([
+                ('company_id', '=', aml.company_id.id),
+                '|', ('name', 'ilike', order_base), ('client_order_ref', 'ilike', order_base),
+            ], limit=1)
+        return sale_line, sale_order
+
+    @api.model
     def rebuild_range(self, date_from, date_to, company=None):
         company = company or self.env.company
         self.search([
@@ -220,6 +269,7 @@ class SystoreSalesCostLine(models.Model):
             accounting_amount = (aml.credit or 0.0) - (aml.debit or 0.0)
 
             if not stock_lines:
+                fallback_sale_line, fallback_sale_order = self._systore_sale_context(aml, order_base=order_base)
                 self.create({
                     'company_id': company.id,
                     'invoice_date': move.invoice_date or move.date,
@@ -227,10 +277,15 @@ class SystoreSalesCostLine(models.Model):
                     'invoice_line_id': aml.id,
                     'move_name': move.name,
                     'invoice_origin': move.invoice_origin,
+                    'sale_origin': move.invoice_origin or (fallback_sale_order.name if fallback_sale_order else ''),
                     'order_base': order_base,
                     'ref': move.ref,
                     'account_id': aml.account_id.id,
                     'partner_id': move.partner_id.id,
+                    'sale_order_id': fallback_sale_order.id if fallback_sale_order else False,
+                    'sale_order_line_id': fallback_sale_line.id if fallback_sale_line else False,
+                    'sales_channel': self._systore_field_display(fallback_sale_order, 'x_studio_canal_venta_1'),
+                    'marketplace_order_number': self._systore_field_display(fallback_sale_order, 'x_studio_nmero_de_orden_mkp'),
                     'product_id': aml.product_id.id,
                     'sku': sku,
                     'product_name': aml.product_id.display_name,
@@ -250,11 +305,10 @@ class SystoreSalesCostLine(models.Model):
 
             total_stock_qty = sum(self._systore_ml_qty(x) for x in stock_lines if self._systore_physical_type(x) == 'sale')
             qty_basis = inv_qty or total_stock_qty or 1.0
-            sale_lines_rel = aml.sale_line_ids if 'sale_line_ids' in aml._fields else self.env['sale.order.line']
-            sale_order = sale_lines_rel[:1].order_id if sale_lines_rel else False
-
             for ml in stock_lines:
                 physical_type = self._systore_physical_type(ml)
+                sale_line, sale_order = self._systore_sale_context(aml, ml=ml, order_base=order_base)
+                sale_origin = (ml.picking_id.origin if ml.picking_id else False) or (ml.move_id.origin if ml.move_id else False) or move.invoice_origin or (sale_order.name if sale_order else '')
                 ml_qty = self._systore_ml_qty(ml)
                 signed_qty = -ml_qty if physical_type == 'return' else ml_qty
                 lot = ml.lot_id
@@ -287,6 +341,7 @@ class SystoreSalesCostLine(models.Model):
                     'invoice_line_id': aml.id,
                     'move_name': move.name,
                     'invoice_origin': move.invoice_origin,
+                    'sale_origin': sale_origin,
                     'order_base': order_base,
                     'ref': move.ref,
                     'account_id': aml.account_id.id,
@@ -301,7 +356,9 @@ class SystoreSalesCostLine(models.Model):
                     'accounting_amount': accounting_amount,
                     'allocated_sale_amount': allocated_sale,
                     'sale_order_id': sale_order.id if sale_order else False,
-                    'sale_order_line_id': sale_lines_rel[:1].id if sale_lines_rel else False,
+                    'sale_order_line_id': sale_line.id if sale_line else False,
+                    'sales_channel': self._systore_field_display(sale_order, 'x_studio_canal_venta_1'),
+                    'marketplace_order_number': self._systore_field_display(sale_order, 'x_studio_nmero_de_orden_mkp'),
                     'stock_move_line_id': ml.id,
                     'picking_id': ml.picking_id.id if ml.picking_id else False,
                     'movement_date': ml.date,
