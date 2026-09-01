@@ -1,0 +1,13 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <record id="view_account_form_systore_analytics" model="ir.ui.view">
+        <field name="name">account.account.form.systore.analytics</field>
+        <field name="model">account.account</field>
+        <field name="inherit_id" ref="account.view_account_form"/>
+        <field name="arch" type="xml">
+            <xpath expr="//field[@name='account_type']" position="after">
+                <field name="systore_analytics_type"/>
+            </xpath>
+        </field>
+    </record>
+</odoo>

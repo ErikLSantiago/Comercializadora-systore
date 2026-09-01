@@ -1,0 +1,210 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<templates xml:space="preserve">
+    <t t-name="systore_sales_cost_analytics.Dashboard">
+        <div class="o_systore_dashboard">
+            <div class="o_systore_dashboard_header">
+                <div>
+                    <h1>Tablero de ventas y rentabilidad</h1>
+                    <p>Facturación, movimientos por lote, compras, costos y devoluciones en una sola vista.</p>
+                </div>
+                <button class="btn btn-outline-primary" t-on-click="() => this.openReport()">Ver reporte consolidado</button>
+            </div>
+
+            <div class="o_systore_filters">
+                <div class="o_systore_quick_periods">
+                    <button class="btn btn-light" t-on-click="() => this.setPeriod('month')">Este mes</button>
+                    <button class="btn btn-light" t-on-click="() => this.setPeriod('previous_month')">Mes anterior</button>
+                    <button class="btn btn-light" t-on-click="() => this.setPeriod('year')">Este año</button>
+                </div>
+                <div class="o_systore_filter_grid">
+                    <label>Desde<input type="date" t-model="state.filters.date_from"/></label>
+                    <label>Hasta<input type="date" t-model="state.filters.date_to"/></label>
+                    <label>Estado
+                        <select data-field="sale_state" t-model="state.filters.sale_state" t-on-change="onFilterChange">
+                            <option value="">Todos</option>
+                            <option value="sale">Venta</option>
+                            <option value="return">Devolución</option>
+                        </select>
+                    </label>
+                    <label>Canal de venta
+                        <select data-field="sales_channel" t-model="state.filters.sales_channel" t-on-change="onFilterChange">
+                            <option value="">Todos</option>
+                            <t t-foreach="state.data.filters.sales_channels || []" t-as="item" t-key="item">
+                                <option t-att-value="item"><t t-esc="item"/></option>
+                            </t>
+                        </select>
+                    </label>
+                    <label>Cuenta contable
+                        <select data-field="account_id" t-model="state.filters.account_id" t-on-change="onFilterChange">
+                            <option value="">Todas</option>
+                            <t t-foreach="state.data.filters.accounts || []" t-as="item" t-key="item.id">
+                                <option t-att-value="item.id"><t t-esc="item.name"/></option>
+                            </t>
+                        </select>
+                    </label>
+                    <label>Cliente
+                        <select data-field="partner_id" t-model="state.filters.partner_id" t-on-change="onFilterChange">
+                            <option value="">Todos</option>
+                            <t t-foreach="state.data.filters.partners || []" t-as="item" t-key="item.id">
+                                <option t-att-value="item.id"><t t-esc="item.name"/></option>
+                            </t>
+                        </select>
+                    </label>
+                    <label>Producto
+                        <select data-field="product_id" t-model="state.filters.product_id" t-on-change="onFilterChange">
+                            <option value="">Todos</option>
+                            <t t-foreach="state.data.filters.products || []" t-as="item" t-key="item.id">
+                                <option t-att-value="item.id"><t t-esc="item.name"/></option>
+                            </t>
+                        </select>
+                    </label>
+                    <label>Proveedor
+                        <select data-field="vendor_id" t-model="state.filters.vendor_id" t-on-change="onFilterChange">
+                            <option value="">Todos</option>
+                            <t t-foreach="state.data.filters.vendors || []" t-as="item" t-key="item.id">
+                                <option t-att-value="item.id"><t t-esc="item.name"/></option>
+                            </t>
+                        </select>
+                    </label>
+                </div>
+                <div class="o_systore_filter_actions">
+                    <button class="btn btn-primary" t-on-click="applyDates">Aplicar fechas</button>
+                    <button class="btn btn-link" t-on-click="clearFilters">Limpiar segmentadores</button>
+                </div>
+            </div>
+
+            <t t-if="state.loading">
+                <div class="o_systore_loading">Calculando tablero…</div>
+            </t>
+            <t t-elif="state.data">
+                <div class="o_systore_kpis">
+                    <div class="o_systore_kpi is-sale" t-on-click="() => this.openReport([['sale_state','=','sale']])">
+                        <span>Venta bruta</span><strong t-esc="money(state.data.kpis.gross_sales)"/><small t-esc="number(state.data.kpis.sale_pieces) + ' pzas'"/>
+                    </div>
+                    <div class="o_systore_kpi is-return" t-on-click="() => this.openReport([['sale_state','=','return']])">
+                        <span>Devoluciones</span><strong t-esc="money(state.data.kpis.returns)"/><small t-esc="percent(state.data.kpis.return_rate) + ' de venta'"/>
+                    </div>
+                    <div class="o_systore_kpi"><span>Venta neta</span><strong t-esc="money(state.data.kpis.net_sales)"/><small>Venta − devoluciones</small></div>
+                    <div class="o_systore_kpi"><span>Costo neto</span><strong t-esc="money(state.data.kpis.net_cost)"/><small>Costo venta − costo devolución</small></div>
+                    <div class="o_systore_kpi"><span>Utilidad</span><strong t-esc="money(state.data.kpis.profit)"/><small>Venta neta − costo neto</small></div>
+                    <div class="o_systore_kpi"><span>Margen</span><strong t-esc="percent(state.data.kpis.margin)"/><small>Utilidad ÷ venta neta</small></div>
+                    <div class="o_systore_kpi"><span>Piezas netas</span><strong t-esc="number(state.data.kpis.net_pieces)"/><small t-esc="number(state.data.kpis.return_pieces) + ' devueltas'"/></div>
+                    <div class="o_systore_kpi">
+                        <span>Costo de venta bruta</span><strong t-esc="money(state.data.kpis.sale_cost)"/><small>Costo antes de devoluciones</small>
+                    </div>
+                </div>
+
+                <div class="o_systore_panel o_systore_trend">
+                    <div class="o_systore_panel_title"><h2>Evolución</h2><span>Tendencia 2D de venta neta, costo y utilidad</span></div>
+                    <t t-if="state.data.trend.length">
+                        <div class="o_systore_line_chart_wrap">
+                            <div class="o_systore_chart_legend">
+                                <span><i class="sale"/>Venta neta</span><span><i class="cost"/>Costo neto</span><span><i class="profit"/>Utilidad</span>
+                            </div>
+                            <svg class="o_systore_line_chart" viewBox="0 0 1000 320" preserveAspectRatio="none" role="img" aria-label="Evolución de venta neta, costo y utilidad">
+                                <line x1="60" y1="270" x2="980" y2="270" class="axis"/>
+                                <line x1="60" y1="20" x2="60" y2="270" class="axis"/>
+                                <line x1="60" y1="82.5" x2="980" y2="82.5" class="grid"/>
+                                <line x1="60" y1="145" x2="980" y2="145" class="grid"/>
+                                <line x1="60" y1="207.5" x2="980" y2="207.5" class="grid"/>
+                                <polyline t-att-points="linePoints('net_sales')" class="series sale"/>
+                                <polyline t-att-points="linePoints('net_cost')" class="series cost"/>
+                                <polyline t-att-points="linePoints('profit')" class="series profit"/>
+                                <t t-foreach="state.data.trend" t-as="row" t-key="row.date">
+                                    <circle t-att-cx="chartX(row_index)" t-att-cy="chartY(row.net_sales)" r="3" class="dot sale"><title t-esc="row.label + ' · Venta neta ' + money(row.net_sales)"/></circle>
+                                    <circle t-att-cx="chartX(row_index)" t-att-cy="chartY(row.net_cost)" r="3" class="dot cost"><title t-esc="row.label + ' · Costo ' + money(row.net_cost)"/></circle>
+                                    <circle t-att-cx="chartX(row_index)" t-att-cy="chartY(row.profit)" r="3" class="dot profit"><title t-esc="row.label + ' · Utilidad ' + money(row.profit)"/></circle>
+                                    <text t-if="showXAxisLabel(row_index)" t-att-x="chartX(row_index)" y="296" class="x_label" text-anchor="middle" t-esc="row.label"/>
+                                </t>
+                            </svg>
+                        </div>
+                    </t>
+                    <t t-if="!state.data.trend.length"><div class="o_systore_empty">No hay datos para el periodo seleccionado.</div></t>
+                </div>
+
+                <div class="o_systore_panel">
+                    <div class="o_systore_panel_title"><h2>Venta neta y devoluciones</h2><span>Columnas apiladas por día</span></div>
+                    <t t-if="state.data.trend.length">
+                        <div class="o_systore_chart_legend"><span><i class="sale"/>Venta neta</span><span><i class="return"/>Devoluciones</span></div>
+                        <div class="o_systore_stacked_chart">
+                            <t t-foreach="state.data.trend" t-as="row" t-key="row.date">
+                                <div class="o_systore_stack_item">
+                                    <div class="o_systore_stack_plot" t-att-title="row.label + ' · Venta neta ' + money(row.net_sales) + ' · Devoluciones ' + money(row.returns)">
+                                        <div class="o_systore_stack_segment return" t-att-style="'height:' + stackedHeight(row.returns)"/>
+                                        <div class="o_systore_stack_segment sale" t-att-style="'height:' + stackedHeight(row.net_sales)"/>
+                                    </div>
+                                    <small t-esc="row.label"/>
+                                </div>
+                            </t>
+                        </div>
+                    </t>
+                    <t t-if="!state.data.trend.length"><div class="o_systore_empty">No hay datos para el periodo seleccionado.</div></t>
+                </div>
+
+                <div class="o_systore_four_columns o_systore_pie_grid">
+                    <div class="o_systore_panel">
+                        <div class="o_systore_panel_title"><h2>Venta por canal</h2><span>Participación en venta bruta</span></div>
+                        <div class="o_systore_pie_wrap"><div class="o_systore_pie" t-att-style="pieStyle(state.data.pie_channels)"/><div class="o_systore_pie_legend">
+                            <t t-foreach="state.data.pie_channels" t-as="row" t-key="row.key"><div class="o_systore_pie_legend_row" t-on-click="() => this.openPieRow(row)"><i t-att-style="pieLegendStyle(row_index)"/><div><strong t-esc="row.label"/><small t-esc="percent(row.share) + ' · ' + money(row.value)"/></div></div></t>
+                        </div></div><t t-if="!state.data.pie_channels.length"><div class="o_systore_empty">Sin ventas para los filtros seleccionados.</div></t>
+                    </div>
+                    <div class="o_systore_panel">
+                        <div class="o_systore_panel_title"><h2>Venta por cliente</h2><span>Participación en venta bruta</span></div>
+                        <div class="o_systore_pie_wrap"><div class="o_systore_pie" t-att-style="pieStyle(state.data.pie_customers)"/><div class="o_systore_pie_legend">
+                            <t t-foreach="state.data.pie_customers" t-as="row" t-key="row.key"><div class="o_systore_pie_legend_row" t-on-click="() => this.openPieRow(row)"><i t-att-style="pieLegendStyle(row_index)"/><div><strong t-esc="row.label"/><small t-esc="percent(row.share) + ' · ' + money(row.value)"/></div></div></t>
+                        </div></div><t t-if="!state.data.pie_customers.length"><div class="o_systore_empty">Sin clientes para los filtros seleccionados.</div></t>
+                    </div>
+                    <div class="o_systore_panel">
+                        <div class="o_systore_panel_title"><h2>Venta por producto</h2><span>Participación en venta bruta</span></div>
+                        <div class="o_systore_pie_wrap"><div class="o_systore_pie" t-att-style="pieStyle(state.data.pie_products)"/><div class="o_systore_pie_legend">
+                            <t t-foreach="state.data.pie_products" t-as="row" t-key="row.key"><div class="o_systore_pie_legend_row" t-on-click="() => this.openPieRow(row)"><i t-att-style="pieLegendStyle(row_index)"/><div><strong t-esc="row.label"/><small t-esc="percent(row.share) + ' · ' + money(row.value)"/></div></div></t>
+                        </div></div><t t-if="!state.data.pie_products.length"><div class="o_systore_empty">Sin productos para los filtros seleccionados.</div></t>
+                    </div>
+                    <div class="o_systore_panel">
+                        <div class="o_systore_panel_title"><h2>Piezas por proveedor</h2><span>Qué proveedor aportó más unidades</span></div>
+                        <div class="o_systore_pie_wrap"><div class="o_systore_pie" t-att-style="pieStyle(state.data.pie_vendors)"/><div class="o_systore_pie_legend">
+                            <t t-foreach="state.data.pie_vendors" t-as="row" t-key="row.key"><div class="o_systore_pie_legend_row" t-on-click="() => this.openPieRow(row)"><i t-att-style="pieLegendStyle(row_index)"/><div><strong t-esc="row.label"/><small t-esc="percent(row.share) + ' · ' + number(row.value) + ' pzas'"/></div></div></t>
+                        </div></div><t t-if="!state.data.pie_vendors.length"><div class="o_systore_empty">Sin piezas conciliadas por proveedor.</div></t>
+                    </div>
+                </div>
+
+                <div class="o_systore_three_columns">
+                    <div class="o_systore_panel">
+                        <div class="o_systore_panel_title"><h2>Canales</h2><span>Rentabilidad por canal</span></div>
+                        <t t-foreach="state.data.channels" t-as="row" t-key="row.key">
+                            <div class="o_systore_rank_row" t-on-click="() => this.openRow(row)"><div><strong t-esc="row.label"/><small t-esc="number(row.pieces) + ' pzas · ' + percent(row.margin) + ' margen'"/></div><span t-esc="money(row.net_sales)"/></div>
+                        </t>
+                    </div>
+                    <div class="o_systore_panel">
+                        <div class="o_systore_panel_title"><h2>Productos</h2><span>Top por venta neta</span></div>
+                        <t t-foreach="state.data.products" t-as="row" t-key="row.key">
+                            <div class="o_systore_rank_row" t-on-click="() => this.openRow(row)"><div><strong t-esc="row.label"/><small t-esc="number(row.pieces) + ' pzas · ' + percent(row.margin) + ' margen'"/></div><span t-esc="money(row.net_sales)"/></div>
+                        </t>
+                    </div>
+                    <div class="o_systore_panel">
+                        <div class="o_systore_panel_title"><h2>Proveedores</h2><span>Rentabilidad del origen de compra</span></div>
+                        <t t-foreach="state.data.vendors" t-as="row" t-key="row.key">
+                            <div class="o_systore_rank_row" t-on-click="() => this.openRow(row)"><div><strong t-esc="row.label"/><small t-esc="number(row.pieces) + ' pzas · ' + percent(row.margin) + ' margen'"/></div><span t-esc="money(row.net_sales)"/></div>
+                        </t>
+                    </div>
+                </div>
+
+                <div class="o_systore_two_columns">
+                    <div class="o_systore_panel">
+                        <div class="o_systore_panel_title"><h2>Devoluciones por canal</h2><span>Cuenta contable clasificada como Tránsito</span></div>
+                        <t t-foreach="state.data.return_channels" t-as="row" t-key="row.key">
+                            <div class="o_systore_rank_row" t-on-click="() => this.openRow(row)"><div><strong t-esc="row.label"/><small t-esc="number(row.return_pieces) + ' pzas devueltas'"/></div><span t-esc="money(row.returns)"/></div>
+                        </t>
+                        <t t-if="!state.data.return_channels.length"><div class="o_systore_empty">Sin devoluciones para los filtros seleccionados.</div></t>
+                    </div>
+                    <div class="o_systore_panel">
+                        <div class="o_systore_panel_title"><h2>Estado de conciliación</h2><span>Calidad del dato que alimenta el tablero</span></div>
+                        <t t-foreach="state.data.reconciliation" t-as="row" t-key="row.key">
+                            <div class="o_systore_rank_row" t-on-click="() => this.openRow(row)"><div><strong t-esc="row.label"/><small t-esc="percent(row.rate) + ' de líneas'"/></div><span t-esc="row.count"/></div>
+                        </t>
+                    </div>
+                </div>
+            </t>
+        </div>
+    </t>
+</templates>
