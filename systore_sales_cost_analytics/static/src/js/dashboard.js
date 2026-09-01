@@ -158,16 +158,20 @@ export class SystoreSalesCostDashboard extends Component {
         return index % step === 0 || index === length - 1;
     }
 
-    stackedHeight(value) {
-        const rows = this.state.data?.trend || [];
-        const maxTotal = Math.max(...rows.map((row) => Math.max(0, row.net_sales || 0) + Math.max(0, row.returns || 0)), 0);
-        if (!maxTotal) return "0%";
-        return `${Math.max(0, (Math.max(0, value || 0) / maxTotal) * 100)}%`;
+    compositionShare(value) {
+        const gross = Math.max(0, this.state.data?.kpis?.gross_sales || 0);
+        if (!gross) return 0;
+        return Math.max(0, Math.min(1, (value || 0) / gross));
     }
+
+    compositionWidth(value) {
+        return `${this.compositionShare(value) * 100}%`;
+    }
+
 
     currentDomain(extraDomain = []) {
         const f = this.state.filters;
-        const domain = [];
+        const domain = [["move_name", "not ilike", "RINV"], ["ref", "not ilike", "RINV"]];
         if (f.date_from) domain.push(["invoice_date", ">=", f.date_from]);
         if (f.date_to) domain.push(["invoice_date", "<=", f.date_to]);
         if (f.sale_state) domain.push(["sale_state", "=", f.sale_state]);

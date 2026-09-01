@@ -23,7 +23,7 @@
                         <select data-field="sale_state" t-model="state.filters.sale_state" t-on-change="onFilterChange">
                             <option value="">Todos</option>
                             <option value="sale">Venta</option>
-                            <option value="return">Devolución</option>
+                            <option value="return">Devolución en tránsito</option>
                         </select>
                     </label>
                     <label>Canal de venta
@@ -82,7 +82,7 @@
                         <span>Venta bruta</span><strong t-esc="money(state.data.kpis.gross_sales)"/><small t-esc="number(state.data.kpis.sale_pieces) + ' pzas'"/>
                     </div>
                     <div class="o_systore_kpi is-return" t-on-click="() => this.openReport([['sale_state','=','return']])">
-                        <span>Devoluciones</span><strong t-esc="money(state.data.kpis.returns)"/><small t-esc="percent(state.data.kpis.return_rate) + ' de venta'"/>
+                        <span>Devoluciones en tránsito</span><strong t-esc="money(state.data.kpis.returns)"/><small t-esc="percent(state.data.kpis.return_rate) + ' de venta'"/>
                     </div>
                     <div class="o_systore_kpi"><span>Venta neta</span><strong t-esc="money(state.data.kpis.net_sales)"/><small>Venta − devoluciones</small></div>
                     <div class="o_systore_kpi"><span>Costo neto</span><strong t-esc="money(state.data.kpis.net_cost)"/><small>Costo venta − costo devolución</small></div>
@@ -123,22 +123,30 @@
                 </div>
 
                 <div class="o_systore_panel">
-                    <div class="o_systore_panel_title"><h2>Venta neta y devoluciones</h2><span>Columnas apiladas por día</span></div>
-                    <t t-if="state.data.trend.length">
-                        <div class="o_systore_chart_legend"><span><i class="sale"/>Venta neta</span><span><i class="return"/>Devoluciones</span></div>
-                        <div class="o_systore_stacked_chart">
-                            <t t-foreach="state.data.trend" t-as="row" t-key="row.date">
-                                <div class="o_systore_stack_item">
-                                    <div class="o_systore_stack_plot" t-att-title="row.label + ' · Venta neta ' + money(row.net_sales) + ' · Devoluciones ' + money(row.returns)">
-                                        <div class="o_systore_stack_segment return" t-att-style="'height:' + stackedHeight(row.returns)"/>
-                                        <div class="o_systore_stack_segment sale" t-att-style="'height:' + stackedHeight(row.net_sales)"/>
-                                    </div>
-                                    <small t-esc="row.label"/>
-                                </div>
-                            </t>
+                    <div class="o_systore_panel_title">
+                        <h2>Composición de venta bruta</h2>
+                        <span>Venta bruta = venta neta + devoluciones en tránsito</span>
+                    </div>
+                    <t t-if="state.data.kpis.gross_sales">
+                        <div class="o_systore_composition_summary">
+                            <div><span>Venta bruta</span><strong t-esc="money(state.data.kpis.gross_sales)"/></div>
+                            <div><span>Venta neta</span><strong t-esc="money(state.data.kpis.net_sales)"/><small t-esc="percent(compositionShare(state.data.kpis.net_sales))"/></div>
+                            <div><span>Devoluciones en tránsito</span><strong t-esc="money(state.data.kpis.returns)"/><small t-esc="percent(compositionShare(state.data.kpis.returns))"/></div>
+                        </div>
+                        <div class="o_systore_composition_bar" t-att-title="'Venta bruta ' + money(state.data.kpis.gross_sales) + ' · Venta neta ' + money(state.data.kpis.net_sales) + ' · Devoluciones ' + money(state.data.kpis.returns)">
+                            <div class="o_systore_composition_segment sale" t-att-style="'width:' + compositionWidth(state.data.kpis.net_sales)">
+                                <span t-if="compositionShare(state.data.kpis.net_sales) &gt; 0.12">Venta neta</span>
+                            </div>
+                            <div class="o_systore_composition_segment return" t-att-style="'width:' + compositionWidth(state.data.kpis.returns)">
+                                <span t-if="compositionShare(state.data.kpis.returns) &gt; 0.12">Devolución</span>
+                            </div>
+                        </div>
+                        <div class="o_systore_chart_legend">
+                            <span><i class="sale"/>Venta neta</span>
+                            <span><i class="return"/>Devoluciones en tránsito</span>
                         </div>
                     </t>
-                    <t t-if="!state.data.trend.length"><div class="o_systore_empty">No hay datos para el periodo seleccionado.</div></t>
+                    <t t-if="!state.data.kpis.gross_sales"><div class="o_systore_empty">No hay venta para los filtros seleccionados.</div></t>
                 </div>
 
                 <div class="o_systore_four_columns o_systore_pie_grid">
@@ -164,7 +172,7 @@
                         <div class="o_systore_panel_title"><h2>Piezas por proveedor</h2><span>Qué proveedor aportó más unidades</span></div>
                         <div class="o_systore_pie_wrap"><div class="o_systore_pie" t-att-style="pieStyle(state.data.pie_vendors)"/><div class="o_systore_pie_legend">
                             <t t-foreach="state.data.pie_vendors" t-as="row" t-key="row.key"><div class="o_systore_pie_legend_row" t-on-click="() => this.openPieRow(row)"><i t-att-style="pieLegendStyle(row_index)"/><div><strong t-esc="row.label"/><small t-esc="percent(row.share) + ' · ' + number(row.value) + ' pzas'"/></div></div></t>
-                        </div></div><t t-if="!state.data.pie_vendors.length"><div class="o_systore_empty">Sin piezas conciliadas por proveedor.</div></t>
+                        </div></div><t t-if="!state.data.pie_vendors.length"><div class="o_systore_empty">Sin piezas asociadas por proveedor.</div></t>
                     </div>
                 </div>
 
@@ -191,14 +199,14 @@
 
                 <div class="o_systore_two_columns">
                     <div class="o_systore_panel">
-                        <div class="o_systore_panel_title"><h2>Devoluciones por canal</h2><span>Cuenta contable clasificada como Tránsito</span></div>
+                        <div class="o_systore_panel_title"><h2>Devoluciones en tránsito por canal</h2><span>Cuenta contable clasificada como Tránsito</span></div>
                         <t t-foreach="state.data.return_channels" t-as="row" t-key="row.key">
                             <div class="o_systore_rank_row" t-on-click="() => this.openRow(row)"><div><strong t-esc="row.label"/><small t-esc="number(row.return_pieces) + ' pzas devueltas'"/></div><span t-esc="money(row.returns)"/></div>
                         </t>
-                        <t t-if="!state.data.return_channels.length"><div class="o_systore_empty">Sin devoluciones para los filtros seleccionados.</div></t>
+                        <t t-if="!state.data.return_channels.length"><div class="o_systore_empty">Sin devoluciones en tránsito para los filtros seleccionados.</div></t>
                     </div>
                     <div class="o_systore_panel">
-                        <div class="o_systore_panel_title"><h2>Estado de conciliación</h2><span>Calidad del dato que alimenta el tablero</span></div>
+                        <div class="o_systore_panel_title"><h2>Estado de cuadre</h2><span>Calidad del dato que alimenta el tablero</span></div>
                         <t t-foreach="state.data.reconciliation" t-as="row" t-key="row.key">
                             <div class="o_systore_rank_row" t-on-click="() => this.openRow(row)"><div><strong t-esc="row.label"/><small t-esc="percent(row.rate) + ' de líneas'"/></div><span t-esc="row.count"/></div>
                         </t>

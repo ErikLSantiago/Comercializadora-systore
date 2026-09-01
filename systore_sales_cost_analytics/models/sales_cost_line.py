@@ -26,7 +26,7 @@ class SystoreSalesCostLine(models.Model):
 
     account_id = fields.Many2one('account.account', string='Cuenta contable', index=True, readonly=True)
     account_analytics_type = fields.Selection(related='account_id.systore_analytics_type', string='Tipo cuenta', store=True, readonly=True)
-    is_transit_return = fields.Boolean(string='Devolución bruta (cuenta tránsito)', compute='_compute_is_transit_return', store=True)
+    is_transit_return = fields.Boolean(string='Devolución en tránsito', compute='_compute_is_transit_return', store=True)
 
     partner_id = fields.Many2one('res.partner', string='Cliente', index=True, readonly=True)
     product_id = fields.Many2one('product.product', string='Producto', index=True, readonly=True)
@@ -87,12 +87,12 @@ class SystoreSalesCostLine(models.Model):
     gross_margin = fields.Float(string='Margen %', compute='_compute_profit', store=True, group_operator='avg')
 
     reconciliation_state = fields.Selection([
-        ('ok', 'Conciliado'),
+        ('ok', 'Cuadre correcto'),
         ('no_stock', 'Sin movimiento/lote'),
         ('no_purchase', 'Sin compra'),
         ('no_cost', 'Sin costo'),
         ('qty_diff', 'Diferencia de cantidad'),
-    ], string='Estado conciliación', index=True, readonly=True)
+    ], string='Estado de cuadre', index=True, readonly=True)
     note = fields.Char(string='Observación', readonly=True)
 
     display_name = fields.Char(compute='_compute_display_name')
@@ -411,6 +411,10 @@ class SystoreSalesCostLine(models.Model):
             ('company_id', '=', company.id),
             ('move_id.state', '=', 'posted'),
             ('move_id.move_type', 'in', ['out_invoice', 'out_refund']),
+            # Las notas de crédito RINV representan devoluciones efectivas.
+            # En esta fase se excluyen: el tablero solo analiza venta y devolución en tránsito.
+            ('move_id.name', 'not ilike', 'RINV'),
+            ('move_id.ref', 'not ilike', 'RINV'),
             ('move_id.invoice_date', '>=', date_from),
             ('move_id.invoice_date', '<=', date_to),
             ('product_id', '!=', False),
@@ -546,9 +550,11 @@ class SystoreSalesCostLine(models.Model):
     def get_dashboard_data(self, filters=None):
         """Devuelve los datos agregados del primer tablero Systore.
 
-        Venta/Devolución se determina por la póliza de la factura. Si entre sus apuntes
-        existe una contrapartida 106.xx cuyo nombre contiene Tránsito, la operación es
-        Devolución. En caso contrario se conserva la clasificación de la cuenta.
+        Venta/Devolución en tránsito se determina por la póliza de la factura. Si entre sus
+        apuntes existe una contrapartida 106.xx cuyo nombre contiene Tránsito, la operación
+        se considera devolución en tránsito. Las notas de crédito RINV (devolución efectiva)
+        se excluyen de esta primera versión del tablero y se reservarán para el reporte
+        específico de devoluciones.
         """
         filters = filters or {}
         today = fields.Date.context_today(self)
@@ -561,6 +567,8 @@ class SystoreSalesCostLine(models.Model):
 
         base_domain = [
             ('company_id', '=', self.env.company.id),
+            ('move_name', 'not ilike', 'RINV'),
+            ('ref', 'not ilike', 'RINV'),
             ('invoice_date', '>=', date_from),
             ('invoice_date', '<=', date_to),
         ]

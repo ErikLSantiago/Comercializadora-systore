@@ -17,6 +17,12 @@ class SystoreSalesCostRebuildWizard(models.TransientModel):
             raise UserError(_('La fecha Desde no puede ser posterior a Hasta.'))
         count = self.env['systore.sales.cost.line'].rebuild_range(self.date_from, self.date_to, self.company_id)
         action = self.env.ref('systore_sales_cost_analytics.action_systore_sales_cost_line').read()[0]
-        action['domain'] = [('company_id', '=', self.company_id.id), ('invoice_date', '>=', self.date_from), ('invoice_date', '<=', self.date_to)]
+        action['domain'] = [
+            ('company_id', '=', self.company_id.id),
+            ('move_name', 'not ilike', 'RINV'),
+            ('ref', 'not ilike', 'RINV'),
+            ('invoice_date', '>=', self.date_from),
+            ('invoice_date', '<=', self.date_to),
+        ]
         action['context'] = {'search_default_group_account_type': 0}
         return action

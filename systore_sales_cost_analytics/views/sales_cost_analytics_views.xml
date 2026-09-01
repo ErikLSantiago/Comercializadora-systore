@@ -19,11 +19,11 @@
                 <field name="account_id"/>
                 <field name="purchase_order_id"/>
                 <filter string="Ventas" name="sales" domain="[('sale_state','=','sale')]"/>
-                <filter string="Devoluciones" name="returns" domain="[('sale_state','=','return')]"/>
+                <filter string="Devoluciones en tránsito" name="returns" domain="[('sale_state','=','return')]"/>
                 <separator/>
-                <filter string="Conciliado" name="ok" domain="[('reconciliation_state','=','ok')]"/>
+                <filter string="Cuadre correcto" name="ok" domain="[('reconciliation_state','=','ok')]"/>
                 <filter string="Con incidencias" name="issues" domain="[('reconciliation_state','!=','ok')]"/>
-                <filter string="Devolución bruta" name="transit" domain="[('is_transit_return','=',True)]"/>
+                <filter string="Devolución en tránsito" name="transit" domain="[('is_transit_return','=',True)]"/>
                 <separator/>
                 <filter string="Fecha factura" name="invoice_date" date="invoice_date"/>
                 <group expand="0" string="Agrupar por">
@@ -35,7 +35,7 @@
                     <filter string="SKU" name="group_sku" context="{'group_by':'sku'}"/>
                     <filter string="Lote / OC" name="group_lot" context="{'group_by':'lot_name'}"/>
                     <filter string="Proveedor" name="group_vendor" context="{'group_by':'vendor_id'}"/>
-                    <filter string="Estado conciliación" name="group_state" context="{'group_by':'reconciliation_state'}"/>
+                    <filter string="Estado de cuadre" name="group_state" context="{'group_by':'reconciliation_state'}"/>
                     <filter string="Mes factura" name="group_month" context="{'group_by':'invoice_date:month'}"/>
                 </group>
             </search>
@@ -175,6 +175,7 @@
         <field name="res_model">systore.sales.cost.line</field>
         <field name="view_mode">list,pivot,graph,form</field>
         <field name="search_view_id" ref="view_systore_sales_cost_line_search"/>
+        <field name="domain">[('move_name', 'not ilike', 'RINV'), ('ref', 'not ilike', 'RINV')]</field>
     </record>
 
     <menuitem id="menu_systore_analytics_root" name="Systore Analytics" sequence="60" groups="base.group_user"/>

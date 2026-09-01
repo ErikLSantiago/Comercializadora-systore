@@ -60,3 +60,9 @@ Ejecutar **Systore Analytics → Actualizar reporte** para regenerar el periodo.
 ## 18.0.1.1.3
 - Se habilita desplazamiento vertical nativo en la pantalla completa del Tablero para visualizar todas las secciones sin modificar el zoom del navegador.
 - Se evita scroll horizontal del contenedor principal y se conserva el scroll interno de componentes anchos como Evolución.
+
+
+## v18.0.1.1.5
+- Excluye documentos cuyo número contiene `RINV` del reporte principal y del tablero; se reservan para devoluciones efectivas.
+- Renombra en interfaz el concepto de Conciliación a Cuadre.
+- Sustituye la gráfica diaria apilada por una barra de composición de Venta bruta = Venta neta + Devoluciones en tránsito.
