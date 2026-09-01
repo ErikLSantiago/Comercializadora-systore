@@ -6,6 +6,7 @@
         <field name="arch" type="xml">
             <search string="Analítica Systore">
                 <field name="move_name"/>
+                <field name="invoice_origin"/>
                 <field name="sale_origin"/>
                 <field name="order_base"/>
                 <field name="sales_channel"/>
@@ -50,7 +51,8 @@
                 <field name="sale_state"/>
                 <field name="account_id"/>
                 <field name="move_name"/>
-                <field name="sale_origin"/>
+                <field name="invoice_origin"/>
+                <field name="sale_origin" optional="hide"/>
                 <field name="sales_channel"/>
                 <field name="marketplace_order_number"/>
                 <field name="partner_id"/>
@@ -61,9 +63,12 @@
                 <field name="purchase_order_id"/>
                 <field name="vendor_id"/>
                 <field name="unit_cost_company"/>
-                <field name="allocated_sale_amount" sum="Venta"/>
-                <field name="gross_profit" sum="Utilidad"/>
+                <field name="total_cost" sum="Costo total"/>
+                <field name="unit_sale_price"/>
+                <field name="allocated_sale_amount" sum="Venta total"/>
+                <field name="gross_profit"/>
                 <field name="gross_margin" widget="percentage"/>
+                <field name="total_profit" sum="Utilidad total" optional="hide"/>
                 <field name="order_base" optional="hide"/>
                 <field name="is_transit_return" optional="hide"/>
                 <field name="physical_move_type" optional="hide"/>
@@ -84,7 +89,8 @@
                 <field name="account_id" type="row"/>
                 <field name="sku" type="row"/>
                 <field name="allocated_sale_amount" type="measure"/>
-                <field name="gross_profit" type="measure"/>
+                <field name="total_cost" type="measure"/>
+                <field name="total_profit" type="measure"/>
                 <field name="matched_quantity" type="measure"/>
             </pivot>
         </field>
@@ -97,7 +103,7 @@
             <graph string="Venta y utilidad" type="bar">
                 <field name="invoice_date" interval="month"/>
                 <field name="allocated_sale_amount" type="measure"/>
-                <field name="gross_profit" type="measure"/>
+                <field name="total_profit" type="measure"/>
             </graph>
         </field>
     </record>
@@ -112,6 +118,7 @@
                         <group string="Facturación y venta">
                             <field name="invoice_date"/>
                             <field name="invoice_id"/>
+                            <field name="invoice_origin"/>
                             <field name="sale_state"/>
                             <field name="sale_origin"/>
                             <field name="order_base"/>
@@ -144,8 +151,11 @@
                             <field name="unit_cost_company"/>
                         </group>
                         <group string="Resultado">
+                            <field name="unit_sale_price"/>
                             <field name="allocated_sale_amount"/>
+                            <field name="total_cost"/>
                             <field name="gross_profit"/>
+                            <field name="total_profit"/>
                             <field name="gross_margin" widget="percentage"/>
                             <field name="reconciliation_state"/>
                             <field name="note"/>

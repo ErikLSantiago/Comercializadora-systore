@@ -17,8 +17,8 @@ class SystoreSalesCostLine(models.Model):
     invoice_id = fields.Many2one('account.move', string='Factura', index=True, readonly=True, ondelete='cascade')
     invoice_line_id = fields.Many2one('account.move.line', string='Línea factura', index=True, readonly=True, ondelete='cascade')
     move_name = fields.Char(string='Número factura', index=True, readonly=True)
-    invoice_origin = fields.Char(string='Origen factura', index=True, readonly=True)
-    sale_origin = fields.Char(string='Orden de venta / Origen', index=True, readonly=True)
+    invoice_origin = fields.Char(string='Orden de venta factura (Origen)', index=True, readonly=True)
+    sale_origin = fields.Char(string='Origen movimiento', index=True, readonly=True)
     order_base = fields.Char(string='Orden base', index=True, readonly=True)
     ref = fields.Char(string='Referencia', readonly=True)
 
@@ -29,10 +29,10 @@ class SystoreSalesCostLine(models.Model):
     partner_id = fields.Many2one('res.partner', string='Cliente', index=True, readonly=True)
     product_id = fields.Many2one('product.product', string='Producto', index=True, readonly=True)
     sku = fields.Char(string='SKU', index=True, readonly=True)
-    product_name = fields.Char(string='Nombre del producto', readonly=True)
+    product_name = fields.Char(string='Nombre del producto (Producto/Nombre)', readonly=True)
 
     invoice_quantity = fields.Float(string='Cantidad facturada', readonly=True)
-    matched_quantity = fields.Float(string='Cantidad conciliada', readonly=True)
+    matched_quantity = fields.Float(string='Piezas facturadas', readonly=True)
     invoice_credit = fields.Monetary(string='Crédito', currency_field='company_currency_id', readonly=True)
     invoice_debit = fields.Monetary(string='Débito', currency_field='company_currency_id', readonly=True)
     accounting_amount = fields.Monetary(string='Venta contable', currency_field='company_currency_id', readonly=True,
@@ -74,8 +74,13 @@ class SystoreSalesCostLine(models.Model):
     purchase_currency_id = fields.Many2one('res.currency', string='Moneda OC', readonly=True)
     purchase_unit_cost = fields.Monetary(string='Costo unitario OC', currency_field='purchase_currency_id', readonly=True)
     unit_cost_company = fields.Monetary(string='Costo unitario', currency_field='company_currency_id', readonly=True)
-    allocated_cost = fields.Monetary(string='Costo asignado', currency_field='company_currency_id', readonly=True)
-    gross_profit = fields.Monetary(string='Utilidad', currency_field='company_currency_id', compute='_compute_profit', store=True)
+    allocated_cost = fields.Monetary(string='Costo asignado', currency_field='company_currency_id', readonly=True,
+        help='Campo técnico conservado por compatibilidad. Equivale al costo total de la cantidad conciliada.')
+    total_cost = fields.Monetary(string='Costo total', currency_field='company_currency_id', compute='_compute_profit', store=True)
+    unit_sale_price = fields.Monetary(string='Precio de venta unitario', currency_field='company_currency_id', compute='_compute_profit', store=True)
+    gross_profit = fields.Monetary(string='Utilidad', currency_field='company_currency_id', compute='_compute_profit', store=True,
+        help='Utilidad unitaria: Precio de venta unitario menos Costo unitario.')
+    total_profit = fields.Monetary(string='Utilidad total', currency_field='company_currency_id', compute='_compute_profit', store=True)
     gross_margin = fields.Float(string='Margen %', compute='_compute_profit', store=True, group_operator='avg')
 
     reconciliation_state = fields.Selection([
@@ -104,12 +109,17 @@ class SystoreSalesCostLine(models.Model):
         for rec in self:
             rec.sale_state = 'return' if rec.account_analytics_type == 'transit_return' else 'sale'
 
-    @api.depends('allocated_sale_amount', 'allocated_cost')
+    @api.depends('allocated_sale_amount', 'matched_quantity', 'unit_cost_company')
     def _compute_profit(self):
         for rec in self:
-            rec.gross_profit = (rec.allocated_sale_amount or 0.0) - (rec.allocated_cost or 0.0)
-            # El widget percentage de Odoo espera una razón (0.25 = 25 %), no 25.
-            rec.gross_margin = (rec.gross_profit / rec.allocated_sale_amount) if rec.allocated_sale_amount else 0.0
+            qty = abs(rec.matched_quantity or 0.0)
+            rec.unit_sale_price = (rec.allocated_sale_amount / qty) if qty else 0.0
+            rec.total_cost = (rec.unit_cost_company or 0.0) * qty
+            # Utilidad solicitada a nivel unitario: precio unitario de venta - costo unitario.
+            rec.gross_profit = (rec.unit_sale_price or 0.0) - (rec.unit_cost_company or 0.0)
+            rec.total_profit = (rec.allocated_sale_amount or 0.0) - (rec.total_cost or 0.0)
+            # Margen unitario; el widget percentage espera una razón (0.25 = 25 %).
+            rec.gross_margin = (rec.gross_profit / rec.unit_sale_price) if rec.unit_sale_price else 0.0
 
     @api.depends('move_name', 'sku', 'lot_name')
     def _compute_display_name(self):
@@ -148,14 +158,15 @@ class SystoreSalesCostLine(models.Model):
         return 'other'
 
     @api.model
-    def _systore_find_stock_lines(self, aml, order_base):
+    def _systore_find_stock_lines(self, aml, order_base, physical_type='sale'):
+        """Obtiene movimientos candidatos del pedido, sin asumir que toda la entrega pertenece a esta factura."""
         MoveLine = self.env['stock.move.line'].sudo()
         sale_lines = aml.sale_line_ids if 'sale_line_ids' in aml._fields else self.env['sale.order.line']
         result = self.env['stock.move.line']
         if sale_lines:
             moves = sale_lines.mapped('move_ids').filtered(lambda m: m.state == 'done' and m.product_id == aml.product_id)
             result = moves.mapped('move_line_ids').filtered(
-                lambda ml: self._systore_physical_type(ml) in ('sale', 'return') and self._systore_ml_qty(ml) > 0
+                lambda ml: self._systore_physical_type(ml) == physical_type and self._systore_ml_qty(ml) > 0
             )
         if result:
             return result.sorted(lambda ml: (ml.date or fields.Datetime.now(), ml.id))
@@ -167,8 +178,82 @@ class SystoreSalesCostLine(models.Model):
                 '|', ('picking_id.origin', 'ilike', order_base), ('move_id.origin', 'ilike', order_base),
             ]
             result = MoveLine.search(domain, order='date,id')
-            result = result.filtered(lambda ml: self._systore_physical_type(ml) in ('sale', 'return'))
+            result = result.filtered(lambda ml: self._systore_physical_type(ml) == physical_type and self._systore_ml_qty(ml) > 0)
         return result
+
+    @api.model
+    def _systore_prior_invoiced_qty(self, aml, order_base=''):
+        """Cantidad de la misma operación ya consumida por facturas anteriores.
+
+        Se prioriza el vínculo nativo `sale_line_ids`; si no existe, se usa Orden base + SKU
+        como fallback, replicando la conciliación que se hacía en Excel.
+        """
+        AML = self.env['account.move.line'].sudo()
+        move = aml.move_id
+        domain = [
+            ('id', '!=', aml.id),
+            ('company_id', '=', aml.company_id.id),
+            ('move_id.state', '=', 'posted'),
+            ('move_id.move_type', '=', move.move_type),
+            ('product_id', '=', aml.product_id.id),
+        ]
+        if 'display_type' in AML._fields:
+            domain.append(('display_type', '=', 'product'))
+        if 'sale_line_ids' in aml._fields and aml.sale_line_ids:
+            domain.append(('sale_line_ids', 'in', aml.sale_line_ids.ids))
+        elif order_base:
+            domain.append(('move_id.invoice_origin', 'ilike', order_base))
+        else:
+            return 0.0
+
+        current_date = move.invoice_date or move.date
+        previous = AML.search(domain)
+        previous = previous.filtered(lambda line:
+            ((line.move_id.invoice_date or line.move_id.date) < current_date) or
+            ((line.move_id.invoice_date or line.move_id.date) == current_date and
+             (line.move_id.id, line.id) < (move.id, aml.id))
+        )
+        return sum(abs(line.quantity or 0.0) for line in previous)
+
+    @api.model
+    def _systore_allocate_invoice_qty(self, aml, order_base):
+        """Asigna únicamente las piezas de esta factura a los lotes físicos, en FIFO.
+
+        La factura es la autoridad de cantidad. Los movimientos solo determinan de qué lotes
+        provienen esas piezas. Las cantidades facturadas previamente se saltan para no duplicar
+        entregas históricas de una misma orden de venta.
+        """
+        target_qty = abs(aml.quantity or 0.0)
+        if not target_qty:
+            return [], 0.0
+
+        physical_type = 'return' if aml.move_id.move_type == 'out_refund' else 'sale'
+        stock_lines = self._systore_find_stock_lines(aml, order_base, physical_type=physical_type)
+        if not stock_lines:
+            return [], 0.0
+
+        skip_qty = self._systore_prior_invoiced_qty(aml, order_base)
+        remaining = target_qty
+        allocations = []
+
+        for ml in stock_lines:
+            available = abs(self._systore_ml_qty(ml))
+            if not available:
+                continue
+            if skip_qty >= available - 1e-9:
+                skip_qty -= available
+                continue
+            if skip_qty > 0:
+                available -= skip_qty
+                skip_qty = 0.0
+            take = min(available, remaining)
+            if take > 1e-9:
+                allocations.append((ml, take))
+                remaining -= take
+            if remaining <= 1e-9:
+                break
+
+        return allocations, target_qty - remaining
 
     @api.model
     def _systore_purchase_for_lot(self, product, lot, company):
@@ -264,11 +349,11 @@ class SystoreSalesCostLine(models.Model):
             order_base = self._systore_order_base(move.invoice_origin)
             sku = aml.product_id.default_code or ''
             invoice_match_code = '%s%s' % (order_base, sku)
-            stock_lines = self._systore_find_stock_lines(aml, order_base)
+            allocations, allocated_invoice_qty = self._systore_allocate_invoice_qty(aml, order_base)
             inv_qty = abs(aml.quantity or 0.0)
             accounting_amount = (aml.credit or 0.0) - (aml.debit or 0.0)
 
-            if not stock_lines:
+            if not allocations:
                 fallback_sale_line, fallback_sale_order = self._systore_sale_context(aml, order_base=order_base)
                 self.create({
                     'company_id': company.id,
@@ -288,7 +373,7 @@ class SystoreSalesCostLine(models.Model):
                     'marketplace_order_number': self._systore_field_display(fallback_sale_order, 'x_studio_nmero_de_orden_mkp'),
                     'product_id': aml.product_id.id,
                     'sku': sku,
-                    'product_name': aml.product_id.display_name,
+                    'product_name': aml.product_id.name,
                     'invoice_quantity': aml.quantity,
                     'matched_quantity': 0.0,
                     'invoice_credit': aml.credit,
@@ -303,14 +388,13 @@ class SystoreSalesCostLine(models.Model):
                 created += 1
                 continue
 
-            total_stock_qty = sum(self._systore_ml_qty(x) for x in stock_lines if self._systore_physical_type(x) == 'sale')
-            qty_basis = inv_qty or total_stock_qty or 1.0
-            for ml in stock_lines:
+            qty_basis = inv_qty or allocated_invoice_qty or 1.0
+            qty_is_complete = abs(allocated_invoice_qty - inv_qty) <= 0.0001
+            for ml, matched_qty in allocations:
                 physical_type = self._systore_physical_type(ml)
                 sale_line, sale_order = self._systore_sale_context(aml, ml=ml, order_base=order_base)
                 sale_origin = (ml.picking_id.origin if ml.picking_id else False) or (ml.move_id.origin if ml.move_id else False) or move.invoice_origin or (sale_order.name if sale_order else '')
-                ml_qty = self._systore_ml_qty(ml)
-                signed_qty = -ml_qty if physical_type == 'return' else ml_qty
+                signed_qty = -matched_qty if aml.move_id.move_type == 'out_refund' else matched_qty
                 lot = ml.lot_id
                 po, pol, po_currency, po_unit_cost, vendor, cost_note = self._systore_purchase_for_lot(aml.product_id, lot, company)
 
@@ -319,7 +403,7 @@ class SystoreSalesCostLine(models.Model):
                     conversion_date = (po.date_order.date() if po and po.date_order else (move.invoice_date or fields.Date.today()))
                     company_unit_cost = po_currency._convert(po_unit_cost, company.currency_id, company, conversion_date)
                 allocated_cost = company_unit_cost * signed_qty
-                allocated_sale = accounting_amount * (signed_qty / qty_basis) if qty_basis else 0.0
+                allocated_sale = accounting_amount * (matched_qty / qty_basis) if qty_basis else 0.0
 
                 state = 'ok'
                 note = cost_note
@@ -330,9 +414,9 @@ class SystoreSalesCostLine(models.Model):
                     state = 'no_purchase'
                 elif not pol or not po_unit_cost:
                     state = 'no_cost'
-                elif total_stock_qty and inv_qty and abs(total_stock_qty - inv_qty) > 0.0001:
+                elif not qty_is_complete:
                     state = 'qty_diff'
-                    note = (note + ' ' if note else '') + _('Cantidad facturada y salida física no coinciden.')
+                    note = (note + ' ' if note else '') + _('No fue posible conciliar todas las piezas facturadas con movimientos físicos disponibles.')
 
                 self.create({
                     'company_id': company.id,
@@ -348,7 +432,7 @@ class SystoreSalesCostLine(models.Model):
                     'partner_id': move.partner_id.id,
                     'product_id': aml.product_id.id,
                     'sku': sku,
-                    'product_name': aml.product_id.display_name,
+                    'product_name': aml.product_id.name,
                     'invoice_quantity': aml.quantity,
                     'matched_quantity': signed_qty,
                     'invoice_credit': aml.credit,

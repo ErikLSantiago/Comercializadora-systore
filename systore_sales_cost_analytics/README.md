@@ -1,29 +1,41 @@
 # Systore Analytics - Ventas, Facturación y Costos
 
-Versión 18.0.1.0.1 para Odoo 18.
+Versión 18.0.1.0.2 para Odoo 18.
 
 ## Objetivo
 
-Consolidar en una sola línea analítica la factura, la orden/origen de venta, los datos comerciales de `sale.order`, el movimiento físico por lote y el costo de la orden de compra asociada.
+Consolidar factura, orden de venta, movimiento físico por lote y orden de compra sin duplicar piezas cuando una orden se entrega y factura de forma parcial en distintos periodos.
 
-## Conciliación
+## Conciliación de cantidad
 
-- Orden base: patrón `PR-#########` (fallback: primeros 12 caracteres).
-- Factura ↔ movimiento: relación nativa de Odoo; fallback por Orden base + SKU.
-- Movimiento ↔ compra: Lote + SKU, bajo la regla operativa donde el nombre del lote coincide con el nombre de la OC.
-- Estado de venta: `Devolución` cuando la cuenta está clasificada como `Tránsito / devolución bruta`; en los demás casos `Venta`.
+La cantidad facturada es ahora la autoridad del reporte.
 
-## Cambios 18.0.1.0.1
+1. Se toma `account.move.line.quantity` de la línea de factura.
+2. Se localizan los movimientos físicos de la línea de venta/SKU.
+3. Los movimientos se ordenan cronológicamente.
+4. Se descuentan primero las cantidades que ya fueron consumidas por facturas anteriores de la misma línea de venta. Si no existe vínculo nativo, se usa Orden base + SKU como fallback.
+5. De los movimientos restantes se asigna únicamente la cantidad de la factura actual, distribuyéndola por lote en FIFO.
+6. Si no existen movimientos suficientes para cubrir las piezas facturadas, la línea queda en `Diferencia de cantidad`.
 
-- Añade `Orden de venta / Origen` tomada del movimiento/picking, con fallback al origen de factura.
-- Añade `Canal de venta` desde `sale.order.x_studio_canal_venta_1`.
-- Añade `Número de orden mkp` desde `sale.order.x_studio_nmero_de_orden_mkp`.
-- Muestra `Proveedor` y `Nombre del producto` en el reporte principal.
-- Añade `Estado de venta`: Venta / Devolución.
-- Retira `Costo asignado` de las vistas del reporte; se conserva únicamente como cálculo técnico interno para Utilidad.
-- Deja `Costo unitario` como la única columna de costo visible.
-- Corrige Margen %: Odoo recibe ahora la razón decimal esperada por el widget `percentage` (por ejemplo -1.0141 = -101.41%).
+Ejemplo: una orden con 550 piezas históricamente entregadas no reportará 550 en una factura de 95 piezas; la factura actual conciliará como máximo 95 piezas y conservará los lotes correspondientes a ese tramo.
 
-## Después de actualizar el módulo
+## Campos 18.0.1.0.2
 
-Ejecutar **Systore Analytics → Actualizar reporte** para regenerar el rango que se quiera validar; de esta forma también se recalculan Margen, Canal de venta, Número de orden mkp y Origen.
+- Orden de venta factura (Origen): `account.move.invoice_origin`.
+- Origen movimiento: se conserva como campo opcional de auditoría.
+- Canal de venta: `sale.order.x_studio_canal_venta_1`.
+- Número de orden mkp: `sale.order.x_studio_nmero_de_orden_mkp`.
+- Nombre del producto: usa `product.product.name` (Producto/Nombre), no `display_name`.
+- Piezas facturadas: cantidad de factura distribuida entre los lotes conciliados.
+- Costo unitario.
+- Costo total = Costo unitario × Piezas facturadas conciliadas.
+- Precio de venta unitario = Venta asignada ÷ Piezas facturadas conciliadas.
+- Utilidad = Precio de venta unitario − Costo unitario.
+- Utilidad total: medida técnica/analítica = Venta asignada − Costo total.
+- Margen % = Utilidad unitaria ÷ Precio de venta unitario.
+- Estado de venta: Venta / Devolución, según clasificación analítica de la cuenta contable.
+- Proveedor.
+
+## Después de actualizar
+
+Ejecutar **Systore Analytics → Actualizar reporte** para regenerar el periodo. Para validar órdenes dosificadas, revisar que la suma de `Piezas facturadas` por línea/factura coincida con la cantidad de la factura y no con el total histórico entregado de la orden de venta.
