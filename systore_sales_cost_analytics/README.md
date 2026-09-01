@@ -39,3 +39,13 @@ Ejemplo: una orden con 550 piezas históricamente entregadas no reportará 550 e
 ## Después de actualizar
 
 Ejecutar **Systore Analytics → Actualizar reporte** para regenerar el periodo. Para validar órdenes dosificadas, revisar que la suma de `Piezas facturadas` por línea/factura coincida con la cantidad de la factura y no con el total histórico entregado de la orden de venta.
+
+
+## 18.0.1.1.0 - Primer tablero
+- Nuevo menú **Tablero** con filtros globales por periodo, estado Venta/Devolución, canal, cuenta, cliente, producto y proveedor.
+- KPI: Venta bruta, Devoluciones, Venta neta, Costo neto, Utilidad, Margen, Piezas netas y Conciliación.
+- Evolución diaria de venta neta, costo y utilidad.
+- Rankings por canal, producto y proveedor con drill-down al reporte consolidado.
+- Bloque de devoluciones por canal y estado de conciliación.
+- Estado comercial automático por cuenta contable: nombres con **Tránsito/Transito** = Devolución; nombres con **Clientes** = Venta. La clasificación manual del plan contable tiene prioridad.
+- Devoluciones se muestran como importe absoluto para KPI y se restan de la venta bruta al calcular venta neta.

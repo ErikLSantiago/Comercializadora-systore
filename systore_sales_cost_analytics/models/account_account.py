@@ -10,4 +10,4 @@ class AccountAccount(models.Model):
         ('transit_return', 'Tránsito / devolución bruta'),
         ('other', 'Otro'),
     ], string='Clasificación Systore', default='other', index=True,
-       help='Clasificación analítica. Las cuentas de Tránsito pueden usarse como segmentador de devoluciones brutas.')
+       help='Clasificación analítica. Si queda en Otro, Systore detecta automáticamente Tránsito como Devolución y Clientes como Venta por el nombre de la cuenta.')

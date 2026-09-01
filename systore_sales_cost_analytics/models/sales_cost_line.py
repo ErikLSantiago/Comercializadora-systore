@@ -1,5 +1,7 @@
 # -*- coding: utf-8 -*-
 import re
+import unicodedata
+from collections import defaultdict
 
 from odoo import api, fields, models, _
 
@@ -99,15 +101,45 @@ class SystoreSalesCostLine(models.Model):
          'La combinación de línea de factura y movimiento/lote ya existe.'),
     ]
 
-    @api.depends('account_analytics_type')
+    @api.model
+    def _systore_normalize_text(self, value):
+        value = (value or '').strip().lower()
+        return ''.join(
+            char for char in unicodedata.normalize('NFD', value)
+            if unicodedata.category(char) != 'Mn'
+        )
+
+    @api.model
+    def _systore_account_sale_state(self, account):
+        """Clasifica Venta/Devolución usando la cuenta contable de CxC.
+
+        La configuración explícita tiene prioridad. Como respaldo operativo, una cuenta
+        cuyo nombre contenga "Tránsito/Transito" se considera Devolución y una cuenta
+        cuyo nombre contenga "Clientes" se considera Venta. Esto replica la regla
+        usada por Systore para Walmart, Mercado Libre y otros marketplaces.
+        """
+        if not account:
+            return 'sale'
+        if account.systore_analytics_type == 'transit_return':
+            return 'return'
+        if account.systore_analytics_type == 'sale':
+            return 'sale'
+        normalized = self._systore_normalize_text(account.name)
+        if 'transito' in normalized:
+            return 'return'
+        if 'clientes' in normalized:
+            return 'sale'
+        return 'sale'
+
+    @api.depends('account_analytics_type', 'account_id.name')
     def _compute_is_transit_return(self):
         for rec in self:
-            rec.is_transit_return = rec.account_analytics_type == 'transit_return'
+            rec.is_transit_return = rec._systore_account_sale_state(rec.account_id) == 'return'
 
-    @api.depends('account_analytics_type')
+    @api.depends('account_analytics_type', 'account_id.name')
     def _compute_sale_state(self):
         for rec in self:
-            rec.sale_state = 'return' if rec.account_analytics_type == 'transit_return' else 'sale'
+            rec.sale_state = rec._systore_account_sale_state(rec.account_id)
 
     @api.depends('allocated_sale_amount', 'matched_quantity', 'unit_cost_company')
     def _compute_profit(self):
@@ -466,3 +498,211 @@ class SystoreSalesCostLine(models.Model):
                 })
                 created += 1
         return created
+
+    @api.model
+    def get_dashboard_data(self, filters=None):
+        """Devuelve los datos agregados del primer tablero Systore.
+
+        Venta/Devolución se determina por ``sale_state``, que a su vez se deriva de la
+        cuenta contable: Clientes... = Venta y Tránsito... = Devolución (con posibilidad
+        de clasificación manual desde el plan contable).
+        """
+        filters = filters or {}
+        today = fields.Date.context_today(self)
+        date_from = filters.get('date_from') or today.replace(day=1)
+        date_to = filters.get('date_to') or today
+        if isinstance(date_from, str):
+            date_from = fields.Date.from_string(date_from)
+        if isinstance(date_to, str):
+            date_to = fields.Date.from_string(date_to)
+
+        base_domain = [
+            ('company_id', '=', self.env.company.id),
+            ('invoice_date', '>=', date_from),
+            ('invoice_date', '<=', date_to),
+        ]
+        domain = list(base_domain)
+        sale_state = filters.get('sale_state')
+        sales_channel = filters.get('sales_channel')
+        if sale_state in ('sale', 'return'):
+            domain.append(('sale_state', '=', sale_state))
+        if sales_channel:
+            domain.append(('sales_channel', '=', sales_channel))
+        for field_name in ('account_id', 'partner_id', 'product_id', 'vendor_id'):
+            value = filters.get(field_name)
+            if value:
+                domain.append((field_name, '=', int(value)))
+
+        records = self.search(domain, order='invoice_date, id')
+        option_records = self.search(base_domain)
+
+        metrics = {
+            'gross_sales': 0.0, 'returns': 0.0, 'sale_cost': 0.0, 'return_cost': 0.0,
+            'sale_pieces': 0.0, 'return_pieces': 0.0, 'issues': 0, 'total_lines': len(records),
+        }
+        trend = defaultdict(lambda: {'sales': 0.0, 'returns': 0.0, 'sale_cost': 0.0, 'return_cost': 0.0})
+        channels = defaultdict(lambda: self._systore_dashboard_bucket())
+        products = defaultdict(lambda: self._systore_dashboard_bucket())
+        vendors = defaultdict(lambda: self._systore_dashboard_bucket())
+        reconciliation = defaultdict(int)
+
+        for rec in records:
+            amount = abs(rec.allocated_sale_amount or 0.0)
+            cost = abs(rec.total_cost or 0.0)
+            pieces = abs(rec.matched_quantity or 0.0)
+            is_return = rec.sale_state == 'return'
+            if is_return:
+                metrics['returns'] += amount
+                metrics['return_cost'] += cost
+                metrics['return_pieces'] += pieces
+            else:
+                metrics['gross_sales'] += amount
+                metrics['sale_cost'] += cost
+                metrics['sale_pieces'] += pieces
+            if rec.reconciliation_state != 'ok':
+                metrics['issues'] += 1
+            reconciliation[rec.reconciliation_state or 'unknown'] += 1
+
+            day = fields.Date.to_string(rec.invoice_date) if rec.invoice_date else ''
+            if day:
+                if is_return:
+                    trend[day]['returns'] += amount
+                    trend[day]['return_cost'] += cost
+                else:
+                    trend[day]['sales'] += amount
+                    trend[day]['sale_cost'] += cost
+
+            channel_key = rec.sales_channel or 'Sin canal'
+            product_key = rec.product_id.id or 0
+            vendor_key = rec.vendor_id.id or 0
+            self._systore_add_dashboard_bucket(channels[channel_key], amount, cost, pieces, is_return)
+            self._systore_add_dashboard_bucket(products[product_key], amount, cost, pieces, is_return)
+            self._systore_add_dashboard_bucket(vendors[vendor_key], amount, cost, pieces, is_return)
+
+        net_sales = metrics['gross_sales'] - metrics['returns']
+        net_cost = metrics['sale_cost'] - metrics['return_cost']
+        profit = net_sales - net_cost
+        net_pieces = metrics['sale_pieces'] - metrics['return_pieces']
+        margin = profit / net_sales if net_sales else 0.0
+        return_rate = metrics['returns'] / metrics['gross_sales'] if metrics['gross_sales'] else 0.0
+        reconciliation_rate = ((metrics['total_lines'] - metrics['issues']) / metrics['total_lines']) if metrics['total_lines'] else 1.0
+
+        trend_rows = []
+        for day in sorted(trend):
+            vals = trend[day]
+            day_net_sales = vals['sales'] - vals['returns']
+            day_net_cost = vals['sale_cost'] - vals['return_cost']
+            trend_rows.append({
+                'date': day,
+                'label': fields.Date.from_string(day).strftime('%d/%m'),
+                'net_sales': day_net_sales,
+                'net_cost': day_net_cost,
+                'profit': day_net_sales - day_net_cost,
+            })
+        trend_max = max(
+            [abs(row[x]) for row in trend_rows for x in ('net_sales', 'net_cost', 'profit')] or [0.0]
+        )
+
+        product_map = {r.id: '[%s] %s' % (r.default_code or '', r.name) if r.default_code else r.name for r in records.mapped('product_id')}
+        vendor_map = {r.id: r.display_name for r in records.mapped('vendor_id')}
+
+        channel_rows = self._systore_dashboard_rows(channels, lambda key: key, lambda key: [('sales_channel', '=', key)] if key != 'Sin canal' else [('sales_channel', 'in', [False, ''])])
+        product_rows = self._systore_dashboard_rows(products, lambda key: product_map.get(key, 'Sin producto'), lambda key: [('product_id', '=', key)] if key else [('product_id', '=', False)])
+        vendor_rows = self._systore_dashboard_rows(vendors, lambda key: vendor_map.get(key, 'Sin proveedor'), lambda key: [('vendor_id', '=', key)] if key else [('vendor_id', '=', False)])
+        return_channel_rows = [row for row in channel_rows if row['returns'] > 0]
+        return_channel_rows.sort(key=lambda row: row['returns'], reverse=True)
+
+        state_labels = dict(self._fields['reconciliation_state']._description_selection(self.env))
+        reconciliation_rows = []
+        for key, count in sorted(reconciliation.items(), key=lambda item: (item[0] != 'ok', -item[1])):
+            reconciliation_rows.append({
+                'key': key,
+                'label': state_labels.get(key, key),
+                'count': count,
+                'rate': count / metrics['total_lines'] if metrics['total_lines'] else 0.0,
+                'domain': [('reconciliation_state', '=', key)],
+            })
+
+        return {
+            'currency': self.env.company.currency_id.name or 'MXN',
+            'applied_filters': {
+                'date_from': fields.Date.to_string(date_from),
+                'date_to': fields.Date.to_string(date_to),
+            },
+            'kpis': {
+                **metrics,
+                'net_sales': net_sales,
+                'net_cost': net_cost,
+                'profit': profit,
+                'margin': margin,
+                'net_pieces': net_pieces,
+                'return_rate': return_rate,
+                'reconciliation_rate': reconciliation_rate,
+            },
+            'trend': trend_rows,
+            'trend_max': trend_max,
+            'channels': channel_rows[:10],
+            'products': product_rows[:10],
+            'vendors': vendor_rows[:10],
+            'return_channels': return_channel_rows[:10],
+            'reconciliation': reconciliation_rows,
+            'filters': self._systore_dashboard_filter_options(option_records),
+        }
+
+    @api.model
+    def _systore_dashboard_bucket(self):
+        return {'sales': 0.0, 'returns': 0.0, 'sale_cost': 0.0, 'return_cost': 0.0, 'sale_pieces': 0.0, 'return_pieces': 0.0}
+
+    @api.model
+    def _systore_add_dashboard_bucket(self, bucket, amount, cost, pieces, is_return):
+        if is_return:
+            bucket['returns'] += amount
+            bucket['return_cost'] += cost
+            bucket['return_pieces'] += pieces
+        else:
+            bucket['sales'] += amount
+            bucket['sale_cost'] += cost
+            bucket['sale_pieces'] += pieces
+
+    @api.model
+    def _systore_dashboard_rows(self, buckets, label_getter, domain_getter):
+        rows = []
+        for key, bucket in buckets.items():
+            net_sales = bucket['sales'] - bucket['returns']
+            net_cost = bucket['sale_cost'] - bucket['return_cost']
+            profit = net_sales - net_cost
+            rows.append({
+                'key': str(key),
+                'label': label_getter(key) or 'Sin dato',
+                'sales': bucket['sales'],
+                'returns': bucket['returns'],
+                'net_sales': net_sales,
+                'net_cost': net_cost,
+                'profit': profit,
+                'margin': profit / net_sales if net_sales else 0.0,
+                'pieces': bucket['sale_pieces'] - bucket['return_pieces'],
+                'return_pieces': bucket['return_pieces'],
+                'domain': domain_getter(key),
+            })
+        rows.sort(key=lambda row: row['net_sales'], reverse=True)
+        return rows
+
+    @api.model
+    def _systore_dashboard_filter_options(self, records):
+        def m2o_options(recs):
+            return [{'id': rec.id, 'name': rec.display_name} for rec in recs.sorted(lambda r: (r.display_name or '').lower())]
+
+        channels = sorted(set(filter(None, records.mapped('sales_channel'))))
+        products = records.mapped('product_id')
+        product_options = []
+        for product in products.sorted(lambda r: ((r.default_code or ''), (r.name or ''))):
+            label = '[%s] %s' % (product.default_code, product.name) if product.default_code else product.name
+            product_options.append({'id': product.id, 'name': label})
+        return {
+            'sales_channels': channels,
+            'accounts': m2o_options(records.mapped('account_id')),
+            'partners': m2o_options(records.mapped('partner_id')),
+            'products': product_options,
+            'vendors': m2o_options(records.mapped('vendor_id')),
+        }
+
