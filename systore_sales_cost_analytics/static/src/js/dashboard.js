@@ -12,6 +12,7 @@ export class SystoreSalesCostDashboard extends Component {
         this.action = useService("action");
         this.state = useState({
             loading: true,
+            openFilter: "",
             data: {
                 currency: "MXN",
                 filters: {sales_channels: [], accounts: [], partners: [], contacts: [], products: [], vendors: [], salespersons: []},
@@ -46,13 +47,65 @@ export class SystoreSalesCostDashboard extends Component {
         this.state.loading = false;
     }
 
+    statusOptions() {
+        return [
+            { id: "sale", name: "Venta" },
+            { id: "return", name: "Devolución en tránsito" },
+        ];
+    }
+
+    filterKey(value) {
+        return value === null || value === undefined ? "" : `${value}`;
+    }
+
+    isFilterSelected(field, value) {
+        const key = this.filterKey(value);
+        return (this.state.filters[field] || []).some((item) => this.filterKey(item) === key);
+    }
+
+    toggleFilterMenu(field) {
+        this.state.openFilter = this.state.openFilter === field ? "" : field;
+    }
+
+    toggleFilterValue(field, value) {
+        const values = [...(this.state.filters[field] || [])];
+        const key = this.filterKey(value);
+        const index = values.findIndex((item) => this.filterKey(item) === key);
+        if (index >= 0) {
+            values.splice(index, 1);
+        } else {
+            values.push(value);
+        }
+        this.state.filters[field] = values;
+        this.loadData();
+    }
+
+    clearOneFilter(field) {
+        this.state.filters[field] = [];
+        this.loadData();
+    }
+
+    selectedLabels(field, options) {
+        const selected = this.state.filters[field] || [];
+        if (!selected.length) return [];
+        const normalizedOptions = (options || []).map((option) => {
+            if (typeof option === "string") {
+                return { id: option, name: option };
+            }
+            return option;
+        });
+        const labels = selected.map((value) => {
+            const key = this.filterKey(value);
+            const option = normalizedOptions.find((item) => this.filterKey(item.id) === key);
+            return option ? option.name : key;
+        });
+        if (labels.length <= 2) return labels;
+        return [labels[0], labels[1], `+${labels.length - 2}`];
+    }
+
     onFilterChange(ev) {
         const field = ev.target.dataset.field;
-        if (ev.target.multiple) {
-            this.state.filters[field] = Array.from(ev.target.selectedOptions).map((option) => option.value).filter(Boolean);
-        } else {
-            this.state.filters[field] = ev.target.value;
-        }
+        this.state.filters[field] = ev.target.value;
         this.loadData();
     }
 
@@ -61,6 +114,7 @@ export class SystoreSalesCostDashboard extends Component {
     }
 
     clearFilters() {
+        this.state.openFilter = "";
         Object.assign(this.state.filters, {
             sale_state: [],
             sales_channel: [],

@@ -16,66 +16,73 @@
                     <button class="btn btn-light" t-on-click="() => this.setPeriod('previous_month')">Mes anterior</button>
                     <button class="btn btn-light" t-on-click="() => this.setPeriod('year')">Este año</button>
                 </div>
-                <div class="o_systore_filter_hint">Puedes seleccionar varios valores en cada segmentador (Ctrl/Cmd + clic).</div>
+                <div class="o_systore_filter_hint">Filtros tipo Odoo: abre un segmentador y marca uno o varios valores. Los seleccionados se muestran como etiquetas.</div>
                 <div class="o_systore_filter_grid">
                     <label>Desde<input type="date" t-model="state.filters.date_from"/></label>
                     <label>Hasta<input type="date" t-model="state.filters.date_to"/></label>
-                    <label>Estado
-                        <select multiple="multiple" size="3" data-field="sale_state" t-on-change="onFilterChange">
-                            <option value="sale" t-att-selected="state.filters.sale_state.includes('sale')">Venta</option>
-                            <option value="return" t-att-selected="state.filters.sale_state.includes('return')">Devolución en tránsito</option>
-                        </select>
-                        <small>Ctrl/Cmd para seleccionar varios</small>
-                    </label>
-                    <label>Canal de venta
-                        <select multiple="multiple" size="4" data-field="sales_channel" t-on-change="onFilterChange">
-                            <t t-foreach="state.data.filters.sales_channels || []" t-as="item" t-key="item">
-                                <option t-att-value="item" t-att-selected="state.filters.sales_channel.includes(item)"><t t-esc="item"/></option>
-                            </t>
-                        </select>
-                    </label>
-                    <label>Cuenta contable
-                        <select multiple="multiple" size="4" data-field="account_id" t-on-change="onFilterChange">
-                            <t t-foreach="state.data.filters.accounts || []" t-as="item" t-key="item.id">
-                                <option t-att-value="item.id" t-att-selected="state.filters.account_id.includes(String(item.id))"><t t-esc="item.name"/></option>
-                            </t>
-                        </select>
-                    </label>
-                    <label>Cliente de factura
-                        <select multiple="multiple" size="4" data-field="partner_id" t-on-change="onFilterChange">
-                            <t t-foreach="state.data.filters.partners || []" t-as="item" t-key="item.id">
-                                <option t-att-value="item.id" t-att-selected="state.filters.partner_id.includes(String(item.id))"><t t-esc="item.name"/></option>
-                            </t>
-                        </select>
-                    </label>
-                    <label>Contacto del cliente
-                        <select multiple="multiple" size="4" data-field="customer_contact_id" t-on-change="onFilterChange">
-                            <t t-foreach="state.data.filters.contacts || []" t-as="item" t-key="item.id">
-                                <option t-att-value="item.id" t-att-selected="state.filters.customer_contact_id.includes(String(item.id))"><t t-esc="item.name"/></option>
-                            </t>
-                        </select>
-                    </label>
-                    <label>Producto
-                        <select multiple="multiple" size="4" data-field="product_id" t-on-change="onFilterChange">
-                            <t t-foreach="state.data.filters.products || []" t-as="item" t-key="item.id">
-                                <option t-att-value="item.id" t-att-selected="state.filters.product_id.includes(String(item.id))"><t t-esc="item.name"/></option>
-                            </t>
-                        </select>
-                    </label>
-                    <label>Proveedor
-                        <select multiple="multiple" size="4" data-field="vendor_id" t-on-change="onFilterChange">
-                            <t t-foreach="state.data.filters.vendors || []" t-as="item" t-key="item.id">
-                                <option t-att-value="item.id" t-att-selected="state.filters.vendor_id.includes(String(item.id))"><t t-esc="item.name"/></option>
-                            </t>
-                        </select>
-                    </label>
-                    <label>Vendedor
-                        <select multiple="multiple" size="4" data-field="salesperson_id" t-on-change="onFilterChange">
-                            <t t-foreach="state.data.filters.salespersons || []" t-as="item" t-key="item.id">
-                                <option t-att-value="item.id" t-att-selected="state.filters.salesperson_id.includes(String(item.id))"><t t-esc="item.name"/></option>
-                            </t>
-                        </select>
-                    </label>
+
+                    <div class="o_systore_filter_field">
+                        <span class="o_systore_filter_label">Estado</span>
+                        <button type="button" class="o_systore_filter_trigger" t-on-click="() => this.toggleFilterMenu('sale_state')">
+                            <span t-if="!state.filters.sale_state.length" class="o_systore_filter_placeholder">Todos</span>
+                            <span t-else="" class="o_systore_filter_chips">
+                                <t t-foreach="selectedLabels('sale_state', statusOptions())" t-as="label" t-key="label"><span class="o_systore_filter_chip"><t t-esc="label"/></span></t>
+                            </span><i class="fa fa-caret-down"/>
+                        </button>
+                        <div t-if="state.openFilter === 'sale_state'" class="o_systore_filter_menu">
+                            <label class="o_systore_filter_option"><input type="checkbox" t-att-checked="isFilterSelected('sale_state','sale')" t-on-change="() => this.toggleFilterValue('sale_state','sale')"/>Venta</label>
+                            <label class="o_systore_filter_option"><input type="checkbox" t-att-checked="isFilterSelected('sale_state','return')" t-on-change="() => this.toggleFilterValue('sale_state','return')"/>Devolución en tránsito</label>
+                            <button type="button" class="btn btn-link btn-sm" t-on-click="() => this.clearOneFilter('sale_state')">Limpiar</button>
+                        </div>
+                    </div>
+
+                    <div class="o_systore_filter_field">
+                        <span class="o_systore_filter_label">Canal de venta</span>
+                        <button type="button" class="o_systore_filter_trigger" t-on-click="() => this.toggleFilterMenu('sales_channel')">
+                            <span t-if="!state.filters.sales_channel.length" class="o_systore_filter_placeholder">Todos</span>
+                            <span t-else="" class="o_systore_filter_chips"><t t-foreach="selectedLabels('sales_channel', state.data.filters.sales_channels || [])" t-as="label" t-key="label"><span class="o_systore_filter_chip"><t t-esc="label"/></span></t></span><i class="fa fa-caret-down"/>
+                        </button>
+                        <div t-if="state.openFilter === 'sales_channel'" class="o_systore_filter_menu">
+                            <t t-foreach="state.data.filters.sales_channels || []" t-as="item" t-key="item"><label class="o_systore_filter_option"><input type="checkbox" t-att-checked="isFilterSelected('sales_channel',item)" t-on-change="() => this.toggleFilterValue('sales_channel',item)"/><t t-esc="item"/></label></t>
+                            <button type="button" class="btn btn-link btn-sm" t-on-click="() => this.clearOneFilter('sales_channel')">Limpiar</button>
+                        </div>
+                    </div>
+
+                    <div class="o_systore_filter_field">
+                        <span class="o_systore_filter_label">Cuenta contable</span>
+                        <button type="button" class="o_systore_filter_trigger" t-on-click="() => this.toggleFilterMenu('account_id')"><span t-if="!state.filters.account_id.length" class="o_systore_filter_placeholder">Todas</span><span t-else="" class="o_systore_filter_chips"><t t-foreach="selectedLabels('account_id', state.data.filters.accounts || [])" t-as="label" t-key="label"><span class="o_systore_filter_chip"><t t-esc="label"/></span></t></span><i class="fa fa-caret-down"/></button>
+                        <div t-if="state.openFilter === 'account_id'" class="o_systore_filter_menu"><t t-foreach="state.data.filters.accounts || []" t-as="item" t-key="item.id"><label class="o_systore_filter_option"><input type="checkbox" t-att-checked="isFilterSelected('account_id',item.id)" t-on-change="() => this.toggleFilterValue('account_id',item.id)"/><t t-esc="item.name"/></label></t><button type="button" class="btn btn-link btn-sm" t-on-click="() => this.clearOneFilter('account_id')">Limpiar</button></div>
+                    </div>
+
+                    <div class="o_systore_filter_field">
+                        <span class="o_systore_filter_label">Cliente de factura</span>
+                        <button type="button" class="o_systore_filter_trigger" t-on-click="() => this.toggleFilterMenu('partner_id')"><span t-if="!state.filters.partner_id.length" class="o_systore_filter_placeholder">Todos</span><span t-else="" class="o_systore_filter_chips"><t t-foreach="selectedLabels('partner_id', state.data.filters.partners || [])" t-as="label" t-key="label"><span class="o_systore_filter_chip"><t t-esc="label"/></span></t></span><i class="fa fa-caret-down"/></button>
+                        <div t-if="state.openFilter === 'partner_id'" class="o_systore_filter_menu"><t t-foreach="state.data.filters.partners || []" t-as="item" t-key="item.id"><label class="o_systore_filter_option"><input type="checkbox" t-att-checked="isFilterSelected('partner_id',item.id)" t-on-change="() => this.toggleFilterValue('partner_id',item.id)"/><t t-esc="item.name"/></label></t><button type="button" class="btn btn-link btn-sm" t-on-click="() => this.clearOneFilter('partner_id')">Limpiar</button></div>
+                    </div>
+
+                    <div class="o_systore_filter_field">
+                        <span class="o_systore_filter_label">Contacto del cliente</span>
+                        <button type="button" class="o_systore_filter_trigger" t-on-click="() => this.toggleFilterMenu('customer_contact_id')"><span t-if="!state.filters.customer_contact_id.length" class="o_systore_filter_placeholder">Todos</span><span t-else="" class="o_systore_filter_chips"><t t-foreach="selectedLabels('customer_contact_id', state.data.filters.contacts || [])" t-as="label" t-key="label"><span class="o_systore_filter_chip"><t t-esc="label"/></span></t></span><i class="fa fa-caret-down"/></button>
+                        <div t-if="state.openFilter === 'customer_contact_id'" class="o_systore_filter_menu"><t t-foreach="state.data.filters.contacts || []" t-as="item" t-key="item.id"><label class="o_systore_filter_option"><input type="checkbox" t-att-checked="isFilterSelected('customer_contact_id',item.id)" t-on-change="() => this.toggleFilterValue('customer_contact_id',item.id)"/><t t-esc="item.name"/></label></t><button type="button" class="btn btn-link btn-sm" t-on-click="() => this.clearOneFilter('customer_contact_id')">Limpiar</button></div>
+                    </div>
+
+                    <div class="o_systore_filter_field">
+                        <span class="o_systore_filter_label">Producto</span>
+                        <button type="button" class="o_systore_filter_trigger" t-on-click="() => this.toggleFilterMenu('product_id')"><span t-if="!state.filters.product_id.length" class="o_systore_filter_placeholder">Todos</span><span t-else="" class="o_systore_filter_chips"><t t-foreach="selectedLabels('product_id', state.data.filters.products || [])" t-as="label" t-key="label"><span class="o_systore_filter_chip"><t t-esc="label"/></span></t></span><i class="fa fa-caret-down"/></button>
+                        <div t-if="state.openFilter === 'product_id'" class="o_systore_filter_menu"><t t-foreach="state.data.filters.products || []" t-as="item" t-key="item.id"><label class="o_systore_filter_option"><input type="checkbox" t-att-checked="isFilterSelected('product_id',item.id)" t-on-change="() => this.toggleFilterValue('product_id',item.id)"/><t t-esc="item.name"/></label></t><button type="button" class="btn btn-link btn-sm" t-on-click="() => this.clearOneFilter('product_id')">Limpiar</button></div>
+                    </div>
+
+                    <div class="o_systore_filter_field">
+                        <span class="o_systore_filter_label">Proveedor</span>
+                        <button type="button" class="o_systore_filter_trigger" t-on-click="() => this.toggleFilterMenu('vendor_id')"><span t-if="!state.filters.vendor_id.length" class="o_systore_filter_placeholder">Todos</span><span t-else="" class="o_systore_filter_chips"><t t-foreach="selectedLabels('vendor_id', state.data.filters.vendors || [])" t-as="label" t-key="label"><span class="o_systore_filter_chip"><t t-esc="label"/></span></t></span><i class="fa fa-caret-down"/></button>
+                        <div t-if="state.openFilter === 'vendor_id'" class="o_systore_filter_menu"><t t-foreach="state.data.filters.vendors || []" t-as="item" t-key="item.id"><label class="o_systore_filter_option"><input type="checkbox" t-att-checked="isFilterSelected('vendor_id',item.id)" t-on-change="() => this.toggleFilterValue('vendor_id',item.id)"/><t t-esc="item.name"/></label></t><button type="button" class="btn btn-link btn-sm" t-on-click="() => this.clearOneFilter('vendor_id')">Limpiar</button></div>
+                    </div>
+
+                    <div class="o_systore_filter_field">
+                        <span class="o_systore_filter_label">Vendedor</span>
+                        <button type="button" class="o_systore_filter_trigger" t-on-click="() => this.toggleFilterMenu('salesperson_id')"><span t-if="!state.filters.salesperson_id.length" class="o_systore_filter_placeholder">Todos</span><span t-else="" class="o_systore_filter_chips"><t t-foreach="selectedLabels('salesperson_id', state.data.filters.salespersons || [])" t-as="label" t-key="label"><span class="o_systore_filter_chip"><t t-esc="label"/></span></t></span><i class="fa fa-caret-down"/></button>
+                        <div t-if="state.openFilter === 'salesperson_id'" class="o_systore_filter_menu"><t t-foreach="state.data.filters.salespersons || []" t-as="item" t-key="item.id"><label class="o_systore_filter_option"><input type="checkbox" t-att-checked="isFilterSelected('salesperson_id',item.id)" t-on-change="() => this.toggleFilterValue('salesperson_id',item.id)"/><t t-esc="item.name"/></label></t><button type="button" class="btn btn-link btn-sm" t-on-click="() => this.clearOneFilter('salesperson_id')">Limpiar</button></div>
+                    </div>
                 </div>
                 <div class="o_systore_filter_actions">
                     <button class="btn btn-primary" t-on-click="applyDates">Aplicar fechas</button>
