@@ -170,7 +170,6 @@
                     <t t-foreach="[
                         ['channels', 'Canal'],
                         ['customers', 'Cliente'],
-                        ['contacts', 'Contacto del cliente'],
                         ['products', 'Producto'],
                         ['vendors', 'Proveedor']
                     ]" t-as="pieDef" t-key="pieDef[0]">

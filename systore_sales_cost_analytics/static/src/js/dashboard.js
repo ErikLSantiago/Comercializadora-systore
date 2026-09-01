@@ -235,7 +235,7 @@ export class SystoreSalesCostDashboard extends Component {
 
     currentDomain(extraDomain = []) {
         const f = this.state.filters;
-        const domain = [["move_name", "not ilike", "RINV"], ["ref", "not ilike", "RINV"]];
+        const domain = [];
         if (f.date_from) domain.push(["invoice_date", ">=", f.date_from]);
         if (f.date_to) domain.push(["invoice_date", "<=", f.date_to]);
         if (f.sale_state?.length) domain.push(["sale_state", "in", f.sale_state]);

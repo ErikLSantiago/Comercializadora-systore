@@ -164,7 +164,7 @@ class SystoreSalesCostLine(models.Model):
         }
         if code in marketplace:
             return 'Marketplace'
-        if code == '401.01.10':
+        if code in {'401.01.10', '402.01.10'}:
             return 'Mayoreo'
         if code in {'401.01.16', '401.01.12'}:
             return 'Empleado'
@@ -412,10 +412,8 @@ class SystoreSalesCostLine(models.Model):
             ('company_id', '=', company.id),
             ('move_id.state', '=', 'posted'),
             ('move_id.move_type', 'in', ['out_invoice', 'out_refund']),
-            # Las notas de crédito RINV representan devoluciones efectivas.
-            # En esta fase se excluyen: el tablero solo analiza venta y devolución en tránsito.
-            ('move_id.name', 'not ilike', 'RINV'),
-            ('move_id.ref', 'not ilike', 'RINV'),
+            # RINV se filtra después de la búsqueda: únicamente 402.01.10 (Mayoreo)
+            # participa en esta fase como devolución en tránsito y efectiva simultáneamente.
             ('move_id.invoice_date', '>=', date_from),
             ('move_id.invoice_date', '<=', date_to),
             ('product_id', '!=', False),
@@ -427,6 +425,12 @@ class SystoreSalesCostLine(models.Model):
         created = 0
 
         for aml in lines:
+            move_name_upper = ((aml.move_id.name or '') + ' ' + (aml.move_id.ref or '')).upper()
+            is_rinv = 'RINV' in move_name_upper
+            is_wholesale_rinv = is_rinv and (aml.account_id.code or '').strip() == '402.01.10'
+            # Marketplace/otros RINV continúan reservados para el futuro reporte de devolución efectiva.
+            if is_rinv and not is_wholesale_rinv:
+                continue
             move = aml.move_id
             order_base = self._systore_order_base(move.invoice_origin)
             sku = aml.product_id.default_code or ''
@@ -452,7 +456,7 @@ class SystoreSalesCostLine(models.Model):
                     'customer_contact_id': ((fallback_sale_order.partner_shipping_id.id if fallback_sale_order and fallback_sale_order.partner_shipping_id else False) or (move.partner_shipping_id.id if getattr(move, 'partner_shipping_id', False) else move.partner_id.id)),
                     'sale_order_id': fallback_sale_order.id if fallback_sale_order else False,
                     'salesperson_id': (fallback_sale_order.user_id.id if fallback_sale_order and fallback_sale_order.user_id else (move.invoice_user_id.id if getattr(move, 'invoice_user_id', False) else False)),
-                    'analytic_role': 'sale',
+                    'analytic_role': 'transit_return' if is_wholesale_rinv else 'sale',
                     'sale_order_line_id': fallback_sale_line.id if fallback_sale_line else False,
                     'marketplace_order_number': self._systore_field_display(fallback_sale_order, 'x_studio_nmero_de_orden_mkp'),
                     'product_id': aml.product_id.id,
@@ -526,7 +530,7 @@ class SystoreSalesCostLine(models.Model):
                     'allocated_sale_amount': allocated_sale,
                     'sale_order_id': sale_order.id if sale_order else False,
                     'salesperson_id': (sale_order.user_id.id if sale_order and sale_order.user_id else (move.invoice_user_id.id if getattr(move, 'invoice_user_id', False) else False)),
-                    'analytic_role': 'sale',
+                    'analytic_role': 'transit_return' if is_wholesale_rinv else 'sale',
                     'sale_order_line_id': sale_line.id if sale_line else False,
                     'marketplace_order_number': self._systore_field_display(sale_order, 'x_studio_nmero_de_orden_mkp'),
                     'stock_move_line_id': ml.id,
@@ -556,7 +560,7 @@ class SystoreSalesCostLine(models.Model):
                 # venta bruta. Se agrega una segunda línea analítica negativa para descontarla
                 # como devolución en tránsito y obtener la venta neta sin perder la venta original.
                 transit_account = self._systore_transit_counterpart(move)
-                if transit_account:
+                if transit_account and not is_wholesale_rinv:
                     transit_vals = {
                         'company_id': company.id, 'invoice_date': move.invoice_date or move.date,
                         'invoice_id': move.id, 'invoice_line_id': aml.id, 'move_name': move.name,
@@ -595,8 +599,8 @@ class SystoreSalesCostLine(models.Model):
         Venta/Devolución en tránsito se determina por la póliza de la factura. Si entre sus
         apuntes existe una contrapartida 106.xx cuyo nombre contiene Tránsito, la operación
         se considera devolución en tránsito. Las notas de crédito RINV (devolución efectiva)
-        se excluyen de esta primera versión del tablero y se reservarán para el reporte
-        específico de devoluciones.
+        se excluyen salvo Mayoreo: RINV contabilizado en 402.01.10 se incorpora como
+        devolución en tránsito y devolución efectiva a la vez.
         """
         filters = filters or {}
         today = fields.Date.context_today(self)
@@ -609,8 +613,6 @@ class SystoreSalesCostLine(models.Model):
 
         base_domain = [
             ('company_id', '=', self.env.company.id),
-            ('move_name', 'not ilike', 'RINV'),
-            ('ref', 'not ilike', 'RINV'),
             ('invoice_date', '>=', date_from),
             ('invoice_date', '<=', date_to),
         ]
