@@ -89,24 +89,56 @@
                     <div class="o_systore_kpi"><span>Utilidad</span><strong t-esc="money(state.data.kpis.profit)"/><small>Venta neta − costo neto</small></div>
                     <div class="o_systore_kpi"><span>Margen</span><strong t-esc="percent(state.data.kpis.margin)"/><small>Utilidad ÷ venta neta</small></div>
                     <div class="o_systore_kpi"><span>Piezas netas</span><strong t-esc="number(state.data.kpis.net_pieces)"/><small t-esc="number(state.data.kpis.return_pieces) + ' devueltas'"/></div>
-                    <div class="o_systore_kpi" t-on-click="() => this.openReport([['reconciliation_state','!=','ok']])">
-                        <span>Conciliación</span><strong t-esc="percent(state.data.kpis.reconciliation_rate)"/><small t-esc="state.data.kpis.issues + ' incidencias'"/>
+                    <div class="o_systore_kpi">
+                        <span>Costo de venta bruta</span><strong t-esc="money(state.data.kpis.sale_cost)"/><small>Costo antes de devoluciones</small>
                     </div>
                 </div>
 
                 <div class="o_systore_panel o_systore_trend">
-                    <div class="o_systore_panel_title"><h2>Evolución</h2><span>Venta neta, costo y utilidad por día</span></div>
-                    <div class="o_systore_trend_rows">
-                        <t t-foreach="state.data.trend" t-as="row" t-key="row.date">
-                            <div class="o_systore_trend_row">
-                                <div class="o_systore_trend_date" t-esc="row.label"/>
-                                <div class="o_systore_trend_metric"><span>Venta</span><div class="o_systore_bar"><i class="sale" t-att-style="'width:' + barWidth(row.net_sales, state.data.trend_max)"/></div><b t-esc="money(row.net_sales)"/></div>
-                                <div class="o_systore_trend_metric"><span>Costo</span><div class="o_systore_bar"><i class="cost" t-att-style="'width:' + barWidth(row.net_cost, state.data.trend_max)"/></div><b t-esc="money(row.net_cost)"/></div>
-                                <div class="o_systore_trend_metric"><span>Utilidad</span><div class="o_systore_bar"><i class="profit" t-att-style="'width:' + barWidth(row.profit, state.data.trend_max)"/></div><b t-esc="money(row.profit)"/></div>
+                    <div class="o_systore_panel_title"><h2>Evolución</h2><span>Tendencia 2D de venta neta, costo y utilidad</span></div>
+                    <t t-if="state.data.trend.length">
+                        <div class="o_systore_line_chart_wrap">
+                            <div class="o_systore_chart_legend">
+                                <span><i class="sale"/>Venta neta</span><span><i class="cost"/>Costo neto</span><span><i class="profit"/>Utilidad</span>
                             </div>
-                        </t>
-                        <t t-if="!state.data.trend.length"><div class="o_systore_empty">No hay datos para el periodo seleccionado.</div></t>
-                    </div>
+                            <svg class="o_systore_line_chart" viewBox="0 0 1000 320" preserveAspectRatio="none" role="img" aria-label="Evolución de venta neta, costo y utilidad">
+                                <line x1="60" y1="270" x2="980" y2="270" class="axis"/>
+                                <line x1="60" y1="20" x2="60" y2="270" class="axis"/>
+                                <line x1="60" y1="82.5" x2="980" y2="82.5" class="grid"/>
+                                <line x1="60" y1="145" x2="980" y2="145" class="grid"/>
+                                <line x1="60" y1="207.5" x2="980" y2="207.5" class="grid"/>
+                                <polyline t-att-points="linePoints('net_sales')" class="series sale"/>
+                                <polyline t-att-points="linePoints('net_cost')" class="series cost"/>
+                                <polyline t-att-points="linePoints('profit')" class="series profit"/>
+                                <t t-foreach="state.data.trend" t-as="row" t-key="row.date">
+                                    <circle t-att-cx="chartX(row_index)" t-att-cy="chartY(row.net_sales)" r="3" class="dot sale"><title t-esc="row.label + ' · Venta neta ' + money(row.net_sales)"/></circle>
+                                    <circle t-att-cx="chartX(row_index)" t-att-cy="chartY(row.net_cost)" r="3" class="dot cost"><title t-esc="row.label + ' · Costo ' + money(row.net_cost)"/></circle>
+                                    <circle t-att-cx="chartX(row_index)" t-att-cy="chartY(row.profit)" r="3" class="dot profit"><title t-esc="row.label + ' · Utilidad ' + money(row.profit)"/></circle>
+                                    <text t-if="showXAxisLabel(row_index)" t-att-x="chartX(row_index)" y="296" class="x_label" text-anchor="middle" t-esc="row.label"/>
+                                </t>
+                            </svg>
+                        </div>
+                    </t>
+                    <t t-if="!state.data.trend.length"><div class="o_systore_empty">No hay datos para el periodo seleccionado.</div></t>
+                </div>
+
+                <div class="o_systore_panel">
+                    <div class="o_systore_panel_title"><h2>Venta neta y devoluciones</h2><span>Columnas apiladas por día</span></div>
+                    <t t-if="state.data.trend.length">
+                        <div class="o_systore_chart_legend"><span><i class="sale"/>Venta neta</span><span><i class="return"/>Devoluciones</span></div>
+                        <div class="o_systore_stacked_chart">
+                            <t t-foreach="state.data.trend" t-as="row" t-key="row.date">
+                                <div class="o_systore_stack_item">
+                                    <div class="o_systore_stack_plot" t-att-title="row.label + ' · Venta neta ' + money(row.net_sales) + ' · Devoluciones ' + money(row.returns)">
+                                        <div class="o_systore_stack_segment return" t-att-style="'height:' + stackedHeight(row.returns)"/>
+                                        <div class="o_systore_stack_segment sale" t-att-style="'height:' + stackedHeight(row.net_sales)"/>
+                                    </div>
+                                    <small t-esc="row.label"/>
+                                </div>
+                            </t>
+                        </div>
+                    </t>
+                    <t t-if="!state.data.trend.length"><div class="o_systore_empty">No hay datos para el periodo seleccionado.</div></t>
                 </div>
 
                 <div class="o_systore_four_columns o_systore_pie_grid">

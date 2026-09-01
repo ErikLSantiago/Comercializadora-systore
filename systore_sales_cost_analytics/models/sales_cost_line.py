@@ -641,6 +641,8 @@ class SystoreSalesCostLine(models.Model):
             trend_rows.append({
                 'date': day,
                 'label': fields.Date.from_string(day).strftime('%d/%m'),
+                'gross_sales': vals['sales'],
+                'returns': vals['returns'],
                 'net_sales': day_net_sales,
                 'net_cost': day_net_cost,
                 'profit': day_net_sales - day_net_cost,

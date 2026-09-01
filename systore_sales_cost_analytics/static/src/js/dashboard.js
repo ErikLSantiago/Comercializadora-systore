@@ -121,6 +121,50 @@ export class SystoreSalesCostDashboard extends Component {
         return `${Math.max(2, Math.min(100, (Math.abs(value) / maxValue) * 100))}%`;
     }
 
+    chartX(index) {
+        const rows = this.state.data?.trend || [];
+        if (rows.length <= 1) return 520;
+        return 60 + (index * 920) / (rows.length - 1);
+    }
+
+    chartBounds() {
+        const rows = this.state.data?.trend || [];
+        const values = rows.flatMap((row) => [row.net_sales || 0, row.net_cost || 0, row.profit || 0]);
+        let min = Math.min(0, ...values);
+        let max = Math.max(0, ...values);
+        if (min === max) {
+            max = min + 1;
+        }
+        const pad = (max - min) * 0.08;
+        return { min: min - pad, max: max + pad };
+    }
+
+    chartY(value) {
+        const { min, max } = this.chartBounds();
+        const ratio = ((value || 0) - min) / (max - min);
+        return 270 - ratio * 250;
+    }
+
+    linePoints(field) {
+        return (this.state.data?.trend || [])
+            .map((row, index) => `${this.chartX(index)},${this.chartY(row[field] || 0)}`)
+            .join(" ");
+    }
+
+    showXAxisLabel(index) {
+        const length = (this.state.data?.trend || []).length;
+        if (length <= 12) return true;
+        const step = Math.ceil(length / 10);
+        return index % step === 0 || index === length - 1;
+    }
+
+    stackedHeight(value) {
+        const rows = this.state.data?.trend || [];
+        const maxTotal = Math.max(...rows.map((row) => Math.max(0, row.net_sales || 0) + Math.max(0, row.returns || 0)), 0);
+        if (!maxTotal) return "0%";
+        return `${Math.max(0, (Math.max(0, value || 0) / maxTotal) * 100)}%`;
+    }
+
     currentDomain(extraDomain = []) {
         const f = this.state.filters;
         const domain = [];
