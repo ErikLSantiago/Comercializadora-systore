@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*-
 {
     'name': 'Systore - Analítica Ventas, Facturación y Costos',
-    'version': '18.0.1.1.2',
+    'version': '18.0.1.1.3',
     'category': 'Sales/Reporting',
     'summary': 'Concilia facturación, movimientos por lote y órdenes de compra para analizar venta, costo y margen.',
     'author': 'Systore',

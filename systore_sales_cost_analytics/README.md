@@ -55,3 +55,8 @@ Ejecutar **Systore Analytics → Actualizar reporte** para regenerar el periodo.
 - Canal de venta calculado desde la cuenta 401.xx: Marketplace, Mayoreo o Empleado según catálogo Systore.
 - Tablero: gráficas de pastel de distribución de venta bruta por Canal, Producto y Proveedor.
 - Campo técnico visible opcional "Cuenta Tránsito contraparte" para auditoría.
+
+
+## 18.0.1.1.3
+- Se habilita desplazamiento vertical nativo en la pantalla completa del Tablero para visualizar todas las secciones sin modificar el zoom del navegador.
+- Se evita scroll horizontal del contenedor principal y se conserva el scroll interno de componentes anchos como Evolución.
