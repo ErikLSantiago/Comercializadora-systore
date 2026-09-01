@@ -849,18 +849,15 @@ class SystoreSalesCostLine(models.Model):
                 'label': row.get('label') or 'Sin dato',
                 'value': row.get(value_field, 0.0),
                 'share': row.get(value_field, 0.0) / total,
-                'pieces': (row.get('return_pieces', 0.0) if value_field == 'returns' else (row.get('sale_pieces', 0.0) if value_field == 'sales' else row.get('gross_pieces', 0.0))),
                 'domain': row.get('domain', []),
             })
         if remainder:
             other_value = sum(row.get(value_field, 0.0) for row in remainder)
-            other_pieces = sum((row.get('return_pieces', 0.0) if value_field == 'returns' else (row.get('sale_pieces', 0.0) if value_field == 'sales' else row.get('gross_pieces', 0.0))) for row in remainder)
             result.append({
                 'key': '__other__',
                 'label': 'Otros',
                 'value': other_value,
                 'share': other_value / total,
-                'pieces': other_pieces,
                 'domain': [],
             })
         return result

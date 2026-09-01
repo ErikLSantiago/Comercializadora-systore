@@ -281,7 +281,7 @@ export class SystoreSalesCostDashboard extends Component {
         if (metric === "pieces") {
             return `${this.number(row.value)} pzas`;
         }
-        return `${this.money(row.value)} · ${this.number(row.pieces || 0)} pzas`;
+        return this.money(row.value);
     }
 
     pieStyle(rows) {
