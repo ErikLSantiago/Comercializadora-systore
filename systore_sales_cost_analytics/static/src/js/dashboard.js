@@ -14,19 +14,20 @@ export class SystoreSalesCostDashboard extends Component {
             loading: true,
             data: {
                 currency: "MXN",
-                filters: {sales_channels: [], accounts: [], partners: [], products: [], vendors: [], salespersons: []},
-                kpis: {}, trend: [], trend_max: 0, channels: [], products: [], vendors: [], pie_channels: [], pie_customers: [], pie_products: [], pie_vendors: [], return_channels: [], reconciliation: [],
+                filters: {sales_channels: [], accounts: [], partners: [], contacts: [], products: [], vendors: [], salespersons: []},
+                kpis: {}, trend: [], trend_max: 0, channels: [], products: [], vendors: [], pie_channels: [], pie_customers: [], pie_contacts: [], pie_products: [], pie_vendors: [], return_channels: [], reconciliation: [],
             },
             filters: {
                 date_from: "",
                 date_to: "",
-                sale_state: "",
-                sales_channel: "",
-                account_id: "",
-                partner_id: "",
-                product_id: "",
-                vendor_id: "",
-                salesperson_id: "",
+                sale_state: [],
+                sales_channel: [],
+                account_id: [],
+                partner_id: [],
+                customer_contact_id: [],
+                product_id: [],
+                vendor_id: [],
+                salesperson_id: [],
             },
         });
         onWillStart(() => this.loadData());
@@ -35,10 +36,8 @@ export class SystoreSalesCostDashboard extends Component {
     async loadData() {
         this.state.loading = true;
         const payload = { ...this.state.filters };
-        for (const key of ["account_id", "partner_id", "product_id", "vendor_id", "salesperson_id"]) {
-            if (payload[key]) {
-                payload[key] = Number(payload[key]);
-            }
+        for (const key of ["account_id", "partner_id", "customer_contact_id", "product_id", "vendor_id", "salesperson_id"]) {
+            payload[key] = (payload[key] || []).map((value) => Number(value));
         }
         const data = await this.orm.call("systore.sales.cost.line", "get_dashboard_data", [payload]);
         this.state.data = data;
@@ -49,7 +48,11 @@ export class SystoreSalesCostDashboard extends Component {
 
     onFilterChange(ev) {
         const field = ev.target.dataset.field;
-        this.state.filters[field] = ev.target.value;
+        if (ev.target.multiple) {
+            this.state.filters[field] = Array.from(ev.target.selectedOptions).map((option) => option.value).filter(Boolean);
+        } else {
+            this.state.filters[field] = ev.target.value;
+        }
         this.loadData();
     }
 
@@ -59,13 +62,14 @@ export class SystoreSalesCostDashboard extends Component {
 
     clearFilters() {
         Object.assign(this.state.filters, {
-            sale_state: "",
-            sales_channel: "",
-            account_id: "",
-            partner_id: "",
-            product_id: "",
-            vendor_id: "",
-                salesperson_id: "",
+            sale_state: [],
+            sales_channel: [],
+            account_id: [],
+            partner_id: [],
+            customer_contact_id: [],
+            product_id: [],
+            vendor_id: [],
+            salesperson_id: [],
         });
         this.loadData();
     }
@@ -176,13 +180,11 @@ export class SystoreSalesCostDashboard extends Component {
         const domain = [["move_name", "not ilike", "RINV"], ["ref", "not ilike", "RINV"]];
         if (f.date_from) domain.push(["invoice_date", ">=", f.date_from]);
         if (f.date_to) domain.push(["invoice_date", "<=", f.date_to]);
-        if (f.sale_state) domain.push(["sale_state", "=", f.sale_state]);
-        if (f.sales_channel) domain.push(["sales_channel", "=", f.sales_channel]);
-        if (f.account_id) domain.push(["account_id", "=", Number(f.account_id)]);
-        if (f.partner_id) domain.push(["partner_id", "=", Number(f.partner_id)]);
-        if (f.product_id) domain.push(["product_id", "=", Number(f.product_id)]);
-        if (f.vendor_id) domain.push(["vendor_id", "=", Number(f.vendor_id)]);
-        if (f.salesperson_id) domain.push(["salesperson_id", "=", Number(f.salesperson_id)]);
+        if (f.sale_state?.length) domain.push(["sale_state", "in", f.sale_state]);
+        if (f.sales_channel?.length) domain.push(["sales_channel", "in", f.sales_channel]);
+        for (const field of ["account_id", "partner_id", "customer_contact_id", "product_id", "vendor_id", "salesperson_id"]) {
+            if (f[field]?.length) domain.push([field, "in", f[field].map(Number)]);
+        }
         return domain.concat(extraDomain || []);
     }
 

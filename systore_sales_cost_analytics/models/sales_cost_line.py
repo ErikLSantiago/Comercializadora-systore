@@ -28,7 +28,8 @@ class SystoreSalesCostLine(models.Model):
     account_analytics_type = fields.Selection(related='account_id.systore_analytics_type', string='Tipo cuenta', store=True, readonly=True)
     is_transit_return = fields.Boolean(string='Devolución en tránsito', compute='_compute_is_transit_return', store=True)
 
-    partner_id = fields.Many2one('res.partner', string='Cliente', index=True, readonly=True)
+    partner_id = fields.Many2one('res.partner', string='Cliente de factura', index=True, readonly=True)
+    customer_contact_id = fields.Many2one('res.partner', string='Contacto del cliente', index=True, readonly=True)
     product_id = fields.Many2one('product.product', string='Producto', index=True, readonly=True)
     sku = fields.Char(string='SKU', index=True, readonly=True)
     product_name = fields.Char(string='Nombre del producto (Producto/Nombre)', readonly=True)
@@ -448,6 +449,7 @@ class SystoreSalesCostLine(models.Model):
                     'ref': move.ref,
                     'account_id': aml.account_id.id,
                     'partner_id': move.partner_id.id,
+                    'customer_contact_id': ((fallback_sale_order.partner_shipping_id.id if fallback_sale_order and fallback_sale_order.partner_shipping_id else False) or (move.partner_shipping_id.id if getattr(move, 'partner_shipping_id', False) else move.partner_id.id)),
                     'sale_order_id': fallback_sale_order.id if fallback_sale_order else False,
                     'salesperson_id': (fallback_sale_order.user_id.id if fallback_sale_order and fallback_sale_order.user_id else (move.invoice_user_id.id if getattr(move, 'invoice_user_id', False) else False)),
                     'analytic_role': 'sale',
@@ -512,6 +514,7 @@ class SystoreSalesCostLine(models.Model):
                     'ref': move.ref,
                     'account_id': aml.account_id.id,
                     'partner_id': move.partner_id.id,
+                    'customer_contact_id': ((sale_order.partner_shipping_id.id if sale_order and sale_order.partner_shipping_id else False) or (move.partner_shipping_id.id if getattr(move, 'partner_shipping_id', False) else move.partner_id.id)),
                     'product_id': aml.product_id.id,
                     'sku': sku,
                     'product_name': aml.product_id.name,
@@ -559,6 +562,7 @@ class SystoreSalesCostLine(models.Model):
                         'invoice_id': move.id, 'invoice_line_id': aml.id, 'move_name': move.name,
                         'invoice_origin': move.invoice_origin, 'sale_origin': sale_origin, 'order_base': order_base,
                         'ref': move.ref, 'account_id': aml.account_id.id, 'partner_id': move.partner_id.id,
+                        'customer_contact_id': ((sale_order.partner_shipping_id.id if sale_order and sale_order.partner_shipping_id else False) or (move.partner_shipping_id.id if getattr(move, 'partner_shipping_id', False) else move.partner_id.id)),
                         'product_id': aml.product_id.id, 'sku': sku, 'product_name': aml.product_id.name,
                         'invoice_quantity': -abs(aml.quantity or 0.0), 'matched_quantity': -abs(matched_qty),
                         'invoice_credit': 0.0, 'invoice_debit': abs(allocated_sale),
@@ -611,16 +615,26 @@ class SystoreSalesCostLine(models.Model):
             ('invoice_date', '<=', date_to),
         ]
         domain = list(base_domain)
-        sale_state = filters.get('sale_state')
-        sales_channel = filters.get('sales_channel')
-        if sale_state in ('sale', 'return'):
-            domain.append(('sale_state', '=', sale_state))
-        if sales_channel:
-            domain.append(('sales_channel', '=', sales_channel))
-        for field_name in ('account_id', 'partner_id', 'product_id', 'vendor_id', 'salesperson_id'):
-            value = filters.get(field_name)
-            if value:
-                domain.append((field_name, '=', int(value)))
+        sale_states = filters.get('sale_state') or []
+        if isinstance(sale_states, str):
+            sale_states = [sale_states] if sale_states else []
+        sale_states = [value for value in sale_states if value in ('sale', 'return')]
+        if sale_states:
+            domain.append(('sale_state', 'in', sale_states))
+
+        sales_channels = filters.get('sales_channel') or []
+        if isinstance(sales_channels, str):
+            sales_channels = [sales_channels] if sales_channels else []
+        if sales_channels:
+            domain.append(('sales_channel', 'in', sales_channels))
+
+        for field_name in ('account_id', 'partner_id', 'customer_contact_id', 'product_id', 'vendor_id', 'salesperson_id'):
+            values = filters.get(field_name) or []
+            if not isinstance(values, (list, tuple)):
+                values = [values] if values else []
+            values = [int(value) for value in values if value]
+            if values:
+                domain.append((field_name, 'in', values))
 
         records = self.search(domain, order='invoice_date, id')
         option_records = self.search(base_domain)
@@ -634,6 +648,7 @@ class SystoreSalesCostLine(models.Model):
         products = defaultdict(lambda: self._systore_dashboard_bucket())
         vendors = defaultdict(lambda: self._systore_dashboard_bucket())
         customers = defaultdict(lambda: self._systore_dashboard_bucket())
+        contacts = defaultdict(lambda: self._systore_dashboard_bucket())
         reconciliation = defaultdict(int)
 
         for rec in records:
@@ -666,10 +681,12 @@ class SystoreSalesCostLine(models.Model):
             product_key = rec.product_id.id or 0
             vendor_key = rec.vendor_id.id or 0
             customer_key = rec.partner_id.id or 0
+            contact_key = rec.customer_contact_id.id or 0
             self._systore_add_dashboard_bucket(channels[channel_key], amount, cost, pieces, is_return)
             self._systore_add_dashboard_bucket(products[product_key], amount, cost, pieces, is_return)
             self._systore_add_dashboard_bucket(vendors[vendor_key], amount, cost, pieces, is_return)
             self._systore_add_dashboard_bucket(customers[customer_key], amount, cost, pieces, is_return)
+            self._systore_add_dashboard_bucket(contacts[contact_key], amount, cost, pieces, is_return)
 
         net_sales = metrics['gross_sales'] - metrics['returns']
         net_cost = metrics['sale_cost'] - metrics['return_cost']
@@ -700,15 +717,18 @@ class SystoreSalesCostLine(models.Model):
         product_map = {r.id: '[%s] %s' % (r.default_code or '', r.name) if r.default_code else r.name for r in records.mapped('product_id')}
         vendor_map = {r.id: r.display_name for r in records.mapped('vendor_id')}
         customer_map = {r.id: r.display_name for r in records.mapped('partner_id')}
+        contact_map = {r.id: r.display_name for r in records.mapped('customer_contact_id')}
 
         channel_rows = self._systore_dashboard_rows(channels, lambda key: key, lambda key: [('sales_channel', '=', key)] if key != 'Sin canal' else [('sales_channel', 'in', [False, ''])])
         product_rows = self._systore_dashboard_rows(products, lambda key: product_map.get(key, 'Sin producto'), lambda key: [('product_id', '=', key)] if key else [('product_id', '=', False)])
         vendor_rows = self._systore_dashboard_rows(vendors, lambda key: vendor_map.get(key, 'Sin proveedor'), lambda key: [('vendor_id', '=', key)] if key else [('vendor_id', '=', False)])
         customer_rows = self._systore_dashboard_rows(customers, lambda key: customer_map.get(key, 'Sin cliente'), lambda key: [('partner_id', '=', key)] if key else [('partner_id', '=', False)])
+        contact_rows = self._systore_dashboard_rows(contacts, lambda key: contact_map.get(key, 'Sin contacto'), lambda key: [('customer_contact_id', '=', key)] if key else [('customer_contact_id', '=', False)])
         pie_channels = self._systore_dashboard_pie_rows(channel_rows)
         pie_products = self._systore_dashboard_pie_rows(product_rows)
         pie_vendors = self._systore_dashboard_pie_rows(vendor_rows, value_field='pieces')
         pie_customers = self._systore_dashboard_pie_rows(customer_rows)
+        pie_contacts = self._systore_dashboard_pie_rows(contact_rows)
         return_channel_rows = [row for row in channel_rows if row['returns'] > 0]
         return_channel_rows.sort(key=lambda row: row['returns'], reverse=True)
 
@@ -748,6 +768,7 @@ class SystoreSalesCostLine(models.Model):
             'pie_products': pie_products,
             'pie_vendors': pie_vendors,
             'pie_customers': pie_customers,
+            'pie_contacts': pie_contacts,
             'return_channels': return_channel_rows[:10],
             'reconciliation': reconciliation_rows,
             'filters': self._systore_dashboard_filter_options(option_records),
@@ -836,6 +857,7 @@ class SystoreSalesCostLine(models.Model):
             'sales_channels': channels,
             'accounts': m2o_options(records.mapped('account_id')),
             'partners': m2o_options(records.mapped('partner_id')),
+            'contacts': m2o_options(records.mapped('customer_contact_id')),
             'products': product_options,
             'vendors': m2o_options(records.mapped('vendor_id')),
             'salespersons': m2o_options(records.mapped('salesperson_id')),

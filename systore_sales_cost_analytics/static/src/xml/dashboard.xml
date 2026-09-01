@@ -16,61 +16,63 @@
                     <button class="btn btn-light" t-on-click="() => this.setPeriod('previous_month')">Mes anterior</button>
                     <button class="btn btn-light" t-on-click="() => this.setPeriod('year')">Este año</button>
                 </div>
+                <div class="o_systore_filter_hint">Puedes seleccionar varios valores en cada segmentador (Ctrl/Cmd + clic).</div>
                 <div class="o_systore_filter_grid">
                     <label>Desde<input type="date" t-model="state.filters.date_from"/></label>
                     <label>Hasta<input type="date" t-model="state.filters.date_to"/></label>
                     <label>Estado
-                        <select data-field="sale_state" t-model="state.filters.sale_state" t-on-change="onFilterChange">
-                            <option value="">Todos</option>
-                            <option value="sale">Venta</option>
-                            <option value="return">Devolución en tránsito</option>
+                        <select multiple="multiple" size="3" data-field="sale_state" t-on-change="onFilterChange">
+                            <option value="sale" t-att-selected="state.filters.sale_state.includes('sale')">Venta</option>
+                            <option value="return" t-att-selected="state.filters.sale_state.includes('return')">Devolución en tránsito</option>
                         </select>
+                        <small>Ctrl/Cmd para seleccionar varios</small>
                     </label>
                     <label>Canal de venta
-                        <select data-field="sales_channel" t-model="state.filters.sales_channel" t-on-change="onFilterChange">
-                            <option value="">Todos</option>
+                        <select multiple="multiple" size="4" data-field="sales_channel" t-on-change="onFilterChange">
                             <t t-foreach="state.data.filters.sales_channels || []" t-as="item" t-key="item">
-                                <option t-att-value="item"><t t-esc="item"/></option>
+                                <option t-att-value="item" t-att-selected="state.filters.sales_channel.includes(item)"><t t-esc="item"/></option>
                             </t>
                         </select>
                     </label>
                     <label>Cuenta contable
-                        <select data-field="account_id" t-model="state.filters.account_id" t-on-change="onFilterChange">
-                            <option value="">Todas</option>
+                        <select multiple="multiple" size="4" data-field="account_id" t-on-change="onFilterChange">
                             <t t-foreach="state.data.filters.accounts || []" t-as="item" t-key="item.id">
-                                <option t-att-value="item.id"><t t-esc="item.name"/></option>
+                                <option t-att-value="item.id" t-att-selected="state.filters.account_id.includes(String(item.id))"><t t-esc="item.name"/></option>
                             </t>
                         </select>
                     </label>
-                    <label>Cliente
-                        <select data-field="partner_id" t-model="state.filters.partner_id" t-on-change="onFilterChange">
-                            <option value="">Todos</option>
+                    <label>Cliente de factura
+                        <select multiple="multiple" size="4" data-field="partner_id" t-on-change="onFilterChange">
                             <t t-foreach="state.data.filters.partners || []" t-as="item" t-key="item.id">
-                                <option t-att-value="item.id"><t t-esc="item.name"/></option>
+                                <option t-att-value="item.id" t-att-selected="state.filters.partner_id.includes(String(item.id))"><t t-esc="item.name"/></option>
+                            </t>
+                        </select>
+                    </label>
+                    <label>Contacto del cliente
+                        <select multiple="multiple" size="4" data-field="customer_contact_id" t-on-change="onFilterChange">
+                            <t t-foreach="state.data.filters.contacts || []" t-as="item" t-key="item.id">
+                                <option t-att-value="item.id" t-att-selected="state.filters.customer_contact_id.includes(String(item.id))"><t t-esc="item.name"/></option>
                             </t>
                         </select>
                     </label>
                     <label>Producto
-                        <select data-field="product_id" t-model="state.filters.product_id" t-on-change="onFilterChange">
-                            <option value="">Todos</option>
+                        <select multiple="multiple" size="4" data-field="product_id" t-on-change="onFilterChange">
                             <t t-foreach="state.data.filters.products || []" t-as="item" t-key="item.id">
-                                <option t-att-value="item.id"><t t-esc="item.name"/></option>
+                                <option t-att-value="item.id" t-att-selected="state.filters.product_id.includes(String(item.id))"><t t-esc="item.name"/></option>
                             </t>
                         </select>
                     </label>
                     <label>Proveedor
-                        <select data-field="vendor_id" t-model="state.filters.vendor_id" t-on-change="onFilterChange">
-                            <option value="">Todos</option>
+                        <select multiple="multiple" size="4" data-field="vendor_id" t-on-change="onFilterChange">
                             <t t-foreach="state.data.filters.vendors || []" t-as="item" t-key="item.id">
-                                <option t-att-value="item.id"><t t-esc="item.name"/></option>
+                                <option t-att-value="item.id" t-att-selected="state.filters.vendor_id.includes(String(item.id))"><t t-esc="item.name"/></option>
                             </t>
                         </select>
                     </label>
                     <label>Vendedor
-                        <select data-field="salesperson_id" t-model="state.filters.salesperson_id" t-on-change="onFilterChange">
-                            <option value="">Todos</option>
+                        <select multiple="multiple" size="4" data-field="salesperson_id" t-on-change="onFilterChange">
                             <t t-foreach="state.data.filters.salespersons || []" t-as="item" t-key="item.id">
-                                <option t-att-value="item.id"><t t-esc="item.name"/></option>
+                                <option t-att-value="item.id" t-att-selected="state.filters.salesperson_id.includes(String(item.id))"><t t-esc="item.name"/></option>
                             </t>
                         </select>
                     </label>
@@ -169,6 +171,12 @@
                         <div class="o_systore_pie_wrap"><div class="o_systore_pie" t-att-style="pieStyle(state.data.pie_customers)"/><div class="o_systore_pie_legend">
                             <t t-foreach="state.data.pie_customers" t-as="row" t-key="row.key"><div class="o_systore_pie_legend_row" t-on-click="() => this.openPieRow(row)"><i t-att-style="pieLegendStyle(row_index)"/><div><strong t-esc="row.label"/><small t-esc="percent(row.share) + ' · ' + money(row.value)"/></div></div></t>
                         </div></div><t t-if="!state.data.pie_customers.length"><div class="o_systore_empty">Sin clientes para los filtros seleccionados.</div></t>
+                    </div>
+                    <div class="o_systore_panel">
+                        <div class="o_systore_panel_title"><h2>Venta por contacto del cliente</h2><span>Participación en venta bruta</span></div>
+                        <div class="o_systore_pie_wrap"><div class="o_systore_pie" t-att-style="pieStyle(state.data.pie_contacts)"/><div class="o_systore_pie_legend">
+                            <t t-foreach="state.data.pie_contacts" t-as="row" t-key="row.key"><div class="o_systore_pie_legend_row" t-on-click="() => this.openPieRow(row)"><i t-att-style="pieLegendStyle(row_index)"/><div><strong t-esc="row.label"/><small t-esc="percent(row.share) + ' · ' + money(row.value)"/></div></div></t>
+                        </div></div><t t-if="!state.data.pie_contacts.length"><div class="o_systore_empty">Sin contactos para los filtros seleccionados.</div></t>
                     </div>
                     <div class="o_systore_panel">
                         <div class="o_systore_panel_title"><h2>Venta por producto</h2><span>Participación en venta bruta</span></div>
