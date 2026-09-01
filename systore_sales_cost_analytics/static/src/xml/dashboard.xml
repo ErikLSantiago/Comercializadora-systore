@@ -66,6 +66,14 @@
                             </t>
                         </select>
                     </label>
+                    <label>Vendedor
+                        <select data-field="salesperson_id" t-model="state.filters.salesperson_id" t-on-change="onFilterChange">
+                            <option value="">Todos</option>
+                            <t t-foreach="state.data.filters.salespersons || []" t-as="item" t-key="item.id">
+                                <option t-att-value="item.id"><t t-esc="item.name"/></option>
+                            </t>
+                        </select>
+                    </label>
                 </div>
                 <div class="o_systore_filter_actions">
                     <button class="btn btn-primary" t-on-click="applyDates">Aplicar fechas</button>

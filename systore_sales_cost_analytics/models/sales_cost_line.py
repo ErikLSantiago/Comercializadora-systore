@@ -43,6 +43,8 @@ class SystoreSalesCostLine(models.Model):
         help='Venta contable distribuida proporcionalmente entre los lotes conciliados.')
 
     sale_order_id = fields.Many2one('sale.order', string='Pedido de venta', index=True, readonly=True)
+    salesperson_id = fields.Many2one('res.users', string='Vendedor', index=True, readonly=True)
+    analytic_role = fields.Selection([('sale', 'Venta bruta'), ('transit_return', 'Devolución en tránsito')], string='Rol analítico', default='sale', index=True, readonly=True)
     sales_channel = fields.Char(string='Canal de venta', compute='_compute_sales_channel', store=True, index=True, readonly=True)
     transit_account_id = fields.Many2one('account.account', string='Cuenta Tránsito contraparte', compute='_compute_sale_state', store=True, readonly=True, index=True)
     marketplace_order_number = fields.Char(string='Número de orden mkp', index=True, readonly=True)
@@ -167,19 +169,17 @@ class SystoreSalesCostLine(models.Model):
             return 'Empleado'
         return 'Sin clasificar'
 
-    @api.depends('account_analytics_type', 'account_id.name', 'invoice_id.line_ids.account_id',
-                 'invoice_id.line_ids.account_id.code', 'invoice_id.line_ids.account_id.name')
+    @api.depends('analytic_role')
     def _compute_is_transit_return(self):
         for rec in self:
-            rec.is_transit_return = bool(rec._systore_transit_counterpart(rec.invoice_id)) or rec._systore_account_sale_state(rec.account_id) == 'return'
+            rec.is_transit_return = rec.analytic_role == 'transit_return'
 
-    @api.depends('account_analytics_type', 'account_id.name', 'invoice_id.line_ids.account_id',
-                 'invoice_id.line_ids.account_id.code', 'invoice_id.line_ids.account_id.name')
+    @api.depends('analytic_role', 'invoice_id.line_ids.account_id', 'invoice_id.line_ids.account_id.code', 'invoice_id.line_ids.account_id.name')
     def _compute_sale_state(self):
         for rec in self:
             transit_account = rec._systore_transit_counterpart(rec.invoice_id)
             rec.transit_account_id = transit_account
-            rec.sale_state = 'return' if transit_account else rec._systore_account_sale_state(rec.account_id)
+            rec.sale_state = 'return' if rec.analytic_role == 'transit_return' else 'sale'
 
     @api.depends('account_id.code')
     def _compute_sales_channel(self):
@@ -449,6 +449,8 @@ class SystoreSalesCostLine(models.Model):
                     'account_id': aml.account_id.id,
                     'partner_id': move.partner_id.id,
                     'sale_order_id': fallback_sale_order.id if fallback_sale_order else False,
+                    'salesperson_id': (fallback_sale_order.user_id.id if fallback_sale_order and fallback_sale_order.user_id else (move.invoice_user_id.id if getattr(move, 'invoice_user_id', False) else False)),
+                    'analytic_role': 'sale',
                     'sale_order_line_id': fallback_sale_line.id if fallback_sale_line else False,
                     'marketplace_order_number': self._systore_field_display(fallback_sale_order, 'x_studio_nmero_de_orden_mkp'),
                     'product_id': aml.product_id.id,
@@ -520,6 +522,8 @@ class SystoreSalesCostLine(models.Model):
                     'accounting_amount': accounting_amount,
                     'allocated_sale_amount': allocated_sale,
                     'sale_order_id': sale_order.id if sale_order else False,
+                    'salesperson_id': (sale_order.user_id.id if sale_order and sale_order.user_id else (move.invoice_user_id.id if getattr(move, 'invoice_user_id', False) else False)),
+                    'analytic_role': 'sale',
                     'sale_order_line_id': sale_line.id if sale_line else False,
                     'marketplace_order_number': self._systore_field_display(sale_order, 'x_studio_nmero_de_orden_mkp'),
                     'stock_move_line_id': ml.id,
@@ -544,6 +548,40 @@ class SystoreSalesCostLine(models.Model):
                     'note': note,
                 })
                 created += 1
+
+                # Una factura con contrapartida 106.xx Tránsito forma parte primero de la
+                # venta bruta. Se agrega una segunda línea analítica negativa para descontarla
+                # como devolución en tránsito y obtener la venta neta sin perder la venta original.
+                transit_account = self._systore_transit_counterpart(move)
+                if transit_account:
+                    transit_vals = {
+                        'company_id': company.id, 'invoice_date': move.invoice_date or move.date,
+                        'invoice_id': move.id, 'invoice_line_id': aml.id, 'move_name': move.name,
+                        'invoice_origin': move.invoice_origin, 'sale_origin': sale_origin, 'order_base': order_base,
+                        'ref': move.ref, 'account_id': aml.account_id.id, 'partner_id': move.partner_id.id,
+                        'product_id': aml.product_id.id, 'sku': sku, 'product_name': aml.product_id.name,
+                        'invoice_quantity': -abs(aml.quantity or 0.0), 'matched_quantity': -abs(matched_qty),
+                        'invoice_credit': 0.0, 'invoice_debit': abs(allocated_sale),
+                        'accounting_amount': -abs(accounting_amount), 'allocated_sale_amount': -abs(allocated_sale),
+                        'sale_order_id': sale_order.id if sale_order else False,
+                        'salesperson_id': (sale_order.user_id.id if sale_order and sale_order.user_id else (move.invoice_user_id.id if getattr(move, 'invoice_user_id', False) else False)),
+                        'analytic_role': 'transit_return',
+                        'sale_order_line_id': sale_line.id if sale_line else False,
+                        'marketplace_order_number': self._systore_field_display(sale_order, 'x_studio_nmero_de_orden_mkp'),
+                        # NULL evita colisión de la restricción única y conserva lote/picking como trazabilidad.
+                        'stock_move_line_id': False, 'picking_id': ml.picking_id.id if ml.picking_id else False,
+                        'movement_date': ml.date, 'location_id': ml.location_id.id, 'location_dest_id': ml.location_dest_id.id,
+                        'physical_move_type': physical_type, 'lot_id': lot.id if lot else False, 'lot_name': lot.name if lot else '',
+                        'invoice_match_code': invoice_match_code, 'cost_match_code': '%s%s' % ((lot.name if lot else ''), sku),
+                        'purchase_order_id': po.id if po else False, 'purchase_order_line_id': pol.id if pol else False,
+                        'vendor_id': vendor.id if vendor else False, 'purchase_date': po.date_order if po else False,
+                        'purchase_currency_id': po_currency.id if po_currency else company.currency_id.id,
+                        'purchase_unit_cost': po_unit_cost, 'unit_cost_company': company_unit_cost,
+                        'allocated_cost': -abs(company_unit_cost * matched_qty), 'reconciliation_state': state,
+                        'note': _('Línea negativa generada por contrapartida de Tránsito: %s') % transit_account.display_name,
+                    }
+                    self.create(transit_vals)
+                    created += 1
         return created
 
     @api.model
@@ -579,7 +617,7 @@ class SystoreSalesCostLine(models.Model):
             domain.append(('sale_state', '=', sale_state))
         if sales_channel:
             domain.append(('sales_channel', '=', sales_channel))
-        for field_name in ('account_id', 'partner_id', 'product_id', 'vendor_id'):
+        for field_name in ('account_id', 'partner_id', 'product_id', 'vendor_id', 'salesperson_id'):
             value = filters.get(field_name)
             if value:
                 domain.append((field_name, '=', int(value)))
@@ -800,5 +838,6 @@ class SystoreSalesCostLine(models.Model):
             'partners': m2o_options(records.mapped('partner_id')),
             'products': product_options,
             'vendors': m2o_options(records.mapped('vendor_id')),
+            'salespersons': m2o_options(records.mapped('salesperson_id')),
         }
 

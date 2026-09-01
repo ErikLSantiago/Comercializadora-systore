@@ -16,6 +16,7 @@
                 <field name="lot_name"/>
                 <field name="partner_id"/>
                 <field name="vendor_id"/>
+                <field name="salesperson_id"/>
                 <field name="account_id"/>
                 <field name="purchase_order_id"/>
                 <filter string="Ventas" name="sales" domain="[('sale_state','=','sale')]"/>
@@ -35,6 +36,7 @@
                     <filter string="SKU" name="group_sku" context="{'group_by':'sku'}"/>
                     <filter string="Lote / OC" name="group_lot" context="{'group_by':'lot_name'}"/>
                     <filter string="Proveedor" name="group_vendor" context="{'group_by':'vendor_id'}"/>
+                    <filter string="Vendedor" name="group_salesperson" context="{'group_by':'salesperson_id'}"/>
                     <filter string="Estado de cuadre" name="group_state" context="{'group_by':'reconciliation_state'}"/>
                     <filter string="Mes factura" name="group_month" context="{'group_by':'invoice_date:month'}"/>
                 </group>
@@ -49,6 +51,7 @@
             <list string="Reporte consolidado" create="0" edit="0" delete="0" decoration-success="reconciliation_state == 'ok'" decoration-warning="reconciliation_state != 'ok'">
                 <field name="invoice_date"/>
                 <field name="sale_state"/>
+                <field name="analytic_role" optional="hide"/>
                 <field name="transit_account_id" optional="hide"/>
                 <field name="account_id"/>
                 <field name="move_name"/>
@@ -57,6 +60,7 @@
                 <field name="sales_channel"/>
                 <field name="marketplace_order_number"/>
                 <field name="partner_id"/>
+                <field name="salesperson_id"/>
                 <field name="sku"/>
                 <field name="product_name"/>
                 <field name="matched_quantity" sum="Piezas"/>
