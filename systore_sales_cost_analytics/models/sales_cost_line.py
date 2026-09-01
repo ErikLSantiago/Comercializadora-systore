@@ -43,7 +43,8 @@ class SystoreSalesCostLine(models.Model):
         help='Venta contable distribuida proporcionalmente entre los lotes conciliados.')
 
     sale_order_id = fields.Many2one('sale.order', string='Pedido de venta', index=True, readonly=True)
-    sales_channel = fields.Char(string='Canal de venta', index=True, readonly=True)
+    sales_channel = fields.Char(string='Canal de venta', compute='_compute_sales_channel', store=True, index=True, readonly=True)
+    transit_account_id = fields.Many2one('account.account', string='Cuenta Tránsito contraparte', compute='_compute_sale_state', store=True, readonly=True, index=True)
     marketplace_order_number = fields.Char(string='Número de orden mkp', index=True, readonly=True)
     sale_state = fields.Selection([
         ('sale', 'Venta'),
@@ -131,15 +132,59 @@ class SystoreSalesCostLine(models.Model):
             return 'sale'
         return 'sale'
 
-    @api.depends('account_analytics_type', 'account_id.name')
+    @api.model
+    def _systore_transit_counterpart(self, move):
+        """Devuelve la cuenta 106.xx de Tránsito presente como contrapartida del asiento.
+
+        En la operación de Systore, una factura cuya póliza contiene una cuenta 106.xx
+        llamada Tránsito se considera devolución, aunque la línea de ingreso continúe
+        contabilizada en una cuenta 401.xx de ventas.
+        """
+        if not move:
+            return self.env['account.account']
+        for line in move.line_ids:
+            account = line.account_id
+            code = (account.code or '').strip() if account else ''
+            name = self._systore_normalize_text(account.name if account else '')
+            if code.startswith('106.') and 'transito' in name:
+                return account
+        return self.env['account.account']
+
+    @api.model
+    def _systore_sales_channel_from_account(self, account):
+        """Canal comercial definido por la cuenta 401.xx de la línea facturada."""
+        code = ((account.code or '') if account else '').strip()
+        marketplace = {
+            '401.01.01', '401.01.04', '401.01.04.01', '401.01.03', '401.01.05',
+            '401.01.06', '401.01.07', '401.01.08', '401.01.14', '401.01.13',
+            '401.01.21', '401.01.15', '401.01.20',
+        }
+        if code in marketplace:
+            return 'Marketplace'
+        if code == '401.01.10':
+            return 'Mayoreo'
+        if code in {'401.01.16', '401.01.12'}:
+            return 'Empleado'
+        return 'Sin clasificar'
+
+    @api.depends('account_analytics_type', 'account_id.name', 'invoice_id.line_ids.account_id',
+                 'invoice_id.line_ids.account_id.code', 'invoice_id.line_ids.account_id.name')
     def _compute_is_transit_return(self):
         for rec in self:
-            rec.is_transit_return = rec._systore_account_sale_state(rec.account_id) == 'return'
+            rec.is_transit_return = bool(rec._systore_transit_counterpart(rec.invoice_id)) or rec._systore_account_sale_state(rec.account_id) == 'return'
 
-    @api.depends('account_analytics_type', 'account_id.name')
+    @api.depends('account_analytics_type', 'account_id.name', 'invoice_id.line_ids.account_id',
+                 'invoice_id.line_ids.account_id.code', 'invoice_id.line_ids.account_id.name')
     def _compute_sale_state(self):
         for rec in self:
-            rec.sale_state = rec._systore_account_sale_state(rec.account_id)
+            transit_account = rec._systore_transit_counterpart(rec.invoice_id)
+            rec.transit_account_id = transit_account
+            rec.sale_state = 'return' if transit_account else rec._systore_account_sale_state(rec.account_id)
+
+    @api.depends('account_id.code')
+    def _compute_sales_channel(self):
+        for rec in self:
+            rec.sales_channel = rec._systore_sales_channel_from_account(rec.account_id)
 
     @api.depends('allocated_sale_amount', 'matched_quantity', 'unit_cost_company')
     def _compute_profit(self):
@@ -401,7 +446,6 @@ class SystoreSalesCostLine(models.Model):
                     'partner_id': move.partner_id.id,
                     'sale_order_id': fallback_sale_order.id if fallback_sale_order else False,
                     'sale_order_line_id': fallback_sale_line.id if fallback_sale_line else False,
-                    'sales_channel': self._systore_field_display(fallback_sale_order, 'x_studio_canal_venta_1'),
                     'marketplace_order_number': self._systore_field_display(fallback_sale_order, 'x_studio_nmero_de_orden_mkp'),
                     'product_id': aml.product_id.id,
                     'sku': sku,
@@ -473,7 +517,6 @@ class SystoreSalesCostLine(models.Model):
                     'allocated_sale_amount': allocated_sale,
                     'sale_order_id': sale_order.id if sale_order else False,
                     'sale_order_line_id': sale_line.id if sale_line else False,
-                    'sales_channel': self._systore_field_display(sale_order, 'x_studio_canal_venta_1'),
                     'marketplace_order_number': self._systore_field_display(sale_order, 'x_studio_nmero_de_orden_mkp'),
                     'stock_move_line_id': ml.id,
                     'picking_id': ml.picking_id.id if ml.picking_id else False,
@@ -503,9 +546,9 @@ class SystoreSalesCostLine(models.Model):
     def get_dashboard_data(self, filters=None):
         """Devuelve los datos agregados del primer tablero Systore.
 
-        Venta/Devolución se determina por ``sale_state``, que a su vez se deriva de la
-        cuenta contable: Clientes... = Venta y Tránsito... = Devolución (con posibilidad
-        de clasificación manual desde el plan contable).
+        Venta/Devolución se determina por la póliza de la factura. Si entre sus apuntes
+        existe una contrapartida 106.xx cuyo nombre contiene Tránsito, la operación es
+        Devolución. En caso contrario se conserva la clasificación de la cuenta.
         """
         filters = filters or {}
         today = fields.Date.context_today(self)
@@ -609,6 +652,9 @@ class SystoreSalesCostLine(models.Model):
         channel_rows = self._systore_dashboard_rows(channels, lambda key: key, lambda key: [('sales_channel', '=', key)] if key != 'Sin canal' else [('sales_channel', 'in', [False, ''])])
         product_rows = self._systore_dashboard_rows(products, lambda key: product_map.get(key, 'Sin producto'), lambda key: [('product_id', '=', key)] if key else [('product_id', '=', False)])
         vendor_rows = self._systore_dashboard_rows(vendors, lambda key: vendor_map.get(key, 'Sin proveedor'), lambda key: [('vendor_id', '=', key)] if key else [('vendor_id', '=', False)])
+        pie_channels = self._systore_dashboard_pie_rows(channel_rows)
+        pie_products = self._systore_dashboard_pie_rows(product_rows)
+        pie_vendors = self._systore_dashboard_pie_rows(vendor_rows)
         return_channel_rows = [row for row in channel_rows if row['returns'] > 0]
         return_channel_rows.sort(key=lambda row: row['returns'], reverse=True)
 
@@ -644,6 +690,9 @@ class SystoreSalesCostLine(models.Model):
             'channels': channel_rows[:10],
             'products': product_rows[:10],
             'vendors': vendor_rows[:10],
+            'pie_channels': pie_channels,
+            'pie_products': pie_products,
+            'pie_vendors': pie_vendors,
             'return_channels': return_channel_rows[:10],
             'reconciliation': reconciliation_rows,
             'filters': self._systore_dashboard_filter_options(option_records),
@@ -686,6 +735,36 @@ class SystoreSalesCostLine(models.Model):
             })
         rows.sort(key=lambda row: row['net_sales'], reverse=True)
         return rows
+
+    @api.model
+    def _systore_dashboard_pie_rows(self, rows, limit=7):
+        """Prepara distribución de venta bruta para gráficas de pastel."""
+        positive = [dict(row) for row in rows if (row.get('sales') or 0.0) > 0]
+        positive.sort(key=lambda row: row.get('sales', 0.0), reverse=True)
+        total = sum(row.get('sales', 0.0) for row in positive)
+        if not total:
+            return []
+        visible = positive[:limit]
+        remainder = positive[limit:]
+        result = []
+        for row in visible:
+            result.append({
+                'key': row.get('key'),
+                'label': row.get('label') or 'Sin dato',
+                'value': row.get('sales', 0.0),
+                'share': row.get('sales', 0.0) / total,
+                'domain': row.get('domain', []),
+            })
+        if remainder:
+            other_value = sum(row.get('sales', 0.0) for row in remainder)
+            result.append({
+                'key': '__other__',
+                'label': 'Otros',
+                'value': other_value,
+                'share': other_value / total,
+                'domain': [],
+            })
+        return result
 
     @api.model
     def _systore_dashboard_filter_options(self, records):

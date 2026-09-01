@@ -15,7 +15,7 @@ export class SystoreSalesCostDashboard extends Component {
             data: {
                 currency: "MXN",
                 filters: {sales_channels: [], accounts: [], partners: [], products: [], vendors: []},
-                kpis: {}, trend: [], trend_max: 0, channels: [], products: [], vendors: [], return_channels: [], reconciliation: [],
+                kpis: {}, trend: [], trend_max: 0, channels: [], products: [], vendors: [], pie_channels: [], pie_products: [], pie_vendors: [], return_channels: [], reconciliation: [],
             },
             filters: {
                 date_from: "",
@@ -133,6 +133,32 @@ export class SystoreSalesCostDashboard extends Component {
         if (f.product_id) domain.push(["product_id", "=", Number(f.product_id)]);
         if (f.vendor_id) domain.push(["vendor_id", "=", Number(f.vendor_id)]);
         return domain.concat(extraDomain || []);
+    }
+
+
+    pieStyle(rows) {
+        if (!rows || !rows.length) {
+            return "background:#f2f4f7";
+        }
+        const palette = ["#6172f3", "#12b76a", "#f79009", "#ee46bc", "#06aed4", "#f04438", "#7a5af8", "#98a2b3"];
+        let cursor = 0;
+        const parts = rows.map((row, index) => {
+            const start = cursor;
+            cursor += (row.share || 0) * 100;
+            return `${palette[index % palette.length]} ${start}% ${cursor}%`;
+        });
+        return `background:conic-gradient(${parts.join(",")})`;
+    }
+
+    pieLegendStyle(index) {
+        const palette = ["#6172f3", "#12b76a", "#f79009", "#ee46bc", "#06aed4", "#f04438", "#7a5af8", "#98a2b3"];
+        return `background:${palette[index % palette.length]}`;
+    }
+
+    openPieRow(row) {
+        if (row && row.domain && row.domain.length) {
+            this.openReport(row.domain);
+        }
     }
 
     openReport(extraDomain = []) {

@@ -49,3 +49,9 @@ Ejecutar **Systore Analytics → Actualizar reporte** para regenerar el periodo.
 - Bloque de devoluciones por canal y estado de conciliación.
 - Estado comercial automático por cuenta contable: nombres con **Tránsito/Transito** = Devolución; nombres con **Clientes** = Venta. La clasificación manual del plan contable tiene prioridad.
 - Devoluciones se muestran como importe absoluto para KPI y se restan de la venta bruta al calcular venta neta.
+
+## v18.0.1.1.1
+- Estado Venta/Devolución por contrapartida contable: si la póliza de factura contiene una cuenta 106.xx cuyo nombre contiene "Tránsito", se marca como Devolución.
+- Canal de venta calculado desde la cuenta 401.xx: Marketplace, Mayoreo o Empleado según catálogo Systore.
+- Tablero: gráficas de pastel de distribución de venta bruta por Canal, Producto y Proveedor.
+- Campo técnico visible opcional "Cuenta Tránsito contraparte" para auditoría.
