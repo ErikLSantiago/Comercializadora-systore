@@ -587,6 +587,7 @@ class SystoreSalesCostLine(models.Model):
         channels = defaultdict(lambda: self._systore_dashboard_bucket())
         products = defaultdict(lambda: self._systore_dashboard_bucket())
         vendors = defaultdict(lambda: self._systore_dashboard_bucket())
+        customers = defaultdict(lambda: self._systore_dashboard_bucket())
         reconciliation = defaultdict(int)
 
         for rec in records:
@@ -618,9 +619,11 @@ class SystoreSalesCostLine(models.Model):
             channel_key = rec.sales_channel or 'Sin canal'
             product_key = rec.product_id.id or 0
             vendor_key = rec.vendor_id.id or 0
+            customer_key = rec.partner_id.id or 0
             self._systore_add_dashboard_bucket(channels[channel_key], amount, cost, pieces, is_return)
             self._systore_add_dashboard_bucket(products[product_key], amount, cost, pieces, is_return)
             self._systore_add_dashboard_bucket(vendors[vendor_key], amount, cost, pieces, is_return)
+            self._systore_add_dashboard_bucket(customers[customer_key], amount, cost, pieces, is_return)
 
         net_sales = metrics['gross_sales'] - metrics['returns']
         net_cost = metrics['sale_cost'] - metrics['return_cost']
@@ -648,13 +651,16 @@ class SystoreSalesCostLine(models.Model):
 
         product_map = {r.id: '[%s] %s' % (r.default_code or '', r.name) if r.default_code else r.name for r in records.mapped('product_id')}
         vendor_map = {r.id: r.display_name for r in records.mapped('vendor_id')}
+        customer_map = {r.id: r.display_name for r in records.mapped('partner_id')}
 
         channel_rows = self._systore_dashboard_rows(channels, lambda key: key, lambda key: [('sales_channel', '=', key)] if key != 'Sin canal' else [('sales_channel', 'in', [False, ''])])
         product_rows = self._systore_dashboard_rows(products, lambda key: product_map.get(key, 'Sin producto'), lambda key: [('product_id', '=', key)] if key else [('product_id', '=', False)])
         vendor_rows = self._systore_dashboard_rows(vendors, lambda key: vendor_map.get(key, 'Sin proveedor'), lambda key: [('vendor_id', '=', key)] if key else [('vendor_id', '=', False)])
+        customer_rows = self._systore_dashboard_rows(customers, lambda key: customer_map.get(key, 'Sin cliente'), lambda key: [('partner_id', '=', key)] if key else [('partner_id', '=', False)])
         pie_channels = self._systore_dashboard_pie_rows(channel_rows)
         pie_products = self._systore_dashboard_pie_rows(product_rows)
-        pie_vendors = self._systore_dashboard_pie_rows(vendor_rows)
+        pie_vendors = self._systore_dashboard_pie_rows(vendor_rows, value_field='pieces')
+        pie_customers = self._systore_dashboard_pie_rows(customer_rows)
         return_channel_rows = [row for row in channel_rows if row['returns'] > 0]
         return_channel_rows.sort(key=lambda row: row['returns'], reverse=True)
 
@@ -693,6 +699,7 @@ class SystoreSalesCostLine(models.Model):
             'pie_channels': pie_channels,
             'pie_products': pie_products,
             'pie_vendors': pie_vendors,
+            'pie_customers': pie_customers,
             'return_channels': return_channel_rows[:10],
             'reconciliation': reconciliation_rows,
             'filters': self._systore_dashboard_filter_options(option_records),
@@ -737,11 +744,11 @@ class SystoreSalesCostLine(models.Model):
         return rows
 
     @api.model
-    def _systore_dashboard_pie_rows(self, rows, limit=7):
-        """Prepara distribución de venta bruta para gráficas de pastel."""
-        positive = [dict(row) for row in rows if (row.get('sales') or 0.0) > 0]
-        positive.sort(key=lambda row: row.get('sales', 0.0), reverse=True)
-        total = sum(row.get('sales', 0.0) for row in positive)
+    def _systore_dashboard_pie_rows(self, rows, limit=7, value_field='sales'):
+        """Prepara distribuciones para pastel. Venta usa importe; proveedor puede usar piezas."""
+        positive = [dict(row) for row in rows if (row.get(value_field) or 0.0) > 0]
+        positive.sort(key=lambda row: row.get(value_field, 0.0), reverse=True)
+        total = sum(row.get(value_field, 0.0) for row in positive)
         if not total:
             return []
         visible = positive[:limit]
@@ -751,12 +758,12 @@ class SystoreSalesCostLine(models.Model):
             result.append({
                 'key': row.get('key'),
                 'label': row.get('label') or 'Sin dato',
-                'value': row.get('sales', 0.0),
-                'share': row.get('sales', 0.0) / total,
+                'value': row.get(value_field, 0.0),
+                'share': row.get(value_field, 0.0) / total,
                 'domain': row.get('domain', []),
             })
         if remainder:
-            other_value = sum(row.get('sales', 0.0) for row in remainder)
+            other_value = sum(row.get(value_field, 0.0) for row in remainder)
             result.append({
                 'key': '__other__',
                 'label': 'Otros',

@@ -109,48 +109,30 @@
                     </div>
                 </div>
 
-                <div class="o_systore_three_columns o_systore_pie_grid">
+                <div class="o_systore_four_columns o_systore_pie_grid">
                     <div class="o_systore_panel">
-                        <div class="o_systore_panel_title"><h2>Venta por canal</h2><span>Distribución de venta bruta</span></div>
-                        <div class="o_systore_pie_wrap">
-                            <div class="o_systore_pie" t-att-style="pieStyle(state.data.pie_channels)"/>
-                            <div class="o_systore_pie_legend">
-                                <t t-foreach="state.data.pie_channels" t-as="row" t-key="row.key">
-                                    <div class="o_systore_pie_legend_row" t-on-click="() => this.openPieRow(row)">
-                                        <i t-att-style="pieLegendStyle(row_index)"/><div><strong t-esc="row.label"/><small t-esc="percent(row.share) + ' · ' + money(row.value)"/></div>
-                                    </div>
-                                </t>
-                            </div>
-                        </div>
-                        <t t-if="!state.data.pie_channels.length"><div class="o_systore_empty">Sin ventas para los filtros seleccionados.</div></t>
+                        <div class="o_systore_panel_title"><h2>Venta por canal</h2><span>Participación en venta bruta</span></div>
+                        <div class="o_systore_pie_wrap"><div class="o_systore_pie" t-att-style="pieStyle(state.data.pie_channels)"/><div class="o_systore_pie_legend">
+                            <t t-foreach="state.data.pie_channels" t-as="row" t-key="row.key"><div class="o_systore_pie_legend_row" t-on-click="() => this.openPieRow(row)"><i t-att-style="pieLegendStyle(row_index)"/><div><strong t-esc="row.label"/><small t-esc="percent(row.share) + ' · ' + money(row.value)"/></div></div></t>
+                        </div></div><t t-if="!state.data.pie_channels.length"><div class="o_systore_empty">Sin ventas para los filtros seleccionados.</div></t>
                     </div>
                     <div class="o_systore_panel">
-                        <div class="o_systore_panel_title"><h2>Venta por producto</h2><span>Distribución de venta bruta</span></div>
-                        <div class="o_systore_pie_wrap">
-                            <div class="o_systore_pie" t-att-style="pieStyle(state.data.pie_products)"/>
-                            <div class="o_systore_pie_legend">
-                                <t t-foreach="state.data.pie_products" t-as="row" t-key="row.key">
-                                    <div class="o_systore_pie_legend_row" t-on-click="() => this.openPieRow(row)">
-                                        <i t-att-style="pieLegendStyle(row_index)"/><div><strong t-esc="row.label"/><small t-esc="percent(row.share) + ' · ' + money(row.value)"/></div>
-                                    </div>
-                                </t>
-                            </div>
-                        </div>
-                        <t t-if="!state.data.pie_products.length"><div class="o_systore_empty">Sin ventas para los filtros seleccionados.</div></t>
+                        <div class="o_systore_panel_title"><h2>Venta por cliente</h2><span>Participación en venta bruta</span></div>
+                        <div class="o_systore_pie_wrap"><div class="o_systore_pie" t-att-style="pieStyle(state.data.pie_customers)"/><div class="o_systore_pie_legend">
+                            <t t-foreach="state.data.pie_customers" t-as="row" t-key="row.key"><div class="o_systore_pie_legend_row" t-on-click="() => this.openPieRow(row)"><i t-att-style="pieLegendStyle(row_index)"/><div><strong t-esc="row.label"/><small t-esc="percent(row.share) + ' · ' + money(row.value)"/></div></div></t>
+                        </div></div><t t-if="!state.data.pie_customers.length"><div class="o_systore_empty">Sin clientes para los filtros seleccionados.</div></t>
                     </div>
                     <div class="o_systore_panel">
-                        <div class="o_systore_panel_title"><h2>Venta por proveedor</h2><span>Distribución de venta bruta</span></div>
-                        <div class="o_systore_pie_wrap">
-                            <div class="o_systore_pie" t-att-style="pieStyle(state.data.pie_vendors)"/>
-                            <div class="o_systore_pie_legend">
-                                <t t-foreach="state.data.pie_vendors" t-as="row" t-key="row.key">
-                                    <div class="o_systore_pie_legend_row" t-on-click="() => this.openPieRow(row)">
-                                        <i t-att-style="pieLegendStyle(row_index)"/><div><strong t-esc="row.label"/><small t-esc="percent(row.share) + ' · ' + money(row.value)"/></div>
-                                    </div>
-                                </t>
-                            </div>
-                        </div>
-                        <t t-if="!state.data.pie_vendors.length"><div class="o_systore_empty">Sin ventas para los filtros seleccionados.</div></t>
+                        <div class="o_systore_panel_title"><h2>Venta por producto</h2><span>Participación en venta bruta</span></div>
+                        <div class="o_systore_pie_wrap"><div class="o_systore_pie" t-att-style="pieStyle(state.data.pie_products)"/><div class="o_systore_pie_legend">
+                            <t t-foreach="state.data.pie_products" t-as="row" t-key="row.key"><div class="o_systore_pie_legend_row" t-on-click="() => this.openPieRow(row)"><i t-att-style="pieLegendStyle(row_index)"/><div><strong t-esc="row.label"/><small t-esc="percent(row.share) + ' · ' + money(row.value)"/></div></div></t>
+                        </div></div><t t-if="!state.data.pie_products.length"><div class="o_systore_empty">Sin productos para los filtros seleccionados.</div></t>
+                    </div>
+                    <div class="o_systore_panel">
+                        <div class="o_systore_panel_title"><h2>Piezas por proveedor</h2><span>Qué proveedor aportó más unidades</span></div>
+                        <div class="o_systore_pie_wrap"><div class="o_systore_pie" t-att-style="pieStyle(state.data.pie_vendors)"/><div class="o_systore_pie_legend">
+                            <t t-foreach="state.data.pie_vendors" t-as="row" t-key="row.key"><div class="o_systore_pie_legend_row" t-on-click="() => this.openPieRow(row)"><i t-att-style="pieLegendStyle(row_index)"/><div><strong t-esc="row.label"/><small t-esc="percent(row.share) + ' · ' + number(row.value) + ' pzas'"/></div></div></t>
+                        </div></div><t t-if="!state.data.pie_vendors.length"><div class="o_systore_empty">Sin piezas conciliadas por proveedor.</div></t>
                     </div>
                 </div>
 

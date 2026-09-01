@@ -15,7 +15,7 @@ export class SystoreSalesCostDashboard extends Component {
             data: {
                 currency: "MXN",
                 filters: {sales_channels: [], accounts: [], partners: [], products: [], vendors: []},
-                kpis: {}, trend: [], trend_max: 0, channels: [], products: [], vendors: [], pie_channels: [], pie_products: [], pie_vendors: [], return_channels: [], reconciliation: [],
+                kpis: {}, trend: [], trend_max: 0, channels: [], products: [], vendors: [], pie_channels: [], pie_customers: [], pie_products: [], pie_vendors: [], return_channels: [], reconciliation: [],
             },
             filters: {
                 date_from: "",
