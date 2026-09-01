@@ -13,6 +13,7 @@ export class SystoreSalesCostDashboard extends Component {
         this.state = useState({
             loading: true,
             openFilter: "",
+            pieMetrics: { channels: "sales", customers: "sales", contacts: "sales", products: "sales", vendors: "pieces" },
             data: {
                 currency: "MXN",
                 filters: {sales_channels: [], accounts: [], partners: [], contacts: [], products: [], vendors: [], salespersons: []},
@@ -77,6 +78,9 @@ export class SystoreSalesCostDashboard extends Component {
             values.push(value);
         }
         this.state.filters[field] = values;
+        if (field === "sale_state") {
+            this.syncPieMetricsToSaleState();
+        }
         this.loadData();
     }
 
@@ -242,6 +246,43 @@ export class SystoreSalesCostDashboard extends Component {
         return domain.concat(extraDomain || []);
     }
 
+
+    syncPieMetricsToSaleState() {
+        const states = this.state.filters.sale_state || [];
+        if (states.length !== 1) return;
+        const metric = states[0] === "return" ? "returns" : "sales";
+        for (const key of ["channels", "customers", "contacts", "products"]) {
+            this.state.pieMetrics[key] = metric;
+        }
+        // Proveedor conserva Piezas por defecto, salvo que el usuario esté viendo solo devoluciones.
+        if (states[0] === "return") {
+            this.state.pieMetrics.vendors = "returns";
+        }
+    }
+
+    setPieMetric(dimension, metric) {
+        this.state.pieMetrics[dimension] = metric;
+    }
+
+    pieRows(dimension) {
+        const sets = this.state.data?.pie_sets?.[dimension] || {};
+        const metric = this.state.pieMetrics[dimension] || "sales";
+        return sets[metric] || [];
+    }
+
+    pieMetricTitle(metric) {
+        if (metric === "returns") return "Devolución en tránsito";
+        if (metric === "pieces") return "Piezas";
+        return "Venta";
+    }
+
+    pieValue(row, dimension) {
+        const metric = this.state.pieMetrics[dimension] || "sales";
+        if (metric === "pieces") {
+            return `${this.number(row.value)} pzas`;
+        }
+        return this.money(row.value);
+    }
 
     pieStyle(rows) {
         if (!rows || !rows.length) {

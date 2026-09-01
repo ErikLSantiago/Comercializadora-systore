@@ -31,3 +31,4 @@
 .o_systore_filter_option:hover{background:#f2f4f7}
 .o_systore_filter_option input{width:auto!important;margin:0!important;padding:0!important}
 .o_systore_filter_menu .btn-link{display:block;width:100%;text-align:left;margin-top:4px}
+.o_systore_pie_title{align-items:flex-start;gap:12px}.o_systore_pie_title>div:first-child{min-width:0}.o_systore_pie_metric_switch{display:flex;gap:4px;flex-wrap:wrap;justify-content:flex-end}.o_systore_pie_metric_switch .btn{font-size:11px;padding:4px 8px;white-space:nowrap}@media(max-width:700px){.o_systore_pie_title{display:block}.o_systore_pie_metric_switch{justify-content:flex-start;margin-top:8px}}

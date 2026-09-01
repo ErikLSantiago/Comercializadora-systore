@@ -724,11 +724,26 @@ class SystoreSalesCostLine(models.Model):
         vendor_rows = self._systore_dashboard_rows(vendors, lambda key: vendor_map.get(key, 'Sin proveedor'), lambda key: [('vendor_id', '=', key)] if key else [('vendor_id', '=', False)])
         customer_rows = self._systore_dashboard_rows(customers, lambda key: customer_map.get(key, 'Sin cliente'), lambda key: [('partner_id', '=', key)] if key else [('partner_id', '=', False)])
         contact_rows = self._systore_dashboard_rows(contacts, lambda key: contact_map.get(key, 'Sin contacto'), lambda key: [('customer_contact_id', '=', key)] if key else [('customer_contact_id', '=', False)])
-        pie_channels = self._systore_dashboard_pie_rows(channel_rows)
-        pie_products = self._systore_dashboard_pie_rows(product_rows)
-        pie_vendors = self._systore_dashboard_pie_rows(vendor_rows, value_field='pieces')
-        pie_customers = self._systore_dashboard_pie_rows(customer_rows)
-        pie_contacts = self._systore_dashboard_pie_rows(contact_rows)
+        def pie_set(rows):
+            return {
+                'sales': self._systore_dashboard_pie_rows(rows, value_field='sales'),
+                'returns': self._systore_dashboard_pie_rows(rows, value_field='returns'),
+                'pieces': self._systore_dashboard_pie_rows(rows, value_field='gross_pieces'),
+            }
+
+        pie_sets = {
+            'channels': pie_set(channel_rows),
+            'customers': pie_set(customer_rows),
+            'contacts': pie_set(contact_rows),
+            'products': pie_set(product_rows),
+            'vendors': pie_set(vendor_rows),
+        }
+        # Compatibilidad con versiones previas del cliente OWL.
+        pie_channels = pie_sets['channels']['sales']
+        pie_products = pie_sets['products']['sales']
+        pie_vendors = pie_sets['vendors']['pieces']
+        pie_customers = pie_sets['customers']['sales']
+        pie_contacts = pie_sets['contacts']['sales']
         return_channel_rows = [row for row in channel_rows if row['returns'] > 0]
         return_channel_rows.sort(key=lambda row: row['returns'], reverse=True)
 
@@ -769,6 +784,7 @@ class SystoreSalesCostLine(models.Model):
             'pie_vendors': pie_vendors,
             'pie_customers': pie_customers,
             'pie_contacts': pie_contacts,
+            'pie_sets': pie_sets,
             'return_channels': return_channel_rows[:10],
             'reconciliation': reconciliation_rows,
             'filters': self._systore_dashboard_filter_options(option_records),
@@ -806,7 +822,9 @@ class SystoreSalesCostLine(models.Model):
                 'profit': profit,
                 'margin': profit / net_sales if net_sales else 0.0,
                 'pieces': bucket['sale_pieces'] - bucket['return_pieces'],
+                'sale_pieces': bucket['sale_pieces'],
                 'return_pieces': bucket['return_pieces'],
+                'gross_pieces': bucket['sale_pieces'] + bucket['return_pieces'],
                 'domain': domain_getter(key),
             })
         rows.sort(key=lambda row: row['net_sales'], reverse=True)
@@ -814,7 +832,7 @@ class SystoreSalesCostLine(models.Model):
 
     @api.model
     def _systore_dashboard_pie_rows(self, rows, limit=7, value_field='sales'):
-        """Prepara distribuciones para pastel. Venta usa importe; proveedor puede usar piezas."""
+        """Prepara una distribución positiva para pastel a partir de una medida agregada."""
         positive = [dict(row) for row in rows if (row.get(value_field) or 0.0) > 0]
         positive.sort(key=lambda row: row.get(value_field, 0.0), reverse=True)
         total = sum(row.get(value_field, 0.0) for row in positive)
