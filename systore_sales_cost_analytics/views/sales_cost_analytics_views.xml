@@ -184,10 +184,10 @@
         <field name="res_model">systore.sales.cost.line</field>
         <field name="view_mode">list,pivot,graph,form</field>
         <field name="search_view_id" ref="view_systore_sales_cost_line_search"/>
-        <field name="domain">[('move_name', 'not ilike', 'RINV'), ('ref', 'not ilike', 'RINV')]</field>
+        
     </record>
 
-    <menuitem id="menu_systore_analytics_root" name="Systore Analytics" sequence="60" groups="base.group_user"/>
-    <menuitem id="menu_systore_sales_cost_report" name="Reporte consolidado" parent="menu_systore_analytics_root" action="action_systore_sales_cost_line" sequence="10"/>
-    <menuitem id="menu_systore_sales_cost_rebuild" name="Actualizar reporte" parent="menu_systore_analytics_root" action="action_systore_sales_cost_rebuild" sequence="20" groups="account.group_account_manager"/>
+    <menuitem id="menu_systore_analytics_root" name="Systore Analytics" sequence="60" groups="systore_sales_cost_analytics.group_systore_analytics_user,account.group_account_manager"/>
+    <menuitem id="menu_systore_sales_cost_report" name="Reporte consolidado" parent="menu_systore_analytics_root" action="action_systore_sales_cost_line" sequence="10" groups="systore_sales_cost_analytics.group_systore_analytics_user,account.group_account_manager"/>
+    <menuitem id="menu_systore_sales_cost_rebuild" name="Actualizar reporte" parent="menu_systore_analytics_root" action="action_systore_sales_cost_rebuild" sequence="20" groups="systore_sales_cost_analytics.group_systore_analytics_manager,account.group_account_manager"/>
 </odoo>

@@ -46,7 +46,8 @@ class SystoreSalesCostLine(models.Model):
     sale_order_id = fields.Many2one('sale.order', string='Pedido de venta', index=True, readonly=True)
     salesperson_id = fields.Many2one('res.users', string='Vendedor', index=True, readonly=True)
     analytic_role = fields.Selection([('sale', 'Venta bruta'), ('transit_return', 'Devolución en tránsito')], string='Rol analítico', default='sale', index=True, readonly=True)
-    sales_channel = fields.Char(string='Canal de venta', compute='_compute_sales_channel', store=True, index=True, readonly=True)
+    sales_channel_id = fields.Many2one('systore.sales.channel', string='Canal de venta', compute='_compute_sales_channel', store=True, index=True, readonly=True)
+    sales_channel = fields.Char(string='Canal de venta (texto)', compute='_compute_sales_channel', store=True, index=True, readonly=True)
     transit_account_id = fields.Many2one('account.account', string='Cuenta Tránsito contraparte', compute='_compute_sale_state', store=True, readonly=True, index=True)
     marketplace_order_number = fields.Char(string='Número de orden mkp', index=True, readonly=True)
     sale_state = fields.Selection([
@@ -182,10 +183,16 @@ class SystoreSalesCostLine(models.Model):
             rec.transit_account_id = transit_account
             rec.sale_state = 'return' if rec.analytic_role == 'transit_return' else 'sale'
 
-    @api.depends('account_id.code')
+    @api.depends('account_id.code', 'account_id.systore_sales_channel_id')
     def _compute_sales_channel(self):
+        Channel = self.env['systore.sales.channel']
         for rec in self:
-            rec.sales_channel = rec._systore_sales_channel_from_account(rec.account_id)
+            channel = rec.account_id.systore_sales_channel_id
+            if not channel:
+                legacy_name = rec._systore_sales_channel_from_account(rec.account_id)
+                channel = Channel.search([('name', '=', legacy_name)], limit=1) if legacy_name and legacy_name != 'Sin clasificar' else Channel
+            rec.sales_channel_id = channel
+            rec.sales_channel = channel.name if channel else 'Sin clasificar'
 
     @api.depends('allocated_sale_amount', 'matched_quantity', 'unit_cost_company')
     def _compute_profit(self):
@@ -593,6 +600,25 @@ class SystoreSalesCostLine(models.Model):
         return created
 
     @api.model
+    def _systore_user_access_domain(self):
+        user = self.env.user
+        if user.has_group('systore_sales_cost_analytics.group_systore_analytics_manager') or user.has_group('account.group_account_manager') or user.systore_analytics_full_access:
+            return []
+        if not user.systore_analytics_enabled:
+            return [('id', '=', 0)]
+        domain = []
+        if user.systore_analytics_channel_ids:
+            domain.append(('sales_channel_id', 'in', user.systore_analytics_channel_ids.ids))
+        if user.systore_analytics_account_ids:
+            domain.append(('account_id', 'in', user.systore_analytics_account_ids.ids))
+        if user.systore_analytics_salesperson_ids:
+            domain.append(('salesperson_id', 'in', user.systore_analytics_salesperson_ids.ids))
+        # Un acceso limitado sin dimensiones configuradas no concede datos por seguridad.
+        if not domain:
+            return [('id', '=', 0)]
+        return domain
+
+    @api.model
     def get_dashboard_data(self, filters=None):
         """Devuelve los datos agregados del primer tablero Systore.
 
@@ -616,7 +642,7 @@ class SystoreSalesCostLine(models.Model):
             ('invoice_date', '>=', date_from),
             ('invoice_date', '<=', date_to),
         ]
-        domain = list(base_domain)
+        domain = list(base_domain) + self._systore_user_access_domain()
         sale_states = filters.get('sale_state') or []
         if isinstance(sale_states, str):
             sale_states = [sale_states] if sale_states else []
@@ -639,7 +665,7 @@ class SystoreSalesCostLine(models.Model):
                 domain.append((field_name, 'in', values))
 
         records = self.search(domain, order='invoice_date, id')
-        option_records = self.search(base_domain)
+        option_records = self.search(list(base_domain) + self._systore_user_access_domain())
 
         metrics = {
             'gross_sales': 0.0, 'returns': 0.0, 'sale_cost': 0.0, 'return_cost': 0.0,
