@@ -13,6 +13,8 @@
                 <field name="marketplace_order_number"/>
                 <field name="sku"/>
                 <field name="product_name"/>
+                <field name="product_category_id"/>
+                <field name="product_condition"/>
                 <field name="lot_name"/>
                 <field name="partner_id"/>
                 <field name="customer_contact_id"/>
@@ -36,6 +38,8 @@
                     <filter string="Cliente de factura" name="group_partner" context="{'group_by':'partner_id'}"/>
                     <filter string="Contacto del cliente" name="group_contact" context="{'group_by':'customer_contact_id'}"/>
                     <filter string="SKU" name="group_sku" context="{'group_by':'sku'}"/>
+                    <filter string="Categoría de producto" name="group_category" context="{'group_by':'product_category_id'}"/>
+                    <filter string="Tipo de producto" name="group_condition" context="{'group_by':'product_condition'}"/>
                     <filter string="Lote / OC" name="group_lot" context="{'group_by':'lot_name'}"/>
                     <filter string="Proveedor" name="group_vendor" context="{'group_by':'vendor_id'}"/>
                     <filter string="Vendedor" name="group_salesperson" context="{'group_by':'salesperson_id'}"/>
@@ -66,6 +70,8 @@
                 <field name="salesperson_id"/>
                 <field name="sku"/>
                 <field name="product_name"/>
+                <field name="product_category_id" optional="hide"/>
+                <field name="product_condition" optional="hide"/>
                 <field name="matched_quantity" sum="Piezas"/>
                 <field name="lot_name"/>
                 <field name="purchase_order_id"/>

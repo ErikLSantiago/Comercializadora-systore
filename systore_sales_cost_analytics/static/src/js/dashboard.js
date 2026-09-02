@@ -13,7 +13,7 @@ export class SystoreSalesCostDashboard extends Component {
         this.state = useState({
             loading: true,
             openFilter: "",
-            pieMetrics: { channels: "sales", customers: "sales", contacts: "sales", products: "sales", vendors: "pieces" },
+            pieMetrics: { channels: "sales", customers: "sales", contacts: "sales", products: "sales", vendors: "sales", categories: "sales", conditions: "sales" },
             data: {
                 currency: "MXN",
                 filters: {sales_channels: [], accounts: [], partners: [], contacts: [], products: [], vendors: [], salespersons: []},
@@ -251,12 +251,8 @@ export class SystoreSalesCostDashboard extends Component {
         const states = this.state.filters.sale_state || [];
         if (states.length !== 1) return;
         const metric = states[0] === "return" ? "returns" : "sales";
-        for (const key of ["channels", "customers", "contacts", "products"]) {
+        for (const key of ["channels", "customers", "contacts", "products", "vendors", "categories", "conditions"]) {
             this.state.pieMetrics[key] = metric;
-        }
-        // Proveedor conserva Piezas por defecto, salvo que el usuario esté viendo solo devoluciones.
-        if (states[0] === "return") {
-            this.state.pieMetrics.vendors = "returns";
         }
     }
 

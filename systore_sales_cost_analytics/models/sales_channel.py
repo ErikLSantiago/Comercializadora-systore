@@ -65,7 +65,7 @@ class SystoreAnalyticsUserPermission(models.Model):
     _description = 'Permisos de usuario Systore Analytics'
     _order = 'user_id'
 
-    user_id = fields.Many2one('res.users', string='Usuario interno', required=True, ondelete='cascade', index=True)
+    user_id = fields.Many2one('res.users', string='Usuario interno', required=True, ondelete='cascade', index=True, domain=[('share', '=', False), ('active', '=', True)])
     enabled = fields.Boolean(string='Puede ver el módulo')
     full_access = fields.Boolean(string='Ver reporte completo')
     channel_ids = fields.Many2many('systore.sales.channel', 'systore_perm_channel_rel', 'permission_id', 'channel_id', string='Canales permitidos')
@@ -101,23 +101,3 @@ class SystoreAnalyticsUserPermission(models.Model):
         self._sync_user()
         return res
 
-    @api.model
-    def _ensure_internal_users(self):
-        users = self.env['res.users'].sudo().search([('share', '=', False), ('active', '=', True)])
-        existing = super(SystoreAnalyticsUserPermission, self).search([('user_id', 'in', users.ids)])
-        existing_ids = set(existing.mapped('user_id').ids)
-        missing = users.filtered(lambda u: u.id not in existing_ids)
-        if missing:
-            super(SystoreAnalyticsUserPermission, self).create([{
-                'user_id': u.id,
-                'enabled': u.systore_analytics_enabled,
-                'full_access': u.systore_analytics_full_access,
-                'channel_ids': [(6, 0, u.systore_analytics_channel_ids.ids)],
-                'account_ids': [(6, 0, u.systore_analytics_account_ids.ids)],
-                'salesperson_ids': [(6, 0, u.systore_analytics_salesperson_ids.ids)],
-            } for u in missing])
-
-    @api.model
-    def search(self, domain, offset=0, limit=None, order=None):
-        self._ensure_internal_users()
-        return super().search(domain, offset=offset, limit=limit, order=order)

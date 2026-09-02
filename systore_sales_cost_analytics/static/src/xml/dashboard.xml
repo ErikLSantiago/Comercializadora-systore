@@ -111,34 +111,6 @@
                     </div>
                 </div>
 
-                <div class="o_systore_panel o_systore_trend">
-                    <div class="o_systore_panel_title"><h2>Evolución</h2><span>Tendencia 2D de venta neta, costo y utilidad</span></div>
-                    <t t-if="state.data.trend.length">
-                        <div class="o_systore_line_chart_wrap">
-                            <div class="o_systore_chart_legend">
-                                <span><i class="sale"/>Venta neta</span><span><i class="cost"/>Costo neto</span><span><i class="profit"/>Utilidad</span>
-                            </div>
-                            <svg class="o_systore_line_chart" viewBox="0 0 1000 320" preserveAspectRatio="none" role="img" aria-label="Evolución de venta neta, costo y utilidad">
-                                <line x1="60" y1="270" x2="980" y2="270" class="axis"/>
-                                <line x1="60" y1="20" x2="60" y2="270" class="axis"/>
-                                <line x1="60" y1="82.5" x2="980" y2="82.5" class="grid"/>
-                                <line x1="60" y1="145" x2="980" y2="145" class="grid"/>
-                                <line x1="60" y1="207.5" x2="980" y2="207.5" class="grid"/>
-                                <polyline t-att-points="linePoints('net_sales')" class="series sale"/>
-                                <polyline t-att-points="linePoints('net_cost')" class="series cost"/>
-                                <polyline t-att-points="linePoints('profit')" class="series profit"/>
-                                <t t-foreach="state.data.trend" t-as="row" t-key="row.date">
-                                    <circle t-att-cx="chartX(row_index)" t-att-cy="chartY(row.net_sales)" r="3" class="dot sale"><title t-esc="row.label + ' · Venta neta ' + money(row.net_sales)"/></circle>
-                                    <circle t-att-cx="chartX(row_index)" t-att-cy="chartY(row.net_cost)" r="3" class="dot cost"><title t-esc="row.label + ' · Costo ' + money(row.net_cost)"/></circle>
-                                    <circle t-att-cx="chartX(row_index)" t-att-cy="chartY(row.profit)" r="3" class="dot profit"><title t-esc="row.label + ' · Utilidad ' + money(row.profit)"/></circle>
-                                    <text t-if="showXAxisLabel(row_index)" t-att-x="chartX(row_index)" y="296" class="x_label" text-anchor="middle" t-esc="row.label"/>
-                                </t>
-                            </svg>
-                        </div>
-                    </t>
-                    <t t-if="!state.data.trend.length"><div class="o_systore_empty">No hay datos para el periodo seleccionado.</div></t>
-                </div>
-
                 <div class="o_systore_panel">
                     <div class="o_systore_panel_title">
                         <h2>Composición de venta bruta</h2>
@@ -171,6 +143,8 @@
                         ['channels', 'Canal'],
                         ['customers', 'Cliente'],
                         ['products', 'Producto'],
+                        ['categories', 'Categoría de producto'],
+                        ['conditions', 'Tipo de producto'],
                         ['vendors', 'Proveedor']
                     ]" t-as="pieDef" t-key="pieDef[0]">
                         <div class="o_systore_panel">
@@ -182,7 +156,6 @@
                                 <div class="o_systore_pie_metric_switch" role="group" aria-label="Medida del gráfico">
                                     <button type="button" t-att-class="'btn btn-sm ' + (state.pieMetrics[pieDef[0]] === 'sales' ? 'btn-primary' : 'btn-light')" t-on-click="() => this.setPieMetric(pieDef[0], 'sales')">Venta</button>
                                     <button type="button" t-att-class="'btn btn-sm ' + (state.pieMetrics[pieDef[0]] === 'returns' ? 'btn-primary' : 'btn-light')" t-on-click="() => this.setPieMetric(pieDef[0], 'returns')">Devolución</button>
-                                    <button type="button" t-att-class="'btn btn-sm ' + (state.pieMetrics[pieDef[0]] === 'pieces' ? 'btn-primary' : 'btn-light')" t-on-click="() => this.setPieMetric(pieDef[0], 'pieces')">Piezas</button>
                                 </div>
                             </div>
                             <t t-set="pieRowsCurrent" t-value="pieRows(pieDef[0])"/>
@@ -243,6 +216,35 @@
                         </t>
                     </div>
                 </div>
+
+                <div class="o_systore_panel o_systore_trend">
+                    <div class="o_systore_panel_title"><h2>Evolución</h2><span>Tendencia 2D de venta neta, costo y utilidad</span></div>
+                    <t t-if="state.data.trend.length">
+                        <div class="o_systore_line_chart_wrap">
+                            <div class="o_systore_chart_legend">
+                                <span><i class="sale"/>Venta neta</span><span><i class="cost"/>Costo neto</span><span><i class="profit"/>Utilidad</span>
+                            </div>
+                            <svg class="o_systore_line_chart" viewBox="0 0 1000 320" preserveAspectRatio="none" role="img" aria-label="Evolución de venta neta, costo y utilidad">
+                                <line x1="60" y1="270" x2="980" y2="270" class="axis"/>
+                                <line x1="60" y1="20" x2="60" y2="270" class="axis"/>
+                                <line x1="60" y1="82.5" x2="980" y2="82.5" class="grid"/>
+                                <line x1="60" y1="145" x2="980" y2="145" class="grid"/>
+                                <line x1="60" y1="207.5" x2="980" y2="207.5" class="grid"/>
+                                <polyline t-att-points="linePoints('net_sales')" class="series sale"/>
+                                <polyline t-att-points="linePoints('net_cost')" class="series cost"/>
+                                <polyline t-att-points="linePoints('profit')" class="series profit"/>
+                                <t t-foreach="state.data.trend" t-as="row" t-key="row.date">
+                                    <circle t-att-cx="chartX(row_index)" t-att-cy="chartY(row.net_sales)" r="3" class="dot sale"><title t-esc="row.label + ' · Venta neta ' + money(row.net_sales)"/></circle>
+                                    <circle t-att-cx="chartX(row_index)" t-att-cy="chartY(row.net_cost)" r="3" class="dot cost"><title t-esc="row.label + ' · Costo ' + money(row.net_cost)"/></circle>
+                                    <circle t-att-cx="chartX(row_index)" t-att-cy="chartY(row.profit)" r="3" class="dot profit"><title t-esc="row.label + ' · Utilidad ' + money(row.profit)"/></circle>
+                                    <text t-if="showXAxisLabel(row_index)" t-att-x="chartX(row_index)" y="296" class="x_label" text-anchor="middle" t-esc="row.label"/>
+                                </t>
+                            </svg>
+                        </div>
+                    </t>
+                    <t t-if="!state.data.trend.length"><div class="o_systore_empty">No hay datos para el periodo seleccionado.</div></t>
+                </div>
+
             </t>
         </div>
     </t>

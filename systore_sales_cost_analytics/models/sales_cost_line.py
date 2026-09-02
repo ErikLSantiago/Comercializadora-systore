@@ -33,6 +33,8 @@ class SystoreSalesCostLine(models.Model):
     product_id = fields.Many2one('product.product', string='Producto', index=True, readonly=True)
     sku = fields.Char(string='SKU', index=True, readonly=True)
     product_name = fields.Char(string='Nombre del producto (Producto/Nombre)', readonly=True)
+    product_category_id = fields.Many2one('product.category', string='Categoría de producto', related='product_id.categ_id', store=True, index=True, readonly=True)
+    product_condition = fields.Selection([('line', 'De línea'), ('open_box', 'Open Box')], string='Tipo de producto', compute='_compute_product_condition', store=True, index=True, readonly=True)
 
     invoice_quantity = fields.Float(string='Cantidad facturada', readonly=True)
     matched_quantity = fields.Float(string='Piezas facturadas', readonly=True)
@@ -182,6 +184,18 @@ class SystoreSalesCostLine(models.Model):
             transit_account = rec._systore_transit_counterpart(rec.invoice_id)
             rec.transit_account_id = transit_account
             rec.sale_state = 'return' if rec.analytic_role == 'transit_return' else 'sale'
+
+    @api.depends('product_id')
+    def _compute_product_condition(self):
+        for rec in self:
+            product = rec.product_id
+            tmpl = product.product_tmpl_id if product else False
+            is_open_box = False
+            if product and 'systore_is_open_box' in product._fields:
+                is_open_box = bool(product.systore_is_open_box)
+            elif tmpl and 'systore_is_open_box' in tmpl._fields:
+                is_open_box = bool(tmpl.systore_is_open_box)
+            rec.product_condition = 'open_box' if is_open_box else 'line'
 
     @api.depends('account_id.code', 'account_id.systore_sales_channel_id')
     def _compute_sales_channel(self):
@@ -677,6 +691,8 @@ class SystoreSalesCostLine(models.Model):
         vendors = defaultdict(lambda: self._systore_dashboard_bucket())
         customers = defaultdict(lambda: self._systore_dashboard_bucket())
         contacts = defaultdict(lambda: self._systore_dashboard_bucket())
+        categories = defaultdict(lambda: self._systore_dashboard_bucket())
+        conditions = defaultdict(lambda: self._systore_dashboard_bucket())
         reconciliation = defaultdict(int)
 
         for rec in records:
@@ -710,11 +726,15 @@ class SystoreSalesCostLine(models.Model):
             vendor_key = rec.vendor_id.id or 0
             customer_key = rec.partner_id.id or 0
             contact_key = rec.customer_contact_id.id or 0
+            category_key = rec.product_category_id.id or 0
+            condition_key = rec.product_condition or 'line'
             self._systore_add_dashboard_bucket(channels[channel_key], amount, cost, pieces, is_return)
             self._systore_add_dashboard_bucket(products[product_key], amount, cost, pieces, is_return)
             self._systore_add_dashboard_bucket(vendors[vendor_key], amount, cost, pieces, is_return)
             self._systore_add_dashboard_bucket(customers[customer_key], amount, cost, pieces, is_return)
             self._systore_add_dashboard_bucket(contacts[contact_key], amount, cost, pieces, is_return)
+            self._systore_add_dashboard_bucket(categories[category_key], amount, cost, pieces, is_return)
+            self._systore_add_dashboard_bucket(conditions[condition_key], amount, cost, pieces, is_return)
 
         net_sales = metrics['gross_sales'] - metrics['returns']
         net_cost = metrics['sale_cost'] - metrics['return_cost']
@@ -746,12 +766,16 @@ class SystoreSalesCostLine(models.Model):
         vendor_map = {r.id: r.display_name for r in records.mapped('vendor_id')}
         customer_map = {r.id: r.display_name for r in records.mapped('partner_id')}
         contact_map = {r.id: r.display_name for r in records.mapped('customer_contact_id')}
+        category_map = {r.id: r.display_name for r in records.mapped('product_category_id')}
+        condition_labels = dict(self._fields['product_condition']._description_selection(self.env))
 
         channel_rows = self._systore_dashboard_rows(channels, lambda key: key, lambda key: [('sales_channel', '=', key)] if key != 'Sin canal' else [('sales_channel', 'in', [False, ''])])
         product_rows = self._systore_dashboard_rows(products, lambda key: product_map.get(key, 'Sin producto'), lambda key: [('product_id', '=', key)] if key else [('product_id', '=', False)])
         vendor_rows = self._systore_dashboard_rows(vendors, lambda key: vendor_map.get(key, 'Sin proveedor'), lambda key: [('vendor_id', '=', key)] if key else [('vendor_id', '=', False)])
         customer_rows = self._systore_dashboard_rows(customers, lambda key: customer_map.get(key, 'Sin cliente'), lambda key: [('partner_id', '=', key)] if key else [('partner_id', '=', False)])
         contact_rows = self._systore_dashboard_rows(contacts, lambda key: contact_map.get(key, 'Sin contacto'), lambda key: [('customer_contact_id', '=', key)] if key else [('customer_contact_id', '=', False)])
+        category_rows = self._systore_dashboard_rows(categories, lambda key: category_map.get(key, 'Sin categoría'), lambda key: [('product_category_id', '=', key)] if key else [('product_category_id', '=', False)])
+        condition_rows = self._systore_dashboard_rows(conditions, lambda key: condition_labels.get(key, key), lambda key: [('product_condition', '=', key)])
         def pie_set(rows):
             return {
                 'sales': self._systore_dashboard_pie_rows(rows, value_field='sales'),
@@ -765,6 +789,8 @@ class SystoreSalesCostLine(models.Model):
             'contacts': pie_set(contact_rows),
             'products': pie_set(product_rows),
             'vendors': pie_set(vendor_rows),
+            'categories': pie_set(category_rows),
+            'conditions': pie_set(condition_rows),
         }
         # Compatibilidad con versiones previas del cliente OWL.
         pie_channels = pie_sets['channels']['sales']
