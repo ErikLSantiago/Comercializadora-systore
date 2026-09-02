@@ -616,7 +616,7 @@ class SystoreSalesCostLine(models.Model):
     @api.model
     def _systore_user_access_domain(self):
         user = self.env.user
-        if user.has_group('systore_sales_cost_analytics.group_systore_analytics_manager') or user.has_group('account.group_account_manager') or user.systore_analytics_full_access:
+        if user.systore_analytics_full_access:
             return []
         if not user.systore_analytics_enabled:
             return [('id', '=', 0)]

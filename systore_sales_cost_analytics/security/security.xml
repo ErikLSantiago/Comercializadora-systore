@@ -13,7 +13,7 @@
   <record id="rule_systore_analytics_line_scope" model="ir.rule">
     <field name="name">Systore Analytics: alcance por usuario</field>
     <field name="model_id" ref="model_systore_sales_cost_line"/>
-    <field name="groups" eval="[(4, ref('group_systore_analytics_user'))]"/>
-    <field name="domain_force">[(1,'=',1)] if (user.systore_analytics_full_access or user.has_group('systore_sales_cost_analytics.group_systore_analytics_manager')) else (([('sales_channel_id','in',user.systore_analytics_channel_ids.ids)] if user.systore_analytics_channel_ids else []) + ([('account_id','in',user.systore_analytics_account_ids.ids)] if user.systore_analytics_account_ids else []) + ([('salesperson_id','in',user.systore_analytics_salesperson_ids.ids)] if user.systore_analytics_salesperson_ids else []) if user.systore_analytics_enabled and (user.systore_analytics_channel_ids or user.systore_analytics_account_ids or user.systore_analytics_salesperson_ids) else [('id','=',0)])</field>
+    <field name="groups" eval="[(4, ref('group_systore_analytics_user')), (4, ref('account.group_account_manager'))]"/>
+    <field name="domain_force">[(1,'=',1)] if user.systore_analytics_full_access else (([('sales_channel_id','in',user.systore_analytics_channel_ids.ids)] if user.systore_analytics_channel_ids else []) + ([('account_id','in',user.systore_analytics_account_ids.ids)] if user.systore_analytics_account_ids else []) + ([('salesperson_id','in',user.systore_analytics_salesperson_ids.ids)] if user.systore_analytics_salesperson_ids else []) if user.systore_analytics_enabled and (user.systore_analytics_channel_ids or user.systore_analytics_account_ids or user.systore_analytics_salesperson_ids) else [('id','=',0)])</field>
   </record>
 </odoo>

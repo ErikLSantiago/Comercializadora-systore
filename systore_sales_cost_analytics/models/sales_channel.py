@@ -45,7 +45,7 @@ class ResUsers(models.Model):
     systore_analytics_full_access = fields.Boolean(string='Ver reporte completo', default=False)
     systore_analytics_channel_ids = fields.Many2many('systore.sales.channel', 'systore_analytics_user_channel_rel', 'user_id', 'channel_id', string='Canales permitidos')
     systore_analytics_account_ids = fields.Many2many('account.account', 'systore_analytics_user_account_rel', 'user_id', 'account_id', string='Cuentas contables permitidas')
-    systore_analytics_salesperson_ids = fields.Many2many('res.users', 'systore_analytics_user_salesperson_rel', 'user_id', 'salesperson_id', string='Vendedores permitidos')
+    systore_analytics_salesperson_ids = fields.Many2many('res.users', 'systore_analytics_user_salesperson_rel', 'user_id', 'salesperson_id', string='Ventas de vendedores permitidos')
 
     def write(self, vals):
         res = super().write(vals)
@@ -70,7 +70,7 @@ class SystoreAnalyticsUserPermission(models.Model):
     full_access = fields.Boolean(string='Ver reporte completo')
     channel_ids = fields.Many2many('systore.sales.channel', 'systore_perm_channel_rel', 'permission_id', 'channel_id', string='Canales permitidos')
     account_ids = fields.Many2many('account.account', 'systore_perm_account_rel', 'permission_id', 'account_id', string='Cuentas contables permitidas')
-    salesperson_ids = fields.Many2many('res.users', 'systore_perm_salesperson_rel', 'permission_id', 'salesperson_id', string='Vendedores permitidos')
+    salesperson_ids = fields.Many2many('res.users', 'systore_perm_salesperson_rel', 'permission_id', 'salesperson_id', string='Ventas de vendedores permitidos')
     _sql_constraints = [('user_unique', 'unique(user_id)', 'Ya existe una configuración para este usuario.')]
 
     def _sync_user(self):
