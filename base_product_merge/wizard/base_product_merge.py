@@ -3,7 +3,7 @@
 
 import logging
 
-from openupgradelib import openupgrade_merge_records
+from ..vendor.openupgradelib import openupgrade_merge_records
 
 from odoo import _, api, fields, models
 from odoo.exceptions import UserError
