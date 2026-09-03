@@ -36,5 +36,9 @@ msgid "Error occurred while merging products."
 msgstr "Ocurrió un error al unificar los productos."
 
 #. module: base_product_merge
+msgid "You are not allowed to merge products."
+msgstr "No tiene permiso para unificar productos."
+
+#. module: base_product_merge
 msgid "Remove the product-specific putaway rules of the duplicate SKUs before merging. The rules already configured on the dominant product remain unchanged and will apply to all merged history."
 msgstr "Elimina las reglas de almacenamiento específicas de los SKU duplicados antes de unificarlos. Las reglas ya configuradas en el producto dominante permanecen sin cambios y se aplicarán a todo el historial unificado."

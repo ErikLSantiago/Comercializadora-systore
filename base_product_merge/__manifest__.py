@@ -4,13 +4,14 @@
 {
     "name": "Base Products Merge",
     "summary": "Merge duplicate products",
-    "version": "18.0.1.0.1",
+    "version": "18.0.1.1.0",
     "license": "AGPL-3",
     "website": "https://github.com/OCA/stock-logistics-warehouse",
     "author": "ForgeFlow, " "Odoo Community Association (OCA)",
     "category": "Sales/Sales",
     "depends": ["product", "stock"],
     "data": [
+        "security/res_groups.xml",
         "security/ir.model.access.csv",
         "wizard/base_product_merge_view.xml",
     ],

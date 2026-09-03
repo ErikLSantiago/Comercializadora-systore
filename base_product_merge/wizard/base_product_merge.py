@@ -6,7 +6,7 @@ import logging
 from ..vendor.openupgradelib import openupgrade_merge_records
 
 from odoo import _, api, fields, models
-from odoo.exceptions import UserError
+from odoo.exceptions import AccessError, UserError
 
 _logger = logging.getLogger(__name__)
 
@@ -65,6 +65,10 @@ class BaseProductMerge(models.Model):
 
     def action_merge(self):
         self.ensure_one()
+        if not self.env.user.has_group(
+            "base_product_merge.res_group_merge_duplicate_product"
+        ):
+            raise AccessError(_("You are not allowed to merge products."))
         if self.ptype == "product.product":
             dst_product = self.dst_product_id
             products_to_merge = self.product_ids - dst_product
