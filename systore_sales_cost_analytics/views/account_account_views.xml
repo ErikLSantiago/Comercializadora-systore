@@ -6,7 +6,6 @@
         <field name="inherit_id" ref="account.view_account_form"/>
         <field name="arch" type="xml">
             <xpath expr="//field[@name='account_type']" position="after">
-                <field name="systore_analytics_type"/>
                 <field name="systore_sales_channel_id"/>
             </xpath>
         </field>

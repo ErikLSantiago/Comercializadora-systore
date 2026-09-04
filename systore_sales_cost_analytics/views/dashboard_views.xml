@@ -10,5 +10,5 @@
               parent="menu_systore_analytics_root"
               action="action_systore_analytics_dashboard"
               sequence="5"
-              groups="systore_sales_cost_analytics.group_systore_analytics_user,account.group_account_manager"/>
+              groups="systore_sales_cost_analytics.group_systore_analytics_user"/>
 </odoo>

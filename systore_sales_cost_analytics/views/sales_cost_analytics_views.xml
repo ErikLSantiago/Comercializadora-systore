@@ -34,7 +34,6 @@
                     <filter string="Estado de venta" name="group_sale_state" context="{'group_by':'sale_state'}"/>
                     <filter string="Canal de venta" name="group_sales_channel" context="{'group_by':'sales_channel'}"/>
                     <filter string="Cuenta" name="group_account" context="{'group_by':'account_id'}"/>
-                    <filter string="Tipo de cuenta" name="group_account_type" context="{'group_by':'account_analytics_type'}"/>
                     <filter string="Cliente de factura" name="group_partner" context="{'group_by':'partner_id'}"/>
                     <filter string="Contacto del cliente" name="group_contact" context="{'group_by':'customer_contact_id'}"/>
                     <filter string="SKU" name="group_sku" context="{'group_by':'sku'}"/>
@@ -76,6 +75,7 @@
                 <field name="lot_name"/>
                 <field name="purchase_order_id"/>
                 <field name="vendor_id"/>
+                <field name="cost_source" optional="hide"/>
                 <field name="unit_cost_company"/>
                 <field name="total_cost" sum="Costo total"/>
                 <field name="unit_sale_price"/>
@@ -126,7 +126,7 @@
         <field name="name">systore.sales.cost.line.form</field>
         <field name="model">systore.sales.cost.line</field>
         <field name="arch" type="xml">
-            <form string="Detalle de cuadre" create="0" edit="0" delete="0">
+            <form string="Detalle de cuadre" create="0" edit="1" delete="0">
                 <sheet>
                     <group>
                         <group string="Facturación y venta">
@@ -140,7 +140,6 @@
                             <field name="sales_channel"/>
                             <field name="marketplace_order_number"/>
                             <field name="account_id"/>
-                            <field name="account_analytics_type"/>
                             <field name="partner_id"/>
                             <field name="customer_contact_id"/>
                             <field name="salesperson_id"/>
@@ -165,7 +164,10 @@
                             <field name="purchase_order_line_id"/>
                             <field name="vendor_id"/>
                             <field name="purchase_date"/>
-                            <field name="unit_cost_company"/>
+                            <field name="cost_source"/>
+                            <field name="unit_cost_company" readonly="purchase_order_line_id"/>
+                            <field name="manual_cost_id" invisible="cost_source != 'manual'"/>
+                            <div class="text-muted" invisible="cost_source == 'purchase'">Si no existe costo de Orden de compra, un Administrador de Analítica puede capturar aquí el costo unitario manual. Se conservará por Producto + Lote al reconstruir el reporte.</div>
                         </group>
                         <group string="Resultado">
                             <field name="unit_sale_price"/>
@@ -193,7 +195,9 @@
         
     </record>
 
-    <menuitem id="menu_systore_analytics_root" name="Systore Analytics" sequence="60" groups="systore_sales_cost_analytics.group_systore_analytics_user,account.group_account_manager"/>
-    <menuitem id="menu_systore_sales_cost_report" name="Reporte consolidado" parent="menu_systore_analytics_root" action="action_systore_sales_cost_line" sequence="10" groups="systore_sales_cost_analytics.group_systore_analytics_user,account.group_account_manager"/>
-    <menuitem id="menu_systore_sales_cost_rebuild" name="Actualizar reporte" parent="menu_systore_analytics_root" action="action_systore_sales_cost_rebuild" sequence="20" groups="systore_sales_cost_analytics.group_systore_analytics_manager,account.group_account_manager"/>
+    <menuitem id="menu_systore_analytics_root" name="Analítica de ventas" sequence="60"
+              web_icon="systore_sales_cost_analytics,static/description/icon.png"
+              groups="systore_sales_cost_analytics.group_systore_analytics_user"/>
+    <menuitem id="menu_systore_sales_cost_report" name="Reporte consolidado" parent="menu_systore_analytics_root" action="action_systore_sales_cost_line" sequence="10" groups="systore_sales_cost_analytics.group_systore_analytics_user"/>
+    <menuitem id="menu_systore_sales_cost_rebuild" name="Actualizar reporte" parent="menu_systore_analytics_root" action="action_systore_sales_cost_rebuild" sequence="20" groups="systore_sales_cost_analytics.group_systore_analytics_manager"/>
 </odoo>

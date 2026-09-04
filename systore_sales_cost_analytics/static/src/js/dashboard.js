@@ -17,7 +17,7 @@ export class SystoreSalesCostDashboard extends Component {
             data: {
                 currency: "MXN",
                 filters: {sales_channels: [], accounts: [], partners: [], contacts: [], products: [], vendors: [], salespersons: []},
-                kpis: {}, trend: [], trend_max: 0, channels: [], products: [], vendors: [], pie_channels: [], pie_customers: [], pie_contacts: [], pie_products: [], pie_vendors: [], return_channels: [], reconciliation: [],
+                kpis: {}, trend: [], channels: [], products: [], vendors: [], return_channels: [], reconciliation: [],
             },
             filters: {
                 date_from: "",
@@ -180,10 +180,6 @@ export class SystoreSalesCostDashboard extends Component {
         }).format(value || 0);
     }
 
-    barWidth(value, maxValue) {
-        if (!maxValue) return "0%";
-        return `${Math.max(2, Math.min(100, (Math.abs(value) / maxValue) * 100))}%`;
-    }
 
     chartX(index) {
         const rows = this.state.data?.trend || [];
