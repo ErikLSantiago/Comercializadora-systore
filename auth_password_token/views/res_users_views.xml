@@ -1,0 +1,25 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+  <record id="view_users_form_inherit_api_token" model="ir.ui.view">
+    <field name="name">res.users.form.api.token</field>
+    <field name="model">res.users</field>
+    <field name="inherit_id" ref="base.view_users_form"/>
+    <field name="priority" eval="50"/>
+    <field name="arch" type="xml">
+      <xpath expr="//page[@name='access_rights']" position="after">
+        <page name="api_security" string="API">
+          <group groups="base.group_system">
+            <field name="api_token" password="True"/>
+            <button name="action_generate_api_token"
+                    type="object"
+                    string="Generar nuevo API Token"
+                    class="oe_highlight"
+                    groups="base.group_system"
+                    help="Genera un token aleatorio y lo guarda en el campo API Token."/>
+            <div class="o_form_label">Nota: usa este token como 'User password' en sistemas externos (p.ej. Inventory Planner).</div>
+          </group>
+        </page>
+      </xpath>
+    </field>
+  </record>
+</odoo>

@@ -1,0 +1,17 @@
+<odoo>
+  <record id="view_move_form_prepayment_button" model="ir.ui.view">
+    <field name="name">account.move.form.prepayment.button</field>
+    <field name="model">account.move</field>
+    <field name="inherit_id" ref="account.view_move_form"/>
+    <field name="arch" type="xml">
+      <!-- Botón junto a Registrar Pago -->
+      <xpath expr="//header//button[@name='action_register_payment']" position="after">
+        <button name="action_open_prepayment_apply_wizard"
+                type="object"
+                string="Pagar con anticipo"
+                class="btn-secondary"
+                invisible="state != 'posted' or move_type not in ('in_invoice','in_refund','out_invoice','out_refund')"/>
+      </xpath>
+    </field>
+  </record>
+</odoo>

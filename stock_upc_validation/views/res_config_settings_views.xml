@@ -1,0 +1,23 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<odoo>
+    <record id="res_config_settings_view_form_upc_validation" model="ir.ui.view">
+        <field name="name">res.config.settings.view.form.upc.validation</field>
+        <field name="model">res.config.settings</field>
+        <field name="inherit_id" ref="stock.res_config_settings_view_form"/>
+        <field name="arch" type="xml">
+            <xpath expr="//app[@name='stock']" position="inside">
+                <block title="Validación UPC / NS / IMEI Systore" name="systore_upc_validation_settings">
+                    <setting string="UPC/EAN en recepción" help="Seleccione los almacenes donde las entradas deben obligar captura de UPC/EAN y asignación de lote desde documento origen.">
+                        <field name="systore_upc_receipt_warehouse_ids" widget="many2many_tags" options="{'no_create': True}"/>
+                    </setting>
+                    <setting string="Validación en salida/empaque" help="Seleccione únicamente los almacenes donde el personal debe validar UPC/EAN en PICK y capturar NS/IMEI y guía en PACK. Los almacenes no seleccionados no abrirán estos wizards.">
+                        <field name="systore_upc_validation_warehouse_ids" widget="many2many_tags" options="{'no_create': True}"/>
+                    </setting>
+                    <setting string="Excluir parciales de Batch Picking" help="Cuando esté activo, las recolecciones que no tengan todos sus productos disponibles/listos no se asignarán al Batch Picking. Aplica sobre los almacenes configurados en validación de salida/empaque.">
+                        <field name="systore_exclude_partial_pickings_from_batch"/>
+                    </setting>
+                </block>
+            </xpath>
+        </field>
+    </record>
+</odoo>

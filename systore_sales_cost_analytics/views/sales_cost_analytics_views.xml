@@ -1,0 +1,197 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <record id="view_systore_sales_cost_line_search" model="ir.ui.view">
+        <field name="name">systore.sales.cost.line.search</field>
+        <field name="model">systore.sales.cost.line</field>
+        <field name="arch" type="xml">
+            <search string="Analítica Systore">
+                <field name="move_name"/>
+                <field name="invoice_origin"/>
+                <field name="sale_origin"/>
+                <field name="order_base"/>
+                <field name="sales_channel"/>
+                <field name="marketplace_order_number"/>
+                <field name="sku"/>
+                <field name="product_name"/>
+                <field name="product_category_id"/>
+                <field name="product_condition"/>
+                <field name="lot_name"/>
+                <field name="partner_id"/>
+                <field name="customer_contact_id"/>
+                <field name="vendor_id"/>
+                <field name="salesperson_id"/>
+                <field name="account_id"/>
+                <field name="purchase_order_id"/>
+                <filter string="Ventas" name="sales" domain="[('sale_state','=','sale')]"/>
+                <filter string="Devoluciones en tránsito" name="returns" domain="[('sale_state','=','return')]"/>
+                <separator/>
+                <filter string="Cuadre correcto" name="ok" domain="[('reconciliation_state','=','ok')]"/>
+                <filter string="Con incidencias" name="issues" domain="[('reconciliation_state','!=','ok')]"/>
+                <filter string="Devolución en tránsito" name="transit" domain="[('is_transit_return','=',True)]"/>
+                <separator/>
+                <filter string="Fecha factura" name="invoice_date" date="invoice_date"/>
+                <group expand="0" string="Agrupar por">
+                    <filter string="Estado de venta" name="group_sale_state" context="{'group_by':'sale_state'}"/>
+                    <filter string="Canal de venta" name="group_sales_channel" context="{'group_by':'sales_channel'}"/>
+                    <filter string="Cuenta" name="group_account" context="{'group_by':'account_id'}"/>
+                    <filter string="Cliente de factura" name="group_partner" context="{'group_by':'partner_id'}"/>
+                    <filter string="Contacto del cliente" name="group_contact" context="{'group_by':'customer_contact_id'}"/>
+                    <filter string="SKU" name="group_sku" context="{'group_by':'sku'}"/>
+                    <filter string="Categoría de producto" name="group_category" context="{'group_by':'product_category_id'}"/>
+                    <filter string="Tipo de producto" name="group_condition" context="{'group_by':'product_condition'}"/>
+                    <filter string="Lote / OC" name="group_lot" context="{'group_by':'lot_name'}"/>
+                    <filter string="Proveedor" name="group_vendor" context="{'group_by':'vendor_id'}"/>
+                    <filter string="Vendedor" name="group_salesperson" context="{'group_by':'salesperson_id'}"/>
+                    <filter string="Estado de cuadre" name="group_state" context="{'group_by':'reconciliation_state'}"/>
+                    <filter string="Mes factura" name="group_month" context="{'group_by':'invoice_date:month'}"/>
+                </group>
+            </search>
+        </field>
+    </record>
+
+    <record id="view_systore_sales_cost_line_list" model="ir.ui.view">
+        <field name="name">systore.sales.cost.line.list</field>
+        <field name="model">systore.sales.cost.line</field>
+        <field name="arch" type="xml">
+            <list string="Reporte consolidado" create="0" edit="0" delete="0" decoration-success="reconciliation_state == 'ok'" decoration-warning="reconciliation_state != 'ok'">
+                <field name="invoice_date"/>
+                <field name="sale_state"/>
+                <field name="analytic_role" optional="hide"/>
+                <field name="transit_account_id" optional="hide"/>
+                <field name="account_id"/>
+                <field name="move_name"/>
+                <field name="invoice_origin"/>
+                <field name="sale_origin" optional="hide"/>
+                <field name="sales_channel"/>
+                <field name="marketplace_order_number"/>
+                <field name="partner_id"/>
+                <field name="customer_contact_id" optional="hide"/>
+                <field name="salesperson_id"/>
+                <field name="sku"/>
+                <field name="product_name"/>
+                <field name="product_category_id" optional="hide"/>
+                <field name="product_condition" optional="hide"/>
+                <field name="matched_quantity" sum="Piezas"/>
+                <field name="lot_name"/>
+                <field name="purchase_order_id"/>
+                <field name="vendor_id"/>
+                <field name="unit_cost_company"/>
+                <field name="total_cost" sum="Costo total"/>
+                <field name="unit_sale_price"/>
+                <field name="allocated_sale_amount" sum="Venta total"/>
+                <field name="gross_profit"/>
+                <field name="gross_margin" widget="percentage"/>
+                <field name="total_profit" sum="Utilidad total" optional="hide"/>
+                <field name="order_base" optional="hide"/>
+                <field name="is_transit_return" optional="hide"/>
+                <field name="physical_move_type" optional="hide"/>
+                <field name="reconciliation_state"/>
+                <field name="note" optional="hide"/>
+            </list>
+        </field>
+    </record>
+
+    <record id="view_systore_sales_cost_line_pivot" model="ir.ui.view">
+        <field name="name">systore.sales.cost.line.pivot</field>
+        <field name="model">systore.sales.cost.line</field>
+        <field name="arch" type="xml">
+            <pivot string="Ventas y margen">
+                <field name="invoice_date" type="row" interval="month"/>
+                <field name="sale_state" type="row"/>
+                <field name="sales_channel" type="row"/>
+                <field name="account_id" type="row"/>
+                <field name="sku" type="row"/>
+                <field name="allocated_sale_amount" type="measure"/>
+                <field name="total_cost" type="measure"/>
+                <field name="total_profit" type="measure"/>
+                <field name="matched_quantity" type="measure"/>
+            </pivot>
+        </field>
+    </record>
+
+    <record id="view_systore_sales_cost_line_graph" model="ir.ui.view">
+        <field name="name">systore.sales.cost.line.graph</field>
+        <field name="model">systore.sales.cost.line</field>
+        <field name="arch" type="xml">
+            <graph string="Venta y utilidad" type="bar">
+                <field name="invoice_date" interval="month"/>
+                <field name="allocated_sale_amount" type="measure"/>
+                <field name="total_profit" type="measure"/>
+            </graph>
+        </field>
+    </record>
+
+    <record id="view_systore_sales_cost_line_form" model="ir.ui.view">
+        <field name="name">systore.sales.cost.line.form</field>
+        <field name="model">systore.sales.cost.line</field>
+        <field name="arch" type="xml">
+            <form string="Detalle de cuadre" create="0" edit="0" delete="0">
+                <sheet>
+                    <group>
+                        <group string="Facturación y venta">
+                            <field name="invoice_date"/>
+                            <field name="invoice_id"/>
+                            <field name="invoice_origin"/>
+                            <field name="sale_state"/>
+                            <field name="transit_account_id"/>
+                            <field name="sale_origin"/>
+                            <field name="order_base"/>
+                            <field name="sales_channel"/>
+                            <field name="marketplace_order_number"/>
+                            <field name="account_id"/>
+                            <field name="partner_id"/>
+                            <field name="customer_contact_id"/>
+                            <field name="salesperson_id"/>
+                        </group>
+                        <group string="Producto y movimiento">
+                            <field name="product_id"/>
+                            <field name="product_name"/>
+                            <field name="sku"/>
+                            <field name="invoice_quantity"/>
+                            <field name="matched_quantity"/>
+                            <field name="sale_order_id"/>
+                            <field name="sale_order_line_id"/>
+                            <field name="stock_move_line_id"/>
+                            <field name="picking_id"/>
+                            <field name="physical_move_type"/>
+                            <field name="lot_id"/>
+                        </group>
+                    </group>
+                    <group>
+                        <group string="Compra / costo">
+                            <field name="purchase_order_id"/>
+                            <field name="purchase_order_line_id"/>
+                            <field name="vendor_id"/>
+                            <field name="purchase_date"/>
+                            <field name="unit_cost_company"/>
+                        </group>
+                        <group string="Resultado">
+                            <field name="unit_sale_price"/>
+                            <field name="allocated_sale_amount"/>
+                            <field name="total_cost"/>
+                            <field name="gross_profit"/>
+                            <field name="total_profit"/>
+                            <field name="gross_margin" widget="percentage"/>
+                            <field name="reconciliation_state"/>
+                            <field name="note"/>
+                            <field name="invoice_match_code"/>
+                            <field name="cost_match_code"/>
+                        </group>
+                    </group>
+                </sheet>
+            </form>
+        </field>
+    </record>
+
+    <record id="action_systore_sales_cost_line" model="ir.actions.act_window">
+        <field name="name">Reporte consolidado</field>
+        <field name="res_model">systore.sales.cost.line</field>
+        <field name="view_mode">list,pivot,graph,form</field>
+        <field name="search_view_id" ref="view_systore_sales_cost_line_search"/>
+        
+    </record>
+
+    <menuitem id="menu_systore_analytics_root" name="Analítica de ventas" sequence="60" groups="systore_sales_cost_analytics.group_systore_analytics_user"/>
+    <menuitem id="menu_systore_sales_cost_report" name="Reporte consolidado" parent="menu_systore_analytics_root" action="action_systore_sales_cost_line" sequence="10" groups="systore_sales_cost_analytics.group_systore_analytics_user"/>
+    <menuitem id="menu_systore_sales_cost_rebuild" name="Actualizar reporte" parent="menu_systore_analytics_root" action="action_systore_sales_cost_rebuild" sequence="20" groups="systore_sales_cost_analytics.group_systore_analytics_manager"/>
+</odoo>

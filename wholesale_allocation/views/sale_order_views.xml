@@ -1,0 +1,31 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <record id="view_order_form_wholesale_allocation" model="ir.ui.view">
+        <field name="name">sale.order.form.wholesale.allocation</field>
+        <field name="model">sale.order</field>
+        <field name="inherit_id" ref="sale.view_order_form"/>
+        <field name="arch" type="xml">
+            <xpath expr="//sheet/notebook" position="inside">
+                <page string="Wholesale Allocation" invisible="not is_wholesale_allocation">
+                    <group>
+                        <field name="is_wholesale_allocation" invisible="1"/>
+                        <field name="associated_purchase_order_ids"
+                               widget="many2many_tags"
+                               domain="[('state', 'in', ['purchase', 'done'])]"
+                               options="{'no_create': True}"/>
+                        <div class="text-muted"><span>Automatic reservation will only use lots whose name matches the associated purchase order number. External lots can still be assigned manually on the delivery.</span></div>
+                    </group>
+                </page>
+            </xpath>
+            <xpath expr="//div[hasclass('oe_button_box')]" position="inside">
+                <button name="action_view_associated_purchase_orders"
+                        type="object"
+                        class="oe_stat_button"
+                        icon="fa-shopping-cart"
+                        invisible="associated_purchase_order_count == 0">
+                    <field name="associated_purchase_order_count" widget="statinfo" string="Associated POs"/>
+                </button>
+            </xpath>
+        </field>
+    </record>
+</odoo>

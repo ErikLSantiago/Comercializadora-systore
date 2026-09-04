@@ -1,0 +1,12 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<odoo>
+    <!-- Defaults executed on install/update. -->
+    <function model="stock.picking.type" name="write">
+        <value model="stock.picking.type" search="[('code', '=', 'internal'), '|', ('name', 'ilike', 'pick'), ('name', 'ilike', 'recole')]"/>
+        <value eval="{'systore_require_upc_on_picking': True, 'systore_upc_validation_per_product': 1}"/>
+    </function>
+    <function model="stock.picking.type" name="write">
+        <value model="stock.picking.type" search="[('code', '=', 'internal'), '|', '|', '|', ('name', 'ilike', 'pack'), ('name', 'ilike', 'empaque'), ('name', 'ilike', 'empaquet'), ('name', 'ilike', 'zona de empaque')]"/>
+        <value eval="{'systore_require_tracking_on_pack': True}"/>
+    </function>
+</odoo>

@@ -1,0 +1,21 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <!-- Server Action: bulk refresh PO/Lot cost report -->
+    <record id="action_server_update_po_lot_cost" model="ir.actions.server">
+        <field name="name">Actualiza costos</field>
+        <field name="model_id" ref="product.model_product_template"/>
+        <field name="binding_model_id" ref="product.model_product_template"/>
+        <field name="binding_view_types">list</field>
+        <field name="state">code</field>
+        <field name="code">
+
+# Bulk refresh for selected records; if none selected, use the current list domain
+recs = records
+if not recs:
+    dom = env.context.get('active_domain') or []
+    recs = env['product.template'].search(dom)
+recs.sudo().action_refresh_po_lot_cost()
+action = {'type': 'ir.actions.client', 'tag': 'reload'}
+        </field>
+    </record>
+</odoo>

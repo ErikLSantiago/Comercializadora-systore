@@ -1,0 +1,20 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <!-- Add button to bank statement line form -->
+    <record id="view_bank_statement_line_form_mkp_settlement" model="ir.ui.view">
+        <field name="name">account.bank.statement.line.form.mkp.settlement</field>
+        <field name="model">account.bank.statement.line</field>
+        <field name="inherit_id" ref="account.view_bank_statement_line_form"/>
+        <field name="arch" type="xml">
+            <xpath expr="//header" position="inside">
+                <button name="action_open_marketplace_settlement"
+                        type="object"
+                        string="Marketplace Settlement"
+                        class="btn-primary"/>
+            </xpath>
+            <xpath expr="//sheet//group" position="inside">
+                <field name="marketplace_settlement_id" readonly="1"/>
+            </xpath>
+        </field>
+    </record>
+</odoo>

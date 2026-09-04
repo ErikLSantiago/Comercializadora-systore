@@ -1,0 +1,4 @@
+id,name,model_id:id,group_id:id,perm_read,perm_write,perm_create,perm_unlink
+access_marketplace_settlement_user,marketplace.settlement user,model_marketplace_settlement,base.group_user,1,1,1,0
+access_marketplace_settlement_line_user,marketplace.settlement.line user,model_marketplace_settlement_line,base.group_user,1,1,1,1
+access_marketplace_settlement_import_csv_user,marketplace.settlement.import.csv user,model_marketplace_settlement_import_csv,base.group_user,1,1,1,0

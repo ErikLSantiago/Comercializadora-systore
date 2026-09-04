@@ -1,0 +1,29 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <record id="action_marketplace_settlement_download_csv_template" model="ir.actions.server">
+        <field name="name">Download CSV Template</field>
+        <field name="model_id" ref="model_marketplace_settlement"/>
+        <field name="binding_model_id" ref="model_marketplace_settlement"/>
+        <field name="binding_type">action</field>
+        <field name="binding_view_types">form</field>
+        <field name="state">code</field>
+        <field name="code">action = model.action_download_csv_template()</field>
+    </record>
+    <record id="action_marketplace_settlement_cancel_posted_entry" model="ir.actions.server">
+        <field name="name">Cancel Posted Entry</field>
+        <field name="model_id" ref="model_marketplace_settlement"/>
+        <field name="state">code</field>
+        <field name="code">records.action_cancel_posted_entry()</field>
+        <field name="binding_model_id" ref="model_marketplace_settlement"/>
+        <field name="binding_view_types">form</field>
+    </record>
+
+    <record id="action_marketplace_settlement_delete_posted_entry" model="ir.actions.server">
+        <field name="name">Delete Posted Entry</field>
+        <field name="model_id" ref="model_marketplace_settlement"/>
+        <field name="state">code</field>
+        <field name="code">records.action_delete_posted_entry()</field>
+        <field name="binding_model_id" ref="model_marketplace_settlement"/>
+        <field name="binding_view_types">form</field>
+    </record>
+</odoo>

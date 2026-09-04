@@ -1,0 +1,70 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <record id="action_report_stock_upc_batch_summary" model="ir.actions.report">
+        <field name="name">Resumen de piezas del Batch</field>
+        <field name="model">stock.picking.batch</field>
+        <field name="report_type">qweb-pdf</field>
+        <field name="report_name">stock_upc_validation.report_batch_summary</field>
+        <field name="report_file">stock_upc_validation.report_batch_summary</field>
+        <field name="binding_model_id" ref="stock_picking_batch.model_stock_picking_batch"/>
+        <field name="binding_type">report</field>
+    </record>
+
+    <template id="report_batch_summary">
+        <t t-call="web.html_container">
+            <t t-foreach="docs" t-as="o">
+                <t t-call="web.external_layout">
+                    <div class="page">
+                        <h2>Resumen de piezas del Batch</h2>
+                        <div class="row mt16 mb16">
+                            <div class="col-6">
+                                <strong>Batch:</strong>
+                                <span t-field="o.name"/>
+                            </div>
+                            <div class="col-6">
+                                <strong>Tipo de operación:</strong>
+                                <span t-field="o.picking_type_id.display_name"/>
+                            </div>
+                        </div>
+                        <div class="row mb16">
+                            <div class="col-6">
+                                <strong>Responsable:</strong>
+                                <span t-field="o.user_id.display_name"/>
+                            </div>
+                            <div class="col-6">
+                                <strong>Traslados:</strong>
+                                <span t-esc="len(o.picking_ids)"/>
+                            </div>
+                        </div>
+
+                        <table class="table table-sm o_main_table">
+                            <thead>
+                                <tr>
+                                    <th>SKU</th>
+                                    <th>Producto</th>
+                                    <th class="text-end">Demanda</th>
+                                    <th class="text-end">Cantidad lista</th>
+                                    <th class="text-end">Órdenes</th>
+                                    <th>Unidad</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                <tr t-foreach="lines_by_batch.get(o.id, [])" t-as="line">
+                                    <td><span t-esc="line['product'].default_code or ''"/></td>
+                                    <td><span t-esc="line['product'].display_name"/></td>
+                                    <td class="text-end"><span t-esc="line['demand_qty']"/></td>
+                                    <td class="text-end"><span t-esc="line['reserved_qty']"/></td>
+                                    <td class="text-end"><span t-esc="line['picking_count']"/></td>
+                                    <td><span t-esc="line['product'].uom_id.name"/></td>
+                                </tr>
+                                <tr t-if="not lines_by_batch.get(o.id)">
+                                    <td colspan="6" class="text-center">No hay movimientos pendientes para resumir.</td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </t>
+            </t>
+        </t>
+    </template>
+</odoo>

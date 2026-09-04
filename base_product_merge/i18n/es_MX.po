@@ -1,0 +1,89 @@
+# Translation of Odoo Server.
+# This file contains the translation of base_product_merge.
+msgid ""
+msgstr ""
+"Project-Id-Version: Odoo Server 18.0\n"
+"PO-Revision-Date: 2026-09-03 00:00+0000\n"
+"Last-Translator: Nistreva\n"
+"Language-Team: Spanish (Mexico)\n"
+"Language: es_MX\n"
+"MIME-Version: 1.0\n"
+"Content-Type: text/plain; charset=UTF-8\n"
+"Content-Transfer-Encoding: 8bit\n"
+"Plural-Forms: nplurals=2; plural=(n != 1);\n"
+
+#. module: base_product_merge
+msgid "Merge Products"
+msgstr "Unificar productos"
+
+#. module: base_product_merge
+msgid "Destination product"
+msgstr "Producto dominante"
+
+#. module: base_product_merge
+msgid "Products to merge"
+msgstr "Productos que se unificarán"
+
+#. module: base_product_merge
+msgid "Keep dominant product putaway rules"
+msgstr "Conservar las reglas de almacenamiento del producto dominante"
+
+#. module: base_product_merge
+msgid "Cancel"
+msgstr "Cancelar"
+
+#. module: base_product_merge
+msgid "You cannot merge product to it self."
+msgstr "No puede unificar un producto consigo mismo."
+
+#. module: base_product_merge
+msgid "Error occurred while merging products."
+msgstr "Ocurrió un error al unificar los productos."
+
+#. module: base_product_merge
+msgid "You are not allowed to merge products."
+msgstr "No tiene permiso para unificar productos."
+
+#. module: base_product_merge
+msgid "Open this action from the product list."
+msgstr "Abra esta acción desde la lista de productos."
+
+#. module: base_product_merge
+msgid "Select at least two products to merge."
+msgstr "Seleccione al menos dos productos para unificar."
+
+#. module: base_product_merge
+msgid "Select a dominant product from the list."
+msgstr "Seleccione un producto dominante de la lista."
+
+#. module: base_product_merge
+msgid "Products from different companies cannot be merged."
+msgstr "No se pueden unificar productos de compañías diferentes."
+
+#. module: base_product_merge
+msgid "Products with different units of measure cannot be merged."
+msgstr "No se pueden unificar productos con unidades de medida diferentes."
+
+#. module: base_product_merge
+msgid "Products with different tracking methods cannot be merged."
+msgstr "No se pueden unificar productos con métodos de seguimiento diferentes."
+
+#. module: base_product_merge
+msgid "Products with different product types cannot be merged."
+msgstr "No se pueden unificar productos de tipos diferentes."
+
+#. module: base_product_merge
+msgid "Products with multiple variants cannot be merged by this tool."
+msgstr "Esta herramienta no permite unificar productos que tengan múltiples variantes."
+
+#. module: base_product_merge
+msgid "Can merge products / SKU"
+msgstr "Puede fusionar productos / SKU"
+
+#. module: base_product_merge
+msgid "Allows the user to see and execute the Merge Products action."
+msgstr "Permite al usuario ver y ejecutar la acción Fusionar productos."
+
+#. module: base_product_merge
+msgid "Remove the product-specific putaway rules of the duplicate SKUs before merging. The rules already configured on the dominant product remain unchanged and will apply to all merged history."
+msgstr "Elimina las reglas de almacenamiento específicas de los SKU duplicados antes de unificarlos. Las reglas ya configuradas en el producto dominante permanecen sin cambios y se aplicarán a todo el historial unificado."

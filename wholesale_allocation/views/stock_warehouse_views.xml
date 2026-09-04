@@ -1,0 +1,15 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <record id="view_warehouse_form_wholesale_allocation" model="ir.ui.view">
+        <field name="name">stock.warehouse.form.wholesale.allocation</field>
+        <field name="model">stock.warehouse</field>
+        <field name="inherit_id" ref="stock.view_warehouse"/>
+        <field name="arch" type="xml">
+            <xpath expr="//sheet/group" position="inside">
+                <group string="Wholesale Allocation">
+                    <field name="is_wholesale"/>
+                </group>
+            </xpath>
+        </field>
+    </record>
+</odoo>
