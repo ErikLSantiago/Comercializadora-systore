@@ -1,0 +1,15 @@
+<?xml version="1.0" encoding="utf-8" ?>
+<odoo>
+    <record id="view_users_form_product_merge" model="ir.ui.view">
+        <field name="name">res.users.form.product.merge.permission</field>
+        <field name="model">res.users</field>
+        <field name="inherit_id" ref="base.view_users_form" />
+        <field name="arch" type="xml">
+            <xpath expr="//page[@name='access_rights']" position="inside">
+                <group string="Fusionar productos" groups="base.group_system" invisible="share">
+                    <field name="can_merge_products" />
+                </group>
+            </xpath>
+        </field>
+    </record>
+</odoo>

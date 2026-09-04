@@ -2,7 +2,7 @@
 <odoo>
     <record id="res_group_merge_duplicate_product" model="res.groups">
         <field name="name">Unificar productos / SKU</field>
-        <field name="category_id" ref="base.module_category_inventory" />
+        <field name="category_id" ref="base.module_category_hidden" />
         <field name="comment">Permite ver y ejecutar la acción para unificar productos duplicados.</field>
     </record>
 </odoo>

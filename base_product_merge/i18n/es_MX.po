@@ -77,5 +77,13 @@ msgid "Products with multiple variants cannot be merged by this tool."
 msgstr "Esta herramienta no permite unificar productos que tengan múltiples variantes."
 
 #. module: base_product_merge
+msgid "Can merge products / SKU"
+msgstr "Puede fusionar productos / SKU"
+
+#. module: base_product_merge
+msgid "Allows the user to see and execute the Merge Products action."
+msgstr "Permite al usuario ver y ejecutar la acción Fusionar productos."
+
+#. module: base_product_merge
 msgid "Remove the product-specific putaway rules of the duplicate SKUs before merging. The rules already configured on the dominant product remain unchanged and will apply to all merged history."
 msgstr "Elimina las reglas de almacenamiento específicas de los SKU duplicados antes de unificarlos. Las reglas ya configuradas en el producto dominante permanecen sin cambios y se aplicarán a todo el historial unificado."

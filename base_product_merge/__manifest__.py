@@ -4,7 +4,7 @@
 {
     "name": "Base Products Merge",
     "summary": "Merge duplicate products",
-    "version": "18.0.2.0.0",
+    "version": "18.0.2.0.1",
     "license": "AGPL-3",
     "website": "https://github.com/OCA/stock-logistics-warehouse",
     "author": "ForgeFlow, " "Odoo Community Association (OCA)",
@@ -13,6 +13,7 @@
     "data": [
         "security/res_groups.xml",
         "security/ir.model.access.csv",
+        "views/res_users_views.xml",
         "wizard/base_product_merge_view.xml",
     ],
     "installable": True,
