@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*-
 {
     'name': 'Analítica de ventas',
-    'version': '18.0.1.4.0',
+    'version': '18.0.1.4.1',
     'category': 'Sales/Reporting',
     'summary': 'Analítica consolidada de ventas, devoluciones, costos, margen y trazabilidad por lote.',
     'author': 'Systore',
@@ -24,6 +24,7 @@
             'systore_sales_cost_analytics/static/src/css/dashboard.css',
         ],
     },
+    'images': ['static/description/icon.png'],
     'post_init_hook': 'post_init_hook',
     'application': True,
     'installable': True,

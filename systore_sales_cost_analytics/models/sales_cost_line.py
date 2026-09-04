@@ -710,11 +710,13 @@ class SystoreSalesCostLine(models.Model):
             self._systore_add_dashboard_bucket(categories[category_key], amount, cost, pieces, is_return)
             self._systore_add_dashboard_bucket(conditions[condition_key], amount, cost, pieces, is_return)
 
+        gross_profit = metrics['gross_sales'] - metrics['sale_cost']
+        gross_margin = gross_profit / metrics['gross_sales'] if metrics['gross_sales'] else 0.0
         net_sales = metrics['gross_sales'] - metrics['returns']
         net_cost = metrics['sale_cost'] - metrics['return_cost']
-        profit = net_sales - net_cost
+        net_profit = net_sales - net_cost
+        net_margin = net_profit / net_sales if net_sales else 0.0
         net_pieces = metrics['sale_pieces'] - metrics['return_pieces']
-        margin = profit / net_sales if net_sales else 0.0
         return_rate = metrics['returns'] / metrics['gross_sales'] if metrics['gross_sales'] else 0.0
         reconciliation_rate = ((metrics['total_lines'] - metrics['issues']) / metrics['total_lines']) if metrics['total_lines'] else 1.0
 
@@ -783,10 +785,15 @@ class SystoreSalesCostLine(models.Model):
             },
             'kpis': {
                 **metrics,
+                'gross_profit': gross_profit,
+                'gross_margin': gross_margin,
                 'net_sales': net_sales,
                 'net_cost': net_cost,
-                'profit': profit,
-                'margin': margin,
+                'net_profit': net_profit,
+                'net_margin': net_margin,
+                # Alias conservados para compatibilidad con la gráfica de evolución.
+                'profit': net_profit,
+                'margin': net_margin,
                 'net_pieces': net_pieces,
                 'return_rate': return_rate,
                 'reconciliation_rate': reconciliation_rate,
