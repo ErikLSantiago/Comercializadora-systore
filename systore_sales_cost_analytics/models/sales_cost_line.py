@@ -25,6 +25,7 @@ class SystoreSalesCostLine(models.Model):
     ref = fields.Char(string='Referencia', readonly=True)
 
     account_id = fields.Many2one('account.account', string='Cuenta contable', index=True, readonly=True)
+    account_analytics_type = fields.Selection(related='account_id.systore_analytics_type', string='Tipo cuenta', store=True, readonly=True)
     is_transit_return = fields.Boolean(string='Devolución en tránsito', compute='_compute_is_transit_return', store=True)
 
     partner_id = fields.Many2one('res.partner', string='Cliente de factura', index=True, readonly=True)
@@ -114,6 +115,28 @@ class SystoreSalesCostLine(models.Model):
             char for char in unicodedata.normalize('NFD', value)
             if unicodedata.category(char) != 'Mn'
         )
+
+    @api.model
+    def _systore_account_sale_state(self, account):
+        """Clasifica Venta/Devolución usando la cuenta contable de CxC.
+
+        La configuración explícita tiene prioridad. Como respaldo operativo, una cuenta
+        cuyo nombre contenga "Tránsito/Transito" se considera Devolución y una cuenta
+        cuyo nombre contenga "Clientes" se considera Venta. Esto replica la regla
+        usada por Systore para Walmart, Mercado Libre y otros marketplaces.
+        """
+        if not account:
+            return 'sale'
+        if account.systore_analytics_type == 'transit_return':
+            return 'return'
+        if account.systore_analytics_type == 'sale':
+            return 'sale'
+        normalized = self._systore_normalize_text(account.name)
+        if 'transito' in normalized:
+            return 'return'
+        if 'clientes' in normalized:
+            return 'sale'
+        return 'sale'
 
     @api.model
     def _systore_transit_counterpart(self, move):
@@ -593,7 +616,7 @@ class SystoreSalesCostLine(models.Model):
     @api.model
     def _systore_user_access_domain(self):
         user = self.env.user
-        if user.has_group('systore_sales_cost_analytics.group_systore_analytics_manager') or user.systore_analytics_full_access:
+        if user.systore_analytics_full_access:
             return []
         if not user.systore_analytics_enabled:
             return [('id', '=', 0)]
@@ -667,6 +690,7 @@ class SystoreSalesCostLine(models.Model):
         products = defaultdict(lambda: self._systore_dashboard_bucket())
         vendors = defaultdict(lambda: self._systore_dashboard_bucket())
         customers = defaultdict(lambda: self._systore_dashboard_bucket())
+        contacts = defaultdict(lambda: self._systore_dashboard_bucket())
         categories = defaultdict(lambda: self._systore_dashboard_bucket())
         conditions = defaultdict(lambda: self._systore_dashboard_bucket())
         reconciliation = defaultdict(int)
@@ -701,22 +725,22 @@ class SystoreSalesCostLine(models.Model):
             product_key = rec.product_id.id or 0
             vendor_key = rec.vendor_id.id or 0
             customer_key = rec.partner_id.id or 0
+            contact_key = rec.customer_contact_id.id or 0
             category_key = rec.product_category_id.id or 0
             condition_key = rec.product_condition or 'line'
             self._systore_add_dashboard_bucket(channels[channel_key], amount, cost, pieces, is_return)
             self._systore_add_dashboard_bucket(products[product_key], amount, cost, pieces, is_return)
             self._systore_add_dashboard_bucket(vendors[vendor_key], amount, cost, pieces, is_return)
             self._systore_add_dashboard_bucket(customers[customer_key], amount, cost, pieces, is_return)
+            self._systore_add_dashboard_bucket(contacts[contact_key], amount, cost, pieces, is_return)
             self._systore_add_dashboard_bucket(categories[category_key], amount, cost, pieces, is_return)
             self._systore_add_dashboard_bucket(conditions[condition_key], amount, cost, pieces, is_return)
 
-        gross_profit = metrics['gross_sales'] - metrics['sale_cost']
-        gross_margin = gross_profit / metrics['gross_sales'] if metrics['gross_sales'] else 0.0
         net_sales = metrics['gross_sales'] - metrics['returns']
         net_cost = metrics['sale_cost'] - metrics['return_cost']
-        net_profit = net_sales - net_cost
-        net_margin = net_profit / net_sales if net_sales else 0.0
+        profit = net_sales - net_cost
         net_pieces = metrics['sale_pieces'] - metrics['return_pieces']
+        margin = profit / net_sales if net_sales else 0.0
         return_rate = metrics['returns'] / metrics['gross_sales'] if metrics['gross_sales'] else 0.0
         reconciliation_rate = ((metrics['total_lines'] - metrics['issues']) / metrics['total_lines']) if metrics['total_lines'] else 1.0
 
@@ -734,10 +758,14 @@ class SystoreSalesCostLine(models.Model):
                 'net_cost': day_net_cost,
                 'profit': day_net_sales - day_net_cost,
             })
+        trend_max = max(
+            [abs(row[x]) for row in trend_rows for x in ('net_sales', 'net_cost', 'profit')] or [0.0]
+        )
 
         product_map = {r.id: '[%s] %s' % (r.default_code or '', r.name) if r.default_code else r.name for r in records.mapped('product_id')}
         vendor_map = {r.id: r.display_name for r in records.mapped('vendor_id')}
         customer_map = {r.id: r.display_name for r in records.mapped('partner_id')}
+        contact_map = {r.id: r.display_name for r in records.mapped('customer_contact_id')}
         category_map = {r.id: r.display_name for r in records.mapped('product_category_id')}
         condition_labels = dict(self._fields['product_condition']._description_selection(self.env))
 
@@ -745,6 +773,7 @@ class SystoreSalesCostLine(models.Model):
         product_rows = self._systore_dashboard_rows(products, lambda key: product_map.get(key, 'Sin producto'), lambda key: [('product_id', '=', key)] if key else [('product_id', '=', False)])
         vendor_rows = self._systore_dashboard_rows(vendors, lambda key: vendor_map.get(key, 'Sin proveedor'), lambda key: [('vendor_id', '=', key)] if key else [('vendor_id', '=', False)])
         customer_rows = self._systore_dashboard_rows(customers, lambda key: customer_map.get(key, 'Sin cliente'), lambda key: [('partner_id', '=', key)] if key else [('partner_id', '=', False)])
+        contact_rows = self._systore_dashboard_rows(contacts, lambda key: contact_map.get(key, 'Sin contacto'), lambda key: [('customer_contact_id', '=', key)] if key else [('customer_contact_id', '=', False)])
         category_rows = self._systore_dashboard_rows(categories, lambda key: category_map.get(key, 'Sin categoría'), lambda key: [('product_category_id', '=', key)] if key else [('product_category_id', '=', False)])
         condition_rows = self._systore_dashboard_rows(conditions, lambda key: condition_labels.get(key, key), lambda key: [('product_condition', '=', key)])
         def pie_set(rows):
@@ -757,12 +786,18 @@ class SystoreSalesCostLine(models.Model):
         pie_sets = {
             'channels': pie_set(channel_rows),
             'customers': pie_set(customer_rows),
+            'contacts': pie_set(contact_rows),
             'products': pie_set(product_rows),
             'vendors': pie_set(vendor_rows),
             'categories': pie_set(category_rows),
             'conditions': pie_set(condition_rows),
         }
         # Compatibilidad con versiones previas del cliente OWL.
+        pie_channels = pie_sets['channels']['sales']
+        pie_products = pie_sets['products']['sales']
+        pie_vendors = pie_sets['vendors']['pieces']
+        pie_customers = pie_sets['customers']['sales']
+        pie_contacts = pie_sets['contacts']['sales']
         return_channel_rows = [row for row in channel_rows if row['returns'] > 0]
         return_channel_rows.sort(key=lambda row: row['returns'], reverse=True)
 
@@ -785,23 +820,24 @@ class SystoreSalesCostLine(models.Model):
             },
             'kpis': {
                 **metrics,
-                'gross_profit': gross_profit,
-                'gross_margin': gross_margin,
                 'net_sales': net_sales,
                 'net_cost': net_cost,
-                'net_profit': net_profit,
-                'net_margin': net_margin,
-                # Alias conservados para compatibilidad con la gráfica de evolución.
-                'profit': net_profit,
-                'margin': net_margin,
+                'profit': profit,
+                'margin': margin,
                 'net_pieces': net_pieces,
                 'return_rate': return_rate,
                 'reconciliation_rate': reconciliation_rate,
             },
             'trend': trend_rows,
+            'trend_max': trend_max,
             'channels': channel_rows[:10],
             'products': product_rows[:10],
             'vendors': vendor_rows[:10],
+            'pie_channels': pie_channels,
+            'pie_products': pie_products,
+            'pie_vendors': pie_vendors,
+            'pie_customers': pie_customers,
+            'pie_contacts': pie_contacts,
             'pie_sets': pie_sets,
             'return_channels': return_channel_rows[:10],
             'reconciliation': reconciliation_rows,

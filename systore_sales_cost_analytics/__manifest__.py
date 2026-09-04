@@ -1,9 +1,9 @@
 # -*- coding: utf-8 -*-
 {
-    'name': 'Analítica de ventas',
-    'version': '18.0.1.4.1',
+    'name': 'Systore - Analítica Ventas, Facturación y Costos',
+    'version': '18.0.1.3.2',
     'category': 'Sales/Reporting',
-    'summary': 'Analítica consolidada de ventas, devoluciones, costos, margen y trazabilidad por lote.',
+    'summary': 'Concilia facturación, movimientos por lote y órdenes de compra para analizar venta, costo y margen.',
     'author': 'Systore',
     'license': 'LGPL-3',
     'depends': ['web', 'account', 'sale_stock', 'purchase_stock'],
@@ -24,7 +24,6 @@
             'systore_sales_cost_analytics/static/src/css/dashboard.css',
         ],
     },
-    'images': ['static/description/icon.png'],
     'post_init_hook': 'post_init_hook',
     'application': True,
     'installable': True,

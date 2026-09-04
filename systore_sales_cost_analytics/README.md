@@ -1,39 +1,68 @@
-# Analítica de ventas — Odoo 18
+# Systore Analytics - Ventas, Facturación y Costos
 
-Módulo analítico para consolidar Facturación, Ventas, Inventario por lote y Compras.
+Versión 18.0.1.0.2 para Odoo 18.
 
-## Alcance productivo
+## Objetivo
 
-- La factura es la autoridad para las piezas conciliadas.
-- Distribuye las piezas facturadas entre movimientos/lotes de forma cronológica sin reutilizar cantidades asignadas a facturas anteriores.
-- Relaciona lote + SKU con la orden de compra para obtener costo unitario y costo total.
-- Calcula venta, costo, utilidad y margen.
-- Clasifica canales de venta mediante configuración de cuentas contables.
-- Marketplace/otros: una contrapartida `106.xx` de Tránsito genera una línea positiva de venta bruta y una línea negativa de devolución en tránsito.
-- Mayoreo: los documentos `RINV` contabilizados en `402.01.10` se incorporan como devolución del canal Mayoreo. Los demás `RINV` se reservan para el futuro análisis de devoluciones efectivas.
-- Identifica producto De línea / Open Box cuando existe `systore_is_open_box`.
-- Tablero con KPIs, pasteles, composición de venta, cuadre y evolución.
-- Segmentadores por periodo, estado, canal, cuenta, cliente, contacto, producto, proveedor y vendedor.
+Consolidar factura, orden de venta, movimiento físico por lote y orden de compra sin duplicar piezas cuando una orden se entrega y factura de forma parcial en distintos periodos.
 
-## Seguridad
+## Conciliación de cantidad
 
-- `Acceso a Analítica de ventas`: permite ver el módulo.
-- `Administrador Analítica de ventas`: administración completa del módulo.
-- Los usuarios limitados pueden restringirse por Canal, Cuenta contable y Vendedor.
-- Las restricciones se aplican tanto al tablero como al Reporte consolidado mediante reglas de registros.
-- `Ver reporte completo` elimina las restricciones para el usuario configurado.
+La cantidad facturada es ahora la autoridad del reporte.
 
-## Configuración
+1. Se toma `account.move.line.quantity` de la línea de factura.
+2. Se localizan los movimientos físicos de la línea de venta/SKU.
+3. Los movimientos se ordenan cronológicamente.
+4. Se descuentan primero las cantidades que ya fueron consumidas por facturas anteriores de la misma línea de venta. Si no existe vínculo nativo, se usa Orden base + SKU como fallback.
+5. De los movimientos restantes se asigna únicamente la cantidad de la factura actual, distribuyéndola por lote en FIFO.
+6. Si no existen movimientos suficientes para cubrir las piezas facturadas, la línea queda en `Diferencia de cantidad`.
 
-**Analítica de ventas → Configuración** permite administrar:
+Ejemplo: una orden con 550 piezas históricamente entregadas no reportará 550 en una factura de 95 piezas; la factura actual conciliará como máximo 95 piezas y conservará los lotes correspondientes a ese tramo.
 
-1. Canales de venta y sus cuentas contables.
-2. Permisos de usuarios internos.
+## Campos 18.0.1.0.2
 
-## Actualización de datos
+- Orden de venta factura (Origen): `account.move.invoice_origin`.
+- Origen movimiento: se conserva como campo opcional de auditoría.
+- Canal de venta: `sale.order.x_studio_canal_venta_1`.
+- Número de orden mkp: `sale.order.x_studio_nmero_de_orden_mkp`.
+- Nombre del producto: usa `product.product.name` (Producto/Nombre), no `display_name`.
+- Piezas facturadas: cantidad de factura distribuida entre los lotes conciliados.
+- Costo unitario.
+- Costo total = Costo unitario × Piezas facturadas conciliadas.
+- Precio de venta unitario = Venta asignada ÷ Piezas facturadas conciliadas.
+- Utilidad = Precio de venta unitario − Costo unitario.
+- Utilidad total: medida técnica/analítica = Venta asignada − Costo total.
+- Margen % = Utilidad unitaria ÷ Precio de venta unitario.
+- Estado de venta: Venta / Devolución, según clasificación analítica de la cuenta contable.
+- Proveedor.
 
-Después de cambios en reglas de negocio, lotes o campos de producto, ejecutar **Actualizar reporte** para el periodo correspondiente.
+## Después de actualizar
 
-## Versión
+Ejecutar **Systore Analytics → Actualizar reporte** para regenerar el periodo. Para validar órdenes dosificadas, revisar que la suma de `Piezas facturadas` por línea/factura coincida con la cantidad de la factura y no con el total histórico entregado de la orden de venta.
 
-18.0.1.4.0
+
+## 18.0.1.1.0 - Primer tablero
+- Nuevo menú **Tablero** con filtros globales por periodo, estado Venta/Devolución, canal, cuenta, cliente, producto y proveedor.
+- KPI: Venta bruta, Devoluciones, Venta neta, Costo neto, Utilidad, Margen, Piezas netas y Conciliación.
+- Evolución diaria de venta neta, costo y utilidad.
+- Rankings por canal, producto y proveedor con drill-down al reporte consolidado.
+- Bloque de devoluciones por canal y estado de conciliación.
+- Estado comercial automático por cuenta contable: nombres con **Tránsito/Transito** = Devolución; nombres con **Clientes** = Venta. La clasificación manual del plan contable tiene prioridad.
+- Devoluciones se muestran como importe absoluto para KPI y se restan de la venta bruta al calcular venta neta.
+
+## v18.0.1.1.1
+- Estado Venta/Devolución por contrapartida contable: si la póliza de factura contiene una cuenta 106.xx cuyo nombre contiene "Tránsito", se marca como Devolución.
+- Canal de venta calculado desde la cuenta 401.xx: Marketplace, Mayoreo o Empleado según catálogo Systore.
+- Tablero: gráficas de pastel de distribución de venta bruta por Canal, Producto y Proveedor.
+- Campo técnico visible opcional "Cuenta Tránsito contraparte" para auditoría.
+
+
+## 18.0.1.1.3
+- Se habilita desplazamiento vertical nativo en la pantalla completa del Tablero para visualizar todas las secciones sin modificar el zoom del navegador.
+- Se evita scroll horizontal del contenedor principal y se conserva el scroll interno de componentes anchos como Evolución.
+
+
+## v18.0.1.1.5
+- Excluye documentos cuyo número contiene `RINV` del reporte principal y del tablero; se reservan para devoluciones efectivas.
+- Renombra en interfaz el concepto de Conciliación a Cuadre.
+- Sustituye la gráfica diaria apilada por una barra de composición de Venta bruta = Venta neta + Devoluciones en tránsito.

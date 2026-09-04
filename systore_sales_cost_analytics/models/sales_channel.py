@@ -41,7 +41,7 @@ class SystoreSalesChannel(models.Model):
 class ResUsers(models.Model):
     _inherit = 'res.users'
 
-    systore_analytics_enabled = fields.Boolean(string='Puede ver Analítica de ventas', default=False)
+    systore_analytics_enabled = fields.Boolean(string='Puede ver Systore Analytics', default=False)
     systore_analytics_full_access = fields.Boolean(string='Ver reporte completo', default=False)
     systore_analytics_channel_ids = fields.Many2many('systore.sales.channel', 'systore_analytics_user_channel_rel', 'user_id', 'channel_id', string='Canales permitidos')
     systore_analytics_account_ids = fields.Many2many('account.account', 'systore_analytics_user_account_rel', 'user_id', 'account_id', string='Cuentas contables permitidas')
@@ -62,7 +62,7 @@ class ResUsers(models.Model):
 
 class SystoreAnalyticsUserPermission(models.Model):
     _name = 'systore.analytics.user.permission'
-    _description = 'Permisos de usuario de Analítica de ventas'
+    _description = 'Permisos de usuario Systore Analytics'
     _order = 'user_id'
 
     user_id = fields.Many2one('res.users', string='Usuario interno', required=True, ondelete='cascade', index=True, domain=[('share', '=', False), ('active', '=', True)])
