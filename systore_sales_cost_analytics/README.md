@@ -32,11 +32,7 @@ Módulo analítico para consolidar Facturación, Ventas, Inventario por lote y C
 
 ## Actualización de datos
 
-Después de cambios en reglas de negocio, lotes, órdenes de compra o campos de
-producto, ejecutar **Actualizar reporte** para el periodo correspondiente. La
-reconstrucción vuelve a consultar facturas, movimientos, lotes y compras; con
-ello actualiza los costos automáticos y evita duplicar combinaciones ya
-procesadas.
+Después de cambios en reglas de negocio, lotes o campos de producto, ejecutar **Actualizar reporte** para el periodo correspondiente.
 
 ## Versión
 
@@ -45,3 +41,20 @@ procesadas.
 ## Costo manual de respaldo
 
 Cuando una operación tiene Producto y Lote pero no existe una línea de Orden de compra que permita obtener el costo, un usuario del grupo **Administrador Analítica de ventas** puede editar **Costo unitario** desde el detalle del reporte. El valor se guarda como excepción por Compañía + Producto + Lote y se vuelve a aplicar automáticamente después de ejecutar **Actualizar reporte**. Un costo automático proveniente de OC no puede ser sobrescrito manualmente.
+
+## Filtros y mantenimiento masivo
+
+- El Reporte consolidado incluye filtro de **Mes** sobre `Fecha factura`.
+- Desde **Acciones → Reconstruir líneas filtradas**, un Administrador de Analítica puede reconstruir únicamente las líneas fuente representadas por el filtro actual; si Odoo no entrega el dominio activo, la acción usa las líneas seleccionadas.
+- La reconstrucción selectiva rehace la línea de factura completa (todos sus lotes y, cuando aplica, su contrapartida de Tránsito) para evitar duplicados o conciliaciones parciales inconsistentes.
+
+## Importación masiva de costos manuales
+
+El Reporte consolidado habilita la importación nativa de Odoo únicamente para Administradores de Analítica. Para actualizar costos en lote:
+
+1. Filtrar las líneas **Sin costo**.
+2. Exportarlas activando **Deseo actualizar datos (exportación compatible con importación)**, para conservar el ID externo generado por Odoo.
+3. Incluir y completar únicamente **Costo unitario**.
+4. Importar el archivo de vuelta desde el mismo Reporte consolidado.
+
+La importación está protegida: no permite crear líneas analíticas nuevas ni modificar otros campos del reporte. El costo importado usa la misma excepción persistente por Compañía + Producto + Lote que la captura manual.

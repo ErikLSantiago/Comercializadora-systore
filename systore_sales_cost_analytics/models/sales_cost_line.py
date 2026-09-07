@@ -5,6 +5,7 @@ from collections import defaultdict
 
 from odoo import api, fields, models, _
 from odoo.exceptions import UserError
+from odoo.tools.safe_eval import safe_eval
 
 
 class SystoreSalesCostLine(models.Model):
@@ -412,58 +413,13 @@ class SystoreSalesCostLine(models.Model):
         return sale_line, sale_order
 
     @api.model
-    def _systore_rebuild_upsert(self, vals):
-        """Actualiza una combinación reconstruida o la crea si aún no existe.
-
-        La reconstrucción siempre calcula ``vals`` nuevamente desde factura,
-        movimientos, lote y compra. Reutilizar el registro analítico evita que
-        una relación residual o repetida choque con la restricción única, sin
-        conservar costos automáticos obsoletos.
-        """
-        # Las líneas sin movimiento incluyen los renglones negativos de
-        # Tránsito. Pueden existir varias por lote porque PostgreSQL no trata
-        # NULL como duplicado dentro de UNIQUE; deben conservarse por separado.
-        if not vals.get('stock_move_line_id'):
-            return self.with_context(systore_rebuild_sync=True).create(vals), True
-
-        domain = [
-            ('invoice_line_id', '=', vals.get('invoice_line_id') or False),
-            ('stock_move_line_id', '=', vals.get('stock_move_line_id') or False),
-            ('lot_id', '=', vals.get('lot_id') or False),
-        ]
-        existing = self.search(domain, limit=1)
-        if existing:
-            existing.with_context(systore_rebuild_sync=True).write(vals)
-            return existing, False
-        return self.with_context(systore_rebuild_sync=True).create(vals), True
-
-    @api.model
     def rebuild_range(self, date_from, date_to, company=None):
         company = company or self.env.company
-        # Evita dos reconstrucciones simultáneas para la misma compañía, que
-        # podrían intentar insertar la misma combinación al mismo tiempo.
-        self.env.cr.execute(
-            "SELECT pg_advisory_xact_lock(%s, %s)",
-            (1937339201, company.id),
-        )
-        stale_lines = self.search([
+        self.search([
             ('company_id', '=', company.id),
             ('invoice_date', '>=', date_from),
             ('invoice_date', '<=', date_to),
-        ])
-        # Incluye relaciones antiguas cuya fecha analítica hubiera quedado
-        # desfasada respecto de la fecha actual de la factura.
-        invoices_in_range = self.env['account.move'].sudo().search([
-            ('company_id', '=', company.id),
-            ('invoice_date', '>=', date_from),
-            ('invoice_date', '<=', date_to),
-        ])
-        if invoices_in_range:
-            stale_lines |= self.search([
-                ('company_id', '=', company.id),
-                ('invoice_id', 'in', invoices_in_range.ids),
-            ])
-        stale_lines.unlink()
+        ]).unlink()
 
         AML = self.env['account.move.line'].sudo()
         domain = [
@@ -480,6 +436,16 @@ class SystoreSalesCostLine(models.Model):
         if 'display_type' in AML._fields:
             domain.append(('display_type', '=', 'product'))
         lines = AML.search(domain, order='move_id, id')
+        return self._rebuild_from_aml_lines(lines, company)
+
+    @api.model
+    def _rebuild_from_aml_lines(self, lines, company):
+        """Reconstruye únicamente las líneas de factura fuente recibidas.
+
+        Este helper permite reutilizar exactamente la misma lógica tanto para una
+        reconstrucción por rango como para la acción masiva sobre registros filtrados.
+        """
+        builder = self.with_context(systore_rebuild=True)
         created = 0
 
         for aml in lines:
@@ -499,7 +465,7 @@ class SystoreSalesCostLine(models.Model):
 
             if not allocations:
                 fallback_sale_line, fallback_sale_order = self._systore_sale_context(aml, order_base=order_base)
-                _record, was_created = self._systore_rebuild_upsert({
+                builder.create({
                     'company_id': company.id,
                     'invoice_date': move.invoice_date or move.date,
                     'invoice_id': move.id,
@@ -531,7 +497,7 @@ class SystoreSalesCostLine(models.Model):
                     'reconciliation_state': 'no_stock',
                     'note': _('No se encontró movimiento físico por relación nativa ni por Orden base + SKU.'),
                 })
-                created += int(was_created)
+                created += 1
                 continue
 
             qty_basis = inv_qty or allocated_invoice_qty or 1.0
@@ -574,7 +540,7 @@ class SystoreSalesCostLine(models.Model):
                     state = 'qty_diff'
                     note = (note + ' ' if note else '') + _('No fue posible conciliar todas las piezas facturadas con movimientos físicos disponibles.')
 
-                _record, was_created = self._systore_rebuild_upsert({
+                builder.create({
                     'company_id': company.id,
                     'invoice_date': move.invoice_date or move.date,
                     'invoice_id': move.id,
@@ -624,7 +590,7 @@ class SystoreSalesCostLine(models.Model):
                     'reconciliation_state': state,
                     'note': note,
                 })
-                created += int(was_created)
+                created += 1
 
                 # Una factura con contrapartida 106.xx Tránsito forma parte primero de la
                 # venta bruta. Se agrega una segunda línea analítica negativa para descontarla
@@ -659,16 +625,85 @@ class SystoreSalesCostLine(models.Model):
                         'allocated_cost': -abs(company_unit_cost * matched_qty), 'reconciliation_state': state,
                         'note': _('Línea negativa generada por contrapartida de Tránsito: %s') % transit_account.display_name,
                     }
-                    _record, was_created = self._systore_rebuild_upsert(transit_vals)
-                    created += int(was_created)
+                    builder.create(transit_vals)
+                    created += 1
         return created
 
+    @api.model
+    def action_rebuild_filtered_lines(self):
+        """Reconstruye las líneas fuente representadas por el filtro/selección actual.
+
+        Desde una acción de lista Odoo se prioriza ``active_domain`` (todos los
+        registros que cumplen los filtros). Si no está disponible, se usan los
+        registros seleccionados. Se reconstruye la línea de factura completa para
+        conservar correctamente sus lotes y la línea negativa de Tránsito.
+        """
+        if not self.env.user.has_group('systore_sales_cost_analytics.group_systore_analytics_manager'):
+            raise UserError(_('Solo un Administrador de Analítica de ventas puede reconstruir líneas.'))
+
+        ctx = self.env.context
+        active_domain = ctx.get('active_domain')
+        if isinstance(active_domain, str):
+            active_domain = safe_eval(active_domain)
+        active_ids = ctx.get('active_ids') or []
+
+        if active_domain:
+            records = self.search(active_domain)
+        elif active_ids:
+            records = self.browse(active_ids).exists()
+        else:
+            raise UserError(_('Aplica un filtro o selecciona al menos una línea antes de ejecutar esta acción.'))
+
+        invoice_line_ids = records.mapped('invoice_line_id').ids
+        if not invoice_line_ids:
+            raise UserError(_('Las líneas filtradas no tienen una línea de factura fuente que pueda reconstruirse.'))
+
+        AML = self.env['account.move.line'].sudo()
+        source_lines = AML.browse(invoice_line_ids).exists().filtered(lambda line:
+            line.move_id.state == 'posted' and
+            line.move_id.move_type in ('out_invoice', 'out_refund') and
+            bool(line.product_id) and
+            line.account_id.account_type in ('income', 'income_other')
+        )
+        if not source_lines:
+            raise UserError(_('No se encontraron líneas contables válidas para reconstruir.'))
+
+        # Borrar todas las líneas analíticas generadas por esas líneas de factura,
+        # incluso si el filtro solo mostraba uno de sus lotes. Así no quedan duplicados.
+        self.sudo().search([('invoice_line_id', 'in', source_lines.ids)]).unlink()
+
+        created = 0
+        for company in source_lines.mapped('company_id'):
+            company_lines = source_lines.filtered(lambda line: line.company_id == company).sorted(key=lambda line: (line.move_id.id, line.id))
+            created += self.sudo()._rebuild_from_aml_lines(company_lines, company)
+
+        action = self.env.ref('systore_sales_cost_analytics.action_systore_sales_cost_line').read()[0]
+        action['domain'] = [('invoice_line_id', 'in', source_lines.ids)]
+        action['context'] = {'search_default_group_account_type': 0}
+        return action
+
+
+    @api.model_create_multi
+    def create(self, vals_list):
+        # Las líneas del reporte son derivadas. La creación normal queda bloqueada,
+        # aunque los administradores tengan permiso Create para habilitar el importador
+        # nativo de Odoo. El motor interno marca explícitamente su contexto.
+        if not self.env.context.get('systore_rebuild'):
+            raise UserError(_(
+                'No se pueden crear líneas nuevas en el Reporte consolidado. '
+                'Para importar costos, actualiza registros existentes usando su ID/ID externo y el campo Costo unitario.'
+            ))
+        return super().create(vals_list)
+
     def write(self, vals):
-        if (
-            'unit_cost_company' in vals
-            and not self.env.context.get('systore_manual_cost_sync')
-            and not self.env.context.get('systore_rebuild_sync')
-        ):
+        if self.env.context.get('import_file'):
+            invalid = set(vals) - {'unit_cost_company'}
+            if invalid:
+                raise UserError(_(
+                    'La importación del Reporte consolidado solo permite actualizar el campo Costo unitario. '
+                    'Campos no permitidos: %s'
+                ) % ', '.join(sorted(invalid)))
+        if 'unit_cost_company' in vals and not self.env.context.get('systore_manual_cost_sync'):
             if not self.env.user.has_group('systore_sales_cost_analytics.group_systore_analytics_manager'):
                 raise UserError(_('Solo un Administrador de Analítica de ventas puede asignar costos manuales.'))
             new_cost = float(vals.get('unit_cost_company') or 0.0)
@@ -1035,3 +1070,4 @@ class SystoreSalesCostLine(models.Model):
             'vendors': m2o_options(records.mapped('vendor_id')),
             'salespersons': m2o_options(records.mapped('salesperson_id')),
         }
+

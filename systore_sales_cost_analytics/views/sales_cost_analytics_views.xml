@@ -6,6 +6,7 @@
         <field name="arch" type="xml">
             <search string="Analítica Systore">
                 <field name="move_name"/>
+                <field name="invoice_line_id" optional="hide"/>
                 <field name="invoice_origin"/>
                 <field name="sale_origin"/>
                 <field name="order_base"/>
@@ -27,9 +28,10 @@
                 <separator/>
                 <filter string="Cuadre correcto" name="ok" domain="[('reconciliation_state','=','ok')]"/>
                 <filter string="Con incidencias" name="issues" domain="[('reconciliation_state','!=','ok')]"/>
+                <filter string="Sin costo" name="without_cost" domain="[('cost_source','=','none')]"/>
                 <filter string="Devolución en tránsito" name="transit" domain="[('is_transit_return','=',True)]"/>
                 <separator/>
-                <filter string="Fecha factura" name="invoice_date" date="invoice_date"/>
+                <filter string="Mes" name="invoice_month" date="invoice_date"/>
                 <group expand="0" string="Agrupar por">
                     <filter string="Estado de venta" name="group_sale_state" context="{'group_by':'sale_state'}"/>
                     <filter string="Canal de venta" name="group_sales_channel" context="{'group_by':'sales_channel'}"/>
@@ -53,13 +55,14 @@
         <field name="name">systore.sales.cost.line.list</field>
         <field name="model">systore.sales.cost.line</field>
         <field name="arch" type="xml">
-            <list string="Reporte consolidado" create="0" edit="0" delete="0" decoration-success="reconciliation_state == 'ok'" decoration-warning="reconciliation_state != 'ok'">
+            <list string="Reporte consolidado" create="0" edit="0" delete="0" import="1" decoration-success="reconciliation_state == 'ok'" decoration-warning="reconciliation_state != 'ok'">
                 <field name="invoice_date"/>
                 <field name="sale_state"/>
                 <field name="analytic_role" optional="hide"/>
                 <field name="transit_account_id" optional="hide"/>
                 <field name="account_id"/>
                 <field name="move_name"/>
+                <field name="invoice_line_id" optional="hide"/>
                 <field name="invoice_origin"/>
                 <field name="sale_origin" optional="hide"/>
                 <field name="sales_channel"/>
@@ -195,9 +198,17 @@
         
     </record>
 
-    <menuitem id="menu_systore_analytics_root" name="Analítica de ventas" sequence="60"
-              web_icon="systore_sales_cost_analytics,static/description/icon.png"
-              groups="systore_sales_cost_analytics.group_systore_analytics_user"/>
+    <record id="action_systore_rebuild_filtered_lines" model="ir.actions.server">
+        <field name="name">Reconstruir líneas filtradas</field>
+        <field name="model_id" ref="model_systore_sales_cost_line"/>
+        <field name="binding_model_id" ref="model_systore_sales_cost_line"/>
+        <field name="binding_view_types">list</field>
+        <field name="group_ids" eval="[(4, ref('systore_sales_cost_analytics.group_systore_analytics_manager'))]"/>
+        <field name="state">code</field>
+        <field name="code">action = env['systore.sales.cost.line'].with_context(active_ids=records.ids).action_rebuild_filtered_lines()</field>
+    </record>
+
+    <menuitem id="menu_systore_analytics_root" name="Analítica de ventas" sequence="60" groups="systore_sales_cost_analytics.group_systore_analytics_user"/>
     <menuitem id="menu_systore_sales_cost_report" name="Reporte consolidado" parent="menu_systore_analytics_root" action="action_systore_sales_cost_line" sequence="10" groups="systore_sales_cost_analytics.group_systore_analytics_user"/>
     <menuitem id="menu_systore_sales_cost_rebuild" name="Actualizar reporte" parent="menu_systore_analytics_root" action="action_systore_sales_cost_rebuild" sequence="20" groups="systore_sales_cost_analytics.group_systore_analytics_manager"/>
 </odoo>
