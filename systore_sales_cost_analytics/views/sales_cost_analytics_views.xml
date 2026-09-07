@@ -203,7 +203,6 @@
         <field name="model_id" ref="model_systore_sales_cost_line"/>
         <field name="binding_model_id" ref="model_systore_sales_cost_line"/>
         <field name="binding_view_types">list</field>
-        <field name="group_ids" eval="[(4, ref('systore_sales_cost_analytics.group_systore_analytics_manager'))]"/>
         <field name="state">code</field>
         <field name="code">action = env['systore.sales.cost.line'].with_context(active_ids=records.ids).action_rebuild_filtered_lines()</field>
     </record>
