@@ -60,6 +60,7 @@
                     <button name="action_rebuild_filtered_lines" type="object" string="Reconstruir filtradas" display="always" class="btn-secondary" groups="systore_sales_cost_analytics.group_systore_analytics_manager"/>
                     <button name="action_import_costs" type="object" string="Importar costos" display="always" class="btn-secondary" groups="systore_sales_cost_analytics.group_systore_analytics_manager"/>
                 </header>
+                <field name="export_line_id" optional="hide"/>
                 <field name="invoice_date"/>
                 <field name="sale_state"/>
                 <field name="analytic_role" optional="hide"/>

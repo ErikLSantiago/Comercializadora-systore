@@ -107,6 +107,7 @@ class SystoreSalesCostLine(models.Model):
     note = fields.Char(string='Observación', readonly=True)
 
     display_name = fields.Char(compute='_compute_display_name')
+    export_line_id = fields.Integer(string='ID línea', compute='_compute_export_line_id', readonly=True)
 
     _sql_constraints = [
         ('invoice_stock_unique', 'unique(invoice_line_id, stock_move_line_id, lot_id)',
@@ -630,19 +631,11 @@ class SystoreSalesCostLine(models.Model):
         return created
 
     @api.model
-    def action_import_costs(self):
-        """Abre explícitamente el importador nativo para actualizar costos manuales."""
+    def action_import_costs(self, *args, **kwargs):
+        """Abre el wizard específico para importar costos manuales por ID de línea."""
         if not self.env.user.has_group('systore_sales_cost_analytics.group_systore_analytics_manager'):
             raise UserError(_('Solo un Administrador de Analítica de ventas puede importar costos.'))
-        return {
-            'type': 'ir.actions.client',
-            'name': _('Importar costos'),
-            'tag': 'import',
-            'params': {
-                'active_model': self._name,
-                'context': dict(self.env.context, systore_cost_import=True),
-            },
-        }
+        return self.env.ref('systore_sales_cost_analytics.action_systore_sales_cost_import_wizard').read()[0]
 
     @api.model
     def action_rebuild_filtered_lines(self):
