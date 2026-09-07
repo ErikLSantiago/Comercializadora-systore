@@ -107,11 +107,18 @@ class SystoreSalesCostLine(models.Model):
     note = fields.Char(string='Observación', readonly=True)
 
     display_name = fields.Char(compute='_compute_display_name')
+    export_line_id = fields.Integer(string='ID línea', compute='_compute_export_line_id', readonly=True)
 
     _sql_constraints = [
         ('invoice_stock_unique', 'unique(invoice_line_id, stock_move_line_id, lot_id)',
          'La combinación de línea de factura y movimiento/lote ya existe.'),
     ]
+
+    @api.depends()
+    def _compute_export_line_id(self):
+        """Expone el ID interno de la línea para exportación/importación masiva de costos."""
+        for rec in self:
+            rec.export_line_id = rec.id or 0
 
     @api.model
     def _systore_normalize_text(self, value):
@@ -628,6 +635,13 @@ class SystoreSalesCostLine(models.Model):
                     builder.create(transit_vals)
                     created += 1
         return created
+
+    @api.model
+    def action_import_costs(self, *args, **kwargs):
+        """Abre el wizard específico para importar costos manuales por ID de línea."""
+        if not self.env.user.has_group('systore_sales_cost_analytics.group_systore_analytics_manager'):
+            raise UserError(_('Solo un Administrador de Analítica de ventas puede importar costos.'))
+        return self.env.ref('systore_sales_cost_analytics.action_systore_sales_cost_import_wizard').read()[0]
 
     @api.model
     def action_rebuild_filtered_lines(self):

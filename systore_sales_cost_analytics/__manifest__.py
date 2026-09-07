@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*-
 {
     'name': 'Analítica de ventas',
-    'version': '18.0.1.4.4',
+    'version': '18.0.1.4.7',
     'category': 'Sales/Reporting',
     'summary': 'Analítica consolidada de ventas, devoluciones, costos, margen y trazabilidad por lote.',
     'author': 'Systore',
@@ -13,6 +13,7 @@
         'security/ir.model.access.csv',
         'views/account_account_views.xml',
         'wizard/rebuild_wizard_views.xml',
+        'wizard/cost_import_wizard_views.xml',
         'views/sales_cost_analytics_views.xml',
         'views/dashboard_views.xml',
         'views/configuration_views.xml',

@@ -31,7 +31,7 @@
                 <filter string="Sin costo" name="without_cost" domain="[('cost_source','=','none')]"/>
                 <filter string="Devolución en tránsito" name="transit" domain="[('is_transit_return','=',True)]"/>
                 <separator/>
-                <filter string="Mes" name="invoice_month" date="invoice_date"/>
+                <filter string="Mes de factura" name="invoice_month" date="invoice_date"/>
                 <group expand="0" string="Agrupar por">
                     <filter string="Estado de venta" name="group_sale_state" context="{'group_by':'sale_state'}"/>
                     <filter string="Canal de venta" name="group_sales_channel" context="{'group_by':'sales_channel'}"/>
@@ -56,6 +56,11 @@
         <field name="model">systore.sales.cost.line</field>
         <field name="arch" type="xml">
             <list string="Reporte consolidado" create="0" edit="0" delete="0" import="1" decoration-success="reconciliation_state == 'ok'" decoration-warning="reconciliation_state != 'ok'">
+                <header>
+                    <button name="action_rebuild_filtered_lines" type="object" string="Reconstruir filtradas" display="always" class="btn-secondary" groups="systore_sales_cost_analytics.group_systore_analytics_manager"/>
+                    <button name="action_import_costs" type="object" string="Importar costos" display="always" class="btn-secondary" groups="systore_sales_cost_analytics.group_systore_analytics_manager"/>
+                </header>
+                <field name="export_line_id" optional="hide"/>
                 <field name="invoice_date"/>
                 <field name="sale_state"/>
                 <field name="analytic_role" optional="hide"/>
