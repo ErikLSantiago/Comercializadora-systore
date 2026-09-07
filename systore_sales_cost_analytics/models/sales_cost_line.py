@@ -114,6 +114,12 @@ class SystoreSalesCostLine(models.Model):
          'La combinación de línea de factura y movimiento/lote ya existe.'),
     ]
 
+    @api.depends()
+    def _compute_export_line_id(self):
+        """Expone el ID interno de la línea para exportación/importación masiva de costos."""
+        for rec in self:
+            rec.export_line_id = rec.id or 0
+
     @api.model
     def _systore_normalize_text(self, value):
         value = (value or '').strip().lower()
