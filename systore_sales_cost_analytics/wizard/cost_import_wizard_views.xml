@@ -7,7 +7,7 @@
             <form string="Importar costos">
                 <group>
                     <div class="alert alert-info" role="alert">
-                        Sube un archivo .xlsx o .csv con dos columnas: <strong>ID línea</strong> y <strong>Costo unitario</strong>.
+                        Sube un archivo .xlsx o .csv con <strong>ID línea</strong> o <strong>External ID / ID externo</strong>, y <strong>Costo unitario</strong>.
                         Solo se actualizarán líneas sin costo automático de Orden de compra.
                     </div>
                     <field name="file_data" filename="filename"/>
