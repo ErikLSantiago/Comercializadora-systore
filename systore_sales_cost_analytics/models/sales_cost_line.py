@@ -630,6 +630,21 @@ class SystoreSalesCostLine(models.Model):
         return created
 
     @api.model
+    def action_import_costs(self):
+        """Abre explícitamente el importador nativo para actualizar costos manuales."""
+        if not self.env.user.has_group('systore_sales_cost_analytics.group_systore_analytics_manager'):
+            raise UserError(_('Solo un Administrador de Analítica de ventas puede importar costos.'))
+        return {
+            'type': 'ir.actions.client',
+            'name': _('Importar costos'),
+            'tag': 'import',
+            'params': {
+                'active_model': self._name,
+                'context': dict(self.env.context, systore_cost_import=True),
+            },
+        }
+
+    @api.model
     def action_rebuild_filtered_lines(self):
         """Reconstruye las líneas fuente representadas por el filtro/selección actual.
 

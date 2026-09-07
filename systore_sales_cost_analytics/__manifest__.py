@@ -1,12 +1,12 @@
 # -*- coding: utf-8 -*-
 {
     'name': 'Analítica de ventas',
-    'version': '18.0.1.4.4',
+    'version': '18.0.1.4.5',
     'category': 'Sales/Reporting',
     'summary': 'Analítica consolidada de ventas, devoluciones, costos, margen y trazabilidad por lote.',
     'author': 'Systore',
     'license': 'LGPL-3',
-    'depends': ['web', 'account', 'sale_stock', 'purchase_stock'],
+    'depends': ['web', 'base_import', 'account', 'sale_stock', 'purchase_stock'],
     'data': [
         'security/security.xml',
         'data/sales_channel_data.xml',

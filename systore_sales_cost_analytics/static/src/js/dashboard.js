@@ -20,6 +20,7 @@ export class SystoreSalesCostDashboard extends Component {
                 kpis: {}, trend: [], channels: [], products: [], vendors: [], return_channels: [], reconciliation: [],
             },
             filters: {
+                month: "",
                 date_from: "",
                 date_to: "",
                 sale_state: [],
@@ -37,7 +38,7 @@ export class SystoreSalesCostDashboard extends Component {
 
     async loadData() {
         this.state.loading = true;
-        const payload = { ...this.state.filters };
+        const { month, ...payload } = this.state.filters;
         for (const key of ["account_id", "partner_id", "customer_contact_id", "product_id", "vendor_id", "salesperson_id"]) {
             payload[key] = (payload[key] || []).map((value) => Number(value));
         }
@@ -45,6 +46,7 @@ export class SystoreSalesCostDashboard extends Component {
         this.state.data = data;
         this.state.filters.date_from = data.applied_filters.date_from;
         this.state.filters.date_to = data.applied_filters.date_to;
+        this.syncMonthFromDates();
         this.state.loading = false;
     }
 
@@ -114,7 +116,44 @@ export class SystoreSalesCostDashboard extends Component {
     }
 
     applyDates() {
+        this.state.filters.month = "";
         this.loadData();
+    }
+
+    onMonthChange(ev) {
+        const value = ev.target.value || "";
+        this.state.filters.month = value;
+        if (!value) {
+            return;
+        }
+        const [year, month] = value.split("-").map(Number);
+        const from = new Date(year, month - 1, 1);
+        const to = new Date(year, month, 0);
+        this.state.filters.date_from = this.isoDate(from);
+        this.state.filters.date_to = this.isoDate(to);
+        this.loadData();
+    }
+
+    isoDate(d) {
+        const yy = d.getFullYear();
+        const mm = String(d.getMonth() + 1).padStart(2, "0");
+        const dd = String(d.getDate()).padStart(2, "0");
+        return `${yy}-${mm}-${dd}`;
+    }
+
+    syncMonthFromDates() {
+        const from = this.state.filters.date_from || "";
+        const to = this.state.filters.date_to || "";
+        if (!from || !to || from.slice(0, 7) !== to.slice(0, 7) || !from.endsWith("-01")) {
+            this.state.filters.month = "";
+            return;
+        }
+        const [year, month] = from.slice(0, 7).split("-").map(Number);
+        if (to === this.isoDate(new Date(year, month, 0))) {
+            this.state.filters.month = from.slice(0, 7);
+        } else {
+            this.state.filters.month = "";
+        }
     }
 
     clearFilters() {
@@ -148,14 +187,9 @@ export class SystoreSalesCostDashboard extends Component {
             from = new Date(y, 0, 1);
             to = new Date(y, 11, 31);
         }
-        const iso = (d) => {
-            const yy = d.getFullYear();
-            const mm = String(d.getMonth() + 1).padStart(2, "0");
-            const dd = String(d.getDate()).padStart(2, "0");
-            return `${yy}-${mm}-${dd}`;
-        };
-        this.state.filters.date_from = iso(from);
-        this.state.filters.date_to = iso(to);
+        this.state.filters.date_from = this.isoDate(from);
+        this.state.filters.date_to = this.isoDate(to);
+        this.state.filters.month = period === "year" ? "" : this.state.filters.date_from.slice(0, 7);
         this.loadData();
     }
 

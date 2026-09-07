@@ -18,6 +18,7 @@
                 </div>
                 <div class="o_systore_filter_hint">Filtros tipo Odoo: abre un segmentador y marca uno o varios valores. Los seleccionados se muestran como etiquetas.</div>
                 <div class="o_systore_filter_grid">
+                    <label>Mes<input type="month" t-model="state.filters.month" t-on-change="onMonthChange"/></label>
                     <label>Desde<input type="date" t-model="state.filters.date_from"/></label>
                     <label>Hasta<input type="date" t-model="state.filters.date_to"/></label>
 
