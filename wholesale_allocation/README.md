@@ -25,3 +25,10 @@ Version 18.0.1.5.0
 - "Sin asignar" is shown in red when the PO is not linked to any Sale Order.
 - "Asignada" is shown in green once at least one Sale Order links the PO.
 - The badge is available in the Purchase Order form and Purchase Order list views.
+
+
+## 18.0.1.6.0
+
+- Duplicating a Purchase Order no longer copies its associated Sales Orders.
+- On Wholesale stock transfers, selecting a lot manually can automatically link the matching Purchase Order to the originating Sales Order when `stock.lot.name == purchase.order.name`.
+- Automatic PO linking is restricted to the same company and Wholesale warehouse.

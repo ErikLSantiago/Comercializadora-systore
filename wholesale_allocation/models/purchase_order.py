@@ -11,7 +11,8 @@ class PurchaseOrder(models.Model):
         'sale_order_id',
         string='Ventas asociadas',
         readonly=True,
-        help='Órdenes de venta que tienen vinculada esta Orden de Compra mediante Wholesale Allocation.',
+        copy=False,
+        help='Órdenes de venta que tienen vinculada esta Orden de Compra mediante Wholesale Allocation. No se copian al duplicar la Orden de Compra.',
     )
     associated_sale_order_count = fields.Integer(
         string='Ventas asociadas',
