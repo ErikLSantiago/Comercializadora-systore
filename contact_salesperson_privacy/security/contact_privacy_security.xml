@@ -10,7 +10,7 @@
         <field name="name">Restringido: solo contactos asignados</field>
         <field name="category_id" ref="module_category_contact_privacy"/>
         <field name="implied_ids" eval="[(4, ref('base.group_user'))]"/>
-        <field name="comment">Solo permite consultar contactos no restringidos o asignados al usuario.</field>
+        <field name="comment">Solo permite consultar contactos asignados al usuario.</field>
     </record>
 
     <record id="group_contact_privacy_all" model="res.groups">

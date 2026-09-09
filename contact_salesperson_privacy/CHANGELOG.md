@@ -19,3 +19,7 @@
 - Asignación automática desde órdenes de venta.
 - Sincronización inicial de órdenes existentes.
 - Protección mediante regla de registro.
+## 18.0.1.2.1
+
+- Añade un selector explícito de perfil en la ficha del usuario.
+- Permite asignar Restringido o Alfa sin depender del selector dinámico de Odoo.

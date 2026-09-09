@@ -1,7 +1,7 @@
 {
     "name": "Contact Privacy by Salesperson",
     "summary": "Restrict private contacts to assigned salespeople",
-    "version": "18.0.1.2.0",
+    "version": "18.0.1.2.1",
     "category": "Sales/CRM",
     "author": "Systore",
     "license": "LGPL-3",
