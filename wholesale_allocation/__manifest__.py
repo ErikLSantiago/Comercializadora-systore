@@ -1,6 +1,6 @@
 {
     'name': 'Wholesale Allocation',
-    'version': '18.0.1.4.1',
+    'version': '18.0.1.6.0',
     'summary': 'Restrict auto reservation by associated purchase orders for wholesale sales',
     'description': """
 Wholesale Allocation
@@ -11,6 +11,9 @@ Phase 1 for wholesale operations:
 - Restrict automatic reservation to lots whose name matches the associated PO number.
 - Allow manual use of external lots on delivery operations.
 - Apply only to warehouses marked as Wholesale.
+- Show PO assignment status (Sin asignar / Asignada) for Wholesale purchases.
+- Do not copy associated sales when duplicating a Purchase Order.
+- Auto-link a PO to the sale when a user manually selects its matching lot on a Wholesale transfer.
     """,
     'author': 'OpenAI',
     'license': 'LGPL-3',

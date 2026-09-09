@@ -1,5 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
 <odoo>
+    <!-- Purchase order form: associated sales smart button + Wholesale allocation status -->
     <record id="view_purchase_order_form_wholesale_allocation" model="ir.ui.view">
         <field name="name">purchase.order.form.wholesale.allocation</field>
         <field name="model">purchase.order</field>
@@ -13,6 +14,54 @@
                         invisible="associated_sale_order_count == 0">
                     <field name="associated_sale_order_count" widget="statinfo" string="Ventas asociadas"/>
                 </button>
+            </xpath>
+
+            <xpath expr="//field[@name='partner_ref']" position="after">
+                <field name="wholesale_allocation_applicable" invisible="1"/>
+                <field name="wholesale_assignment_status"
+                       string="Asignación Wholesale"
+                       widget="badge"
+                       invisible="not wholesale_allocation_applicable"
+                       decoration-danger="wholesale_assignment_status == 'unassigned'"
+                       decoration-success="wholesale_assignment_status == 'assigned'"/>
+            </xpath>
+        </field>
+    </record>
+
+    <!-- RFQ list used by the Purchase dashboard. -->
+    <record id="view_purchase_order_tree_wholesale_allocation" model="ir.ui.view">
+        <field name="name">purchase.order.list.wholesale.allocation</field>
+        <field name="model">purchase.order</field>
+        <field name="inherit_id" ref="purchase.purchase_order_tree"/>
+        <field name="arch" type="xml">
+            <xpath expr="//field[@name='partner_id']" position="after">
+                <field name="wholesale_allocation_applicable" column_invisible="True"/>
+                <field name="wholesale_assignment_status"
+                       string="Asignación Wholesale"
+                       widget="badge"
+                       optional="show"
+                       invisible="not wholesale_allocation_applicable"
+                       decoration-danger="wholesale_assignment_status == 'unassigned'"
+                       decoration-success="wholesale_assignment_status == 'assigned'"/>
+            </xpath>
+        </field>
+    </record>
+
+    <!-- Confirmed Purchase Orders list. -->
+    <record id="view_purchase_order_view_tree_wholesale_allocation" model="ir.ui.view">
+        <field name="name">purchase.order.view.list.wholesale.allocation</field>
+        <field name="model">purchase.order</field>
+        <field name="inherit_id" ref="purchase.purchase_order_view_tree"/>
+        <field name="arch" type="xml">
+            <xpath expr="//field[@name='partner_id']" position="after">
+                <field name="wholesale_allocation_applicable" column_invisible="True"/>
+                <field name="wholesale_assignment_status"
+                       string="Asignación Wholesale"
+                       widget="badge"
+                       optional="show"
+                       invisible="not wholesale_allocation_applicable"
+                       decoration-danger="wholesale_assignment_status == 'unassigned'"
+                       decoration-success="wholesale_assignment_status == 'assigned'"/>
             </xpath>
         </field>
     </record>
