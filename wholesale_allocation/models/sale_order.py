@@ -1,5 +1,5 @@
 from odoo import api, fields, models, _
-from odoo.exceptions import ValidationError
+from odoo.exceptions import UserError, ValidationError
 
 
 class SaleOrder(models.Model):
@@ -10,16 +10,19 @@ class SaleOrder(models.Model):
         'sale_order_purchase_order_rel',
         'sale_order_id',
         'purchase_order_id',
-        string='Associated Purchase Orders',
-        help='Automatic reservation for this sale will only use lots matching these purchase order numbers.',
+        string='Órdenes de compra asociadas',
+        help=(
+            'La reserva automática de esta venta sólo utilizará lotes cuyo nombre '
+            'coincida con los números de las órdenes de compra asociadas.'
+        ),
     )
     is_wholesale_allocation = fields.Boolean(
-        string='Wholesale Allocation Applies',
+        string='Aplica Wholesale Allocation',
         compute='_compute_is_wholesale_allocation',
         store=False,
     )
     associated_purchase_order_count = fields.Integer(
-        string='Associated Purchase Orders Count',
+        string='Cantidad de órdenes de compra asociadas',
         compute='_compute_associated_purchase_order_count',
     )
 
@@ -44,7 +47,7 @@ class SaleOrder(models.Model):
         for order in self:
             if not order.is_wholesale_allocation and order.associated_purchase_order_ids:
                 raise ValidationError(_(
-                    'Associated Purchase Orders can only be used on warehouses marked as Wholesale.'
+                    'Las Órdenes de Compra asociadas sólo pueden utilizarse en almacenes marcados como Wholesale.'
                 ))
 
     def action_view_associated_purchase_orders(self):
@@ -54,26 +57,18 @@ class SaleOrder(models.Model):
         action['context'] = {'create': False}
         return action
 
-    def _should_show_wholesale_po_warning(self):
-        self.ensure_one()
-        return bool(
-            self.is_wholesale_allocation
-            and not self.associated_purchase_order_ids
-            and not self.env.context.get('skip_wholesale_po_warning')
-        )
-
     def action_confirm(self):
+        """Require an associated PO when the wholesale warehouse requests it."""
         for order in self:
-            if order._should_show_wholesale_po_warning():
-                wizard = self.env['sale.order.confirm.warning'].create({
-                    'sale_order_id': order.id,
-                })
-                return {
-                    'name': _('Confirmar sin Orden de Compra asociada'),
-                    'type': 'ir.actions.act_window',
-                    'res_model': 'sale.order.confirm.warning',
-                    'view_mode': 'form',
-                    'res_id': wizard.id,
-                    'target': 'new',
-                }
+            warehouse = order.warehouse_id
+            if (
+                warehouse
+                and warehouse.is_wholesale
+                and warehouse.require_wholesale_associated_po
+                and not order.associated_purchase_order_ids
+            ):
+                raise UserError(_(
+                    'Debe vincular al menos una Orden de Compra asociada antes de confirmar esta venta.\n\n'
+                    'La obligatoriedad puede activarse o desactivarse desde la configuración del almacén Wholesale.'
+                ))
         return super().action_confirm()

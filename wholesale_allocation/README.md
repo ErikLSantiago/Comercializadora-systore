@@ -1,20 +1,20 @@
 # Wholesale Allocation
 
-## Objetivo
-Primera fase para operaciones de mayoreo en Odoo 18.
+## Fase 1 - versión 18.0.1.4.0
 
-## Qué hace
-- Agrega **Associated Purchase Orders** en la orden de venta.
-- Sólo aplica al almacén configurado en Ajustes de Inventario.
-- La reserva automática intenta omitir lotes cuyo nombre no coincida con las órdenes de compra asociadas.
-- Permite usar lotes externos de forma manual en la entrega.
-- Marca las líneas manuales externas con el booleano **Manual External Lot**.
+### Funciones
+- Los almacenes pueden marcarse como **Wholesale**.
+- La reserva automática de ventas Wholesale utiliza únicamente lotes cuyo nombre coincida con las Órdenes de Compra asociadas.
+- Los lotes externos siguen pudiendo agregarse manualmente.
+- Cada almacén Wholesale puede activar **Exigir OC asociada al confirmar ventas**.
+- Si esa opción está activa, Odoo bloquea la confirmación de la venta cuando `associated_purchase_order_ids` está vacío.
+- La Orden de Compra muestra un smart button **Ventas asociadas** que abre las ventas vinculadas a esa OC.
 
-## Configuración
-1. Instalar el módulo.
-2. Ir a **Inventario > Configuración > Ajustes**.
-3. Seleccionar el almacén en **Wholesale allocation warehouse**.
-4. En las ventas de ese almacén, usar la pestaña **Wholesale Allocation** para asociar las órdenes de compra.
+### Configuración
+1. Inventario > Configuración > Almacenes.
+2. Abrir el almacén correspondiente.
+3. Activar **Wholesale**.
+4. Activar o desactivar **Exigir OC asociada al confirmar ventas** según la política del almacén.
 
-## Nota técnica
-Esta versión está pensada como una **fase 1 conservadora**. La restricción se introduce en la capa de reserva automática, sin bloquear capturas manuales. Dependiendo de personalizaciones previas y del nivel de trazabilidad configurado para los productos, puede requerirse una segunda fase para una asignación más estricta por cantidad / por línea.
+### Uso
+En una venta de un almacén Wholesale, abrir la pestaña **Wholesale Allocation** y seleccionar una o más Órdenes de Compra asociadas. La relación también queda visible desde cada Orden de Compra mediante el smart button **Ventas asociadas**.

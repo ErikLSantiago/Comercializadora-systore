@@ -1,6 +1,6 @@
 {
     'name': 'Wholesale Allocation',
-    'version': '18.0.1.3.0',
+    'version': '18.0.1.4.0',
     'summary': 'Restrict auto reservation by associated purchase orders for wholesale sales',
     'description': """
 Wholesale Allocation
@@ -19,7 +19,7 @@ Phase 1 for wholesale operations:
         'security/ir.model.access.csv',
         'views/stock_warehouse_views.xml',
         'views/sale_order_views.xml',
-        'views/sale_order_confirm_warning_views.xml',
+        'views/purchase_order_views.xml',
         'views/stock_picking_views.xml',
     ],
     'installable': True,
