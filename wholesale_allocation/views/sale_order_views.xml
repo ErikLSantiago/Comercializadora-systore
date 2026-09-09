@@ -13,7 +13,7 @@
                                widget="many2many_tags"
                                domain="[('state', 'in', ['purchase', 'done'])]"
                                options="{'no_create': True}"/>
-                        <div class="text-muted"><span>Automatic reservation will only use lots whose name matches the associated purchase order number. External lots can still be assigned manually on the delivery.</span></div>
+                        <div class="text-muted"><span>La reserva automática sólo utilizará lotes cuyo nombre coincida con las Órdenes de Compra asociadas. Los lotes externos todavía pueden asignarse manualmente en la entrega.</span></div>
                     </group>
                 </page>
             </xpath>
@@ -23,7 +23,7 @@
                         class="oe_stat_button"
                         icon="fa-shopping-cart"
                         invisible="associated_purchase_order_count == 0">
-                    <field name="associated_purchase_order_count" widget="statinfo" string="Associated POs"/>
+                    <field name="associated_purchase_order_count" widget="statinfo" string="OC asociadas"/>
                 </button>
             </xpath>
         </field>
