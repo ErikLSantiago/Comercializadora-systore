@@ -1,0 +1,22 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <!-- Add button on each card of the Bank Reconciliation Widget (kanban) -->
+    <record id="view_bank_statement_line_kanban_bank_rec_widget_mkp" model="ir.ui.view">
+        <field name="name">account.bank.statement.line.kanban.bank.rec.widget.mkp</field>
+        <field name="model">account.bank.statement.line</field>
+        <field name="inherit_id" ref="account_accountant.view_bank_statement_line_kanban_bank_rec_widget"/>
+        <field name="arch" type="xml">
+            <!-- Place button in the right side of row 2 (near the badges) -->
+            <xpath expr="//t[@t-name='card']//div[contains(@class,'m-1') and contains(@class,'flex-row')]" position="before">
+                <div class="me-2 d-flex align-items-center"
+                     t-if="record.amount.raw_value &gt; 0.0">
+                    <button type="object"
+                            name="action_open_marketplace_settlement"
+                            class="btn btn-link btn-sm p-0">
+                        Marketplace
+                    </button>
+                </div>
+            </xpath>
+        </field>
+    </record>
+</odoo>

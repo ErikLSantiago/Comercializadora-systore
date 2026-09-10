@@ -1,0 +1,16 @@
+<odoo>
+  <record id="view_product_template_form_inherit_wqr_tab" model="ir.ui.view">
+    <field name="name">product.template.form.wqr.tab</field>
+    <field name="model">product.template</field>
+    <field name="inherit_id" ref="product.product_template_form_view"/>
+    <field name="arch" type="xml">
+      <xpath expr="//sheet/notebook" position="inside">
+        <page string="Cotización (Website)">
+          <group>
+            <field name="quote_publish"/>
+          </group>
+        </page>
+      </xpath>
+    </field>
+  </record>
+</odoo>

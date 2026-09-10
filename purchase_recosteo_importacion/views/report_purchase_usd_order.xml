@@ -1,0 +1,114 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+
+  <template id="report_usd_order">
+    <t t-call="web.html_container">
+      <t t-foreach="docs" t-as="o">
+        <t t-call="purchase_recosteo_importacion.report_usd_order_document" t-lang="o.partner_id.lang"/>
+      </t>
+    </t>
+  </template>
+
+  <template id="report_usd_order_document">
+    <t t-call="web.external_layout">
+      <t t-set="usd_total_sum" t-value="0.0"/>
+      <div class="page">
+        <div class="row mb-4 mt-4">
+          <div class="col-6">
+            <strong>Dirección de envío:</strong>
+            <div t-if="o.dest_address_id" t-field="o.dest_address_id"
+                 t-options='{"widget": "contact", "fields": ["name", "address", "phone"], "no_marker": true, "phone_icons": true}'/>
+            <div t-elif="o.picking_type_id and o.picking_type_id.warehouse_id and o.picking_type_id.warehouse_id.partner_id"
+                 t-field="o.picking_type_id.warehouse_id.partner_id"
+                 t-options='{"widget": "contact", "fields": ["name", "address", "phone"], "no_marker": true, "phone_icons": true}'/>
+            <div t-else="">
+              <span t-field="o.company_id.partner_id"
+                    t-options='{"widget": "contact", "fields": ["name", "address", "phone"], "no_marker": true, "phone_icons": true}'/>
+            </div>
+          </div>
+          <div class="col-6">
+            <h2>USD Order <span t-field="o.name"/></h2>
+            <div t-field="o.partner_id"
+                 t-options='{"widget": "contact", "fields": ["name", "address"], "no_marker": true}'/>
+          </div>
+        </div>
+
+        <div class="row mb-4">
+          <div class="col-3">
+            <strong>Comprador</strong>
+            <div t-field="o.user_id"/>
+          </div>
+          <div class="col-3">
+            <strong>La referencia de su orden</strong>
+            <div t-field="o.partner_ref"/>
+          </div>
+          <div class="col-3">
+            <strong>Fecha de la orden</strong>
+            <div t-esc="o.date_order and o.date_order.strftime('%d/%m/%Y') or ''"/>
+          </div>
+          <div class="col-3">
+            <strong>Llegada esperada</strong>
+            <div t-esc="o.date_planned and o.date_planned.strftime('%d/%m/%Y') or ''"/>
+          </div>
+        </div>
+
+        <table class="table table-sm o_main_table table-borderless">
+          <thead>
+            <tr>
+              <th class="text-start">Descripción</th>
+              <th class="text-end">QTY</th>
+              <th class="text-end">USD Cost</th>
+              <th class="text-end">USD Subtotal</th>
+            </tr>
+          </thead>
+          <tbody>
+            <t t-foreach="o.order_line" t-as="l">
+              <t t-if="not l.display_type">
+                <t t-set="line_total_usd" t-value="(l.product_qty or 0.0) * (l.x_gross_usd or 0.0)"/>
+                <t t-set="usd_total_sum" t-value="usd_total_sum + line_total_usd"/>
+                <tr>
+                  <td class="text-start">
+                    <span t-field="l.name"/>
+                  </td>
+                  <td class="text-end">
+                    <span t-field="l.product_qty"/>
+                  </td>
+                  <td class="text-end">
+                    <span t-esc="'%.2f' % (l.x_gross_usd or 0.0)"/>
+                  </td>
+                  <td class="text-end">
+                    <span t-esc="'%.2f' % line_total_usd"/>
+                  </td>
+                </tr>
+              </t>
+            </t>
+          </tbody>
+        </table>
+
+        <div class="row mt-4">
+          <div class="col-8"/>
+          <div class="col-4">
+            <table class="table table-sm">
+              <tr class="border-top">
+                <td class="text-end"><strong>USD Total</strong></td>
+                <td class="text-end"><strong t-esc="'%.2f' % usd_total_sum"/></td>
+              </tr>
+            </table>
+          </div>
+        </div>
+      </div>
+    </t>
+  </template>
+
+  <record id="action_report_usd_order" model="ir.actions.report">
+    <field name="name">USD Order</field>
+    <field name="model">purchase.order</field>
+    <field name="report_type">qweb-pdf</field>
+    <field name="report_name">purchase_recosteo_importacion.report_usd_order</field>
+    <field name="report_file">purchase_recosteo_importacion.report_usd_order</field>
+    <field name="binding_model_id" ref="purchase.model_purchase_order"/>
+    <field name="binding_type">report</field>
+    <field name="print_report_name">'USD Order - %s' % (object.name or '')</field>
+  </record>
+
+</odoo>

@@ -1,0 +1,23 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+  <data>
+    <record id="view_stock_move_line_serial_tree_adicional" model="ir.ui.view">
+      <field name="name">stock.move.line.serial.tree.adicional</field>
+      <field name="model">stock.move.line.serial</field>
+      <field name="arch" type="xml">
+        <list string="Seriales capturados" create="false" edit="false" delete="false">
+          <field name="name"/>
+          <field name="product_id"/>
+          <field name="lot_id" optional="show"/>
+          <field name="picking_id"/>
+          <field name="move_line_id" optional="show"/>
+          <field name="partner_id" optional="show"/>
+          <field name="origin" optional="show"/>
+          <field name="carrier_tracking_ref" optional="show"/>
+          <field name="date"/>
+          <field name="company_id" optional="show"/>
+        </list>
+      </field>
+    </record>
+  </data>
+</odoo>

@@ -1,0 +1,37 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<odoo>
+    <!-- Acción de servidor que envía el correo con adjunto -->
+    <record id="ir_actions_server_warranty_dictamen_email" model="ir.actions.server">
+        <field name="name">Enviar correo de dictamen (garantía)</field>
+        <field name="model_id" ref="helpdesk.model_helpdesk_ticket"/>
+        <field name="state">code</field>
+        <field name="code"><![CDATA[
+template = env['mail.template'].search([
+    ('model', '=', 'helpdesk.ticket'),
+    ('name', '=', 'Soporte al cliente: Ticket de garantía en proceso (Dictamen)')
+], limit=1)
+
+if template:
+    for ticket in records:
+        if (
+            ticket.stage_id
+            and ticket.stage_id.name == 'Dictamen'
+            and ticket.warranty_attachments
+            and ticket.partner_id
+            and ticket.partner_id.email
+        ):
+            mail_id = template.send_mail(ticket.id, force_send=False)
+            if not mail_id:
+                continue
+            mail = env['mail.mail'].browse(mail_id)
+            env['ir.attachment'].create({
+                'name': ticket.warranty_attachments_filename or 'dictamen.pdf',
+                'datas': ticket.warranty_attachments,
+                'res_model': 'mail.mail',
+                'res_id': mail.id,
+                'type': 'binary',
+            })
+            mail.send()
+        ]]></field>
+    </record>
+</odoo>

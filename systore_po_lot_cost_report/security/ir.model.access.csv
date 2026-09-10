@@ -1,0 +1,6 @@
+id,name,model_id:id,group_id:id,perm_read,perm_write,perm_create,perm_unlink
+access_product_po_lot_cost_line_user,product.po.lot.cost.line user,model_product_po_lot_cost_line,base.group_user,1,0,0,0
+access_product_po_lot_cost_line_manager,product.po.lot.cost.line manager,model_product_po_lot_cost_line,base.group_system,1,1,1,1
+
+access_product_po_lot_cost_wh_summary_user,product.po.lot.cost.wh.summary user,model_product_po_lot_cost_wh_summary,base.group_user,1,0,0,0
+access_product_po_lot_cost_wh_summary_manager,product.po.lot.cost.wh.summary manager,model_product_po_lot_cost_wh_summary,base.group_system,1,1,1,1

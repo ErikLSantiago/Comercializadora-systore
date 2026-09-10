@@ -1,0 +1,19 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <record id="view_warehouse_form_wholesale_allocation" model="ir.ui.view">
+        <field name="name">stock.warehouse.form.wholesale.allocation</field>
+        <field name="model">stock.warehouse</field>
+        <field name="inherit_id" ref="stock.view_warehouse"/>
+        <field name="arch" type="xml">
+            <xpath expr="//sheet/group" position="inside">
+                <group string="Wholesale Allocation">
+                    <field name="is_wholesale"/>
+                    <field name="require_wholesale_associated_po" invisible="not is_wholesale"/>
+                    <div class="text-muted" invisible="not is_wholesale">
+                        <span>Cuando la obligación está activa, una venta de este almacén no podrá confirmarse hasta vincular al menos una Orden de Compra asociada.</span>
+                    </div>
+                </group>
+            </xpath>
+        </field>
+    </record>
+</odoo>

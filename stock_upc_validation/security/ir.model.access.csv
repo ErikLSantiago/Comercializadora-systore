@@ -1,0 +1,6 @@
+id,name,model_id:id,group_id:id,perm_read,perm_write,perm_create,perm_unlink
+access_stock_receipt_upc_wizard,stock.receipt.upc.wizard,model_stock_receipt_upc_wizard,stock.group_stock_user,1,1,1,1
+access_stock_receipt_upc_wizard_line,stock.receipt.upc.wizard.line,model_stock_receipt_upc_wizard_line,stock.group_stock_user,1,1,1,1
+access_stock_picking_upc_wizard,stock.picking.upc.wizard,model_stock_picking_upc_wizard,stock.group_stock_user,1,1,1,1
+access_stock_picking_upc_wizard_line,stock.picking.upc.wizard.line,model_stock_picking_upc_wizard_line,stock.group_stock_user,1,1,1,1
+access_stock_pack_tracking_wizard,stock.pack.tracking.wizard,model_stock_pack_tracking_wizard,stock.group_stock_user,1,1,1,1

@@ -1,0 +1,40 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+  <data>
+    <record id="view_serial_capture_wizard_form" model="ir.ui.view">
+      <field name="name">serial.capture.wizard.form</field>
+      <field name="model">serial.capture.wizard</field>
+      <field name="arch" type="xml">
+        <form string="Capturar números de serie (adicional)">
+          <sheet>
+            <group>
+              <field name="picking_id" readonly="1"/>
+              <field name="move_line_id"/>
+              <field name="mode"/>
+              <field name="product_id"/>
+              <field name="only_unassigned"/>
+              <field name="clear_existing"/>
+              <field name="allow_mismatch"/>
+              <field name="check_global_duplicate"/>
+            </group>
+            <group>
+              <field name="paste_text" placeholder="Pega aquí uno por línea, o separados por coma/espacio"/>
+            </group>
+            <group>
+              <field name="total_entered" readonly="1"/>
+              <field name="total_needed" readonly="1"/>
+              <field name="demand_qty_line" readonly="1"/>
+            </group>
+            <group string="Vista previa">
+              <field name="entered_serials_preview" readonly="1" nolabel="1" widget="text"/>
+            </group>
+          </sheet>
+          <footer>
+            <button string="Aplicar" type="object" name="action_apply" class="btn-primary"/>
+            <button string="Cancelar" class="btn-secondary" special="cancel"/>
+          </footer>
+        </form>
+      </field>
+    </record>
+  </data>
+</odoo>

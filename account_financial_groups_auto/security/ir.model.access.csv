@@ -1,0 +1,6 @@
+id,name,model_id:id,group_id:id,perm_read,perm_write,perm_create,perm_unlink
+access_account_financial_group_user,account.financial.group user,model_account_financial_group,account.group_account_user,1,1,1,0
+access_account_financial_group_manager,account.financial.group manager,model_account_financial_group,account.group_account_manager,1,1,1,1
+access_account_financial_group_rule_manager,account.financial.group.rule manager,model_account_financial_group_rule,account.group_account_manager,1,1,1,1
+access_account_financial_group_rule_user,account.financial.group.rule user,model_account_financial_group_rule,account.group_account_user,1,0,0,0
+access_fin_group_recompute_wizard_manager,fin group recompute wizard,model_account_financial_group_recompute_wizard,account.group_account_manager,1,1,1,1
