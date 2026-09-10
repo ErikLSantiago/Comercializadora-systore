@@ -61,7 +61,7 @@ class SystoreSalesCostImportWizard(models.TransientModel):
         rows = self._read_rows()
         headers = [self._normalize_header(str(value or '')) for value in rows[0]]
 
-        id_aliases = {'id', 'id linea', 'id de linea', 'line id', 'database id'}
+        id_aliases = {'id', 'id linea', 'id de linea', 'line id', 'database id', 'external id', 'id externo', 'xml id', 'xmlid'}
         cost_aliases = {'costo unitario', 'costo', 'unit cost', 'unit cost company', 'unit cost company id', 'unit cost company'}
 
         id_idx = next((i for i, h in enumerate(headers) if h in id_aliases), None)
@@ -87,7 +87,23 @@ class SystoreSalesCostImportWizard(models.TransientModel):
                 if line_id_raw in (None, '') or cost_raw in (None, ''):
                     skipped += 1
                     continue
-                line_id = int(float(line_id_raw))
+                # Odoo puede exportar el identificador como ID interno numérico o como
+                # External ID, por ejemplo __export__.systore_sales_cost_line_66957_b7f670d5.
+                # Aceptamos ambos formatos para que el usuario pueda exportar, completar costo
+                # y reimportar el mismo archivo sin transformar la columna identificadora.
+                line = False
+                line_identifier = str(line_id_raw).strip()
+                try:
+                    line_id = int(float(line_id_raw))
+                    line = Line.browse(line_id).exists()
+                except (TypeError, ValueError):
+                    if '.' in line_identifier:
+                        resolved = self.env.ref(line_identifier, raise_if_not_found=False)
+                        if resolved and resolved._name == 'systore.sales.cost.line':
+                            line = resolved
+                    if not line:
+                        raise ValueError(_('No se pudo resolver el ID de línea “%s”. Usa el ID línea numérico o el External ID exportado por Odoo.') % line_identifier)
+
                 if isinstance(cost_raw, str):
                     normalized_cost = cost_raw.replace('$', '').replace(' ', '').replace(',', '')
                     cost = float(normalized_cost)
@@ -96,9 +112,8 @@ class SystoreSalesCostImportWizard(models.TransientModel):
                 if cost <= 0:
                     raise ValueError(_('El costo debe ser mayor que cero.'))
 
-                line = Line.browse(line_id).exists()
                 if not line:
-                    raise ValueError(_('No existe la línea con ID %s.') % line_id)
+                    raise ValueError(_('No existe la línea identificada por %s.') % line_identifier)
                 if line.purchase_order_line_id:
                     skipped += 1
                     continue

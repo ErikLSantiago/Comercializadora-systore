@@ -830,7 +830,14 @@ class SystoreSalesCostLine(models.Model):
         if sales_channels:
             domain.append(('sales_channel', 'in', sales_channels))
 
-        for field_name in ('account_id', 'partner_id', 'customer_contact_id', 'product_id', 'vendor_id', 'salesperson_id'):
+        product_conditions = filters.get('product_condition') or []
+        if isinstance(product_conditions, str):
+            product_conditions = [product_conditions] if product_conditions else []
+        product_conditions = [value for value in product_conditions if value in ('line', 'open_box')]
+        if product_conditions:
+            domain.append(('product_condition', 'in', product_conditions))
+
+        for field_name in ('account_id', 'partner_id', 'product_id', 'vendor_id', 'salesperson_id'):
             values = filters.get(field_name) or []
             if not isinstance(values, (list, tuple)):
                 values = [values] if values else []
@@ -1079,7 +1086,6 @@ class SystoreSalesCostLine(models.Model):
             'sales_channels': channels,
             'accounts': m2o_options(records.mapped('account_id')),
             'partners': m2o_options(records.mapped('partner_id')),
-            'contacts': m2o_options(records.mapped('customer_contact_id')),
             'products': product_options,
             'vendors': m2o_options(records.mapped('vendor_id')),
             'salespersons': m2o_options(records.mapped('salesperson_id')),

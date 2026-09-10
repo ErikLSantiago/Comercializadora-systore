@@ -13,10 +13,11 @@ export class SystoreSalesCostDashboard extends Component {
         this.state = useState({
             loading: true,
             openFilter: "",
+            productSearch: "",
             pieMetrics: { channels: "sales", customers: "sales", contacts: "sales", products: "sales", vendors: "sales", categories: "sales", conditions: "sales" },
             data: {
                 currency: "MXN",
-                filters: {sales_channels: [], accounts: [], partners: [], contacts: [], products: [], vendors: [], salespersons: []},
+                filters: {sales_channels: [], accounts: [], partners: [], products: [], vendors: [], salespersons: []},
                 kpis: {}, trend: [], channels: [], products: [], vendors: [], return_channels: [], reconciliation: [],
             },
             filters: {
@@ -27,8 +28,8 @@ export class SystoreSalesCostDashboard extends Component {
                 sales_channel: [],
                 account_id: [],
                 partner_id: [],
-                customer_contact_id: [],
                 product_id: [],
+                product_condition: [],
                 vendor_id: [],
                 salesperson_id: [],
             },
@@ -39,7 +40,7 @@ export class SystoreSalesCostDashboard extends Component {
     async loadData() {
         this.state.loading = true;
         const { month, ...payload } = this.state.filters;
-        for (const key of ["account_id", "partner_id", "customer_contact_id", "product_id", "vendor_id", "salesperson_id"]) {
+        for (const key of ["account_id", "partner_id", "product_id", "vendor_id", "salesperson_id"]) {
             payload[key] = (payload[key] || []).map((value) => Number(value));
         }
         const data = await this.orm.call("systore.sales.cost.line", "get_dashboard_data", [payload]);
@@ -109,6 +110,26 @@ export class SystoreSalesCostDashboard extends Component {
         return [labels[0], labels[1], `+${labels.length - 2}`];
     }
 
+    productConditionOptions() {
+        return [
+            { id: "line", name: "Línea" },
+            { id: "open_box", name: "Open Box" },
+        ];
+    }
+
+    onProductSearch(ev) {
+        this.state.productSearch = ev.target.value || "";
+    }
+
+    filteredProductOptions() {
+        const options = this.state.data?.filters?.products || [];
+        const term = (this.state.productSearch || "").trim().toLowerCase();
+        if (!term) {
+            return options.slice(0, 80);
+        }
+        return options.filter((item) => (item.name || "").toLowerCase().includes(term)).slice(0, 80);
+    }
+
     onFilterChange(ev) {
         const field = ev.target.dataset.field;
         this.state.filters[field] = ev.target.value;
@@ -163,8 +184,8 @@ export class SystoreSalesCostDashboard extends Component {
             sales_channel: [],
             account_id: [],
             partner_id: [],
-            customer_contact_id: [],
             product_id: [],
+            product_condition: [],
             vendor_id: [],
             salesperson_id: [],
         });
@@ -270,7 +291,8 @@ export class SystoreSalesCostDashboard extends Component {
         if (f.date_to) domain.push(["invoice_date", "<=", f.date_to]);
         if (f.sale_state?.length) domain.push(["sale_state", "in", f.sale_state]);
         if (f.sales_channel?.length) domain.push(["sales_channel", "in", f.sales_channel]);
-        for (const field of ["account_id", "partner_id", "customer_contact_id", "product_id", "vendor_id", "salesperson_id"]) {
+        if (f.product_condition?.length) domain.push(["product_condition", "in", f.product_condition]);
+        for (const field of ["account_id", "partner_id", "product_id", "vendor_id", "salesperson_id"]) {
             if (f[field]?.length) domain.push([field, "in", f[field].map(Number)]);
         }
         return domain.concat(extraDomain || []);
