@@ -11,6 +11,7 @@ class SaleOrder(models.Model):
         'sale_order_id',
         'purchase_order_id',
         string='Órdenes de compra asociadas',
+        copy=False,
         help=(
             'La reserva automática de esta venta sólo utilizará lotes cuyo nombre '
             'coincida con los números de las órdenes de compra asociadas.'
