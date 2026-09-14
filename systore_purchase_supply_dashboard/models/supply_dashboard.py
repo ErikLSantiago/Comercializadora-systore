@@ -1,4 +1,10 @@
-from odoo import api, models
+from datetime import datetime, time
+
+import pytz
+from dateutil.relativedelta import relativedelta
+
+from odoo import _, api, fields, models
+from odoo.exceptions import UserError
 
 
 class SystoreSupplyDashboard(models.AbstractModel):
@@ -6,13 +12,39 @@ class SystoreSupplyDashboard(models.AbstractModel):
     _description = "Servicio del tablero de abastecimiento"
 
     @api.model
-    def action_refresh(self):
-        company = self.env.company
-        with self.env.cr.savepoint():
-            purchases = self.env["systore.supply.purchase.line"]._rebuild_snapshot(company)
-            demand = self.env["systore.supply.demand.line"]._rebuild_snapshot(company)
-            trace = self.env["systore.supply.trace.line"]._rebuild_snapshot(company)
+    def _month_period(self, period_month=None):
+        """Return one strict calendar month using the user's timezone."""
+        if not period_month:
+            period_start = fields.Date.context_today(self).replace(day=1)
+        else:
+            try:
+                period_start = datetime.strptime(period_month, "%Y-%m").date()
+            except (TypeError, ValueError) as error:
+                raise UserError(_("Selecciona un mes válido antes de actualizar.")) from error
+        period_end = period_start + relativedelta(months=1)
+        timezone = pytz.timezone(self.env.user.tz or "UTC")
+        local_start = timezone.localize(datetime.combine(period_start, time.min))
+        local_end = timezone.localize(datetime.combine(period_end, time.min))
+        utc_start = local_start.astimezone(pytz.UTC).replace(tzinfo=None)
+        utc_end = local_end.astimezone(pytz.UTC).replace(tzinfo=None)
         return {
+            "key": period_start.strftime("%Y-%m"),
+            "month_start": period_start,
+            "month_end": period_end,
+            "utc_start": fields.Datetime.to_string(utc_start),
+            "utc_end": fields.Datetime.to_string(utc_end),
+        }
+
+    @api.model
+    def action_refresh(self, period_month=None):
+        company = self.env.company
+        period = self._month_period(period_month)
+        with self.env.cr.savepoint():
+            purchases = self.env["systore.supply.purchase.line"]._rebuild_snapshot(company, period)
+            demand = self.env["systore.supply.demand.line"]._rebuild_snapshot(company, period)
+            trace = self.env["systore.supply.trace.line"]._rebuild_snapshot(company, period)
+        return {
+            "period_month": period["key"],
             "purchases": purchases,
             "demand": demand,
             "trace": trace,
@@ -21,21 +53,25 @@ class SystoreSupplyDashboard(models.AbstractModel):
     @api.model
     def get_dashboard_data(self, filters=None):
         filters = filters or {}
+        period = self._month_period(filters.get("period_month"))
         company = self.env.company
-        purchase_domain = [("company_id", "=", company.id)]
-        demand_domain = [("company_id", "=", company.id)]
-        trace_domain = [("company_id", "=", company.id)]
+        purchase_domain = [
+            ("company_id", "=", company.id),
+            ("report_date", ">=", period["month_start"]),
+            ("report_date", "<", period["month_end"]),
+        ]
+        demand_domain = [
+            ("company_id", "=", company.id),
+            ("period_month", "=", period["month_start"]),
+        ]
+        trace_domain = [
+            ("company_id", "=", company.id),
+            ("movement_date", ">=", period["utc_start"]),
+            ("movement_date", "<", period["utc_end"]),
+        ]
 
-        date_from = filters.get("date_from")
-        date_to = filters.get("date_to")
         channel = filters.get("channel")
         warehouse_id = filters.get("warehouse_id")
-        if date_from:
-            purchase_domain.append(("report_date", ">=", date_from))
-            trace_domain.append(("movement_date", ">=", f"{date_from} 00:00:00"))
-        if date_to:
-            purchase_domain.append(("report_date", "<=", date_to))
-            trace_domain.append(("movement_date", "<=", f"{date_to} 23:59:59"))
         if channel:
             purchase_domain.append(("channel", "=", channel))
             demand_domain.append(("channel", "=", channel))
@@ -132,6 +168,7 @@ class SystoreSupplyDashboard(models.AbstractModel):
             [("company_id", "=", company.id)], ["name"], order="name"
         )
         return {
+            "period_month": period["key"],
             "kpis": kpis,
             "purchases": purchase_rows,
             "demand": demand_rows,

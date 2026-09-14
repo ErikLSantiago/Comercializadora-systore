@@ -13,27 +13,17 @@ export class SystoreSupplyDashboard extends Component {
         this.action = useService("action");
         this.notification = useService("notification");
         const today = new Date();
-        const first = new Date(today.getFullYear(), today.getMonth(), 1);
-        const last = new Date(today.getFullYear(), today.getMonth() + 1, 0);
         this.state = useState({
             loading: true,
             refreshing: false,
             data: { kpis: {}, purchases: [], demand: [], trace: [], suppliers: [], warehouses: [], counts: {} },
             filters: {
-                date_from: this.toISODate(first),
-                date_to: this.toISODate(last),
+                period_month: `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, "0")}`,
                 channel: "",
                 warehouse_id: "",
             },
         });
         onWillStart(() => this.loadData());
-    }
-
-    toISODate(date) {
-        const year = date.getFullYear();
-        const month = String(date.getMonth() + 1).padStart(2, "0");
-        const day = String(date.getDate()).padStart(2, "0");
-        return `${year}-${month}-${day}`;
     }
 
     async loadData() {
@@ -53,7 +43,12 @@ export class SystoreSupplyDashboard extends Component {
     async refreshData() {
         this.state.refreshing = true;
         try {
-            const result = await this.orm.call("systore.supply.dashboard", "action_refresh", []);
+            const result = await this.orm.call(
+                "systore.supply.dashboard",
+                "action_refresh",
+                [],
+                { period_month: this.state.filters.period_month }
+            );
             await this.loadData();
             this.notification.add(
                 `Actualización terminada: ${result.purchases} líneas de compra, ${result.demand} de demanda y ${result.trace} de trazabilidad.`,
@@ -64,12 +59,8 @@ export class SystoreSupplyDashboard extends Component {
         }
     }
 
-    onDateFrom(event) {
-        this.state.filters.date_from = event.target.value;
-    }
-
-    onDateTo(event) {
-        this.state.filters.date_to = event.target.value;
+    onPeriodMonth(event) {
+        this.state.filters.period_month = event.target.value;
     }
 
     onChannel(event) {
@@ -80,9 +71,9 @@ export class SystoreSupplyDashboard extends Component {
         this.state.filters.warehouse_id = event.target.value;
     }
 
-    clearDates() {
-        this.state.filters.date_from = "";
-        this.state.filters.date_to = "";
+    currentMonth() {
+        const today = new Date();
+        this.state.filters.period_month = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, "0")}`;
         this.loadData();
     }
 
@@ -159,4 +150,3 @@ export class SystoreSupplyDashboard extends Component {
 }
 
 registry.category("actions").add("systore_supply_dashboard", SystoreSupplyDashboard);
-

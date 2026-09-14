@@ -1,6 +1,6 @@
 # Systore - Tablero de Compras y Abastecimiento
 
-Primera versión de pruebas para Odoo 18.
+Versión de pruebas para Odoo 18.
 
 ## Alcance
 
@@ -32,7 +32,8 @@ Primera versión de pruebas para Odoo 18.
 2. En los almacenes Marketplace seleccionar **Marketplace** como canal de abastecimiento.
 3. Los almacenes con **Wholesale** activo se clasifican automáticamente como Mayoreo.
 4. Abrir **Abastecimiento > Tablero**.
-5. Presionar **Actualizar información**.
+5. Seleccionar un mes; el mes actual aparece por defecto.
+6. Presionar **Actualizar información**.
 
 ## Reglas de la primera versión
 
@@ -42,7 +43,9 @@ Primera versión de pruebas para Odoo 18.
 - Compra internacional automática: existe costo base o logística capturada en USD.
 - Costo internacional: `x_calc_price_mxn`.
 - Costo nacional: `price_unit`, convertido a moneda de compañía cuando corresponda.
-- Demanda: cantidad confirmada pendiente de entregar.
+- Cada actualización procesa solamente un mes. No existe actualización global.
+- Demanda: cantidad pendiente de entregar de ventas originadas en el mes seleccionado.
+- Compras para cobertura de demanda: compras originadas en el mes seleccionado.
 - Faltante: `max(demanda - existencia física - compra pendiente de recibir, 0)`.
 - Trazabilidad: el nombre del lote debe coincidir exactamente con el número de la OC.
 
@@ -59,7 +62,7 @@ Primera versión de pruebas para Odoo 18.
 
 ## Limitaciones deliberadas de V1
 
-- El tablero usa fotografías regenerables; se actualiza mediante el botón del tablero.
+- El tablero usa fotografías mensuales regenerables; se actualiza mediante el botón del tablero.
 - Wholesale Allocation relaciona órdenes completas, no cantidades por línea.
 - Marketplace se concilia históricamente mediante lote; no se fuerza una asociación manual.
 - Los pagos manuales no crean facturas, pagos ni asientos contables.

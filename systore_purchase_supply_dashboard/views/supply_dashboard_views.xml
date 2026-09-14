@@ -93,6 +93,7 @@
         <field name="model">systore.supply.demand.line</field>
         <field name="arch" type="xml">
             <list create="0" edit="0" delete="0" decoration-danger="coverage_status == 'shortage'" decoration-warning="coverage_status == 'incoming'">
+                <field name="period_month"/>
                 <field name="warehouse_id"/>
                 <field name="channel" widget="badge"/>
                 <field name="product_id"/>
@@ -124,6 +125,7 @@
         <field name="model">systore.supply.demand.line</field>
         <field name="arch" type="xml">
             <pivot string="Demanda de abastecimiento">
+                <field name="period_month" type="row" interval="month"/>
                 <field name="warehouse_id" type="row"/>
                 <field name="product_id" type="row"/>
                 <field name="channel" type="col"/>
@@ -141,6 +143,7 @@
         <field name="arch" type="xml">
             <graph string="Demanda y cobertura" type="bar" stacked="1">
                 <field name="warehouse_id"/>
+                <field name="period_month"/>
                 <field name="on_hand_qty" type="measure"/>
                 <field name="incoming_qty" type="measure"/>
                 <field name="missing_to_buy_qty" type="measure"/>
@@ -160,6 +163,7 @@
                 <filter name="incoming" string="Cubierta con compras" domain="[('coverage_status', '=', 'incoming')]"/>
                 <separator/>
                 <filter name="group_warehouse" string="Almacén" context="{'group_by': 'warehouse_id'}"/>
+                <filter name="group_month" string="Mes" context="{'group_by': 'period_month:month'}"/>
                 <filter name="group_channel" string="Canal" context="{'group_by': 'channel'}"/>
                 <filter name="group_product" string="Producto" context="{'group_by': 'product_id'}"/>
                 <filter name="group_coverage" string="Cobertura" context="{'group_by': 'coverage_status'}"/>

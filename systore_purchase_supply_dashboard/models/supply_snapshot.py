@@ -87,12 +87,42 @@ class SystoreSupplyPurchaseLine(models.Model):
         return min(dates) if dates else False
 
     @api.model
-    def _rebuild_snapshot(self, company):
-        self.sudo().search([("company_id", "=", company.id)]).unlink()
-        orders = self.env["purchase.order"].sudo().search([
+    def _rebuild_snapshot(self, company, period):
+        StockMove = self.env["stock.move"].sudo()
+        receipt_moves = StockMove.search([
+            ("company_id", "=", company.id),
+            ("state", "=", "done"),
+            ("location_id.usage", "=", "supplier"),
+            ("date", ">=", period["utc_start"]),
+            ("date", "<", period["utc_end"]),
+        ])
+        orders = self.env["purchase.order"].sudo()
+        if "purchase_line_id" in StockMove._fields:
+            orders |= receipt_moves.mapped("purchase_line_id.order_id")
+        origins = list(set(filter(None, receipt_moves.mapped("picking_id.origin"))))
+        if origins:
+            orders |= self.env["purchase.order"].sudo().search([
+                ("company_id", "=", company.id),
+                ("name", "in", origins),
+            ])
+        orders |= self.env["purchase.order"].sudo().search([
             ("company_id", "=", company.id),
             ("state", "in", ["purchase", "done"]),
+            ("date_order", ">=", period["utc_start"]),
+            ("date_order", "<", period["utc_end"]),
         ])
+        orders = orders.filtered(lambda order: order.state in ("purchase", "done"))
+
+        rows_in_month = self.sudo().search([
+            ("company_id", "=", company.id),
+            ("report_date", ">=", period["month_start"]),
+            ("report_date", "<", period["month_end"]),
+        ])
+        rows_for_affected_orders = self.sudo().search([
+            ("company_id", "=", company.id),
+            ("purchase_order_id", "in", orders.ids),
+        ]) if orders else self
+        (rows_in_month | rows_for_affected_orders).unlink()
         values = []
         currency = company.currency_id
         for order in orders:
@@ -185,6 +215,7 @@ class SystoreSupplyDemandLine(models.Model):
         readonly=True,
     )
     snapshot_date = fields.Datetime(string="Actualizado", readonly=True)
+    period_month = fields.Date(string="Mes", index=True, readonly=True)
 
     @api.model
     def _convert_qty(self, qty, source_uom, product):
@@ -208,8 +239,13 @@ class SystoreSupplyDemandLine(models.Model):
         return on_hand, reserved
 
     @api.model
-    def _rebuild_snapshot(self, company):
-        self.sudo().search([("company_id", "=", company.id)]).unlink()
+    def _rebuild_snapshot(self, company, period):
+        self.sudo().search([
+            ("company_id", "=", company.id),
+            "|",
+            ("period_month", "=", False),
+            ("period_month", "=", period["month_start"]),
+        ]).unlink()
         buckets = defaultdict(lambda: {
             "demand": 0.0,
             "incoming": 0.0,
@@ -223,6 +259,8 @@ class SystoreSupplyDemandLine(models.Model):
         sale_lines = self.env["sale.order.line"].sudo().search([
             ("company_id", "=", company.id),
             ("state", "in", ["sale", "done"]),
+            ("order_id.date_order", ">=", period["utc_start"]),
+            ("order_id.date_order", "<", period["utc_end"]),
             ("display_type", "=", False),
             ("product_id", "!=", False),
         ])
@@ -244,10 +282,25 @@ class SystoreSupplyDemandLine(models.Model):
 
         Picking = self.env["stock.picking"].sudo()
         if "systore_batch_readiness_state" in Picking._fields:
-            pickings = Picking.search([
+            sales = sale_lines.mapped("order_id")
+            picking_domain = [
                 ("company_id", "=", company.id),
                 ("state", "not in", ["done", "cancel"]),
-            ])
+            ]
+            group_ids = (
+                sales.mapped("procurement_group_id").ids
+                if "procurement_group_id" in sales._fields
+                else []
+            )
+            if group_ids:
+                picking_domain += [
+                    "|",
+                    ("sale_id", "in", sales.ids),
+                    ("group_id", "in", group_ids),
+                ]
+            else:
+                picking_domain.append(("sale_id", "in", sales.ids))
+            pickings = Picking.search(picking_domain) if sales else Picking
             for picking in pickings:
                 sale = picking.sale_id if "sale_id" in picking._fields else False
                 warehouse = sale.warehouse_id if sale else picking.picking_type_id.warehouse_id
@@ -265,6 +318,8 @@ class SystoreSupplyDemandLine(models.Model):
         purchase_lines = self.env["purchase.order.line"].sudo().search([
             ("company_id", "=", company.id),
             ("order_id.state", "in", ["purchase", "done"]),
+            ("order_id.date_order", ">=", period["utc_start"]),
+            ("order_id.date_order", "<", period["utc_end"]),
             ("display_type", "=", False),
             ("product_id", "!=", False),
         ])
@@ -320,6 +375,7 @@ class SystoreSupplyDemandLine(models.Model):
                 "missing_to_buy_qty": missing,
                 "coverage_status": status,
                 "snapshot_date": now,
+                "period_month": period["month_start"],
             })
         for start in range(0, len(values), 1000):
             self.sudo().create(values[start:start + 1000])
@@ -382,13 +438,19 @@ class SystoreSupplyTraceLine(models.Model):
         ) / total_qty
 
     @api.model
-    def _rebuild_snapshot(self, company):
-        self.sudo().search([("company_id", "=", company.id)]).unlink()
+    def _rebuild_snapshot(self, company, period):
+        self.sudo().search([
+            ("company_id", "=", company.id),
+            ("movement_date", ">=", period["utc_start"]),
+            ("movement_date", "<", period["utc_end"]),
+        ]).unlink()
         move_lines = self.env["stock.move.line"].sudo().search([
             ("company_id", "=", company.id),
             ("state", "=", "done"),
             ("lot_id", "!=", False),
             ("location_dest_id.usage", "=", "customer"),
+            ("date", ">=", period["utc_start"]),
+            ("date", "<", period["utc_end"]),
         ])
         lot_names = list(set(move_lines.mapped("lot_id.name")))
         orders = self.env["purchase.order"].sudo().search([

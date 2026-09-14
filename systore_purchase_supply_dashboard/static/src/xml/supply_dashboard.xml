@@ -8,7 +8,7 @@
                     <p>Recepciones, demanda, trazabilidad y pagos manuales</p>
                 </div>
                 <div class="d-flex gap-2">
-                    <button class="btn btn-outline-secondary" t-on-click="clearDates">Ver todo</button>
+                    <button class="btn btn-outline-secondary" t-on-click="currentMonth">Mes actual</button>
                     <button class="btn btn-primary" t-on-click="refreshData" t-att-disabled="state.refreshing">
                         <i class="fa fa-refresh me-1" t-att-class="state.refreshing ? 'fa-spin' : ''"/>
                         <t t-if="state.refreshing">Actualizando…</t>
@@ -18,8 +18,7 @@
             </div>
 
             <div class="o_supply_filters">
-                <label>Desde<input type="date" class="form-control" t-att-value="state.filters.date_from" t-on-change="onDateFrom"/></label>
-                <label>Hasta<input type="date" class="form-control" t-att-value="state.filters.date_to" t-on-change="onDateTo"/></label>
+                <label>Mes del reporte<input type="month" class="form-control" required="required" t-att-value="state.filters.period_month" t-on-change="onPeriodMonth"/></label>
                 <label>Canal
                     <select class="form-select" t-att-value="state.filters.channel" t-on-change="onChannel">
                         <option value="">Todos</option>
@@ -85,7 +84,7 @@
 
                 <section class="o_supply_panel">
                     <div class="o_supply_panel_title">
-                        <div><h2>Demanda por producto y almacén</h2><small>Demanda abierta − existencia física − compras pendientes de recibir.</small></div>
+                        <div><h2>Demanda por producto y almacén</h2><small>Ventas originadas en el mes: demanda abierta − existencia física − compras del mes pendientes de recibir.</small></div>
                         <button class="btn btn-link" t-on-click="() => openAction('systore_purchase_supply_dashboard.action_supply_demand_lines')">Abrir análisis completo</button>
                     </div>
                     <div class="table-responsive">
