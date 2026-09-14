@@ -7,12 +7,12 @@ Versión de pruebas para Odoo 18.
 - Piezas ordenadas, recibidas y pendientes por línea de compra.
 - Cohorte mensual por primera recepción validada.
 - Valuación MXN con los campos de `purchase_recosteo_importacion`.
-- Demanda abierta por almacén y SKU.
-- Existencia física, compras pendientes y faltante por comprar.
-- Canal Mayoreo desde `warehouse.is_wholesale`.
-- Canal Marketplace configurable en el almacén.
+- Demanda desde órdenes de venta con traslados parciales.
+- Piezas solicitadas, listas y faltantes por operación y SKU.
+- Canal Mayoreo por prefijo de almacén/ubicación `MXMAY` o `SDMAY`.
+- Canal Minorista para cualquier otro almacén.
 - Trazabilidad Compra → lote → salida → Venta.
-- Conteo opcional de traslados completos/parciales cuando está instalado `stock_upc_validation`.
+- Traslados parciales proporcionados por `stock_upc_validation`.
 - Pagos operativos manuales, sin efectos contables.
 
 ## Dependencias
@@ -22,18 +22,14 @@ Versión de pruebas para Odoo 18.
 - `web`
 - `purchase_recosteo_importacion`
 - `wholesale_allocation`
-
-`stock_upc_validation` es una integración opcional. Si está instalado, el tablero lee
-`systore_batch_readiness_state`; si no está instalado, el tablero sigue funcionando.
+- `stock_upc_validation`
 
 ## Configuración inicial
 
-1. Abrir Inventario > Configuración > Almacenes.
-2. En los almacenes Marketplace seleccionar **Marketplace** como canal de abastecimiento.
-3. Los almacenes con **Wholesale** activo se clasifican automáticamente como Mayoreo.
-4. Abrir **Abastecimiento > Tablero**.
-5. Seleccionar un mes; el mes actual aparece por defecto.
-6. Presionar **Actualizar información**.
+1. Verificar que los almacenes de Mayoreo usen el código/prefijo `MXMAY` o `SDMAY`.
+2. Abrir **Abastecimiento > Tablero**.
+3. Seleccionar un mes; el mes actual aparece por defecto.
+4. Presionar **Actualizar demanda**.
 
 ## Reglas de la primera versión
 
@@ -44,9 +40,9 @@ Versión de pruebas para Odoo 18.
 - Costo internacional: `x_calc_price_mxn`.
 - Costo nacional: `price_unit`, convertido a moneda de compañía cuando corresponda.
 - Cada actualización procesa solamente un mes. No existe actualización global.
-- Demanda: cantidad pendiente de entregar de ventas originadas en el mes seleccionado.
-- Compras para cobertura de demanda: compras originadas en el mes seleccionado.
-- Faltante: `max(demanda - existencia física - compra pendiente de recibir, 0)`.
+- Demanda: operaciones `Parcial` cuya ubicación origen se llama `Existencias`.
+- Periodo de demanda: mes de `scheduled_date` de la operación.
+- Faltante por producto: `max(piezas solicitadas - piezas listas, 0)`.
 - Trazabilidad: el nombre del lote debe coincidir exactamente con el número de la OC.
 
 ## Pruebas recomendadas
@@ -55,14 +51,14 @@ Versión de pruebas para Odoo 18.
 2. Segunda recepción de 2 piezas en otro mes: la primera fecha debe conservarse.
 3. Compra nacional en MXN.
 4. Compra internacional con mercancía y logística USD e importación MXN.
-5. Venta Marketplace surtida con un lote cuyo nombre sea la OC.
+5. Venta Minorista surtida con un lote cuyo nombre sea la OC.
 6. Venta Mayoreo con una o varias OC de Wholesale Allocation.
-7. Venta abierta sin inventario ni compra pendiente.
+7. Venta con traslado Parcial desde Existencias.
 8. Compra con monto a pagar y varios abonos manuales.
 
 ## Limitaciones deliberadas de V1
 
 - El tablero usa fotografías mensuales regenerables; se actualiza mediante el botón del tablero.
 - Wholesale Allocation relaciona órdenes completas, no cantidades por línea.
-- Marketplace se concilia históricamente mediante lote; no se fuerza una asociación manual.
+- Las ventas se concilian históricamente mediante lote; no se fuerza una asociación manual.
 - Los pagos manuales no crean facturas, pagos ni asientos contables.

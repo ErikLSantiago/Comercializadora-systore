@@ -5,8 +5,7 @@ from odoo import api, fields, models
 
 CHANNEL_SELECTION = [
     ("wholesale", "Mayoreo"),
-    ("marketplace", "Marketplace"),
-    ("other", "Otro"),
+    ("retail", "Minorista"),
 ]
 
 
@@ -129,7 +128,8 @@ class SystoreSupplyPurchaseLine(models.Model):
             first_receipt = self._first_receipt_date(order)
             report_date = fields.Date.to_date(first_receipt or order.date_order)
             warehouse = order.picking_type_id.warehouse_id
-            channel = warehouse._systore_resolved_supply_channel() if warehouse else "other"
+            destination = order.picking_type_id.default_location_dest_id
+            channel = warehouse._systore_resolved_supply_channel(destination) if warehouse else "retail"
             purchase_origin = order._systore_resolved_purchase_origin()
             for line in order.order_line.filtered(lambda item: not item.display_type and item.product_id):
                 ordered = line.product_qty or 0.0
@@ -182,35 +182,24 @@ class SystoreSupplyPurchaseLine(models.Model):
 
 class SystoreSupplyDemandLine(models.Model):
     _name = "systore.supply.demand.line"
-    _description = "Demanda y necesidad de compra"
-    _order = "missing_to_buy_qty desc, warehouse_id, sku"
+    _description = "Demanda de traslados parciales"
+    _order = "scheduled_date, sale_order_id, sku"
 
     company_id = fields.Many2one("res.company", required=True, index=True, readonly=True)
     warehouse_id = fields.Many2one("stock.warehouse", string="Almacén", required=True, index=True, readonly=True)
     channel = fields.Selection(CHANNEL_SELECTION, string="Canal", required=True, index=True, readonly=True)
+    sale_order_id = fields.Many2one("sale.order", string="Orden de venta", index=True, readonly=True, ondelete="cascade")
+    picking_id = fields.Many2one("stock.picking", string="Operación", index=True, readonly=True, ondelete="cascade")
+    source_location_id = fields.Many2one("stock.location", string="Ubicación origen", index=True, readonly=True)
+    scheduled_date = fields.Datetime(string="Fecha programada", index=True, readonly=True)
     product_id = fields.Many2one("product.product", string="Producto", required=True, index=True, readonly=True)
     sku = fields.Char(string="SKU", index=True, readonly=True)
-    sales_order_count = fields.Integer(string="Ventas abiertas", readonly=True)
-    linked_wholesale_sale_count = fields.Integer(string="Ventas Mayoreo con OC", readonly=True)
-    unlinked_wholesale_sale_count = fields.Integer(string="Ventas Mayoreo sin OC", readonly=True)
-    complete_picking_count = fields.Integer(string="Traslados completos", readonly=True)
-    partial_picking_count = fields.Integer(string="Traslados parciales", readonly=True)
-    open_demand_qty = fields.Float(string="Demanda pendiente", readonly=True)
-    on_hand_qty = fields.Float(string="Existencia física", readonly=True)
-    reserved_qty = fields.Float(string="Existencia reservada", readonly=True)
-    free_qty = fields.Float(string="Existencia libre", readonly=True)
-    incoming_qty = fields.Float(string="Comprado por recibir", readonly=True)
-    covered_by_stock_qty = fields.Float(string="Cubierto por existencia", readonly=True)
-    covered_by_incoming_qty = fields.Float(string="Cubierto por compras", readonly=True)
-    missing_to_buy_qty = fields.Float(string="Pendiente de comprar", readonly=True)
+    open_demand_qty = fields.Float(string="Piezas solicitadas", readonly=True)
+    reserved_qty = fields.Float(string="Piezas listas", readonly=True)
+    missing_to_buy_qty = fields.Float(string="Piezas faltantes", readonly=True)
     coverage_status = fields.Selection(
-        [
-            ("stock", "Cubierta con existencia"),
-            ("incoming", "Cubierta con compras"),
-            ("shortage", "Falta comprar"),
-            ("no_demand", "Sin demanda pendiente"),
-        ],
-        string="Cobertura",
+        [("partial", "Parcial")],
+        string="Estado del traslado",
         index=True,
         readonly=True,
     )
@@ -224,19 +213,13 @@ class SystoreSupplyDemandLine(models.Model):
         return qty
 
     @api.model
-    def _warehouse_stock(self, warehouse, product):
-        location = warehouse.lot_stock_id
-        on_hand = product.with_context(location=location.id).qty_available
-        groups = self.env["stock.quant"].sudo().read_group(
-            [
-                ("product_id", "=", product.id),
-                ("location_id", "child_of", location.id),
-            ],
-            ["reserved_quantity:sum"],
-            [],
-        )
-        reserved = groups[0].get("reserved_quantity", 0.0) if groups else 0.0
-        return on_hand, reserved
+    def _sale_from_picking(self, picking):
+        if picking.sale_id:
+            return picking.sale_id
+        if picking.group_id and "sale_id" in picking.group_id._fields and picking.group_id.sale_id:
+            return picking.group_id.sale_id
+        sale_lines = picking.move_ids_without_package.mapped("sale_line_id")
+        return sale_lines[:1].order_id if sale_lines else self.env["sale.order"]
 
     @api.model
     def _rebuild_snapshot(self, company, period):
@@ -246,137 +229,62 @@ class SystoreSupplyDemandLine(models.Model):
             ("period_month", "=", False),
             ("period_month", "=", period["month_start"]),
         ]).unlink()
-        buckets = defaultdict(lambda: {
-            "demand": 0.0,
-            "incoming": 0.0,
-            "sales": set(),
-            "linked_sales": set(),
-            "unlinked_sales": set(),
-            "complete_pickings": set(),
-            "partial_pickings": set(),
-        })
-
-        sale_lines = self.env["sale.order.line"].sudo().search([
-            ("company_id", "=", company.id),
-            ("state", "in", ["sale", "done"]),
-            ("order_id.date_order", ">=", period["utc_start"]),
-            ("order_id.date_order", "<", period["utc_end"]),
-            ("display_type", "=", False),
-            ("product_id", "!=", False),
-        ])
-        for line in sale_lines:
-            warehouse = line.order_id.warehouse_id
-            if not warehouse or line.product_id.type == "service":
-                continue
-            pending = max((line.product_uom_qty or 0.0) - (line.qty_delivered or 0.0), 0.0)
-            pending = self._convert_qty(pending, line.product_uom, line.product_id)
-            key = (warehouse.id, line.product_id.id)
-            buckets[key]["demand"] += pending
-            if pending:
-                buckets[key]["sales"].add(line.order_id.id)
-                if warehouse.is_wholesale:
-                    if line.order_id.associated_purchase_order_ids:
-                        buckets[key]["linked_sales"].add(line.order_id.id)
-                    else:
-                        buckets[key]["unlinked_sales"].add(line.order_id.id)
-
         Picking = self.env["stock.picking"].sudo()
-        if "systore_batch_readiness_state" in Picking._fields:
-            sales = sale_lines.mapped("order_id")
-            picking_domain = [
-                ("company_id", "=", company.id),
-                ("state", "not in", ["done", "cancel"]),
-            ]
-            group_ids = (
-                sales.mapped("procurement_group_id").ids
-                if "procurement_group_id" in sales._fields
-                else []
-            )
-            if group_ids:
-                picking_domain += [
-                    "|",
-                    ("sale_id", "in", sales.ids),
-                    ("group_id", "in", group_ids),
-                ]
-            else:
-                picking_domain.append(("sale_id", "in", sales.ids))
-            pickings = Picking.search(picking_domain) if sales else Picking
-            for picking in pickings:
-                sale = picking.sale_id if "sale_id" in picking._fields else False
-                warehouse = sale.warehouse_id if sale else picking.picking_type_id.warehouse_id
-                if not warehouse:
-                    continue
-                for product in picking.move_ids_without_package.filtered(
-                    lambda move: move.state not in ("done", "cancel") and move.product_id
-                ).mapped("product_id"):
-                    key = (warehouse.id, product.id)
-                    if picking.systore_batch_readiness_state == "partial":
-                        buckets[key]["partial_pickings"].add(picking.id)
-                    else:
-                        buckets[key]["complete_pickings"].add(picking.id)
-
-        purchase_lines = self.env["purchase.order.line"].sudo().search([
+        pickings = Picking.search([
             ("company_id", "=", company.id),
-            ("order_id.state", "in", ["purchase", "done"]),
-            ("order_id.date_order", ">=", period["utc_start"]),
-            ("order_id.date_order", "<", period["utc_end"]),
-            ("display_type", "=", False),
-            ("product_id", "!=", False),
+            ("state", "not in", ["done", "cancel"]),
+            ("systore_batch_readiness_state", "=", "partial"),
+            ("location_id.name", "=ilike", "Existencias"),
+            ("scheduled_date", ">=", period["utc_start"]),
+            ("scheduled_date", "<", period["utc_end"]),
         ])
-        for line in purchase_lines:
-            warehouse = line.order_id.picking_type_id.warehouse_id
-            if not warehouse or line.product_id.type == "service":
-                continue
-            pending = max((line.product_qty or 0.0) - (line.qty_received or 0.0), 0.0)
-            pending = self._convert_qty(pending, line.product_uom, line.product_id)
-            buckets[(warehouse.id, line.product_id.id)]["incoming"] += pending
-
         now = fields.Datetime.now()
         values = []
-        Warehouse = self.env["stock.warehouse"].sudo()
-        Product = self.env["product.product"].sudo()
-        for (warehouse_id, product_id), bucket in buckets.items():
-            warehouse = Warehouse.browse(warehouse_id)
-            product = Product.browse(product_id)
-            demand = bucket["demand"]
-            incoming = bucket["incoming"]
-            on_hand, reserved = self._warehouse_stock(warehouse, product)
-            free = max(on_hand - reserved, 0.0)
-            covered_stock = min(demand, max(on_hand, 0.0))
-            uncovered = max(demand - covered_stock, 0.0)
-            covered_incoming = min(uncovered, incoming)
-            missing = max(uncovered - incoming, 0.0)
-            if demand <= 0:
-                status = "no_demand"
-            elif missing > 0:
-                status = "shortage"
-            elif demand <= max(on_hand, 0.0):
-                status = "stock"
-            else:
-                status = "incoming"
-            values.append({
-                "company_id": company.id,
-                "warehouse_id": warehouse.id,
-                "channel": warehouse._systore_resolved_supply_channel(),
-                "product_id": product.id,
-                "sku": product.default_code or "",
-                "sales_order_count": len(bucket["sales"]),
-                "linked_wholesale_sale_count": len(bucket["linked_sales"]),
-                "unlinked_wholesale_sale_count": len(bucket["unlinked_sales"]),
-                "complete_picking_count": len(bucket["complete_pickings"]),
-                "partial_picking_count": len(bucket["partial_pickings"]),
-                "open_demand_qty": demand,
-                "on_hand_qty": on_hand,
-                "reserved_qty": reserved,
-                "free_qty": free,
-                "incoming_qty": incoming,
-                "covered_by_stock_qty": covered_stock,
-                "covered_by_incoming_qty": covered_incoming,
-                "missing_to_buy_qty": missing,
-                "coverage_status": status,
-                "snapshot_date": now,
-                "period_month": period["month_start"],
-            })
+        for picking in pickings:
+            sale = self._sale_from_picking(picking)
+            if not sale:
+                continue
+            warehouse = sale.warehouse_id or picking.picking_type_id.warehouse_id
+            if not warehouse:
+                continue
+            moves_by_product = defaultdict(lambda: self.env["stock.move"])
+            for move in picking.move_ids_without_package.filtered(
+                lambda item: item.state not in ("done", "cancel") and item.product_id
+            ):
+                moves_by_product[move.product_id.id] |= move
+            for product_id, moves in moves_by_product.items():
+                product = self.env["product.product"].browse(product_id)
+                demand = 0.0
+                ready = 0.0
+                for move in moves:
+                    move_demand = self._convert_qty(move.product_uom_qty or 0.0, move.product_uom, product)
+                    move_ready = self._convert_qty(
+                        picking._systore_move_ready_qty_for_batch(move),
+                        move.product_uom,
+                        product,
+                    )
+                    demand += move_demand
+                    ready += min(move_ready, move_demand)
+                missing = max(demand - ready, 0.0)
+                if missing <= 0:
+                    continue
+                values.append({
+                    "company_id": company.id,
+                    "warehouse_id": warehouse.id,
+                    "channel": warehouse._systore_resolved_supply_channel(picking.location_id),
+                    "sale_order_id": sale.id,
+                    "picking_id": picking.id,
+                    "source_location_id": picking.location_id.id,
+                    "scheduled_date": picking.scheduled_date,
+                    "product_id": product.id,
+                    "sku": product.default_code or "",
+                    "open_demand_qty": demand,
+                    "reserved_qty": ready,
+                    "missing_to_buy_qty": missing,
+                    "coverage_status": "partial",
+                    "snapshot_date": now,
+                    "period_month": period["month_start"],
+                })
         for start in range(0, len(values), 1000):
             self.sudo().create(values[start:start + 1000])
         return len(values)
@@ -484,7 +392,7 @@ class SystoreSupplyTraceLine(models.Model):
                 "lot_id": move_line.lot_id.id,
                 "supplier_id": order.partner_id.id,
                 "warehouse_id": warehouse.id if warehouse else False,
-                "channel": warehouse._systore_resolved_supply_channel() if warehouse else "other",
+                "channel": warehouse._systore_resolved_supply_channel(picking.location_id) if warehouse else "retail",
                 "product_id": move_line.product_id.id,
                 "sku": move_line.product_id.default_code or "",
                 "quantity": quantity,

@@ -19,12 +19,12 @@
               name="Recepciones de compra"
               parent="menu_supply_dashboard_root"
               action="action_supply_purchase_lines"
-              sequence="10"/>
+              sequence="20"/>
     <menuitem id="menu_supply_demand_lines"
-              name="Demanda y faltantes"
+              name="Demanda"
               parent="menu_supply_dashboard_root"
               action="action_supply_demand_lines"
-              sequence="20"/>
+              sequence="10"/>
     <menuitem id="menu_supply_trace_lines"
               name="Trazabilidad por lote"
               parent="menu_supply_dashboard_root"

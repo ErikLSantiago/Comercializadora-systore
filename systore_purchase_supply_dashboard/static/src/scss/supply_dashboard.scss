@@ -38,6 +38,7 @@
         gap: 12px;
         padding: 18px 24px;
     }
+    .o_supply_kpis_demand { grid-template-columns: repeat(5, minmax(150px, 1fr)); }
     .o_supply_kpi {
         background: white;
         border-left: 4px solid #1f6f8b;

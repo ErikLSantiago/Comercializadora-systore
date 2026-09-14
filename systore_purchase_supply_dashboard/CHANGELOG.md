@@ -1,5 +1,17 @@
 # Historial de cambios
 
+## 18.0.1.2.0
+
+- Canal automático Mayoreo para almacenes/ubicaciones con prefijo `MXMAY` o `SDMAY`.
+- Los demás almacenes se clasifican automáticamente como Minorista.
+- Se eliminó la clasificación operativa Marketplace/Otro del tablero.
+- El tablero principal se simplificó al reporte **Demanda**.
+- Demanda se obtiene directamente de operaciones con estado **Parcial**.
+- Solo se consideran operaciones cuya ubicación origen se llama **Existencias**.
+- El mes se aplica sobre la fecha programada de la operación.
+- Se muestran únicamente los productos con piezas faltantes dentro de esas operaciones.
+- Los snapshots de versiones anteriores se limpian durante la actualización; no se modifican compras, ventas, inventario ni pagos.
+
 ## 18.0.1.1.0
 
 - La actualización exige un único mes y usa el mes actual de forma predeterminada.

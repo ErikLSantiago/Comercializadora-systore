@@ -7,11 +7,10 @@
         <field name="arch" type="xml">
             <xpath expr="//sheet/group" position="inside">
                 <group string="Tablero de abastecimiento">
-                    <field name="systore_supply_channel" invisible="is_wholesale"/>
-                    <div class="text-muted" invisible="not is_wholesale">Este almacén se clasificará como Mayoreo porque Wholesale está activo.</div>
+                    <field name="systore_resolved_supply_channel" widget="badge" readonly="1"/>
+                    <div class="text-muted">MXMAY y SDMAY se clasifican como Mayoreo; cualquier otro prefijo se clasifica como Minorista.</div>
                 </group>
             </xpath>
         </field>
     </record>
 </odoo>
-

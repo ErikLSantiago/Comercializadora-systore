@@ -51,7 +51,7 @@ export class SystoreSupplyDashboard extends Component {
             );
             await this.loadData();
             this.notification.add(
-                `Actualización terminada: ${result.purchases} líneas de compra, ${result.demand} de demanda y ${result.trace} de trazabilidad.`,
+                `Actualización terminada para ${result.period_month}: ${result.demand} líneas de demanda.`,
                 { type: "success" }
             );
         } finally {
@@ -105,7 +105,7 @@ export class SystoreSupplyDashboard extends Component {
     }
 
     channelLabel(value) {
-        return { wholesale: "Mayoreo", marketplace: "Marketplace", other: "Otro" }[value] || "Otro";
+        return { wholesale: "Mayoreo", retail: "Minorista" }[value] || "Minorista";
     }
 
     paymentLabel(value) {
@@ -113,19 +113,14 @@ export class SystoreSupplyDashboard extends Component {
     }
 
     coverageLabel(value) {
-        return {
-            stock: "Con existencia",
-            incoming: "Con compras",
-            shortage: "Falta comprar",
-            no_demand: "Sin demanda",
-        }[value] || value;
+        return { partial: "Parcial" }[value] || value;
     }
 
     badgeClass(value) {
         if (["paid", "stock", "no_demand"].includes(value)) {
             return "text-bg-success";
         }
-        if (["partial", "incoming"].includes(value)) {
+        if (["incoming"].includes(value)) {
             return "text-bg-warning";
         }
         return "text-bg-danger";
