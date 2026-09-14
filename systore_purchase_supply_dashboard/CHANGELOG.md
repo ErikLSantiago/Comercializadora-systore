@@ -1,5 +1,15 @@
 # Historial de cambios
 
+## 18.0.1.3.0
+
+- Se agregó una gráfica de barras con el total de órdenes de venta Listas y Parciales.
+- Se agregó una gráfica de pastel con la distribución de órdenes entre Mayoreo y Minorista.
+- Se agregó una gráfica de pastel con las piezas de compra Recibidas y Pendientes.
+- Los conteos de órdenes evitan duplicados cuando una venta tiene más de una operación.
+- Si una orden tiene operaciones listas y parciales, se clasifica como Parcial.
+- Las gráficas respetan el mes y el almacén seleccionados; las piezas también respetan el filtro de canal.
+- Se incluyeron estados visuales sin datos y diseño adaptable para pantallas medianas.
+
 ## 18.0.1.2.0
 
 - Canal automático Mayoreo para almacenes/ubicaciones con prefijo `MXMAY` o `SDMAY`.

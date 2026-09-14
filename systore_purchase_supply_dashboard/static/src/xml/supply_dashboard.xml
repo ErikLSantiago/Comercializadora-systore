@@ -49,6 +49,60 @@
                     <div class="o_supply_kpi danger"><span>Piezas faltantes</span><strong t-esc="formatQty(state.data.kpis.missing_to_buy_qty)"/></div>
                 </div>
 
+                <div class="o_supply_charts">
+                    <section class="o_supply_chart_card">
+                        <div class="o_supply_chart_title">
+                            <h2>Órdenes listas y parciales</h2>
+                            <small>Órdenes de venta según el estado de sus operaciones desde Existencias.</small>
+                        </div>
+                        <div class="o_supply_bar_chart">
+                            <div class="o_supply_bar_item" t-foreach="state.data.charts.readiness" t-as="bar" t-key="bar.key">
+                                <strong t-esc="formatQty(bar.value)"/>
+                                <div class="o_supply_bar_track">
+                                    <div class="o_supply_bar_fill" t-att-class="bar.key" t-att-style="'height: ' + bar.height + '%;'"/>
+                                </div>
+                                <span t-esc="bar.label"/>
+                            </div>
+                        </div>
+                    </section>
+
+                    <section class="o_supply_chart_card">
+                        <div class="o_supply_chart_title">
+                            <h2>Órdenes por canal</h2>
+                            <small>Distribución entre Mayoreo y Minorista.</small>
+                        </div>
+                        <div class="o_supply_pie_layout">
+                            <div class="o_supply_pie channel"
+                                 t-att-class="state.data.charts.channels.total ? '' : 'empty'"
+                                 t-att-style="'--slice: ' + state.data.charts.channels.wholesale_percent + '%;'">
+                                <div><strong t-esc="formatQty(state.data.charts.channels.total)"/><span>órdenes</span></div>
+                            </div>
+                            <div class="o_supply_legend">
+                                <div><i class="wholesale"/><span>Mayoreo</span><strong t-esc="formatQty(state.data.charts.channels.wholesale)"/></div>
+                                <div><i class="retail"/><span>Minorista</span><strong t-esc="formatQty(state.data.charts.channels.retail)"/></div>
+                            </div>
+                        </div>
+                    </section>
+
+                    <section class="o_supply_chart_card">
+                        <div class="o_supply_chart_title">
+                            <h2>Piezas recibidas y pendientes</h2>
+                            <small>Cantidades acumuladas de las órdenes de compra del mes.</small>
+                        </div>
+                        <div class="o_supply_pie_layout">
+                            <div class="o_supply_pie pieces"
+                                 t-att-class="state.data.charts.pieces.total ? '' : 'empty'"
+                                 t-att-style="'--slice: ' + state.data.charts.pieces.received_percent + '%;'">
+                                <div><strong t-esc="formatQty(state.data.charts.pieces.total)"/><span>piezas</span></div>
+                            </div>
+                            <div class="o_supply_legend">
+                                <div><i class="received"/><span>Recibidas</span><strong t-esc="formatQty(state.data.charts.pieces.received)"/></div>
+                                <div><i class="pending"/><span>Pendientes</span><strong t-esc="formatQty(state.data.charts.pieces.pending)"/></div>
+                            </div>
+                        </div>
+                    </section>
+                </div>
+
                 <section class="o_supply_panel">
                     <div class="o_supply_panel_title">
                         <div>

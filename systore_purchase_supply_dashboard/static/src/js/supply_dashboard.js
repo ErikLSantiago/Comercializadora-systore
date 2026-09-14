@@ -16,7 +16,15 @@ export class SystoreSupplyDashboard extends Component {
         this.state = useState({
             loading: true,
             refreshing: false,
-            data: { kpis: {}, purchases: [], demand: [], trace: [], suppliers: [], warehouses: [], counts: {} },
+            data: {
+                kpis: {},
+                charts: {
+                    readiness: [],
+                    channels: { total: 0, wholesale: 0, retail: 0, wholesale_percent: 0 },
+                    pieces: { total: 0, received: 0, pending: 0, received_percent: 0 },
+                },
+                purchases: [], demand: [], trace: [], suppliers: [], warehouses: [], counts: {},
+            },
             filters: {
                 period_month: `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, "0")}`,
                 channel: "",

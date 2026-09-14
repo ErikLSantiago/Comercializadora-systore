@@ -14,6 +14,9 @@ Versión de pruebas para Odoo 18.
 - Trazabilidad Compra → lote → salida → Venta.
 - Traslados parciales proporcionados por `stock_upc_validation`.
 - Pagos operativos manuales, sin efectos contables.
+- Gráfica de barras con órdenes de venta listas y parciales.
+- Gráfica de pastel con órdenes de venta por canal Mayoreo y Minorista.
+- Gráfica de pastel con piezas de compra recibidas y pendientes.
 
 ## Dependencias
 
@@ -43,6 +46,9 @@ Versión de pruebas para Odoo 18.
 - Demanda: operaciones `Parcial` cuya ubicación origen se llama `Existencias`.
 - Periodo de demanda: mes de `scheduled_date` de la operación.
 - Faltante por producto: `max(piezas solicitadas - piezas listas, 0)`.
+- Las gráficas de órdenes cuentan cada orden de venta una sola vez; si tiene una operación parcial, prevalece el estado Parcial.
+- La gráfica por canal conserva ambos segmentos para mostrar la composición completa, aun cuando el filtro de canal esté seleccionado.
+- La gráfica de piezas usa las líneas de compra de la cohorte mensual y respeta los filtros de almacén y canal.
 - Trazabilidad: el nombre del lote debe coincidir exactamente con el número de la OC.
 
 ## Pruebas recomendadas
