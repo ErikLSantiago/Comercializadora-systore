@@ -35,6 +35,16 @@ class SystorePurchasePayment(models.Model):
         string="Beneficiario",
         required=True,
     )
+    product_id = fields.Many2one(
+        "product.product",
+        string="Producto",
+        ondelete="restrict",
+        help=(
+            "Producto opcional asociado al abono. Se conserva por compatibilidad "
+            "con vistas de pagos instaladas anteriormente; la deuda se calcula "
+            "sobre el total de la orden de compra."
+        ),
+    )
     concept = fields.Selection(
         [
             ("merchandise", "Mercancía"),

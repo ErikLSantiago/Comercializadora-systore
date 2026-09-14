@@ -1,5 +1,11 @@
 # Historial de cambios
 
+## 18.0.1.4.1
+
+- Se restauró `product_id` como campo opcional de compatibilidad en los pagos manuales.
+- Se corrigió el error Owl al abrir órdenes de compra cuando existe una vista heredada de pagos que todavía referencia ese campo.
+- La deuda y el estado de pago continúan calculándose sobre el total de la orden, sin modificar los pagos existentes.
+
 ## 18.0.1.4.0
 
 - La gráfica Listas/Parciales ahora utiliza una sola barra horizontal apilada.
