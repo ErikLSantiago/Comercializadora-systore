@@ -1,0 +1,17 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <record id="view_warehouse_form_supply_channel" model="ir.ui.view">
+        <field name="name">stock.warehouse.form.supply.channel</field>
+        <field name="model">stock.warehouse</field>
+        <field name="inherit_id" ref="wholesale_allocation.view_warehouse_form_wholesale_allocation"/>
+        <field name="arch" type="xml">
+            <xpath expr="//sheet/group" position="inside">
+                <group string="Tablero de abastecimiento">
+                    <field name="systore_supply_channel" invisible="is_wholesale"/>
+                    <div class="text-muted" invisible="not is_wholesale">Este almacén se clasificará como Mayoreo porque Wholesale está activo.</div>
+                </group>
+            </xpath>
+        </field>
+    </record>
+</odoo>
+

@@ -1,0 +1,6 @@
+id,name,model_id:id,group_id:id,perm_read,perm_write,perm_create,perm_unlink
+access_supply_payment_user,supply.payment.user,model_systore_purchase_payment,purchase.group_purchase_user,1,1,1,1
+access_supply_purchase_line_user,supply.purchase.line.user,model_systore_supply_purchase_line,purchase.group_purchase_user,1,0,0,0
+access_supply_demand_line_user,supply.demand.line.user,model_systore_supply_demand_line,purchase.group_purchase_user,1,0,0,0
+access_supply_trace_line_user,supply.trace.line.user,model_systore_supply_trace_line,purchase.group_purchase_user,1,0,0,0
+

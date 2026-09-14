@@ -1,0 +1,38 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <record id="action_supply_dashboard" model="ir.actions.client">
+        <field name="name">Compras y abastecimiento</field>
+        <field name="tag">systore_supply_dashboard</field>
+    </record>
+
+    <menuitem id="menu_supply_dashboard_root"
+              name="Abastecimiento"
+              sequence="38"
+              web_icon="systore_purchase_supply_dashboard,static/description/icon.svg"
+              groups="purchase.group_purchase_user"/>
+    <menuitem id="menu_supply_dashboard"
+              name="Tablero"
+              parent="menu_supply_dashboard_root"
+              action="action_supply_dashboard"
+              sequence="1"/>
+    <menuitem id="menu_supply_purchase_lines"
+              name="Recepciones de compra"
+              parent="menu_supply_dashboard_root"
+              action="action_supply_purchase_lines"
+              sequence="10"/>
+    <menuitem id="menu_supply_demand_lines"
+              name="Demanda y faltantes"
+              parent="menu_supply_dashboard_root"
+              action="action_supply_demand_lines"
+              sequence="20"/>
+    <menuitem id="menu_supply_trace_lines"
+              name="Trazabilidad por lote"
+              parent="menu_supply_dashboard_root"
+              action="action_supply_trace_lines"
+              sequence="30"/>
+    <menuitem id="menu_purchase_payments"
+              name="Pagos manuales"
+              parent="menu_supply_dashboard_root"
+              action="action_purchase_payments"
+              sequence="40"/>
+</odoo>

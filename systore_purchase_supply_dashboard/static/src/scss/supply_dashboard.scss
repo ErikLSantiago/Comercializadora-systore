@@ -1,0 +1,83 @@
+.o_systore_supply_dashboard {
+    background: #f3f5f7;
+    color: #173042;
+    padding-bottom: 32px;
+
+    .o_supply_header {
+        background: linear-gradient(120deg, #173042, #1f6f8b);
+        color: white;
+        padding: 22px 28px;
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        z-index: 2;
+        box-shadow: 0 2px 8px rgba(23, 48, 66, .16);
+
+        h1 { margin: 0; font-size: 26px; font-weight: 700; }
+        p { margin: 3px 0 0; opacity: .8; }
+    }
+
+    .o_supply_filters {
+        margin: 18px 24px 0;
+        padding: 14px 16px;
+        background: white;
+        border-radius: 12px;
+        display: grid;
+        grid-template-columns: repeat(4, minmax(150px, 1fr)) auto;
+        gap: 12px;
+        box-shadow: 0 2px 10px rgba(23, 48, 66, .06);
+
+        label { font-size: 12px; font-weight: 600; color: #52616b; }
+        input, select { margin-top: 4px; }
+    }
+
+    .o_supply_loading { padding: 70px; text-align: center; font-size: 18px; color: #64727c; }
+    .o_supply_kpis {
+        display: grid;
+        grid-template-columns: repeat(5, minmax(150px, 1fr));
+        gap: 12px;
+        padding: 18px 24px;
+    }
+    .o_supply_kpi {
+        background: white;
+        border-left: 4px solid #1f6f8b;
+        border-radius: 10px;
+        padding: 14px 16px;
+        box-shadow: 0 2px 10px rgba(23, 48, 66, .06);
+        span { display: block; color: #667781; font-size: 12px; margin-bottom: 5px; }
+        strong { font-size: 20px; }
+        &.success { border-left-color: #2e8b57; }
+        &.warning { border-left-color: #f4b942; }
+        &.danger { border-left-color: #c65353; }
+    }
+    .o_supply_panel {
+        margin: 0 24px 18px;
+        background: white;
+        border-radius: 12px;
+        padding: 16px;
+        box-shadow: 0 2px 10px rgba(23, 48, 66, .06);
+        overflow: hidden;
+    }
+    .o_supply_panel_title {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        margin-bottom: 10px;
+        h2 { margin: 0; font-size: 17px; font-weight: 700; }
+        small { color: #75848d; }
+    }
+    .o_supply_grid {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 0;
+    }
+    table { margin-bottom: 0; }
+    thead th { color: #64727c; font-size: 11px; text-transform: uppercase; white-space: nowrap; }
+    tbody td { font-size: 13px; }
+
+    @media (max-width: 1100px) {
+        .o_supply_kpis { grid-template-columns: repeat(2, 1fr); }
+        .o_supply_filters { grid-template-columns: repeat(2, 1fr); }
+        .o_supply_grid { grid-template-columns: 1fr; }
+    }
+}
