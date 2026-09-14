@@ -17,6 +17,9 @@ Versión de pruebas para Odoo 18.
 - Gráfica de barras con órdenes de venta listas y parciales.
 - Gráfica de pastel con órdenes de venta por canal Mayoreo y Minorista.
 - Gráfica de pastel con piezas de compra recibidas y pendientes.
+- Deuda pendiente agrupada por proveedor, con acceso a las órdenes relacionadas.
+- Ranking de productos y proveedores por piezas confirmadas, recibidas y pendientes.
+- Filtro de proveedor para gráficas y listados de compras.
 
 ## Dependencias
 
@@ -49,6 +52,8 @@ Versión de pruebas para Odoo 18.
 - Las gráficas de órdenes cuentan cada orden de venta una sola vez; si tiene una operación parcial, prevalece el estado Parcial.
 - La gráfica por canal conserva ambos segmentos para mostrar la composición completa, aun cuando el filtro de canal esté seleccionado.
 - La gráfica de piezas usa las líneas de compra de la cohorte mensual y respeta los filtros de almacén y canal.
+- El filtro de proveedor se aplica a compras, recepciones, deuda y rankings; no se atribuye proveedor a ventas sin una relación trazable.
+- Los segmentos y renglones del tablero son navegables hacia las órdenes o líneas que originan cada resultado.
 - Trazabilidad: el nombre del lote debe coincidir exactamente con el número de la OC.
 
 ## Pruebas recomendadas

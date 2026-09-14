@@ -20,15 +20,19 @@ export class SystoreSupplyDashboard extends Component {
                 kpis: {},
                 charts: {
                     readiness: [],
+                    readiness_total: 0,
+                    readiness_pieces: 0,
                     channels: { total: 0, wholesale: 0, retail: 0, wholesale_percent: 0 },
                     pieces: { total: 0, received: 0, pending: 0, received_percent: 0 },
                 },
+                rankings: { products: [], suppliers: [], debts: [], debt_total: 0 },
                 purchases: [], demand: [], trace: [], suppliers: [], warehouses: [], counts: {},
             },
             filters: {
                 period_month: `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, "0")}`,
                 channel: "",
                 warehouse_id: "",
+                supplier_id: "",
             },
         });
         onWillStart(() => this.loadData());
@@ -69,19 +73,27 @@ export class SystoreSupplyDashboard extends Component {
 
     onPeriodMonth(event) {
         this.state.filters.period_month = event.target.value;
+        this.state.filters.supplier_id = "";
     }
 
     onChannel(event) {
         this.state.filters.channel = event.target.value;
+        this.state.filters.supplier_id = "";
     }
 
     onWarehouse(event) {
         this.state.filters.warehouse_id = event.target.value;
+        this.state.filters.supplier_id = "";
+    }
+
+    onSupplier(event) {
+        this.state.filters.supplier_id = event.target.value;
     }
 
     currentMonth() {
         const today = new Date();
         this.state.filters.period_month = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, "0")}`;
+        this.state.filters.supplier_id = "";
         this.loadData();
     }
 
@@ -136,6 +148,52 @@ export class SystoreSupplyDashboard extends Component {
 
     openAction(xmlId) {
         return this.action.doAction(xmlId);
+    }
+
+    openIds(model, name, ids) {
+        if (!ids?.length) {
+            return;
+        }
+        return this.action.doAction({
+            type: "ir.actions.act_window",
+            name,
+            res_model: model,
+            views: [[false, "list"], [false, "form"]],
+            domain: [["id", "in", ids]],
+            target: "current",
+        });
+    }
+
+    purchaseDomain(extra = []) {
+        const month = this.state.filters.period_month;
+        const [year, monthNumber] = month.split("-").map(Number);
+        const nextMonth = new Date(Date.UTC(year, monthNumber, 1));
+        const nextMonthKey = `${nextMonth.getUTCFullYear()}-${String(nextMonth.getUTCMonth() + 1).padStart(2, "0")}-01`;
+        const domain = [
+            ["report_date", ">=", `${month}-01`],
+            ["report_date", "<", nextMonthKey],
+        ];
+        if (this.state.filters.channel) {
+            domain.push(["channel", "=", this.state.filters.channel]);
+        }
+        if (this.state.filters.warehouse_id) {
+            domain.push(["warehouse_id", "=", Number(this.state.filters.warehouse_id)]);
+        }
+        if (this.state.filters.supplier_id) {
+            domain.push(["supplier_id", "=", Number(this.state.filters.supplier_id)]);
+        }
+        return [...domain, ...extra];
+    }
+
+    openPurchaseLines(name, extra = []) {
+        return this.action.doAction({
+            type: "ir.actions.act_window",
+            name,
+            res_model: "systore.supply.purchase.line",
+            views: [[false, "list"], [false, "pivot"], [false, "graph"]],
+            domain: this.purchaseDomain(extra),
+            target: "current",
+        });
     }
 
     openRecord(model, relation) {

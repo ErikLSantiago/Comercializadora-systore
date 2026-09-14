@@ -23,7 +23,7 @@
         background: white;
         border-radius: 12px;
         display: grid;
-        grid-template-columns: repeat(3, minmax(150px, 1fr)) auto;
+        grid-template-columns: repeat(4, minmax(150px, 1fr)) auto;
         gap: 12px;
         box-shadow: 0 2px 10px rgba(23, 48, 66, .06);
 
@@ -56,39 +56,60 @@
         h2 { margin: 0; font-size: 16px; font-weight: 700; }
         small { display: block; color: #75848d; margin-top: 3px; line-height: 1.35; }
     }
-    .o_supply_bar_chart {
-        height: 205px;
-        display: flex;
-        align-items: flex-end;
-        justify-content: center;
-        gap: 54px;
-        padding-top: 18px;
-    }
-    .o_supply_bar_item {
-        height: 100%;
-        width: 82px;
+    .o_supply_stacked_summary {
+        min-height: 205px;
         display: flex;
         flex-direction: column;
-        align-items: center;
-        strong { font-size: 18px; margin-bottom: 5px; }
-        > span { margin-top: 6px; font-size: 12px; font-weight: 600; color: #52616b; }
+        justify-content: center;
     }
-    .o_supply_bar_track {
-        height: 145px;
-        width: 58px;
-        border-radius: 8px 8px 3px 3px;
-        background: #eef1f3;
-        display: flex;
-        align-items: flex-end;
-        overflow: hidden;
+    .o_supply_stacked_total {
+        margin-bottom: 14px;
+        strong { display: block; font-size: 25px; }
+        span { color: #75848d; font-size: 12px; }
     }
-    .o_supply_bar_fill {
+    .o_supply_stacked_bar {
         width: 100%;
-        min-height: 0;
-        border-radius: 8px 8px 0 0;
-        transition: height .25s ease;
+        height: 58px;
+        display: flex;
+        overflow: hidden;
+        border-radius: 9px;
+        background: #e7ebee;
+        box-shadow: inset 0 0 0 1px rgba(23, 48, 66, .05);
+        &.empty::after { content: "Sin datos"; margin: auto; color: #87939a; font-size: 12px; }
+    }
+    .o_supply_stacked_segment {
+        height: 100%;
+        border: 0;
+        color: white;
+        font-weight: 700;
+        padding: 0;
+        transition: width .25s ease, filter .15s ease;
+        &:hover { filter: brightness(.93); }
         &.complete { background: #2e8b57; }
         &.partial { background: #c65353; }
+    }
+    .o_supply_stacked_legend {
+        display: grid;
+        grid-template-columns: repeat(2, 1fr);
+        gap: 9px;
+        margin-top: 14px;
+    }
+    .o_supply_legend_button {
+        display: grid;
+        grid-template-columns: 10px 1fr;
+        align-items: start;
+        gap: 8px;
+        border: 0;
+        border-radius: 7px;
+        background: transparent;
+        padding: 5px;
+        text-align: left;
+        &:hover { background: #f3f5f7; }
+        i { width: 9px; height: 9px; border-radius: 50%; margin-top: 4px; }
+        i.complete { background: #2e8b57; }
+        i.partial { background: #c65353; }
+        span strong, span small { display: block; }
+        span small { color: #75848d; font-size: 11px; }
     }
     .o_supply_pie_layout {
         min-height: 205px;
@@ -125,14 +146,22 @@
         }
     }
     .o_supply_legend {
-        min-width: 112px;
-        > div {
+        min-width: 145px;
+        > button {
             display: grid;
             grid-template-columns: 10px 1fr auto;
             align-items: center;
             gap: 7px;
             margin: 10px 0;
+            padding: 5px;
+            width: 100%;
+            border: 0;
+            border-radius: 7px;
+            background: transparent;
+            text-align: left;
             font-size: 12px;
+            &:hover { background: #f3f5f7; }
+            span small { display: block; color: #75848d; font-size: 10px; white-space: nowrap; }
         }
         i { width: 9px; height: 9px; border-radius: 50%; }
         i.wholesale { background: #1f6f8b; }
@@ -160,6 +189,74 @@
         box-shadow: 0 2px 10px rgba(23, 48, 66, .06);
         overflow: hidden;
     }
+    .o_supply_debt_total { color: #c65353; font-size: 21px; }
+    .o_supply_debt_chart { display: grid; gap: 8px; }
+    .o_supply_debt_row {
+        display: grid;
+        grid-template-columns: minmax(160px, 1fr) 3fr minmax(110px, auto);
+        align-items: center;
+        gap: 12px;
+        width: 100%;
+        border: 0;
+        border-radius: 8px;
+        background: transparent;
+        padding: 7px;
+        text-align: left;
+        &:hover { background: #f7f8f9; }
+        > strong { text-align: right; color: #a13f3f; }
+    }
+    .o_supply_debt_track {
+        height: 18px;
+        overflow: hidden;
+        border-radius: 5px;
+        background: #f0e5e5;
+        i { display: block; height: 100%; background: #c65353; border-radius: 5px; }
+    }
+    .o_supply_rankings {
+        display: grid;
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+        gap: 14px;
+        padding: 0 24px;
+        .o_supply_panel { margin: 0 0 18px; }
+    }
+    .o_supply_ranking_list { display: grid; gap: 5px; }
+    .o_supply_ranking_row {
+        display: grid;
+        grid-template-columns: minmax(160px, 1.25fr) minmax(110px, 1fr) minmax(145px, auto);
+        align-items: center;
+        gap: 12px;
+        width: 100%;
+        min-height: 52px;
+        border: 0;
+        border-bottom: 1px solid #edf0f2;
+        background: transparent;
+        padding: 6px;
+        text-align: left;
+        &:hover { background: #f7f8f9; }
+    }
+    .o_supply_rank_name {
+        min-width: 0;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+        strong, small { display: block; overflow: hidden; text-overflow: ellipsis; }
+        small { color: #75848d; font-size: 10px; }
+    }
+    .o_supply_receipt_bar {
+        height: 11px;
+        display: flex;
+        overflow: hidden;
+        border-radius: 6px;
+        background: #e7ebee;
+        i.received { background: #2e8b57; }
+        i.pending { background: #c65353; }
+    }
+    .o_supply_rank_values {
+        text-align: right;
+        strong, small { display: block; }
+        small { color: #75848d; font-size: 10px; }
+    }
+    .o_supply_empty { padding: 28px 10px; text-align: center; color: #87939a; font-size: 12px; }
     .o_supply_panel_title {
         display: flex;
         align-items: center;
@@ -181,6 +278,14 @@
         .o_supply_kpis { grid-template-columns: repeat(2, 1fr); }
         .o_supply_filters { grid-template-columns: repeat(2, 1fr); }
         .o_supply_charts { grid-template-columns: 1fr; }
+        .o_supply_rankings { grid-template-columns: 1fr; }
         .o_supply_grid { grid-template-columns: 1fr; }
+    }
+
+    @media (max-width: 720px) {
+        .o_supply_header { align-items: flex-start; gap: 12px; flex-direction: column; }
+        .o_supply_filters { grid-template-columns: 1fr; }
+        .o_supply_debt_row, .o_supply_ranking_row { grid-template-columns: 1fr; gap: 5px; }
+        .o_supply_debt_row > strong, .o_supply_rank_values { text-align: left; }
     }
 }

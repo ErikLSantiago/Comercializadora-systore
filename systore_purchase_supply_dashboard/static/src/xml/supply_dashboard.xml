@@ -34,6 +34,14 @@
                         </t>
                     </select>
                 </label>
+                <label>Proveedor
+                    <select class="form-select" t-att-value="state.filters.supplier_id" t-on-change="onSupplier">
+                        <option value="">Todos</option>
+                        <t t-foreach="state.data.suppliers" t-as="supplier" t-key="supplier.id">
+                            <option t-att-value="supplier.id"><t t-esc="supplier.name"/></option>
+                        </t>
+                    </select>
+                </label>
                 <button class="btn btn-dark align-self-end" t-on-click="loadData">Aplicar filtros</button>
             </div>
 
@@ -53,15 +61,29 @@
                     <section class="o_supply_chart_card">
                         <div class="o_supply_chart_title">
                             <h2>Órdenes listas y parciales</h2>
-                            <small>Órdenes de venta según el estado de sus operaciones desde Existencias.</small>
+                            <small>Una sola barra: órdenes de venta y piezas solicitadas desde Existencias.</small>
                         </div>
-                        <div class="o_supply_bar_chart">
-                            <div class="o_supply_bar_item" t-foreach="state.data.charts.readiness" t-as="bar" t-key="bar.key">
-                                <strong t-esc="formatQty(bar.value)"/>
-                                <div class="o_supply_bar_track">
-                                    <div class="o_supply_bar_fill" t-att-class="bar.key" t-att-style="'height: ' + bar.height + '%;'"/>
-                                </div>
-                                <span t-esc="bar.label"/>
+                        <div class="o_supply_stacked_summary">
+                            <div class="o_supply_stacked_total">
+                                <strong t-esc="formatQty(state.data.charts.readiness_total)"/>
+                                <span>órdenes · <t t-esc="formatQty(state.data.charts.readiness_pieces)"/> piezas</span>
+                            </div>
+                            <div class="o_supply_stacked_bar" t-att-class="state.data.charts.readiness_total ? '' : 'empty'">
+                                <button t-foreach="state.data.charts.readiness" t-as="bar" t-key="bar.key"
+                                        type="button" class="o_supply_stacked_segment" t-att-class="bar.key"
+                                        t-att-style="'width: ' + bar.percent + '%;'"
+                                        t-on-click="() => openIds('sale.order', bar.label, bar.sale_ids)"
+                                        t-att-title="bar.label + ': ' + formatQty(bar.value) + ' órdenes, ' + formatQty(bar.pieces) + ' piezas'">
+                                    <span t-if="bar.percent &gt;= 12"><t t-esc="formatQty(bar.value)"/></span>
+                                </button>
+                            </div>
+                            <div class="o_supply_stacked_legend">
+                                <button t-foreach="state.data.charts.readiness" t-as="bar" t-key="bar.key"
+                                        type="button" class="o_supply_legend_button"
+                                        t-on-click="() => openIds('sale.order', bar.label, bar.sale_ids)">
+                                    <i t-att-class="bar.key"/>
+                                    <span><strong t-esc="bar.label"/><small><t t-esc="formatQty(bar.value)"/> órdenes · <t t-esc="formatQty(bar.pieces)"/> piezas</small></span>
+                                </button>
                             </div>
                         </div>
                     </section>
@@ -78,8 +100,8 @@
                                 <div><strong t-esc="formatQty(state.data.charts.channels.total)"/><span>órdenes</span></div>
                             </div>
                             <div class="o_supply_legend">
-                                <div><i class="wholesale"/><span>Mayoreo</span><strong t-esc="formatQty(state.data.charts.channels.wholesale)"/></div>
-                                <div><i class="retail"/><span>Minorista</span><strong t-esc="formatQty(state.data.charts.channels.retail)"/></div>
+                                <button type="button" t-on-click="() => openIds('sale.order', 'Mayoreo', state.data.charts.channels.wholesale_sale_ids)"><i class="wholesale"/><span>Mayoreo<small><t t-esc="formatQty(state.data.charts.channels.wholesale)"/> órdenes · <t t-esc="formatQty(state.data.charts.channels.wholesale_pieces)"/> piezas</small></span></button>
+                                <button type="button" t-on-click="() => openIds('sale.order', 'Minorista', state.data.charts.channels.retail_sale_ids)"><i class="retail"/><span>Minorista<small><t t-esc="formatQty(state.data.charts.channels.retail)"/> órdenes · <t t-esc="formatQty(state.data.charts.channels.retail_pieces)"/> piezas</small></span></button>
                             </div>
                         </div>
                     </section>
@@ -96,9 +118,62 @@
                                 <div><strong t-esc="formatQty(state.data.charts.pieces.total)"/><span>piezas</span></div>
                             </div>
                             <div class="o_supply_legend">
-                                <div><i class="received"/><span>Recibidas</span><strong t-esc="formatQty(state.data.charts.pieces.received)"/></div>
-                                <div><i class="pending"/><span>Pendientes</span><strong t-esc="formatQty(state.data.charts.pieces.pending)"/></div>
+                                <button type="button" t-on-click="() => openPurchaseLines('Piezas recibidas', [['received_qty', '&gt;', 0]])"><i class="received"/><span>Recibidas<small><t t-esc="formatQty(state.data.charts.pieces.received)"/> piezas</small></span></button>
+                                <button type="button" t-on-click="() => openPurchaseLines('Piezas pendientes', [['pending_qty', '&gt;', 0]])"><i class="pending"/><span>Pendientes<small><t t-esc="formatQty(state.data.charts.pieces.pending)"/> piezas</small></span></button>
                             </div>
+                        </div>
+                    </section>
+                </div>
+
+                <section class="o_supply_panel o_supply_debt_panel">
+                    <div class="o_supply_panel_title">
+                        <div>
+                            <h2>Deuda a proveedores</h2>
+                            <small>Saldos manuales pendientes de las órdenes de compra incluidas en el mes.</small>
+                        </div>
+                        <strong class="o_supply_debt_total" t-esc="formatMoney(state.data.rankings.debt_total)"/>
+                    </div>
+                    <div class="o_supply_debt_chart">
+                        <button t-foreach="state.data.rankings.debts" t-as="row" t-key="row.id" type="button"
+                                class="o_supply_debt_row"
+                                t-on-click="() => openIds('purchase.order', 'Deuda: ' + row.name, row.debt_order_ids)">
+                            <span class="o_supply_rank_name" t-esc="row.name"/>
+                            <span class="o_supply_debt_track"><i t-att-style="'width: ' + row.debt_percent + '%;'"/></span>
+                            <strong t-esc="formatMoney(row.debt)"/>
+                        </button>
+                        <div t-if="!state.data.rankings.debts.length" class="o_supply_empty">No hay saldos pendientes con los filtros seleccionados.</div>
+                    </div>
+                </section>
+
+                <div class="o_supply_rankings">
+                    <section class="o_supply_panel">
+                        <div class="o_supply_panel_title">
+                            <div><h2>Productos más comprados</h2><small>Top 10 por piezas confirmadas.</small></div>
+                        </div>
+                        <div class="o_supply_ranking_list">
+                            <button t-foreach="state.data.rankings.products" t-as="row" t-key="row.id" type="button"
+                                    class="o_supply_ranking_row"
+                                    t-on-click="() => openPurchaseLines('Compras de ' + row.name, [['product_id', '=', row.id]])">
+                                <span class="o_supply_rank_name"><strong t-esc="row.sku || 'Sin SKU'"/><small t-esc="row.name"/></span>
+                                <span class="o_supply_receipt_bar"><i class="received" t-att-style="'width: ' + row.received_percent + '%;'"/><i class="pending" t-att-style="'width: ' + (100 - row.received_percent) + '%;'"/></span>
+                                <span class="o_supply_rank_values"><strong><t t-esc="formatQty(row.received)"/> / <t t-esc="formatQty(row.ordered)"/></strong><small>recibidas / solicitadas</small></span>
+                            </button>
+                            <div t-if="!state.data.rankings.products.length" class="o_supply_empty">No hay productos comprados en el mes.</div>
+                        </div>
+                    </section>
+                    <section class="o_supply_panel">
+                        <div class="o_supply_panel_title">
+                            <div><h2>Proveedores con más compras</h2><small>Top 10 por piezas en órdenes confirmadas.</small></div>
+                        </div>
+                        <div class="o_supply_ranking_list">
+                            <button t-foreach="state.data.rankings.suppliers" t-as="row" t-key="row.id" type="button"
+                                    class="o_supply_ranking_row"
+                                    t-on-click="() => openPurchaseLines('Compras a ' + row.name, [['supplier_id', '=', row.id]])">
+                                <span class="o_supply_rank_name"><strong t-esc="row.name"/><small><t t-esc="formatQty(row.order_count)"/> órdenes confirmadas</small></span>
+                                <span class="o_supply_receipt_bar"><i class="received" t-att-style="'width: ' + row.received_percent + '%;'"/><i class="pending" t-att-style="'width: ' + (100 - row.received_percent) + '%;'"/></span>
+                                <span class="o_supply_rank_values"><strong><t t-esc="formatQty(row.received)"/> / <t t-esc="formatQty(row.ordered)"/></strong><small>recibidas / solicitadas</small></span>
+                            </button>
+                            <div t-if="!state.data.rankings.suppliers.length" class="o_supply_empty">No hay proveedores con compras en el mes.</div>
                         </div>
                     </section>
                 </div>

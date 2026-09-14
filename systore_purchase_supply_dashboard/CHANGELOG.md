@@ -1,5 +1,16 @@
 # Historial de cambios
 
+## 18.0.1.4.0
+
+- La gráfica Listas/Parciales ahora utiliza una sola barra horizontal apilada.
+- Las gráficas de estados y canales muestran tanto órdenes como piezas relacionadas.
+- Los resultados de las gráficas permiten abrir las órdenes o líneas de compra correspondientes.
+- Se agregó un filtro de proveedor para la información de compras.
+- Se agregó un gráfico-listado de saldos pendientes por proveedor.
+- Se agregó un ranking de los diez productos más comprados.
+- Se agregó un ranking de los diez proveedores con mayor volumen confirmado.
+- Ambos rankings muestran piezas recibidas frente a piezas solicitadas.
+
 ## 18.0.1.3.0
 
 - Se agregó una gráfica de barras con el total de órdenes de venta Listas y Parciales.
