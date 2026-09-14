@@ -1,5 +1,12 @@
 # Historial de cambios
 
+## 18.0.1.4.3
+
+- Se agregó una migración para detectar y reparar vistas residuales de pagos.
+- La migración retira de esas vistas todos los campos que no existen en `systore.purchase.payment`, en lugar de agregar campos incompatibles uno por uno.
+- La limpieza se limita a vistas del modelo de pagos y a secciones de `systore_payment_line_ids` dentro de órdenes de compra.
+- Si una vista inválida no puede repararse, se desactiva para permitir que Odoo utilice la vista vigente del módulo.
+
 ## 18.0.1.4.2
 
 - Se restauró `product_qty` como campo opcional de compatibilidad en los pagos manuales.
