@@ -1,5 +1,11 @@
 # Historial de cambios
 
+## 18.0.1.4.2
+
+- Se restauró `product_qty` como campo opcional de compatibilidad en los pagos manuales.
+- Se corrigió el segundo error Owl provocado por una vista residual que esperaba producto y cantidad.
+- La cantidad informativa no interviene en el cálculo del importe pagado ni del saldo pendiente.
+
 ## 18.0.1.4.1
 
 - Se restauró `product_id` como campo opcional de compatibilidad en los pagos manuales.

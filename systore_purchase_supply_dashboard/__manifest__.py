@@ -1,6 +1,6 @@
 {
     "name": "Systore - Tablero de Compras y Abastecimiento",
-    "version": "18.0.1.4.1",
+    "version": "18.0.1.4.2",
     "category": "Inventory/Purchase",
     "summary": "Conciliación de compras, recepciones, demanda, lotes y pagos manuales",
     "author": "Systore",

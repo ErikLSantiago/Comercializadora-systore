@@ -45,6 +45,14 @@ class SystorePurchasePayment(models.Model):
             "sobre el total de la orden de compra."
         ),
     )
+    product_qty = fields.Float(
+        string="Cantidad",
+        help=(
+            "Cantidad opcional conservada por compatibilidad con vistas de "
+            "pagos instaladas anteriormente. No modifica el importe pagado "
+            "ni el saldo pendiente de la orden."
+        ),
+    )
     concept = fields.Selection(
         [
             ("merchandise", "Mercancía"),
