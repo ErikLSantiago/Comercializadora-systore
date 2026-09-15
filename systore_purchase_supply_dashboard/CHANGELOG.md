@@ -1,5 +1,12 @@
 # Historial de cambios
 
+## 18.0.1.4.4
+
+- La limpieza de vistas residuales ahora se ejecuta tanto al instalar como al actualizar el módulo.
+- Se añadió `price_unit` como compatibilidad temporal para desbloquear bases que todavía conservan la vista antigua.
+- Producto, cantidad y precio se retiran de la vista residual durante la carga de datos del módulo.
+- Estos campos de compatibilidad no intervienen en el cálculo del importe pagado ni de la deuda.
+
 ## 18.0.1.4.3
 
 - Se agregó una migración para detectar y reparar vistas residuales de pagos.

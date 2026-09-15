@@ -1,5 +1,41 @@
+import logging
+
+from lxml import etree
+
 from odoo import api, fields, models
 from odoo.exceptions import ValidationError
+
+
+_logger = logging.getLogger(__name__)
+_OBSOLETE_PAYMENT_VIEW_FIELDS = {"product_id", "product_qty", "price_unit"}
+
+
+def _payment_field_nodes(root, view_model):
+    if view_model == "systore.purchase.payment":
+        return root.xpath(".//field[@name]")
+    nodes = []
+    for payment_field in root.xpath(".//field[@name='systore_payment_line_ids']"):
+        nodes.extend(payment_field.xpath(".//field[@name]"))
+    for instruction in root.xpath(
+        ".//xpath[contains(@expr, 'systore_payment_line_ids')]"
+    ):
+        nodes.extend(instruction.xpath(".//field[@name]"))
+    return nodes
+
+
+def _clean_payment_view_arch(arch, view_model, valid_fields):
+    root = etree.fromstring(arch.encode("utf-8"))
+    removed = []
+    for node in _payment_field_nodes(root, view_model):
+        field_name = node.get("name")
+        if (
+            field_name in valid_fields
+            and field_name not in _OBSOLETE_PAYMENT_VIEW_FIELDS
+        ) or node.getparent() is None:
+            continue
+        node.getparent().remove(node)
+        removed.append(field_name)
+    return etree.tostring(root, encoding="unicode"), removed
 
 
 class SystorePurchasePayment(models.Model):
@@ -53,6 +89,14 @@ class SystorePurchasePayment(models.Model):
             "ni el saldo pendiente de la orden."
         ),
     )
+    price_unit = fields.Monetary(
+        string="Precio unitario",
+        currency_field="currency_id",
+        help=(
+            "Campo temporal de compatibilidad con vistas antiguas. No modifica "
+            "el importe pagado ni el saldo pendiente de la orden."
+        ),
+    )
     concept = fields.Selection(
         [
             ("merchandise", "Mercancía"),
@@ -90,6 +134,53 @@ class SystorePurchasePayment(models.Model):
         for payment in self:
             if payment.amount_mxn <= 0:
                 raise ValidationError("El monto pagado debe ser mayor a cero.")
+
+    @api.model
+    def _repair_obsolete_payment_views(self):
+        """Remove obsolete child fields every time the module data is loaded."""
+        valid_fields = set(self._fields)
+        View = self.env["ir.ui.view"].sudo().with_context(active_test=False)
+        views = View.search([
+            ("active", "=", True),
+            ("model", "=", "systore.purchase.payment"),
+        ])
+        views |= View.search([
+            ("active", "=", True),
+            ("model", "=", "purchase.order"),
+            ("arch_db", "ilike", "systore_payment_line_ids"),
+        ])
+        for view in views:
+            arch = str(view.arch_db or "")
+            if not arch:
+                continue
+            try:
+                clean_arch, removed = _clean_payment_view_arch(
+                    arch, view.model, valid_fields
+                )
+            except (etree.XMLSyntaxError, ValueError):
+                _logger.warning(
+                    "No fue posible analizar la vista de pagos %s", view.display_name
+                )
+                continue
+            if not removed:
+                continue
+            try:
+                with self.env.cr.savepoint():
+                    view.write({"arch_db": clean_arch})
+            except Exception:
+                _logger.exception(
+                    "No fue posible reparar la vista inválida %s; se desactivará.",
+                    view.display_name,
+                )
+                with self.env.cr.savepoint():
+                    view.write({"active": False})
+            else:
+                _logger.info(
+                    "Vista de pagos %s reparada; campos retirados: %s",
+                    view.display_name,
+                    ", ".join(sorted(set(removed))),
+                )
+        return True
 
 
 class PurchaseOrder(models.Model):
