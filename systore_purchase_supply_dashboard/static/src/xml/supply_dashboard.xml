@@ -1,0 +1,215 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<templates xml:space="preserve">
+    <t t-name="systore_purchase_supply_dashboard.SupplyDashboard">
+        <div class="o_systore_supply_dashboard h-100 overflow-auto">
+            <div class="o_supply_header sticky-top">
+                <div>
+                    <h1>Demanda</h1>
+                    <p>Órdenes de venta con traslados parciales originados en Existencias</p>
+                </div>
+                <div class="d-flex gap-2">
+                    <button class="btn btn-outline-secondary" t-on-click="currentMonth">Mes actual</button>
+                    <button class="btn btn-primary" t-on-click="refreshData" t-att-disabled="state.refreshing">
+                        <i class="fa fa-refresh me-1" t-att-class="state.refreshing ? 'fa-spin' : ''"/>
+                        <t t-if="state.refreshing">Actualizando…</t>
+                        <t t-else="">Actualizar demanda</t>
+                    </button>
+                </div>
+            </div>
+
+            <div class="o_supply_filters">
+                <label>Mes del traslado<input type="month" class="form-control" required="required" t-att-value="state.filters.period_month" t-on-change="onPeriodMonth"/></label>
+                <label>Canal
+                    <select class="form-select" t-att-value="state.filters.channel" t-on-change="onChannel">
+                        <option value="">Todos</option>
+                        <option value="wholesale">Mayoreo</option>
+                        <option value="retail">Minorista</option>
+                    </select>
+                </label>
+                <label>Almacén
+                    <select class="form-select" t-att-value="state.filters.warehouse_id" t-on-change="onWarehouse">
+                        <option value="">Todos</option>
+                        <t t-foreach="state.data.warehouses" t-as="warehouse" t-key="warehouse.id">
+                            <option t-att-value="warehouse.id"><t t-esc="warehouse.name"/></option>
+                        </t>
+                    </select>
+                </label>
+                <label>Proveedor
+                    <select class="form-select" t-att-value="state.filters.supplier_id" t-on-change="onSupplier">
+                        <option value="">Todos</option>
+                        <t t-foreach="state.data.suppliers" t-as="supplier" t-key="supplier.id">
+                            <option t-att-value="supplier.id"><t t-esc="supplier.name"/></option>
+                        </t>
+                    </select>
+                </label>
+                <button class="btn btn-dark align-self-end" t-on-click="loadData">Aplicar filtros</button>
+            </div>
+
+            <div t-if="state.loading" class="o_supply_loading">
+                <i class="fa fa-circle-o-notch fa-spin"/> Cargando demanda…
+            </div>
+            <t t-else="">
+                <div class="o_supply_kpis o_supply_kpis_demand">
+                    <div class="o_supply_kpi"><span>Órdenes de venta</span><strong t-esc="formatQty(state.data.kpis.sale_orders)"/></div>
+                    <div class="o_supply_kpi danger"><span>Traslados parciales</span><strong t-esc="formatQty(state.data.kpis.partial_pickings)"/></div>
+                    <div class="o_supply_kpi"><span>Piezas solicitadas</span><strong t-esc="formatQty(state.data.kpis.open_demand_qty)"/></div>
+                    <div class="o_supply_kpi success"><span>Piezas listas</span><strong t-esc="formatQty(state.data.kpis.ready_qty)"/></div>
+                    <div class="o_supply_kpi danger"><span>Piezas faltantes</span><strong t-esc="formatQty(state.data.kpis.missing_to_buy_qty)"/></div>
+                </div>
+
+                <div class="o_supply_charts">
+                    <section class="o_supply_chart_card">
+                        <div class="o_supply_chart_title">
+                            <h2>Órdenes listas y parciales</h2>
+                            <small>Una sola barra: órdenes de venta y piezas solicitadas desde Existencias.</small>
+                        </div>
+                        <div class="o_supply_stacked_summary">
+                            <div class="o_supply_stacked_total">
+                                <strong t-esc="formatQty(state.data.charts.readiness_total)"/>
+                                <span>órdenes · <t t-esc="formatQty(state.data.charts.readiness_pieces)"/> piezas</span>
+                            </div>
+                            <div class="o_supply_stacked_bar" t-att-class="state.data.charts.readiness_total ? '' : 'empty'">
+                                <button t-foreach="state.data.charts.readiness" t-as="bar" t-key="bar.key"
+                                        type="button" class="o_supply_stacked_segment" t-att-class="bar.key"
+                                        t-att-style="'width: ' + bar.percent + '%;'"
+                                        t-on-click="() => openIds('sale.order', bar.label, bar.sale_ids)"
+                                        t-att-title="bar.label + ': ' + formatQty(bar.value) + ' órdenes, ' + formatQty(bar.pieces) + ' piezas'">
+                                    <span t-if="bar.percent &gt;= 12"><t t-esc="formatQty(bar.value)"/></span>
+                                </button>
+                            </div>
+                            <div class="o_supply_stacked_legend">
+                                <button t-foreach="state.data.charts.readiness" t-as="bar" t-key="bar.key"
+                                        type="button" class="o_supply_legend_button"
+                                        t-on-click="() => openIds('sale.order', bar.label, bar.sale_ids)">
+                                    <i t-att-class="bar.key"/>
+                                    <span><strong t-esc="bar.label"/><small><t t-esc="formatQty(bar.value)"/> órdenes · <t t-esc="formatQty(bar.pieces)"/> piezas</small></span>
+                                </button>
+                            </div>
+                        </div>
+                    </section>
+
+                    <section class="o_supply_chart_card">
+                        <div class="o_supply_chart_title">
+                            <h2>Órdenes por canal</h2>
+                            <small>Distribución entre Mayoreo y Minorista.</small>
+                        </div>
+                        <div class="o_supply_pie_layout">
+                            <div class="o_supply_pie channel"
+                                 t-att-class="state.data.charts.channels.total ? '' : 'empty'"
+                                 t-att-style="'--slice: ' + state.data.charts.channels.wholesale_percent + '%;'">
+                                <div><strong t-esc="formatQty(state.data.charts.channels.total)"/><span>órdenes</span></div>
+                            </div>
+                            <div class="o_supply_legend">
+                                <button type="button" t-on-click="() => openIds('sale.order', 'Mayoreo', state.data.charts.channels.wholesale_sale_ids)"><i class="wholesale"/><span>Mayoreo<small><t t-esc="formatQty(state.data.charts.channels.wholesale)"/> órdenes · <t t-esc="formatQty(state.data.charts.channels.wholesale_pieces)"/> piezas</small></span></button>
+                                <button type="button" t-on-click="() => openIds('sale.order', 'Minorista', state.data.charts.channels.retail_sale_ids)"><i class="retail"/><span>Minorista<small><t t-esc="formatQty(state.data.charts.channels.retail)"/> órdenes · <t t-esc="formatQty(state.data.charts.channels.retail_pieces)"/> piezas</small></span></button>
+                            </div>
+                        </div>
+                    </section>
+
+                    <section class="o_supply_chart_card">
+                        <div class="o_supply_chart_title">
+                            <h2>Piezas recibidas y pendientes</h2>
+                            <small>Cantidades acumuladas de las órdenes de compra del mes.</small>
+                        </div>
+                        <div class="o_supply_pie_layout">
+                            <div class="o_supply_pie pieces"
+                                 t-att-class="state.data.charts.pieces.total ? '' : 'empty'"
+                                 t-att-style="'--slice: ' + state.data.charts.pieces.received_percent + '%;'">
+                                <div><strong t-esc="formatQty(state.data.charts.pieces.total)"/><span>piezas</span></div>
+                            </div>
+                            <div class="o_supply_legend">
+                                <button type="button" t-on-click="() => openPurchaseLines('Piezas recibidas', [['received_qty', '&gt;', 0]])"><i class="received"/><span>Recibidas<small><t t-esc="formatQty(state.data.charts.pieces.received)"/> piezas</small></span></button>
+                                <button type="button" t-on-click="() => openPurchaseLines('Piezas pendientes', [['pending_qty', '&gt;', 0]])"><i class="pending"/><span>Pendientes<small><t t-esc="formatQty(state.data.charts.pieces.pending)"/> piezas</small></span></button>
+                            </div>
+                        </div>
+                    </section>
+                </div>
+
+                <section class="o_supply_panel o_supply_debt_panel">
+                    <div class="o_supply_panel_title">
+                        <div>
+                            <h2>Deuda a proveedores</h2>
+                            <small>Saldos manuales pendientes de las órdenes de compra incluidas en el mes.</small>
+                        </div>
+                        <strong class="o_supply_debt_total" t-esc="formatMoney(state.data.rankings.debt_total)"/>
+                    </div>
+                    <div class="o_supply_debt_chart">
+                        <button t-foreach="state.data.rankings.debts" t-as="row" t-key="row.id" type="button"
+                                class="o_supply_debt_row"
+                                t-on-click="() => openIds('purchase.order', 'Deuda: ' + row.name, row.debt_order_ids)">
+                            <span class="o_supply_rank_name" t-esc="row.name"/>
+                            <span class="o_supply_debt_track"><i t-att-style="'width: ' + row.debt_percent + '%;'"/></span>
+                            <strong t-esc="formatMoney(row.debt)"/>
+                        </button>
+                        <div t-if="!state.data.rankings.debts.length" class="o_supply_empty">No hay saldos pendientes con los filtros seleccionados.</div>
+                    </div>
+                </section>
+
+                <div class="o_supply_rankings">
+                    <section class="o_supply_panel">
+                        <div class="o_supply_panel_title">
+                            <div><h2>Productos más comprados</h2><small>Top 10 por piezas confirmadas.</small></div>
+                        </div>
+                        <div class="o_supply_ranking_list">
+                            <button t-foreach="state.data.rankings.products" t-as="row" t-key="row.id" type="button"
+                                    class="o_supply_ranking_row"
+                                    t-on-click="() => openPurchaseLines('Compras de ' + row.name, [['product_id', '=', row.id]])">
+                                <span class="o_supply_rank_name"><strong t-esc="row.sku || 'Sin SKU'"/><small t-esc="row.name"/></span>
+                                <span class="o_supply_receipt_bar"><i class="received" t-att-style="'width: ' + row.received_percent + '%;'"/><i class="pending" t-att-style="'width: ' + (100 - row.received_percent) + '%;'"/></span>
+                                <span class="o_supply_rank_values"><strong><t t-esc="formatQty(row.received)"/> / <t t-esc="formatQty(row.ordered)"/></strong><small>recibidas / solicitadas</small></span>
+                            </button>
+                            <div t-if="!state.data.rankings.products.length" class="o_supply_empty">No hay productos comprados en el mes.</div>
+                        </div>
+                    </section>
+                    <section class="o_supply_panel">
+                        <div class="o_supply_panel_title">
+                            <div><h2>Proveedores con más compras</h2><small>Top 10 por piezas en órdenes confirmadas.</small></div>
+                        </div>
+                        <div class="o_supply_ranking_list">
+                            <button t-foreach="state.data.rankings.suppliers" t-as="row" t-key="row.id" type="button"
+                                    class="o_supply_ranking_row"
+                                    t-on-click="() => openPurchaseLines('Compras a ' + row.name, [['supplier_id', '=', row.id]])">
+                                <span class="o_supply_rank_name"><strong t-esc="row.name"/><small><t t-esc="formatQty(row.order_count)"/> órdenes confirmadas</small></span>
+                                <span class="o_supply_receipt_bar"><i class="received" t-att-style="'width: ' + row.received_percent + '%;'"/><i class="pending" t-att-style="'width: ' + (100 - row.received_percent) + '%;'"/></span>
+                                <span class="o_supply_rank_values"><strong><t t-esc="formatQty(row.received)"/> / <t t-esc="formatQty(row.ordered)"/></strong><small>recibidas / solicitadas</small></span>
+                            </button>
+                            <div t-if="!state.data.rankings.suppliers.length" class="o_supply_empty">No hay proveedores con compras en el mes.</div>
+                        </div>
+                    </section>
+                </div>
+
+                <section class="o_supply_panel">
+                    <div class="o_supply_panel_title">
+                        <div>
+                            <h2>Demanda</h2>
+                            <small>Solo incluye operaciones Parciales, con origen Existencias y fecha programada dentro del mes.</small>
+                        </div>
+                        <button class="btn btn-link" t-on-click="() => openAction('systore_purchase_supply_dashboard.action_supply_demand_lines')">Abrir análisis completo</button>
+                    </div>
+                    <div class="table-responsive">
+                        <table class="table table-hover align-middle">
+                            <thead>
+                                <tr><th>Venta</th><th>Operación</th><th>Fecha programada</th><th>Almacén</th><th>Canal</th><th>SKU / Producto</th><th class="text-end">Solicitadas</th><th class="text-end">Listas</th><th class="text-end">Faltantes</th><th>Estado</th></tr>
+                            </thead>
+                            <tbody>
+                                <tr t-foreach="state.data.demand" t-as="row" t-key="row.id">
+                                    <td><a href="#" t-on-click.prevent="() => openRecord('sale.order', row.sale_order_id)" t-esc="relationName(row.sale_order_id)"/></td>
+                                    <td><a href="#" t-on-click.prevent="() => openRecord('stock.picking', row.picking_id)" t-esc="relationName(row.picking_id)"/></td>
+                                    <td t-esc="formatDate(row.scheduled_date)"/>
+                                    <td t-esc="relationName(row.warehouse_id)"/>
+                                    <td t-esc="channelLabel(row.channel)"/>
+                                    <td><strong t-esc="row.sku || 'Sin SKU'"/><br/><small t-esc="relationName(row.product_id)"/></td>
+                                    <td class="text-end" t-esc="formatQty(row.open_demand_qty)"/>
+                                    <td class="text-end" t-esc="formatQty(row.reserved_qty)"/>
+                                    <td class="text-end fw-bold text-danger" t-esc="formatQty(row.missing_to_buy_qty)"/>
+                                    <td><span class="badge" t-att-class="badgeClass(row.coverage_status)" t-esc="coverageLabel(row.coverage_status)"/></td>
+                                </tr>
+                                <tr t-if="!state.data.demand.length"><td colspan="10" class="text-center text-muted py-5">No hay traslados parciales originados en Existencias para el mes seleccionado.</td></tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </section>
+            </t>
+        </div>
+    </t>
+</templates>
