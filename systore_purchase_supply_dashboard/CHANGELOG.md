@@ -1,5 +1,13 @@
 # Historial de cambios
 
+## 18.0.1.5.2
+
+- Se corrigió la prioridad del estado manual que mantenía una orden en Pendiente aunque tuviera abonos.
+- El selector manual ahora contiene únicamente **Automático según abonos** y **Pagada**.
+- En modo Automático, cualquier abono menor al total clasifica la orden como Parcial.
+- La migración convierte los antiguos valores manuales Pendiente y Parcial a Automático.
+- Los renglones de deuda muestran tanto el saldo como el importe ya abonado en USD y MXN.
+
 ## 18.0.1.5.1
 
 - La deuda se presenta en dos sectores: proveedores nacionales y proveedores extranjeros.

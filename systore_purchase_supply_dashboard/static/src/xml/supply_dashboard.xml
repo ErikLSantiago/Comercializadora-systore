@@ -135,7 +135,7 @@
                             <button t-foreach="state.data.rankings.debts_national" t-as="row" t-key="row.id" type="button"
                                     class="o_supply_debt_row"
                                     t-on-click="() => openIds('purchase.order', 'Deuda nacional: ' + row.name, row.debt_order_ids)">
-                                <span class="o_supply_rank_name" t-esc="row.name"/>
+                                <span class="o_supply_rank_name"><strong t-esc="row.name"/><small>Abonado: <t t-esc="formatMoney(row.paid_mxn)"/></small></span>
                                 <span class="o_supply_debt_track"><i t-att-style="'width: ' + row.debt_percent + '%;'"/></span>
                                 <strong t-esc="formatMoney(row.debt)"/>
                             </button>
@@ -154,7 +154,10 @@
                             <button t-foreach="state.data.rankings.debts_international" t-as="row" t-key="row.id" type="button"
                                     class="o_supply_debt_row"
                                     t-on-click="() => openIds('purchase.order', 'Deuda extranjera: ' + row.name, row.debt_order_ids)">
-                                <span class="o_supply_rank_name" t-esc="row.name"/>
+                                <span class="o_supply_rank_name">
+                                    <strong t-esc="row.name"/>
+                                    <small>Abonado: <t t-esc="formatQty(row.paid_usd)"/> USD · <t t-esc="formatMoney(row.paid_mxn)"/></small>
+                                </span>
                                 <span class="o_supply_debt_track"><i t-att-style="'width: ' + row.debt_percent + '%;'"/></span>
                                 <strong><span t-esc="formatQty(row.debt_usd) + ' USD'"/><span t-esc="' · ' + formatMoney(row.debt)"/></strong>
                             </button>

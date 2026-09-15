@@ -47,7 +47,8 @@ Versión de pruebas para Odoo 18.
 - El tipo de cambio efectivo es ponderado por los importes pagados: MXN pagados / USD pagados.
 - Si todavía no existen abonos USD, el equivalente pendiente usa `x_exchange_rate` de la orden.
 - Compra nacional: el monto por pagar es `amount_total`, incluido el impuesto de la orden.
-- El desplegable **Estado de pago** permite conservar el cálculo automático o forzar Pendiente, Parcial o Pagada.
+- El desplegable **Estado de pago** permite conservar el cálculo automático o marcar manualmente la orden como Pagada.
+- En modo Automático: sin abonos es Pendiente, con abonos incompletos es Parcial y con el total cubierto es Pagada.
 - Una orden marcada manualmente como Pagada no aporta saldo pendiente a la trazabilidad ni al tablero.
 - La deuda consulta todas las órdenes confirmadas o terminadas; no se limita al mes seleccionado.
 - Costo internacional: `x_calc_price_mxn`.

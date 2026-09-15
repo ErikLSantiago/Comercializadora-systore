@@ -281,10 +281,12 @@ class SystoreSupplyDashboard(models.AbstractModel):
         )
         debt_by_sector = {
             "national": defaultdict(lambda: {
-                "mxn": 0.0, "usd": 0.0, "order_ids": set(), "name": "",
+                "mxn": 0.0, "usd": 0.0, "paid_mxn": 0.0, "paid_usd": 0.0,
+                "order_ids": set(), "name": "",
             }),
             "international": defaultdict(lambda: {
-                "mxn": 0.0, "usd": 0.0, "order_ids": set(), "name": "",
+                "mxn": 0.0, "usd": 0.0, "paid_mxn": 0.0, "paid_usd": 0.0,
+                "order_ids": set(), "name": "",
             }),
         }
         for order in debt_orders:
@@ -297,6 +299,8 @@ class SystoreSupplyDashboard(models.AbstractModel):
                 debt["name"] = partner.display_name
                 debt["mxn"] += component["pending_mxn"]
                 debt["usd"] += component["pending_usd"]
+                debt["paid_mxn"] += component.get("paid_mxn", 0.0)
+                debt["paid_usd"] += component.get("paid_usd", 0.0)
                 debt["order_ids"].add(order.id)
 
         def ranking_rows(grouped, limit=None):
@@ -334,6 +338,8 @@ class SystoreSupplyDashboard(models.AbstractModel):
                 "name": values["name"] or "Sin proveedor",
                 "debt": values["mxn"],
                 "debt_usd": values["usd"],
+                "paid_mxn": values["paid_mxn"],
+                "paid_usd": values["paid_usd"],
                 "debt_order_ids": list(values["order_ids"]),
             } for partner_id, values in debt_by_sector[sector].items()
                 if values["mxn"] > 0 or values["usd"] > 0]

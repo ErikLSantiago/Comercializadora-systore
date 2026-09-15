@@ -181,8 +181,6 @@ class PurchaseOrder(models.Model):
     systore_payment_status_manual = fields.Selection(
         [
             ("automatic", "Automático según abonos"),
-            ("pending", "Pendiente"),
-            ("partial", "Parcial"),
             ("paid", "Pagada"),
         ],
         string="Estado de pago",
@@ -381,8 +379,6 @@ class PurchaseOrder(models.Model):
                 order.systore_shipping_pending_usd = 0.0
                 order.systore_import_pending_mxn = 0.0
                 status = "paid"
-            elif manual_status in ("pending", "partial"):
-                status = manual_status
             elif not has_payment:
                 status = "pending"
             elif has_pending:
@@ -397,6 +393,8 @@ class PurchaseOrder(models.Model):
             return [{
                 "partner": self.partner_id,
                 "concept": "merchandise",
+                "paid_usd": 0.0,
+                "paid_mxn": self.systore_amount_paid_mxn,
                 "pending_usd": 0.0,
                 "pending_mxn": self.systore_amount_pending_mxn,
             }] if self.systore_amount_pending_mxn > 0 else []
@@ -420,6 +418,8 @@ class PurchaseOrder(models.Model):
             components.append({
                 "partner": self.partner_id,
                 "concept": "merchandise",
+                "paid_usd": self.systore_merchandise_paid_usd,
+                "paid_mxn": merchandise_paid_mxn,
                 "pending_usd": self.systore_merchandise_pending_usd,
                 "pending_mxn": self.systore_merchandise_pending_usd * merchandise_rate,
             })
@@ -427,6 +427,8 @@ class PurchaseOrder(models.Model):
             components.append({
                 "partner": self.company_id.x_vendor_shipping_id,
                 "concept": "shipping",
+                "paid_usd": self.systore_shipping_paid_usd,
+                "paid_mxn": shipping_paid_mxn,
                 "pending_usd": self.systore_shipping_pending_usd,
                 "pending_mxn": self.systore_shipping_pending_usd * shipping_rate,
             })
@@ -434,6 +436,8 @@ class PurchaseOrder(models.Model):
             components.append({
                 "partner": self.company_id.x_vendor_import_id,
                 "concept": "import",
+                "paid_usd": 0.0,
+                "paid_mxn": self.systore_import_paid_mxn,
                 "pending_usd": 0.0,
                 "pending_mxn": self.systore_import_pending_mxn,
             })
