@@ -21,6 +21,7 @@
                         <group string="Control manual de pago">
                             <field name="systore_company_currency_id" invisible="1"/>
                             <field name="systore_is_international" invisible="1"/>
+                            <field name="systore_payment_status_manual"/>
                             <field name="systore_amount_payable_mxn" readonly="1"/>
                             <field name="systore_amount_paid_mxn" readonly="1"/>
                             <field name="systore_amount_pending_mxn" readonly="1"/>
@@ -78,6 +79,7 @@
                        decoration-warning="systore_payment_status == 'partial'"
                        decoration-success="systore_payment_status == 'paid'"/>
                 <field name="systore_amount_pending_mxn" optional="hide"/>
+                <field name="systore_payment_status_manual" optional="hide"/>
             </xpath>
         </field>
     </record>

@@ -1,5 +1,14 @@
 # Historial de cambios
 
+## 18.0.1.5.1
+
+- La deuda se presenta en dos sectores: proveedores nacionales y proveedores extranjeros.
+- El origen nacional o extranjero se determina con la clasificación de la orden de compra.
+- Se agregó el desplegable **Estado de pago** con Automático, Pendiente, Parcial y Pagada.
+- Al marcar una orden como Pagada, sus saldos pendientes efectivos pasan a cero y desaparece de la deuda del tablero.
+- La deuda utiliza el histórico completo de órdenes confirmadas o terminadas, independientemente del mes seleccionado.
+- El mes continúa aplicándose a demanda, recepciones, piezas y rankings operativos.
+
 ## 18.0.1.5.0
 
 - Los abonos internacionales registran monto USD, fecha y tipo de cambio individual.

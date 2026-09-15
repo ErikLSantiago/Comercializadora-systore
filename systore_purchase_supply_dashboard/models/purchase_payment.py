@@ -173,10 +173,26 @@ class PurchaseOrder(models.Model):
             ("partial", "Parcial"),
             ("paid", "Pagada"),
         ],
-        string="Estado de pago",
+        string="Estado efectivo de pago",
         compute="_compute_systore_payment_totals",
         store=True,
         index=True,
+    )
+    systore_payment_status_manual = fields.Selection(
+        [
+            ("automatic", "Automático según abonos"),
+            ("pending", "Pendiente"),
+            ("partial", "Parcial"),
+            ("paid", "Pagada"),
+        ],
+        string="Estado de pago",
+        required=True,
+        default="automatic",
+        tracking=True,
+        help=(
+            "Permite cerrar manualmente la deuda. Al elegir Pagada, la orden "
+            "deja de aportar saldos pendientes al tablero."
+        ),
     )
     systore_is_international = fields.Boolean(
         string="Compra internacional",
@@ -289,6 +305,7 @@ class PurchaseOrder(models.Model):
         "systore_merchandise_payable_usd",
         "systore_shipping_payable_usd",
         "systore_import_payable_mxn",
+        "systore_payment_status_manual",
         "x_exchange_rate",
         "systore_payment_line_ids.concept",
         "systore_payment_line_ids.payment_currency",
@@ -356,7 +373,17 @@ class PurchaseOrder(models.Model):
             order.systore_shipping_pending_usd = shipping_pending
             order.systore_import_paid_mxn = import_paid
             order.systore_import_pending_mxn = import_pending
-            if not has_payment:
+            manual_status = order.systore_payment_status_manual
+            if manual_status == "paid":
+                order.systore_amount_pending_mxn = 0.0
+                order.systore_amount_pending_usd = 0.0
+                order.systore_merchandise_pending_usd = 0.0
+                order.systore_shipping_pending_usd = 0.0
+                order.systore_import_pending_mxn = 0.0
+                status = "paid"
+            elif manual_status in ("pending", "partial"):
+                status = manual_status
+            elif not has_payment:
                 status = "pending"
             elif has_pending:
                 status = "partial"

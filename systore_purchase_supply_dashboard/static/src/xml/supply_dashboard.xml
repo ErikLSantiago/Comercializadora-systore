@@ -125,31 +125,43 @@
                     </section>
                 </div>
 
-                <section class="o_supply_panel o_supply_debt_panel">
-                    <div class="o_supply_panel_title">
-                        <div>
-                            <h2>Deuda a proveedores</h2>
-                            <small>Saldos manuales pendientes de las órdenes de compra incluidas en el mes.</small>
+                <div class="o_supply_debt_sectors">
+                    <section class="o_supply_panel o_supply_debt_panel">
+                        <div class="o_supply_panel_title">
+                            <div><h2>Deuda a proveedores nacionales</h2><small>Histórico de órdenes confirmadas nacionales.</small></div>
+                            <div class="o_supply_debt_total"><strong t-esc="formatMoney(state.data.rankings.debt_national_mxn)"/></div>
                         </div>
-                        <div class="o_supply_debt_total">
-                            <strong t-esc="formatQty(state.data.rankings.debt_total_usd) + ' USD'"/>
-                            <strong t-esc="formatMoney(state.data.rankings.debt_total)"/>
+                        <div class="o_supply_debt_chart">
+                            <button t-foreach="state.data.rankings.debts_national" t-as="row" t-key="row.id" type="button"
+                                    class="o_supply_debt_row"
+                                    t-on-click="() => openIds('purchase.order', 'Deuda nacional: ' + row.name, row.debt_order_ids)">
+                                <span class="o_supply_rank_name" t-esc="row.name"/>
+                                <span class="o_supply_debt_track"><i t-att-style="'width: ' + row.debt_percent + '%;'"/></span>
+                                <strong t-esc="formatMoney(row.debt)"/>
+                            </button>
+                            <div t-if="!state.data.rankings.debts_national.length" class="o_supply_empty">No hay deuda nacional pendiente.</div>
                         </div>
-                    </div>
-                    <div class="o_supply_debt_chart">
-                        <button t-foreach="state.data.rankings.debts" t-as="row" t-key="row.id" type="button"
-                                class="o_supply_debt_row"
-                                t-on-click="() => openIds('purchase.order', 'Deuda: ' + row.name, row.debt_order_ids)">
-                            <span class="o_supply_rank_name" t-esc="row.name"/>
-                            <span class="o_supply_debt_track"><i t-att-style="'width: ' + row.debt_percent + '%;'"/></span>
-                            <strong>
-                                <span t-esc="formatQty(row.debt_usd) + ' USD'"/>
-                                <span t-esc="' · ' + formatMoney(row.debt)"/>
-                            </strong>
-                        </button>
-                        <div t-if="!state.data.rankings.debts.length" class="o_supply_empty">No hay saldos pendientes con los filtros seleccionados.</div>
-                    </div>
-                </section>
+                    </section>
+                    <section class="o_supply_panel o_supply_debt_panel">
+                        <div class="o_supply_panel_title">
+                            <div><h2>Deuda a proveedores extranjeros</h2><small>Histórico de órdenes confirmadas internacionales.</small></div>
+                            <div class="o_supply_debt_total">
+                                <strong t-esc="formatQty(state.data.rankings.debt_international_usd) + ' USD'"/>
+                                <strong t-esc="formatMoney(state.data.rankings.debt_international_mxn)"/>
+                            </div>
+                        </div>
+                        <div class="o_supply_debt_chart">
+                            <button t-foreach="state.data.rankings.debts_international" t-as="row" t-key="row.id" type="button"
+                                    class="o_supply_debt_row"
+                                    t-on-click="() => openIds('purchase.order', 'Deuda extranjera: ' + row.name, row.debt_order_ids)">
+                                <span class="o_supply_rank_name" t-esc="row.name"/>
+                                <span class="o_supply_debt_track"><i t-att-style="'width: ' + row.debt_percent + '%;'"/></span>
+                                <strong><span t-esc="formatQty(row.debt_usd) + ' USD'"/><span t-esc="' · ' + formatMoney(row.debt)"/></strong>
+                            </button>
+                            <div t-if="!state.data.rankings.debts_international.length" class="o_supply_empty">No hay deuda extranjera pendiente.</div>
+                        </div>
+                    </section>
+                </div>
 
                 <div class="o_supply_rankings">
                     <section class="o_supply_panel">

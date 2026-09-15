@@ -13,6 +13,26 @@ class SystoreSupplyDashboard(models.AbstractModel):
     _description = "Servicio del tablero de abastecimiento"
 
     @api.model
+    def _historical_purchase_orders(self, company, warehouse_id=None, channel=None):
+        """Confirmed purchases used by the current accounts-payable follow-up."""
+        orders = self.env["purchase.order"].sudo().search([
+            ("company_id", "=", company.id),
+            ("state", "in", ["purchase", "done"]),
+        ])
+        if not warehouse_id and not channel:
+            return orders
+        return orders.filtered(lambda order: (
+            order.picking_type_id.warehouse_id
+            and (not warehouse_id or order.picking_type_id.warehouse_id.id == warehouse_id)
+            and (
+                not channel
+                or order.picking_type_id.warehouse_id._systore_resolved_supply_channel(
+                    order.picking_type_id.default_location_dest_id
+                ) == channel
+            )
+        ))
+
+    @api.model
     def _month_period(self, period_month=None):
         """Return one strict calendar month using the user's timezone."""
         if not period_month:
@@ -105,18 +125,11 @@ class SystoreSupplyDashboard(models.AbstractModel):
         warehouses = self.env["stock.warehouse"].search_read(
             [("company_id", "=", company.id)], ["name"], order="name"
         )
-        supplier_domain = [
-            ("company_id", "=", company.id),
-            ("report_date", ">=", period["month_start"]),
-            ("report_date", "<", period["month_end"]),
-        ]
-        if warehouse_id:
-            supplier_domain.append(("warehouse_id", "=", warehouse_id))
-        if channel:
-            supplier_domain.append(("channel", "=", channel))
-        period_purchase_lines = self.env["systore.supply.purchase.line"].search(supplier_domain)
-        suppliers = period_purchase_lines.mapped("supplier_id")
-        for order in period_purchase_lines.mapped("purchase_order_id"):
+        historical_orders = self._historical_purchase_orders(
+            company, warehouse_id=warehouse_id, channel=channel
+        )
+        suppliers = historical_orders.mapped("partner_id")
+        for order in historical_orders:
             suppliers |= self.env["res.partner"].browse([
                 component["partner"].id
                 for component in order._systore_debt_components()
@@ -263,22 +276,28 @@ class SystoreSupplyDashboard(models.AbstractModel):
             supplier["pending"] += line.pending_qty
 
         purchase_orders = purchase_lines.mapped("purchase_order_id")
-        debt_orders = base_purchase_lines.mapped("purchase_order_id")
-        debt_by_supplier = defaultdict(lambda: {"mxn": 0.0, "usd": 0.0})
+        debt_orders = self._historical_purchase_orders(
+            company, warehouse_id=warehouse_id, channel=channel
+        )
+        debt_by_sector = {
+            "national": defaultdict(lambda: {
+                "mxn": 0.0, "usd": 0.0, "order_ids": set(), "name": "",
+            }),
+            "international": defaultdict(lambda: {
+                "mxn": 0.0, "usd": 0.0, "order_ids": set(), "name": "",
+            }),
+        }
         for order in debt_orders:
+            sector = order._systore_resolved_purchase_origin()
             for component in order._systore_debt_components():
                 partner = component["partner"]
                 if supplier_id and partner.id != supplier_id:
                     continue
-                debt_by_supplier[partner.id]["mxn"] += component["pending_mxn"]
-                debt_by_supplier[partner.id]["usd"] += component["pending_usd"]
-                supplier = suppliers[partner.id]
-                supplier["name"] = partner.display_name
-                supplier["debt_order_ids"].add(order.id)
-        for supplier_id_key, values in suppliers.items():
-            debt = debt_by_supplier[supplier_id_key]
-            values["debt"] = debt["mxn"]
-            values["debt_usd"] = debt["usd"]
+                debt = debt_by_sector[sector][partner.id]
+                debt["name"] = partner.display_name
+                debt["mxn"] += component["pending_mxn"]
+                debt["usd"] += component["pending_usd"]
+                debt["order_ids"].add(order.id)
 
         def ranking_rows(grouped, limit=None):
             result = []
@@ -307,16 +326,27 @@ class SystoreSupplyDashboard(models.AbstractModel):
             return result
 
         product_rows = ranking_rows(products, limit=10)
-        all_supplier_rows = ranking_rows(suppliers)
-        supplier_rows = all_supplier_rows[:10]
-        debt_rows = [
-            row for row in all_supplier_rows
-            if row["debt"] > 0 or row["debt_usd"] > 0
-        ]
-        debt_rows.sort(key=lambda row: row["debt"], reverse=True)
-        max_debt = max((row["debt"] for row in debt_rows), default=0.0)
-        for row in debt_rows:
-            row["debt_percent"] = row["debt"] / max_debt * 100.0 if max_debt else 0.0
+        supplier_rows = ranking_rows(suppliers, limit=10)
+
+        def debt_rows(sector):
+            rows = [{
+                "id": partner_id,
+                "name": values["name"] or "Sin proveedor",
+                "debt": values["mxn"],
+                "debt_usd": values["usd"],
+                "debt_order_ids": list(values["order_ids"]),
+            } for partner_id, values in debt_by_sector[sector].items()
+                if values["mxn"] > 0 or values["usd"] > 0]
+            rows.sort(key=lambda row: (row["debt"], row["debt_usd"]), reverse=True)
+            max_debt = max((row["debt"] for row in rows), default=0.0)
+            for row in rows:
+                row["debt_percent"] = (
+                    row["debt"] / max_debt * 100.0 if max_debt else 100.0
+                )
+            return rows[:10]
+
+        national_debts = debt_rows("national")
+        international_debts = debt_rows("international")
 
         return {
             "charts": {
@@ -344,8 +374,17 @@ class SystoreSupplyDashboard(models.AbstractModel):
             "rankings": {
                 "products": product_rows,
                 "suppliers": supplier_rows,
-                "debts": debt_rows[:10],
-                "debt_total": sum(value["mxn"] for value in debt_by_supplier.values()),
-                "debt_total_usd": sum(value["usd"] for value in debt_by_supplier.values()),
+                "debts": national_debts + international_debts,
+                "debts_national": national_debts,
+                "debts_international": international_debts,
+                "debt_national_mxn": sum(
+                    value["mxn"] for value in debt_by_sector["national"].values()
+                ),
+                "debt_international_mxn": sum(
+                    value["mxn"] for value in debt_by_sector["international"].values()
+                ),
+                "debt_international_usd": sum(
+                    value["usd"] for value in debt_by_sector["international"].values()
+                ),
             },
         }

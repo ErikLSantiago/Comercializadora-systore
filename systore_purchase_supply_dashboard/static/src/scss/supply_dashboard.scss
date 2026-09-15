@@ -197,6 +197,13 @@
         color: #c65353;
         font-size: 21px;
     }
+    .o_supply_debt_sectors {
+        display: grid;
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+        gap: 18px;
+        margin: 0 24px 18px;
+        .o_supply_panel { margin: 0; }
+    }
     .o_supply_debt_chart { display: grid; gap: 8px; }
     .o_supply_debt_row {
         display: grid;
@@ -286,6 +293,7 @@
         .o_supply_filters { grid-template-columns: repeat(2, 1fr); }
         .o_supply_charts { grid-template-columns: 1fr; }
         .o_supply_rankings { grid-template-columns: 1fr; }
+        .o_supply_debt_sectors { grid-template-columns: 1fr; }
         .o_supply_grid { grid-template-columns: 1fr; }
     }
 
