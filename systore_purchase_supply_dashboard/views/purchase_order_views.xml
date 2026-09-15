@@ -1,21 +1,5 @@
 <?xml version="1.0" encoding="utf-8"?>
 <odoo>
-    <record id="view_purchase_payment_embedded_list" model="ir.ui.view">
-        <field name="name">systore.purchase.payment.embedded.list</field>
-        <field name="model">systore.purchase.payment</field>
-        <field name="arch" type="xml">
-            <list editable="bottom">
-                <field name="payment_date"/>
-                <field name="partner_id"/>
-                <field name="concept"/>
-                <field name="currency_id" column_invisible="True"/>
-                <field name="amount_mxn" sum="Total pagado"/>
-                <field name="reference"/>
-                <field name="notes" optional="hide"/>
-            </list>
-        </field>
-    </record>
-
     <record id="view_purchase_order_form_supply_payment" model="ir.ui.view">
         <field name="name">purchase.order.form.supply.payment</field>
         <field name="model">purchase.order</field>
@@ -49,9 +33,14 @@
                         </group>
                     </group>
                     <separator string="Abonos registrados"/>
-                    <field name="systore_payment_line_ids"
-                           mode="list"
-                           context="{'default_partner_id': partner_id, 'list_view_ref': 'systore_purchase_supply_dashboard.view_purchase_payment_embedded_list', 'form_view_ref': 'systore_purchase_supply_dashboard.view_purchase_payment_form'}"/>
+                    <button name="action_systore_open_payments"
+                            type="object"
+                            string="Abrir abonos"
+                            icon="fa-money"
+                            class="btn-primary"/>
+                    <div class="text-muted">
+                        Los abonos se abren en una pantalla independiente para evitar interferencias con la vista de desglose de costos.
+                    </div>
                     <div class="alert alert-info" role="alert">
                         Este control es operativo. No crea pagos, asientos ni conciliaciones contables.
                     </div>

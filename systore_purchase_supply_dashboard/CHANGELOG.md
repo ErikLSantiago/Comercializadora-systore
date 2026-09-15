@@ -1,5 +1,12 @@
 # Historial de cambios
 
+## 18.0.1.4.6
+
+- Se retiró la lista One2many de abonos incrustada en la orden de compra.
+- Se agregó el botón **Abrir abonos**, que abre una acción independiente filtrada por la orden actual.
+- La acción entrega directamente los IDs de las vistas list/form correctas y un contexto limpio.
+- La orden de compra ya no intenta analizar la vista de productos del recosteo como una vista de pagos.
+
 ## 18.0.1.4.5
 
 - Se identificó que `list_view_ref` del desglose de recosteo estaba llegando al campo de abonos.

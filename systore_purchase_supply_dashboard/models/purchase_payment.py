@@ -1,4 +1,4 @@
-from odoo import api, fields, models
+from odoo import _, api, fields, models
 from odoo.exceptions import ValidationError
 
 
@@ -155,6 +155,28 @@ class PurchaseOrder(models.Model):
         for order in self:
             order.systore_amount_payable_mxn = order._systore_total_cost_mxn()
         return True
+
+    def action_systore_open_payments(self):
+        self.ensure_one()
+        list_view = self.env.ref(
+            "systore_purchase_supply_dashboard.view_purchase_payment_list"
+        )
+        form_view = self.env.ref(
+            "systore_purchase_supply_dashboard.view_purchase_payment_form"
+        )
+        return {
+            "type": "ir.actions.act_window",
+            "name": _("Abonos de %s") % self.name,
+            "res_model": "systore.purchase.payment",
+            "view_mode": "list,form",
+            "views": [(list_view.id, "list"), (form_view.id, "form")],
+            "domain": [("purchase_order_id", "=", self.id)],
+            "context": {
+                "default_purchase_order_id": self.id,
+                "default_partner_id": self.partner_id.id,
+            },
+            "target": "current",
+        }
 
     def _systore_resolved_purchase_origin(self):
         self.ensure_one()
