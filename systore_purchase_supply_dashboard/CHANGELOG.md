@@ -1,5 +1,13 @@
 # Historial de cambios
 
+## 18.0.1.4.5
+
+- Se identificó que `list_view_ref` del desglose de recosteo estaba llegando al campo de abonos.
+- Los abonos ahora usan vistas list/form propias mediante referencias explícitas.
+- La acción de Pagos manuales también queda vinculada explícitamente a su vista correcta.
+- Se retiraron los campos temporales de producto, cantidad y precio del modelo de pagos.
+- Se retiró la limpieza de vistas; ya no es necesaria al quedar aislada la resolución de vistas.
+
 ## 18.0.1.4.4
 
 - La limpieza de vistas residuales ahora se ejecuta tanto al instalar como al actualizar el módulo.

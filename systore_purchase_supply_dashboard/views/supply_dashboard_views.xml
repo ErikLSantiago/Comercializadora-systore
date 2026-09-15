@@ -272,5 +272,6 @@
         <field name="name">Pagos manuales</field>
         <field name="res_model">systore.purchase.payment</field>
         <field name="view_mode">list,form</field>
+        <field name="view_id" ref="view_purchase_payment_list"/>
     </record>
 </odoo>
