@@ -1,5 +1,15 @@
 # Historial de cambios
 
+## 18.0.1.5.0
+
+- Los abonos internacionales registran monto USD, fecha y tipo de cambio individual.
+- El equivalente MXN de cada abono se calcula automáticamente como USD por tipo de cambio.
+- El tipo de cambio efectivo se calcula de forma ponderada: total MXN pagado entre total USD pagado.
+- La deuda internacional se separa en mercancía USD, logística USD e importación MXN.
+- Cada concepto se atribuye a su beneficiario: proveedor de mercancía, proveedor logístico o proveedor de importación.
+- El tablero muestra simultáneamente el saldo pendiente en USD y su equivalente en MXN.
+- Las compras nacionales toman como obligación el total de la orden con impuestos (`amount_total`).
+
 ## 18.0.1.4.6
 
 - Se retiró la lista One2many de abonos incrustada en la orden de compra.

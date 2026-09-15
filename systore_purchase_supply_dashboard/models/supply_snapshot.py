@@ -63,8 +63,12 @@ class SystoreSupplyPurchaseLine(models.Model):
         readonly=True,
     )
     amount_payable_mxn = fields.Monetary(string="Total a pagar MXN", currency_field="currency_id", readonly=True)
+    amount_payable_usd = fields.Float(string="Total a pagar USD", readonly=True)
     amount_paid_mxn = fields.Monetary(string="Pagado MXN", currency_field="currency_id", readonly=True)
+    amount_paid_usd = fields.Float(string="Pagado USD", readonly=True)
     amount_pending_mxn = fields.Monetary(string="Saldo pendiente MXN", currency_field="currency_id", readonly=True)
+    amount_pending_usd = fields.Float(string="Saldo pendiente USD", readonly=True)
+    effective_exchange_rate = fields.Float(string="TC efectivo ponderado", readonly=True, digits=(16, 4))
 
     @api.model
     def _first_receipt_date(self, order):
@@ -172,8 +176,15 @@ class SystoreSupplyPurchaseLine(models.Model):
                     "pending_value_mxn": pending * landed_cost,
                     "payment_status": order.systore_payment_status,
                     "amount_payable_mxn": order.systore_amount_payable_mxn,
+                    "amount_payable_usd": (
+                        order.systore_merchandise_payable_usd
+                        + order.systore_shipping_payable_usd
+                    ),
                     "amount_paid_mxn": order.systore_amount_paid_mxn,
+                    "amount_paid_usd": order.systore_amount_paid_usd,
                     "amount_pending_mxn": order.systore_amount_pending_mxn,
+                    "amount_pending_usd": order.systore_amount_pending_usd,
+                    "effective_exchange_rate": order.systore_effective_exchange_rate,
                 })
         for start in range(0, len(values), 1000):
             self.sudo().create(values[start:start + 1000])

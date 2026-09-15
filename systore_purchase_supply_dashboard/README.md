@@ -13,11 +13,11 @@ Versión de pruebas para Odoo 18.
 - Canal Minorista para cualquier otro almacén.
 - Trazabilidad Compra → lote → salida → Venta.
 - Traslados parciales proporcionados por `stock_upc_validation`.
-- Pagos operativos manuales, sin efectos contables.
+- Pagos operativos manuales por concepto, fecha, moneda y tipo de cambio, sin efectos contables.
 - Gráfica de barras con órdenes de venta listas y parciales.
 - Gráfica de pastel con órdenes de venta por canal Mayoreo y Minorista.
 - Gráfica de pastel con piezas de compra recibidas y pendientes.
-- Deuda pendiente agrupada por proveedor, con acceso a las órdenes relacionadas.
+- Deuda pendiente agrupada por beneficiario, mostrada en USD y MXN, con acceso a las órdenes relacionadas.
 - Ranking de productos y proveedores por piezas confirmadas, recibidas y pendientes.
 - Filtro de proveedor para gráficas y listados de compras.
 
@@ -43,6 +43,10 @@ Versión de pruebas para Odoo 18.
 - Primera recepción: fecha mínima de un movimiento terminado desde una ubicación de proveedor.
 - Si una compra aún no tiene recepción, la fecha de reporte provisional es la fecha de la OC.
 - Compra internacional automática: existe costo base o logística capturada en USD.
+- Obligación internacional: mercancía y logística en USD; importación en MXN, cada una conciliada por separado.
+- El tipo de cambio efectivo es ponderado por los importes pagados: MXN pagados / USD pagados.
+- Si todavía no existen abonos USD, el equivalente pendiente usa `x_exchange_rate` de la orden.
+- Compra nacional: el monto por pagar es `amount_total`, incluido el impuesto de la orden.
 - Costo internacional: `x_calc_price_mxn`.
 - Costo nacional: `price_unit`, convertido a moneda de compañía cuando corresponda.
 - Cada actualización procesa solamente un mes. No existe actualización global.
@@ -65,7 +69,8 @@ Versión de pruebas para Odoo 18.
 5. Venta Minorista surtida con un lote cuyo nombre sea la OC.
 6. Venta Mayoreo con una o varias OC de Wholesale Allocation.
 7. Venta con traslado Parcial desde Existencias.
-8. Compra con monto a pagar y varios abonos manuales.
+8. Compra internacional de USD 90 con abonos de USD 50 a 17.89, USD 30 a 17.45 y USD 10 a 18.01.
+9. Compra nacional y abonos parciales contra el total con impuestos.
 
 ## Limitaciones deliberadas de V1
 

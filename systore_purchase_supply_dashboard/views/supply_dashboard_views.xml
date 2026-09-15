@@ -239,8 +239,11 @@
                 <field name="purchase_order_id"/>
                 <field name="partner_id"/>
                 <field name="concept"/>
+                <field name="payment_currency"/>
                 <field name="currency_id" column_invisible="True"/>
-                <field name="amount_mxn" sum="Total"/>
+                <field name="amount_usd" optional="show" sum="Total USD"/>
+                <field name="exchange_rate" optional="show"/>
+                <field name="amount_mxn" readonly="payment_currency == 'usd'" sum="Total MXN"/>
                 <field name="reference"/>
                 <field name="notes" optional="hide"/>
             </list>
@@ -258,8 +261,11 @@
                         <field name="payment_date"/>
                         <field name="partner_id"/>
                         <field name="concept"/>
+                        <field name="payment_currency"/>
                         <field name="currency_id" invisible="1"/>
-                        <field name="amount_mxn"/>
+                        <field name="amount_usd" invisible="payment_currency != 'usd'" required="payment_currency == 'usd'"/>
+                        <field name="exchange_rate" invisible="payment_currency != 'usd'" required="payment_currency == 'usd'"/>
+                        <field name="amount_mxn" readonly="payment_currency == 'usd'"/>
                         <field name="reference"/>
                         <field name="notes"/>
                     </group>

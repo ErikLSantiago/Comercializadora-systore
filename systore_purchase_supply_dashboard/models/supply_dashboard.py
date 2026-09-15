@@ -114,7 +114,14 @@ class SystoreSupplyDashboard(models.AbstractModel):
             supplier_domain.append(("warehouse_id", "=", warehouse_id))
         if channel:
             supplier_domain.append(("channel", "=", channel))
-        suppliers = self.env["systore.supply.purchase.line"].search(supplier_domain).mapped("supplier_id")
+        period_purchase_lines = self.env["systore.supply.purchase.line"].search(supplier_domain)
+        suppliers = period_purchase_lines.mapped("supplier_id")
+        for order in period_purchase_lines.mapped("purchase_order_id"):
+            suppliers |= self.env["res.partner"].browse([
+                component["partner"].id
+                for component in order._systore_debt_components()
+                if component.get("partner")
+            ])
         supplier_options = [
             {"id": supplier.id, "name": supplier.display_name}
             for supplier in suppliers.sorted(lambda item: (item.display_name or "").lower())
@@ -224,9 +231,10 @@ class SystoreSupplyDashboard(models.AbstractModel):
             purchase_domain.append(("warehouse_id", "=", warehouse_id))
         if channel:
             purchase_domain.append(("channel", "=", channel))
-        if supplier_id:
-            purchase_domain.append(("supplier_id", "=", supplier_id))
-        purchase_lines = self.env["systore.supply.purchase.line"].search(purchase_domain)
+        base_purchase_lines = self.env["systore.supply.purchase.line"].search(purchase_domain)
+        purchase_lines = base_purchase_lines.filtered(
+            lambda line: not supplier_id or line.supplier_id.id == supplier_id
+        )
         received_qty = sum(purchase_lines.mapped("received_qty"))
         pending_qty = sum(purchase_lines.mapped("pending_qty"))
         pieces_total = received_qty + pending_qty
@@ -255,14 +263,22 @@ class SystoreSupplyDashboard(models.AbstractModel):
             supplier["pending"] += line.pending_qty
 
         purchase_orders = purchase_lines.mapped("purchase_order_id")
-        debt_by_supplier = defaultdict(float)
-        for order in purchase_orders:
-            debt = order.systore_amount_pending_mxn or 0.0
-            if debt > 0:
-                debt_by_supplier[order.partner_id.id] += debt
-                suppliers[order.partner_id.id]["debt_order_ids"].add(order.id)
+        debt_orders = base_purchase_lines.mapped("purchase_order_id")
+        debt_by_supplier = defaultdict(lambda: {"mxn": 0.0, "usd": 0.0})
+        for order in debt_orders:
+            for component in order._systore_debt_components():
+                partner = component["partner"]
+                if supplier_id and partner.id != supplier_id:
+                    continue
+                debt_by_supplier[partner.id]["mxn"] += component["pending_mxn"]
+                debt_by_supplier[partner.id]["usd"] += component["pending_usd"]
+                supplier = suppliers[partner.id]
+                supplier["name"] = partner.display_name
+                supplier["debt_order_ids"].add(order.id)
         for supplier_id_key, values in suppliers.items():
-            values["debt"] = debt_by_supplier.get(supplier_id_key, 0.0)
+            debt = debt_by_supplier[supplier_id_key]
+            values["debt"] = debt["mxn"]
+            values["debt_usd"] = debt["usd"]
 
         def ranking_rows(grouped, limit=None):
             result = []
@@ -286,13 +302,17 @@ class SystoreSupplyDashboard(models.AbstractModel):
                     "order_ids": list(values["order_ids"]),
                     "debt_order_ids": list(values.get("debt_order_ids", set())),
                     "debt": values.get("debt", 0.0),
+                    "debt_usd": values.get("debt_usd", 0.0),
                 })
             return result
 
         product_rows = ranking_rows(products, limit=10)
         all_supplier_rows = ranking_rows(suppliers)
         supplier_rows = all_supplier_rows[:10]
-        debt_rows = [row for row in all_supplier_rows if row["debt"] > 0]
+        debt_rows = [
+            row for row in all_supplier_rows
+            if row["debt"] > 0 or row["debt_usd"] > 0
+        ]
         debt_rows.sort(key=lambda row: row["debt"], reverse=True)
         max_debt = max((row["debt"] for row in debt_rows), default=0.0)
         for row in debt_rows:
@@ -325,6 +345,7 @@ class SystoreSupplyDashboard(models.AbstractModel):
                 "products": product_rows,
                 "suppliers": supplier_rows,
                 "debts": debt_rows[:10],
-                "debt_total": sum(debt_by_supplier.values()),
+                "debt_total": sum(value["mxn"] for value in debt_by_supplier.values()),
+                "debt_total_usd": sum(value["usd"] for value in debt_by_supplier.values()),
             },
         }

@@ -25,7 +25,7 @@ export class SystoreSupplyDashboard extends Component {
                     channels: { total: 0, wholesale: 0, retail: 0, wholesale_percent: 0 },
                     pieces: { total: 0, received: 0, pending: 0, received_percent: 0 },
                 },
-                rankings: { products: [], suppliers: [], debts: [], debt_total: 0 },
+                rankings: { products: [], suppliers: [], debts: [], debt_total: 0, debt_total_usd: 0 },
                 purchases: [], demand: [], trace: [], suppliers: [], warehouses: [], counts: {},
             },
             filters: {
