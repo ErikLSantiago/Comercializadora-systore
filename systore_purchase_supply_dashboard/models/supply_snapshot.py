@@ -38,10 +38,32 @@ class SystoreSupplyPurchaseLine(models.Model):
     has_receipt = fields.Boolean(string="Con recepción", index=True, readonly=True)
 
     ordered_qty = fields.Float(string="Piezas en orden", readonly=True)
-    received_qty = fields.Float(string="Piezas recibidas", readonly=True)
+    received_qty = fields.Float(string="Piezas recibidas (brutas)", readonly=True)
+    returned_qty = fields.Float(string="Piezas devueltas", readonly=True)
+    net_received_qty = fields.Float(string="Piezas recibidas netas", readonly=True)
     pending_qty = fields.Float(string="Piezas pendientes", readonly=True)
     overreceived_qty = fields.Float(string="Excedente recibido", readonly=True)
     reception_percent = fields.Float(string="% recepción", readonly=True, group_operator="avg")
+    movement_status = fields.Selection(
+        [
+            ("pending", "Pendiente de recepción"),
+            ("received", "Recepción"),
+            ("vendor_return", "Devolución a proveedor"),
+        ],
+        string="Estado del movimiento",
+        index=True,
+        readonly=True,
+    )
+    return_picking_ids = fields.Many2many(
+        "stock.picking",
+        string="Transferencias de devolución",
+        readonly=True,
+    )
+    last_return_date = fields.Datetime(
+        string="Última devolución a proveedor",
+        index=True,
+        readonly=True,
+    )
 
     gross_usd_unit = fields.Float(string="Mercancía USD/u", readonly=True)
     shipping_usd_unit = fields.Float(string="Logística USD/u", readonly=True)
@@ -73,7 +95,11 @@ class SystoreSupplyPurchaseLine(models.Model):
     @api.model
     def _first_receipt_date(self, order):
         moves = order.order_line.move_ids.filtered(
-            lambda move: move.state == "done" and move.location_id.usage == "supplier"
+            lambda move: (
+                move.state == "done"
+                and move.location_id.usage == "supplier"
+                and move.location_dest_id.usage != "supplier"
+            )
         )
         if not moves:
             moves = self.env["stock.move"].search([
@@ -90,6 +116,42 @@ class SystoreSupplyPurchaseLine(models.Model):
         return min(dates) if dates else False
 
     @api.model
+    def _move_done_qty(self, move):
+        if "quantity" in move._fields:
+            return move.quantity or 0.0
+        quantities = 0.0
+        for move_line in move.move_line_ids:
+            if "quantity" in move_line._fields:
+                quantities += move_line.quantity or 0.0
+            elif "qty_done" in move_line._fields:
+                quantities += move_line.qty_done or 0.0
+        return quantities or move.product_uom_qty or 0.0
+
+    @api.model
+    def _line_receipt_quantities(self, line):
+        StockMove = self.env["stock.move"].sudo()
+        moves = line.move_ids.filtered(lambda move: move.state == "done")
+        if moves:
+            moves |= StockMove.search([
+                ("state", "=", "done"),
+                ("origin_returned_move_id", "in", moves.ids),
+            ])
+        gross = returned = 0.0
+        return_moves = StockMove.browse()
+        for move in moves:
+            qty = self._move_done_qty(move)
+            if move.product_uom and line.product_uom and move.product_uom != line.product_uom:
+                qty = move.product_uom._compute_quantity(qty, line.product_uom)
+            if move.location_id.usage == "supplier" and move.location_dest_id.usage != "supplier":
+                gross += qty
+            elif move.location_dest_id.usage == "supplier" and move.location_id.usage != "supplier":
+                returned += qty
+                return_moves |= move
+        if not moves and line.qty_received:
+            gross = line.qty_received
+        return gross, returned, max(gross - returned, 0.0), return_moves
+
+    @api.model
     def _rebuild_snapshot(self, company, period):
         StockMove = self.env["stock.move"].sudo()
         receipt_moves = StockMove.search([
@@ -99,9 +161,19 @@ class SystoreSupplyPurchaseLine(models.Model):
             ("date", ">=", period["utc_start"]),
             ("date", "<", period["utc_end"]),
         ])
+        return_moves = StockMove.search([
+            ("company_id", "=", company.id),
+            ("state", "=", "done"),
+            ("location_dest_id.usage", "=", "supplier"),
+            ("location_id.usage", "!=", "supplier"),
+            ("date", ">=", period["utc_start"]),
+            ("date", "<", period["utc_end"]),
+        ])
         orders = self.env["purchase.order"].sudo()
         if "purchase_line_id" in StockMove._fields:
-            orders |= receipt_moves.mapped("purchase_line_id.order_id")
+            orders |= (receipt_moves | return_moves).mapped("purchase_line_id.order_id")
+        if "origin_returned_move_id" in StockMove._fields:
+            orders |= return_moves.mapped("origin_returned_move_id.purchase_line_id.order_id")
         origins = list(set(filter(None, receipt_moves.mapped("picking_id.origin"))))
         if origins:
             orders |= self.env["purchase.order"].sudo().search([
@@ -137,11 +209,18 @@ class SystoreSupplyPurchaseLine(models.Model):
             purchase_origin = order._systore_resolved_purchase_origin()
             for line in order.order_line.filtered(lambda item: not item.display_type and item.product_id):
                 ordered = line.product_qty or 0.0
-                received = line.qty_received or 0.0
-                pending = max(ordered - received, 0.0)
-                overreceived = max(received - ordered, 0.0)
+                received, returned, net_received, line_return_moves = (
+                    self._line_receipt_quantities(line)
+                )
+                pending = max(ordered - net_received, 0.0)
+                overreceived = max(net_received - ordered, 0.0)
                 landed_cost = order._systore_line_cost_mxn(line)
-                reception_percent = (received / ordered * 100.0) if ordered else 0.0
+                reception_percent = (net_received / ordered * 100.0) if ordered else 0.0
+                movement_status = (
+                    "vendor_return" if returned > 0
+                    else "received" if received > 0
+                    else "pending"
+                )
                 values.append({
                     "company_id": company.id,
                     "currency_id": currency.id,
@@ -157,12 +236,20 @@ class SystoreSupplyPurchaseLine(models.Model):
                     "order_date": order.date_order,
                     "first_receipt_date": first_receipt,
                     "report_date": report_date,
-                    "has_receipt": bool(first_receipt),
+                    "has_receipt": received > 0,
                     "ordered_qty": ordered,
                     "received_qty": received,
+                    "returned_qty": returned,
+                    "net_received_qty": net_received,
                     "pending_qty": pending,
                     "overreceived_qty": overreceived,
                     "reception_percent": reception_percent,
+                    "movement_status": movement_status,
+                    "return_picking_ids": [(6, 0, line_return_moves.mapped("picking_id").ids)],
+                    "last_return_date": max(
+                        (move.picking_id.date_done or move.date for move in line_return_moves),
+                        default=False,
+                    ),
                     "gross_usd_unit": line.x_gross_usd or 0.0,
                     "shipping_usd_unit": line.x_ship_usd or 0.0,
                     "gross_mxn_unit": line.x_gross_mxn or 0.0,
@@ -172,7 +259,7 @@ class SystoreSupplyPurchaseLine(models.Model):
                     "merchandise_usd_total": ordered * (line.x_gross_usd or 0.0),
                     "shipping_usd_total": ordered * (line.x_ship_usd or 0.0),
                     "ordered_value_mxn": ordered * landed_cost,
-                    "received_value_mxn": received * landed_cost,
+                    "received_value_mxn": net_received * landed_cost,
                     "pending_value_mxn": pending * landed_cost,
                     "payment_status": order.systore_payment_status,
                     "amount_payable_mxn": order.systore_amount_payable_mxn,

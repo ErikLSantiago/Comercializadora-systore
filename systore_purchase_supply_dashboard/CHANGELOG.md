@@ -1,5 +1,16 @@
 # Historial de cambios
 
+## 18.0.1.6.0
+
+- Se agregó al tablero el Top 10 de **Productos recibidos** basado directamente en movimientos terminados desde proveedor.
+- El tablero incorpora fechas Desde/Hasta para consultar recepciones; al cambiar el mes, el rango se ajusta al mes completo.
+- Cada producto recibido permite abrir los movimientos de inventario que forman su cantidad.
+- Recepciones de compra ahora separa piezas recibidas brutas, devueltas y recibidas netas.
+- Los movimientos terminados hacia una ubicación de proveedor se identifican como **Devolución a proveedor**.
+- Se muestran la fecha y las transferencias relacionadas con cada devolución.
+- Las piezas pendientes y la valuación recibida se calculan sobre la recepción neta.
+- Se corrigió la pérdida de contexto al abrir órdenes desde los paneles de deuda (`undefined.action`).
+
 ## 18.0.1.5.2
 
 - Se corrigió la prioridad del estado manual que mantenía una orden en Pendiente aunque tuviera abonos.

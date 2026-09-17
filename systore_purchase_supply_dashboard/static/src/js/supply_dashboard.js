@@ -12,7 +12,13 @@ export class SystoreSupplyDashboard extends Component {
         this.orm = useService("orm");
         this.action = useService("action");
         this.notification = useService("notification");
+        this.openIds = this.openIds.bind(this);
+        this.openAction = this.openAction.bind(this);
+        this.openPurchaseLines = this.openPurchaseLines.bind(this);
+        this.openRecord = this.openRecord.bind(this);
         const today = new Date();
+        const currentMonth = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, "0")}`;
+        const lastDay = new Date(today.getFullYear(), today.getMonth() + 1, 0).getDate();
         this.state = useState({
             loading: true,
             refreshing: false,
@@ -26,7 +32,7 @@ export class SystoreSupplyDashboard extends Component {
                     pieces: { total: 0, received: 0, pending: 0, received_percent: 0 },
                 },
                 rankings: {
-                    products: [], suppliers: [], debts: [],
+                    products: [], received_products: [], suppliers: [], debts: [],
                     debts_national: [], debts_international: [],
                     debt_national_mxn: 0,
                     debt_international_mxn: 0,
@@ -35,7 +41,9 @@ export class SystoreSupplyDashboard extends Component {
                 purchases: [], demand: [], trace: [], suppliers: [], warehouses: [], counts: {},
             },
             filters: {
-                period_month: `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, "0")}`,
+                period_month: currentMonth,
+                date_from: `${currentMonth}-01`,
+                date_to: `${currentMonth}-${String(lastDay).padStart(2, "0")}`,
                 channel: "",
                 warehouse_id: "",
                 supplier_id: "",
@@ -79,12 +87,24 @@ export class SystoreSupplyDashboard extends Component {
 
     onPeriodMonth(event) {
         this.state.filters.period_month = event.target.value;
+        const [year, month] = event.target.value.split("-").map(Number);
+        const lastDay = new Date(year, month, 0).getDate();
+        this.state.filters.date_from = `${event.target.value}-01`;
+        this.state.filters.date_to = `${event.target.value}-${String(lastDay).padStart(2, "0")}`;
         this.state.filters.supplier_id = "";
     }
 
     onChannel(event) {
         this.state.filters.channel = event.target.value;
         this.state.filters.supplier_id = "";
+    }
+
+    onDateFrom(event) {
+        this.state.filters.date_from = event.target.value;
+    }
+
+    onDateTo(event) {
+        this.state.filters.date_to = event.target.value;
     }
 
     onWarehouse(event) {
@@ -98,7 +118,11 @@ export class SystoreSupplyDashboard extends Component {
 
     currentMonth() {
         const today = new Date();
-        this.state.filters.period_month = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, "0")}`;
+        const month = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, "0")}`;
+        const lastDay = new Date(today.getFullYear(), today.getMonth() + 1, 0).getDate();
+        this.state.filters.period_month = month;
+        this.state.filters.date_from = `${month}-01`;
+        this.state.filters.date_to = `${month}-${String(lastDay).padStart(2, "0")}`;
         this.state.filters.supplier_id = "";
         this.loadData();
     }

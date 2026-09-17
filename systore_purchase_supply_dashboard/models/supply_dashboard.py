@@ -1,4 +1,4 @@
-from datetime import datetime, time
+from datetime import datetime, time, timedelta
 from collections import defaultdict
 
 import pytz
@@ -57,6 +57,36 @@ class SystoreSupplyDashboard(models.AbstractModel):
         }
 
     @api.model
+    def _receipt_date_period(self, date_from=None, date_to=None, fallback=None):
+        fallback = fallback or self._month_period()
+        try:
+            start_date = (
+                datetime.strptime(date_from, "%Y-%m-%d").date()
+                if date_from else fallback["month_start"]
+            )
+            end_date = (
+                datetime.strptime(date_to, "%Y-%m-%d").date()
+                if date_to else fallback["month_end"] - timedelta(days=1)
+            )
+        except (TypeError, ValueError) as error:
+            raise UserError(_("Selecciona un rango de fechas válido.")) from error
+        if start_date > end_date:
+            raise UserError(_("La fecha inicial no puede ser posterior a la fecha final."))
+        timezone = pytz.timezone(self.env.user.tz or "UTC")
+        local_start = timezone.localize(datetime.combine(start_date, time.min))
+        local_end = timezone.localize(datetime.combine(end_date + timedelta(days=1), time.min))
+        return {
+            "date_from": fields.Date.to_string(start_date),
+            "date_to": fields.Date.to_string(end_date),
+            "utc_start": fields.Datetime.to_string(
+                local_start.astimezone(pytz.UTC).replace(tzinfo=None)
+            ),
+            "utc_end": fields.Datetime.to_string(
+                local_end.astimezone(pytz.UTC).replace(tzinfo=None)
+            ),
+        }
+
+    @api.model
     def action_refresh(self, period_month=None):
         company = self.env.company
         period = self._month_period(period_month)
@@ -74,6 +104,9 @@ class SystoreSupplyDashboard(models.AbstractModel):
     def get_dashboard_data(self, filters=None):
         filters = filters or {}
         period = self._month_period(filters.get("period_month"))
+        receipt_period = self._receipt_date_period(
+            filters.get("date_from"), filters.get("date_to"), fallback=period
+        )
         company = self.env.company
         demand_domain = [
             ("company_id", "=", company.id),
@@ -120,6 +153,7 @@ class SystoreSupplyDashboard(models.AbstractModel):
             channel=channel,
             warehouse_id=warehouse_id,
             supplier_id=supplier_id,
+            receipt_period=receipt_period,
         )
 
         warehouses = self.env["stock.warehouse"].search_read(
@@ -141,6 +175,8 @@ class SystoreSupplyDashboard(models.AbstractModel):
         ]
         return {
             "period_month": period["key"],
+            "date_from": receipt_period["date_from"],
+            "date_to": receipt_period["date_to"],
             "kpis": kpis,
             "charts": chart_data["charts"],
             "purchases": [],
@@ -157,7 +193,10 @@ class SystoreSupplyDashboard(models.AbstractModel):
         }
 
     @api.model
-    def _get_chart_data(self, company, period, channel=None, warehouse_id=None, supplier_id=None):
+    def _get_chart_data(
+        self, company, period, channel=None, warehouse_id=None,
+        supplier_id=None, receipt_period=None,
+    ):
         """Build lightweight chart totals for the selected calendar month."""
         Picking = self.env["stock.picking"].sudo()
         pickings = Picking.search([
@@ -248,7 +287,7 @@ class SystoreSupplyDashboard(models.AbstractModel):
         purchase_lines = base_purchase_lines.filtered(
             lambda line: not supplier_id or line.supplier_id.id == supplier_id
         )
-        received_qty = sum(purchase_lines.mapped("received_qty"))
+        received_qty = sum(purchase_lines.mapped("net_received_qty"))
         pending_qty = sum(purchase_lines.mapped("pending_qty"))
         pieces_total = received_qty + pending_qty
         received_pct = received_qty / pieces_total * 100.0 if pieces_total else 0.0
@@ -265,14 +304,14 @@ class SystoreSupplyDashboard(models.AbstractModel):
             product.update({"name": line.product_id.display_name, "sku": line.sku or ""})
             product["order_ids"].add(line.purchase_order_id.id)
             product["ordered"] += line.ordered_qty
-            product["received"] += line.received_qty
+            product["received"] += line.net_received_qty
             product["pending"] += line.pending_qty
 
             supplier = suppliers[line.supplier_id.id]
             supplier["name"] = line.supplier_id.display_name
             supplier["order_ids"].add(line.purchase_order_id.id)
             supplier["ordered"] += line.ordered_qty
-            supplier["received"] += line.received_qty
+            supplier["received"] += line.net_received_qty
             supplier["pending"] += line.pending_qty
 
         purchase_orders = purchase_lines.mapped("purchase_order_id")
@@ -332,6 +371,67 @@ class SystoreSupplyDashboard(models.AbstractModel):
         product_rows = ranking_rows(products, limit=10)
         supplier_rows = ranking_rows(suppliers, limit=10)
 
+        receipt_period = receipt_period or period
+        receipt_moves = self.env["stock.move"].sudo().search([
+            ("company_id", "=", company.id),
+            ("state", "=", "done"),
+            ("location_id.usage", "=", "supplier"),
+            ("location_dest_id.usage", "!=", "supplier"),
+            ("date", ">=", receipt_period["utc_start"]),
+            ("date", "<", receipt_period["utc_end"]),
+        ])
+        received_products = defaultdict(lambda: {
+            "quantity": 0.0, "move_ids": set(), "order_ids": set(),
+        })
+        PurchaseSnapshot = self.env["systore.supply.purchase.line"]
+        for move in receipt_moves:
+            warehouse = move.picking_type_id.warehouse_id
+            if warehouse_id and (not warehouse or warehouse.id != warehouse_id):
+                continue
+            resolved_channel = (
+                warehouse._systore_resolved_supply_channel(move.location_dest_id)
+                if warehouse else "retail"
+            )
+            if channel and resolved_channel != channel:
+                continue
+            order = (
+                move.purchase_line_id.order_id
+                if "purchase_line_id" in move._fields and move.purchase_line_id
+                else self.env["purchase.order"]
+            )
+            if supplier_id and (not order or order.partner_id.id != supplier_id):
+                continue
+            qty = PurchaseSnapshot._move_done_qty(move)
+            if move.product_uom and move.product_id.uom_id and move.product_uom != move.product_id.uom_id:
+                qty = move.product_uom._compute_quantity(qty, move.product_id.uom_id)
+            values = received_products[move.product_id.id]
+            values["name"] = move.product_id.display_name
+            values["sku"] = move.product_id.default_code or ""
+            values["quantity"] += qty
+            values["move_ids"].add(move.id)
+            if order:
+                values["order_ids"].add(order.id)
+        received_product_rows = sorted(
+            ({
+                "id": product_id,
+                "name": values["name"],
+                "sku": values["sku"],
+                "quantity": values["quantity"],
+                "move_ids": list(values["move_ids"]),
+                "order_ids": list(values["order_ids"]),
+            } for product_id, values in received_products.items()),
+            key=lambda row: row["quantity"],
+            reverse=True,
+        )[:10]
+        max_received_qty = max(
+            (row["quantity"] for row in received_product_rows), default=0.0
+        )
+        for row in received_product_rows:
+            row["percent"] = (
+                row["quantity"] / max_received_qty * 100.0
+                if max_received_qty else 0.0
+            )
+
         def debt_rows(sector):
             rows = [{
                 "id": partner_id,
@@ -379,6 +479,7 @@ class SystoreSupplyDashboard(models.AbstractModel):
             },
             "rankings": {
                 "products": product_rows,
+                "received_products": received_product_rows,
                 "suppliers": supplier_rows,
                 "debts": national_debts + international_debts,
                 "debts_national": national_debts,

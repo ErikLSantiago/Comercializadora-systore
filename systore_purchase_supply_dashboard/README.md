@@ -17,6 +17,8 @@ Versión de pruebas para Odoo 18.
 - Gráfica de barras con órdenes de venta listas y parciales.
 - Gráfica de pastel con órdenes de venta por canal Mayoreo y Minorista.
 - Gráfica de pastel con piezas de compra recibidas y pendientes.
+- Top de productos recibidos directamente del historial de movimientos, con rango de fechas Desde/Hasta.
+- Recepciones brutas, devoluciones a proveedor y recepciones netas por línea de compra.
 - Deuda histórica separada entre proveedores nacionales y extranjeros, mostrada en USD y MXN, con acceso a las órdenes relacionadas.
 - Ranking de productos y proveedores por piezas confirmadas, recibidas y pendientes.
 - Filtro de proveedor para gráficas y listados de compras.
@@ -39,7 +41,10 @@ Versión de pruebas para Odoo 18.
 
 ## Reglas de la primera versión
 
-- Recepciones: usa `purchase.order.line.qty_received`.
+- Recepciones: suma los movimientos terminados desde proveedor vinculados a cada línea de compra.
+- Productos recibidos: movimientos terminados cuyo origen es una ubicación de tipo Proveedor dentro del rango seleccionado.
+- Devolución a proveedor: movimiento terminado cuyo destino es una ubicación de tipo Proveedor.
+- Recepción neta: piezas recibidas brutas menos piezas devueltas al proveedor.
 - Primera recepción: fecha mínima de un movimiento terminado desde una ubicación de proveedor.
 - Si una compra aún no tiene recepción, la fecha de reporte provisional es la fecha de la OC.
 - Compra internacional automática: existe costo base o logística capturada en USD.
@@ -76,6 +81,8 @@ Versión de pruebas para Odoo 18.
 8. Compra internacional de USD 90 con abonos de USD 50 a 17.89, USD 30 a 17.45 y USD 10 a 18.01.
 9. Compra nacional y abonos parciales contra el total con impuestos.
 10. Marcar una orden antigua como Pagada y comprobar que desaparezca de la deuda histórica.
+11. Recibir 10 piezas, devolver 2 a proveedor y comprobar 10 brutas, 2 devueltas, 8 netas y 2 pendientes.
+12. Abrir una deuda desde el tablero y comprobar que muestre sus órdenes de compra.
 
 ## Limitaciones deliberadas de V1
 

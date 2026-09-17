@@ -15,8 +15,16 @@
                 <field name="sku"/>
                 <field name="purchase_origin" widget="badge"/>
                 <field name="ordered_qty" sum="Ordenadas"/>
-                <field name="received_qty" sum="Recibidas"/>
+                <field name="received_qty" sum="Recibidas brutas"/>
+                <field name="returned_qty" sum="Devueltas"/>
+                <field name="net_received_qty" sum="Recibidas netas"/>
                 <field name="pending_qty" sum="Pendientes"/>
+                <field name="movement_status" widget="badge"
+                       decoration-danger="movement_status == 'vendor_return'"
+                       decoration-success="movement_status == 'received'"
+                       decoration-warning="movement_status == 'pending'"/>
+                <field name="last_return_date" optional="show"/>
+                <field name="return_picking_ids" widget="many2many_tags" optional="show"/>
                 <field name="reception_percent" optional="show"/>
                 <field name="landed_cost_mxn_unit" optional="show"/>
                 <field name="received_value_mxn" sum="Valor recibido" optional="show"/>
@@ -39,6 +47,8 @@
                 <field name="channel" type="col"/>
                 <field name="ordered_qty" type="measure"/>
                 <field name="received_qty" type="measure"/>
+                <field name="returned_qty" type="measure"/>
+                <field name="net_received_qty" type="measure"/>
                 <field name="pending_qty" type="measure"/>
                 <field name="received_value_mxn" type="measure"/>
                 <field name="pending_value_mxn" type="measure"/>
@@ -52,7 +62,8 @@
         <field name="arch" type="xml">
             <graph string="Ordenado vs recibido" type="bar" stacked="1">
                 <field name="report_date" interval="month"/>
-                <field name="received_qty" type="measure"/>
+                <field name="net_received_qty" type="measure"/>
+                <field name="returned_qty" type="measure"/>
                 <field name="pending_qty" type="measure"/>
             </graph>
         </field>
@@ -68,15 +79,18 @@
                 <field name="product_id"/>
                 <field name="supplier_id"/>
                 <field name="warehouse_id"/>
+                <field name="return_picking_ids"/>
                 <filter name="pending_receipt" string="Pendientes de recibir" domain="[('pending_qty', '&gt;', 0)]"/>
                 <filter name="without_receipt" string="Sin recepción" domain="[('has_receipt', '=', False)]"/>
                 <filter name="international" string="Internacionales" domain="[('purchase_origin', '=', 'international')]"/>
+                <filter name="vendor_returns" string="Devoluciones a proveedor" domain="[('movement_status', '=', 'vendor_return')]"/>
                 <separator/>
                 <filter name="group_month" string="Mes de reporte" context="{'group_by': 'report_date:month'}"/>
                 <filter name="group_supplier" string="Proveedor" context="{'group_by': 'supplier_id'}"/>
                 <filter name="group_warehouse" string="Almacén" context="{'group_by': 'warehouse_id'}"/>
                 <filter name="group_product" string="Producto" context="{'group_by': 'product_id'}"/>
                 <filter name="group_payment" string="Estado de pago" context="{'group_by': 'payment_status'}"/>
+                <filter name="group_movement" string="Estado del movimiento" context="{'group_by': 'movement_status'}"/>
             </search>
         </field>
     </record>

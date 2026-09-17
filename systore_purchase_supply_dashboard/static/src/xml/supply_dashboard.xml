@@ -19,6 +19,8 @@
 
             <div class="o_supply_filters">
                 <label>Mes del traslado<input type="month" class="form-control" required="required" t-att-value="state.filters.period_month" t-on-change="onPeriodMonth"/></label>
+                <label>Recepciones desde<input type="date" class="form-control" required="required" t-att-value="state.filters.date_from" t-on-change="onDateFrom"/></label>
+                <label>Recepciones hasta<input type="date" class="form-control" required="required" t-att-value="state.filters.date_to" t-on-change="onDateTo"/></label>
                 <label>Canal
                     <select class="form-select" t-att-value="state.filters.channel" t-on-change="onChannel">
                         <option value="">Todos</option>
@@ -124,6 +126,25 @@
                         </div>
                     </section>
                 </div>
+
+                <section class="o_supply_panel">
+                    <div class="o_supply_panel_title">
+                        <div>
+                            <h2>Productos recibidos</h2>
+                            <small>Top 10 por piezas ingresadas desde proveedor entre <t t-esc="state.filters.date_from"/> y <t t-esc="state.filters.date_to"/>.</small>
+                        </div>
+                    </div>
+                    <div class="o_supply_ranking_list">
+                        <button t-foreach="state.data.rankings.received_products" t-as="row" t-key="row.id" type="button"
+                                class="o_supply_ranking_row"
+                                t-on-click="() => openIds('stock.move', 'Recepciones de ' + row.name, row.move_ids)">
+                            <span class="o_supply_rank_name"><strong t-esc="row.sku || 'Sin SKU'"/><small t-esc="row.name"/></span>
+                            <span class="o_supply_receipt_bar"><i class="received" t-att-style="'width: ' + row.percent + '%;'"/></span>
+                            <span class="o_supply_rank_values"><strong t-esc="formatQty(row.quantity)"/><small>piezas recibidas</small></span>
+                        </button>
+                        <div t-if="!state.data.rankings.received_products.length" class="o_supply_empty">No hay recepciones terminadas dentro del rango seleccionado.</div>
+                    </div>
+                </section>
 
                 <div class="o_supply_debt_sectors">
                     <section class="o_supply_panel o_supply_debt_panel">
