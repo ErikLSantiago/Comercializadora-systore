@@ -136,25 +136,99 @@ class SystoreSupplyDashboard(models.AbstractModel):
         sale_orders = demand_lines.mapped("sale_order_id")
         pickings = demand_lines.mapped("picking_id")
 
+        demand_by_product = defaultdict(lambda: {
+            "open": 0.0, "ready": 0.0, "missing": 0.0,
+            "sale_ids": set(), "picking_ids": set(),
+            "warehouse_names": set(), "channels": set(),
+        })
+        for line in demand_lines:
+            values = demand_by_product[line.product_id.id]
+            values["name"] = line.product_id.display_name
+            values["sku"] = line.sku or ""
+            values["open"] += line.open_demand_qty
+            values["ready"] += line.reserved_qty
+            values["missing"] += line.missing_to_buy_qty
+            values["sale_ids"].add(line.sale_order_id.id)
+            values["picking_ids"].add(line.picking_id.id)
+            values["warehouse_names"].add(line.warehouse_id.display_name)
+            values["channels"].add(line.channel)
+
+        incoming_by_product = defaultdict(float)
+        if demand_by_product:
+            purchase_lines = self.env["purchase.order.line"].sudo().search([
+                ("order_id.company_id", "=", company.id),
+                ("order_id.state", "in", ["purchase", "done"]),
+                ("product_id", "in", list(demand_by_product)),
+            ])
+            PurchaseSnapshot = self.env["systore.supply.purchase.line"]
+            for purchase_line in purchase_lines:
+                order = purchase_line.order_id
+                purchase_warehouse = order.picking_type_id.warehouse_id
+                if warehouse_id and (
+                    not purchase_warehouse or purchase_warehouse.id != warehouse_id
+                ):
+                    continue
+                purchase_channel = (
+                    purchase_warehouse._systore_resolved_supply_channel(
+                        order.picking_type_id.default_location_dest_id
+                    ) if purchase_warehouse else "retail"
+                )
+                if channel and purchase_channel != channel:
+                    continue
+                _, _, received_net, _ = PurchaseSnapshot._line_receipt_quantities(
+                    purchase_line
+                )
+                incoming = max((purchase_line.product_qty or 0.0) - received_net, 0.0)
+                if (
+                    purchase_line.product_uom
+                    and purchase_line.product_id.uom_id
+                    and purchase_line.product_uom != purchase_line.product_id.uom_id
+                ):
+                    incoming = purchase_line.product_uom._compute_quantity(
+                        incoming, purchase_line.product_id.uom_id
+                    )
+                incoming_by_product[purchase_line.product_id.id] += incoming
+
+        demand_rows = []
+        for product_id, values in demand_by_product.items():
+            incoming = incoming_by_product.get(product_id, 0.0)
+            net_missing = max(values["missing"] - incoming, 0.0)
+            demand_rows.append({
+                "id": product_id,
+                "product_id": product_id,
+                "name": values["name"],
+                "sku": values["sku"],
+                "warehouse_names": ", ".join(sorted(values["warehouse_names"])),
+                "channel_names": ", ".join(
+                    "Mayoreo" if item == "wholesale" else "Minorista"
+                    for item in sorted(values["channels"])
+                ),
+                "open_demand_qty": values["open"],
+                "reserved_qty": values["ready"],
+                "original_missing_qty": values["missing"],
+                "incoming_purchase_qty": incoming,
+                "missing_to_buy_qty": net_missing,
+                "sale_order_ids": list(values["sale_ids"]),
+                "picking_ids": list(values["picking_ids"]),
+                "coverage_status": "incoming" if net_missing <= 0 else "partial",
+            })
+        demand_rows.sort(
+            key=lambda row: (row["missing_to_buy_qty"], row["original_missing_qty"]),
+            reverse=True,
+        )
+
         kpis = {
             "sale_orders": len(sale_orders),
             "partial_pickings": len(pickings),
             "open_demand_qty": sum(demand_lines.mapped("open_demand_qty")),
             "ready_qty": sum(demand_lines.mapped("reserved_qty")),
-            "missing_to_buy_qty": sum(demand_lines.mapped("missing_to_buy_qty")),
+            "missing_to_buy_qty": sum(
+                row["missing_to_buy_qty"] for row in demand_rows
+            ),
+            "incoming_purchase_qty": sum(
+                row["incoming_purchase_qty"] for row in demand_rows
+            ),
         }
-
-        demand_rows = DemandLine.search_read(
-            demand_domain,
-            [
-                "sale_order_id", "picking_id", "source_location_id", "scheduled_date",
-                "warehouse_id", "channel", "product_id", "sku",
-                "open_demand_qty", "reserved_qty",
-                "missing_to_buy_qty", "coverage_status",
-            ],
-            order="scheduled_date, sale_order_id, sku",
-            limit=100,
-        )
 
         chart_data = self._get_chart_data(
             company,
@@ -679,10 +753,15 @@ class SystoreSupplyDashboard(models.AbstractModel):
             } for partner_id, values in debt_by_sector[sector].items()
                 if values["mxn"] > 0 or values["usd"] > 0]
             rows.sort(key=lambda row: (row["debt"], row["debt_usd"]), reverse=True)
-            max_debt = max((row["debt"] for row in rows), default=0.0)
+            max_debt_mxn = max((row["debt"] for row in rows), default=0.0)
+            max_debt_usd = max((row["debt_usd"] for row in rows), default=0.0)
             for row in rows:
                 row["debt_percent"] = (
-                    row["debt"] / max_debt * 100.0 if max_debt else 100.0
+                    row["debt"] / max_debt_mxn * 100.0 if max_debt_mxn else 0.0
+                )
+                row["debt_percent_mxn"] = row["debt_percent"]
+                row["debt_percent_usd"] = (
+                    row["debt_usd"] / max_debt_usd * 100.0 if max_debt_usd else 0.0
                 )
             return rows[:10]
 

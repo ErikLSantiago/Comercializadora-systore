@@ -433,12 +433,23 @@ class PurchaseOrder(models.Model):
                 "pending_mxn": self.systore_shipping_pending_usd * shipping_rate,
             })
         if self.systore_import_pending_mxn > 0:
+            import_rate = (
+                self.systore_effective_exchange_rate
+                or self.x_exchange_rate
+                or 0.0
+            )
             components.append({
                 "partner": self.company_id.x_vendor_import_id,
                 "concept": "import",
-                "paid_usd": 0.0,
+                "paid_usd": (
+                    self.systore_import_paid_mxn / import_rate
+                    if import_rate else 0.0
+                ),
                 "paid_mxn": self.systore_import_paid_mxn,
-                "pending_usd": 0.0,
+                "pending_usd": (
+                    self.systore_import_pending_mxn / import_rate
+                    if import_rate else 0.0
+                ),
                 "pending_mxn": self.systore_import_pending_mxn,
             })
         return [item for item in components if item["partner"]]

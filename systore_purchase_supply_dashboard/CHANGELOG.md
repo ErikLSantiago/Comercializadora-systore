@@ -1,5 +1,15 @@
 # Historial de cambios
 
+## 18.0.1.7.0
+
+- La deuda extranjera incorpora un selector visual para consultar saldos y abonos en MXN o USD.
+- Los conceptos originalmente expresados en MXN, como importación, se convierten a USD con el tipo de cambio efectivo de la orden y, si aún no existe, con `x_exchange_rate`.
+- Demanda se consolida por producto/SKU y conserva almacenes, canales, piezas solicitadas y piezas listas.
+- Se muestran por separado el faltante original, las piezas cubiertas por compras confirmadas y las piezas que realmente falta comprar.
+- La cobertura toma únicamente cantidades confirmadas pendientes de recepción del mismo producto y respeta los filtros de almacén y canal.
+- Cuando la compra se recibe, deja de contarse como mercancía en camino; el inventario recibido pasa a intervenir mediante la disponibilidad del traslado, evitando una doble resta.
+- Al seleccionar un SKU se abre el análisis de demanda filtrado por ese producto y mes.
+
 ## 18.0.1.6.5
 
 - Se agregó al encabezado el filtro **Tipo de proveedor**: Todos, Nacional e Internacional.

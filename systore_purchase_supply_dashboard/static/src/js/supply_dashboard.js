@@ -15,6 +15,7 @@ export class SystoreSupplyDashboard extends Component {
         this.openIds = this.openIds.bind(this);
         this.openAction = this.openAction.bind(this);
         this.openPurchaseLines = this.openPurchaseLines.bind(this);
+        this.openDemandLines = this.openDemandLines.bind(this);
         this.openRecord = this.openRecord.bind(this);
         const today = new Date();
         const currentMonth = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, "0")}`;
@@ -46,6 +47,7 @@ export class SystoreSupplyDashboard extends Component {
                 date_from: `${currentMonth}-01`,
                 date_to: `${currentMonth}-${String(lastDay).padStart(2, "0")}`,
                 received_cost_mode: "cost_net",
+                foreign_debt_currency: "mxn",
                 supplier_type: "",
                 channel: "",
                 warehouse_id: "",
@@ -114,6 +116,10 @@ export class SystoreSupplyDashboard extends Component {
         this.state.filters.received_cost_mode = event.target.value;
     }
 
+    onForeignDebtCurrency(event) {
+        this.state.filters.foreign_debt_currency = event.target.value;
+    }
+
     onWarehouse(event) {
         this.state.filters.warehouse_id = event.target.value;
         this.state.filters.supplier_id = "";
@@ -163,6 +169,18 @@ export class SystoreSupplyDashboard extends Component {
         }).format(value || 0);
     }
 
+    formatForeignDebt(usdValue, mxnValue) {
+        return this.state.filters.foreign_debt_currency === "usd"
+            ? this.formatUsd(usdValue)
+            : this.formatMoney(mxnValue);
+    }
+
+    foreignDebtPercent(row) {
+        return this.state.filters.foreign_debt_currency === "usd"
+            ? row.debt_percent_usd
+            : row.debt_percent_mxn;
+    }
+
     formatReceivedValue(supplier, status) {
         const mode = this.state.filters.received_cost_mode;
         if (mode !== "cost_net" && !supplier.is_international) {
@@ -192,7 +210,10 @@ export class SystoreSupplyDashboard extends Component {
     }
 
     coverageLabel(value) {
-        return { partial: "Parcial" }[value] || value;
+        return {
+            incoming: "Cubierta por compra",
+            partial: "Por comprar",
+        }[value] || value;
     }
 
     badgeClass(value) {
@@ -254,6 +275,27 @@ export class SystoreSupplyDashboard extends Component {
             res_model: "systore.supply.purchase.line",
             views: [[false, "list"], [false, "pivot"], [false, "graph"]],
             domain: this.purchaseDomain(extra),
+            target: "current",
+        });
+    }
+
+    openDemandLines(name, productId) {
+        const domain = [
+            ["period_month", "=", `${this.state.filters.period_month}-01`],
+            ["product_id", "=", productId],
+        ];
+        if (this.state.filters.channel) {
+            domain.push(["channel", "=", this.state.filters.channel]);
+        }
+        if (this.state.filters.warehouse_id) {
+            domain.push(["warehouse_id", "=", Number(this.state.filters.warehouse_id)]);
+        }
+        return this.action.doAction({
+            type: "ir.actions.act_window",
+            name,
+            res_model: "systore.supply.demand.line",
+            views: [[false, "list"], [false, "pivot"], [false, "graph"]],
+            domain,
             target: "current",
         });
     }

@@ -7,8 +7,8 @@ Versión de pruebas para Odoo 18.
 - Piezas ordenadas, recibidas y pendientes por línea de compra.
 - Cohorte mensual por primera recepción validada.
 - Valuación MXN con los campos de `purchase_recosteo_importacion`.
-- Demanda desde órdenes de venta con traslados parciales.
-- Piezas solicitadas, listas y faltantes por operación y SKU.
+- Demanda desde órdenes de venta con traslados parciales, consolidada por SKU.
+- Piezas solicitadas, listas, faltante original, cobertura en compras confirmadas y necesidad neta por producto.
 - Canal Mayoreo por prefijo de almacén/ubicación `MXMAY` o `SDMAY`.
 - Canal Minorista para cualquier otro almacén.
 - Trazabilidad Compra → lote → salida → Venta.
@@ -28,7 +28,7 @@ Versión de pruebas para Odoo 18.
 - El filtro Tipo de proveedor permite consultar únicamente compras Nacionales o Internacionales.
 - Productos recibidos incluye un total general de cantidades y valores para los filtros aplicados.
 - Recepciones brutas, devoluciones a proveedor y recepciones netas por línea de compra.
-- Deuda histórica separada entre proveedores nacionales y extranjeros, mostrada en USD y MXN, con acceso a las órdenes relacionadas.
+- Deuda histórica separada entre proveedores nacionales y extranjeros, con selector MXN/USD y acceso a las órdenes relacionadas.
 - Ranking de productos y proveedores por piezas confirmadas, recibidas y pendientes.
 - Filtro de proveedor para gráficas y listados de compras.
 
@@ -70,7 +70,10 @@ Versión de pruebas para Odoo 18.
 - Cada actualización procesa solamente un mes. No existe actualización global.
 - Demanda: operaciones `Parcial` cuya ubicación origen se llama `Existencias`.
 - Periodo de demanda: mes de `scheduled_date` de la operación.
-- Faltante por producto: `max(piezas solicitadas - piezas listas, 0)`.
+- Faltante original por producto: `max(piezas solicitadas - piezas listas, 0)`.
+- Cobertura en compra: piezas de órdenes confirmadas del mismo producto que aún no han sido recibidas, respetando almacén y canal cuando se filtran.
+- Por comprar: `max(faltante original - cobertura en compra, 0)`.
+- Las piezas ya recibidas dejan de contarse como cobertura en camino para evitar descontarlas también cuando pasan a piezas listas en inventario.
 - Las gráficas de órdenes cuentan cada orden de venta una sola vez; si tiene una operación parcial, prevalece el estado Parcial.
 - La gráfica por canal conserva ambos segmentos para mostrar la composición completa, aun cuando el filtro de canal esté seleccionado.
 - La gráfica de piezas usa las líneas de compra de la cohorte mensual y respeta los filtros de almacén y canal.
