@@ -144,21 +144,36 @@
                                     <th class="text-end">Devueltas</th>
                                     <th class="text-end">Recibidas netas</th>
                                     <th class="text-end">Pendientes</th>
+                                    <th class="text-end">Costo proveedor USD</th>
+                                    <th class="text-end">Costo proveedor MXN</th>
+                                    <th class="text-end">Costo neto MXN</th>
                                 </tr>
                             </thead>
                             <tbody>
                                 <tr t-foreach="state.data.rankings.received_products_by_supplier" t-as="supplier" t-key="supplier.id"
                                     class="o_supply_clickable_row"
                                     t-on-click="() => openPurchaseLines('Recepciones de ' + supplier.name, [['supplier_id', '=', supplier.id]])">
-                                    <td><strong t-esc="supplier.name"/></td>
+                                    <td>
+                                        <strong t-esc="supplier.name"/>
+                                        <small class="d-block text-muted" t-esc="supplier.origin == 'international' ? 'Internacional' : supplier.origin == 'mixed' ? 'Mixto' : 'Nacional'"/>
+                                    </td>
                                     <td class="text-end" t-esc="formatQty(supplier.ordered)"/>
                                     <td class="text-end" t-esc="formatQty(supplier.gross)"/>
                                     <td class="text-end text-danger" t-esc="formatQty(supplier.returned)"/>
                                     <td class="text-end fw-bold text-success" t-esc="formatQty(supplier.net)"/>
                                     <td class="text-end fw-bold" t-att-class="supplier.pending ? 'text-danger' : ''" t-esc="formatQty(supplier.pending)"/>
+                                    <td class="text-end">
+                                        <t t-if="supplier.is_international" t-esc="formatUsd(supplier.supplier_cost_usd)"/>
+                                        <t t-else="">—</t>
+                                    </td>
+                                    <td class="text-end">
+                                        <t t-if="supplier.is_international" t-esc="formatMoney(supplier.supplier_cost_mxn)"/>
+                                        <t t-else="">—</t>
+                                    </td>
+                                    <td class="text-end fw-bold" t-esc="formatMoney(supplier.net_cost_mxn)"/>
                                 </tr>
                                 <tr t-if="!state.data.rankings.received_products_by_supplier.length">
-                                    <td colspan="6" class="o_supply_empty">No hay recepciones terminadas dentro del rango seleccionado.</td>
+                                    <td colspan="9" class="o_supply_empty">No hay recepciones terminadas dentro del rango seleccionado.</td>
                                 </tr>
                             </tbody>
                         </table>

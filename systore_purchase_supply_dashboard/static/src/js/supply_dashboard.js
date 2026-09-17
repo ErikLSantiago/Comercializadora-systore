@@ -143,6 +143,14 @@ export class SystoreSupplyDashboard extends Component {
         }).format(value || 0);
     }
 
+    formatUsd(value) {
+        return new Intl.NumberFormat("es-MX", {
+            style: "currency",
+            currency: "USD",
+            maximumFractionDigits: 2,
+        }).format(value || 0);
+    }
+
     formatPercent(value) {
         return `${this.formatQty(value)}%`;
     }

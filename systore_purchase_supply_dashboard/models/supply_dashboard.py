@@ -391,6 +391,10 @@ class SystoreSupplyDashboard(models.AbstractModel):
         received_products = defaultdict(lambda: {
             "gross": 0.0, "returned": 0.0, "move_ids": set(),
             "order_ids": set(), "line_ids": set(),
+            "supplier_usd_gross": 0.0, "supplier_usd_returned": 0.0,
+            "supplier_mxn_gross": 0.0, "supplier_mxn_returned": 0.0,
+            "net_cost_mxn_gross": 0.0, "net_cost_mxn_returned": 0.0,
+            "has_international": False, "has_national": False,
         })
         PurchaseSnapshot = self.env["systore.supply.purchase.line"]
 
@@ -419,18 +423,50 @@ class SystoreSupplyDashboard(models.AbstractModel):
                 return False
             return not supplier_id or (partner and partner.id == supplier_id)
 
+        def move_quantities_and_costs(move, purchase_line, order):
+            raw_qty = PurchaseSnapshot._move_done_qty(move)
+            display_qty = raw_qty
+            if move.product_uom and move.product_id.uom_id and move.product_uom != move.product_id.uom_id:
+                display_qty = move.product_uom._compute_quantity(
+                    raw_qty, move.product_id.uom_id
+                )
+            cost_qty = raw_qty
+            if purchase_line and move.product_uom and purchase_line.product_uom:
+                if move.product_uom != purchase_line.product_uom:
+                    cost_qty = move.product_uom._compute_quantity(
+                        raw_qty, purchase_line.product_uom
+                    )
+            international = bool(
+                order and order._systore_resolved_purchase_origin() == "international"
+            )
+            supplier_usd = (
+                cost_qty * (purchase_line.x_gross_usd or 0.0)
+                if international and purchase_line else 0.0
+            )
+            supplier_mxn = supplier_usd * (order.x_exchange_rate or 0.0) if order else 0.0
+            net_cost_mxn = (
+                cost_qty * order._systore_line_cost_mxn(purchase_line)
+                if order and purchase_line else 0.0
+            )
+            return display_qty, supplier_usd, supplier_mxn, net_cost_mxn, international
+
         for move in receipt_moves:
             purchase_line, order, partner = move_purchase_data(move)
             if not partner or not move_matches_filters(move, partner):
                 continue
-            qty = PurchaseSnapshot._move_done_qty(move)
-            if move.product_uom and move.product_id.uom_id and move.product_uom != move.product_id.uom_id:
-                qty = move.product_uom._compute_quantity(qty, move.product_id.uom_id)
+            qty, supplier_usd, supplier_mxn, net_cost_mxn, international = (
+                move_quantities_and_costs(move, purchase_line, order)
+            )
             values = received_products[(partner.id, move.product_id.id)]
             values["partner_name"] = partner.display_name
             values["name"] = move.product_id.display_name
             values["sku"] = move.product_id.default_code or ""
             values["gross"] += qty
+            values["supplier_usd_gross"] += supplier_usd
+            values["supplier_mxn_gross"] += supplier_mxn
+            values["net_cost_mxn_gross"] += net_cost_mxn
+            values["has_international"] |= international
+            values["has_national"] |= bool(order and not international)
             values["move_ids"].add(move.id)
             if order:
                 values["order_ids"].add(order.id)
@@ -442,11 +478,16 @@ class SystoreSupplyDashboard(models.AbstractModel):
             key = (partner.id, move.product_id.id) if partner else False
             if not key or key not in received_products or not move_matches_filters(move, partner):
                 continue
-            qty = PurchaseSnapshot._move_done_qty(move)
-            if move.product_uom and move.product_id.uom_id and move.product_uom != move.product_id.uom_id:
-                qty = move.product_uom._compute_quantity(qty, move.product_id.uom_id)
+            qty, supplier_usd, supplier_mxn, net_cost_mxn, international = (
+                move_quantities_and_costs(move, purchase_line, order)
+            )
             values = received_products[key]
             values["returned"] += qty
+            values["supplier_usd_returned"] += supplier_usd
+            values["supplier_mxn_returned"] += supplier_mxn
+            values["net_cost_mxn_returned"] += net_cost_mxn
+            values["has_international"] |= international
+            values["has_national"] |= bool(order and not international)
             values["move_ids"].add(move.id)
             if order:
                 values["order_ids"].add(order.id)
@@ -456,6 +497,9 @@ class SystoreSupplyDashboard(models.AbstractModel):
         received_by_supplier = defaultdict(lambda: {
             "name": "", "ordered": 0.0, "gross": 0.0,
             "returned": 0.0, "net": 0.0, "pending": 0.0,
+            "supplier_cost_usd": 0.0, "supplier_cost_mxn": 0.0,
+            "net_cost_mxn": 0.0,
+            "has_international": False, "has_national": False,
         })
         for (partner_id, product_id), values in received_products.items():
             product = self.env["product.product"].browse(product_id)
@@ -471,6 +515,15 @@ class SystoreSupplyDashboard(models.AbstractModel):
             gross = values["gross"]
             returned = values["returned"]
             net = max(gross - returned, 0.0)
+            supplier_cost_usd = max(
+                values["supplier_usd_gross"] - values["supplier_usd_returned"], 0.0
+            )
+            supplier_cost_mxn = max(
+                values["supplier_mxn_gross"] - values["supplier_mxn_returned"], 0.0
+            )
+            net_cost_mxn = max(
+                values["net_cost_mxn_gross"] - values["net_cost_mxn_returned"], 0.0
+            )
             row = {
                 "id": product_id,
                 "supplier_id": partner_id,
@@ -481,6 +534,9 @@ class SystoreSupplyDashboard(models.AbstractModel):
                 "returned": returned,
                 "net": net,
                 "pending": pending,
+                "supplier_cost_usd": supplier_cost_usd,
+                "supplier_cost_mxn": supplier_cost_mxn,
+                "net_cost_mxn": net_cost_mxn,
                 "move_ids": list(values["move_ids"]),
                 "order_ids": list(values["order_ids"]),
             }
@@ -488,6 +544,10 @@ class SystoreSupplyDashboard(models.AbstractModel):
             supplier_values["name"] = values["partner_name"]
             for metric in ("ordered", "gross", "returned", "net", "pending"):
                 supplier_values[metric] += row[metric]
+            for metric in ("supplier_cost_usd", "supplier_cost_mxn", "net_cost_mxn"):
+                supplier_values[metric] += row[metric]
+            supplier_values["has_international"] |= values["has_international"]
+            supplier_values["has_national"] |= values["has_national"]
 
         received_supplier_rows = []
         for partner_id, values in received_by_supplier.items():
@@ -499,6 +559,15 @@ class SystoreSupplyDashboard(models.AbstractModel):
                 "returned": values["returned"],
                 "net": values["net"],
                 "pending": values["pending"],
+                "supplier_cost_usd": values["supplier_cost_usd"],
+                "supplier_cost_mxn": values["supplier_cost_mxn"],
+                "net_cost_mxn": values["net_cost_mxn"],
+                "is_international": values["has_international"],
+                "origin": (
+                    "mixed" if values["has_international"] and values["has_national"]
+                    else "international" if values["has_international"]
+                    else "national"
+                ),
             })
         received_supplier_rows.sort(key=lambda row: row["gross"], reverse=True)
 

@@ -1,5 +1,14 @@
 # Historial de cambios
 
+## 18.0.1.6.3
+
+- El resumen de Productos recibidos incorpora Costo proveedor USD, Costo proveedor MXN y Costo neto MXN.
+- El costo proveedor USD utiliza exclusivamente `x_gross_usd`, sin logística ni importación.
+- El costo proveedor MXN convierte la mercancía USD con `x_exchange_rate` de cada orden.
+- El costo neto MXN utiliza el costo global unitario recosteado, que incorpora mercancía, logística e importación.
+- Los costos se aplican a las piezas recibidas netas del rango, descontando devoluciones.
+- Para proveedores nacionales se ocultan los costos de mercancía USD/MXN y sólo se muestra el costo neto MXN.
+
 ## 18.0.1.6.2
 
 - Se retiró el Top 10 y el desglose visible por producto de **Productos recibidos**.

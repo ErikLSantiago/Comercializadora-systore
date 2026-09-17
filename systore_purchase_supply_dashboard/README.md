@@ -20,6 +20,9 @@ Versión de pruebas para Odoo 18.
 - Resumen de productos recibidos directamente del historial de movimientos, totalizado por proveedor y con rango Desde/Hasta.
 - Sumatorias por proveedor de solicitadas, recibidas brutas, devueltas, recibidas netas y pendientes.
 - Cada línea de proveedor abre Recepciones de compra con el proveedor aplicado como filtro.
+- Para compras internacionales se muestran mercancía USD, mercancía convertida a MXN con `x_exchange_rate` y costo neto MXN.
+- La mercancía internacional excluye expresamente logística e importación; el costo neto MXN sí las incorpora.
+- Para compras nacionales sólo se presenta el costo neto MXN.
 - Recepciones brutas, devoluciones a proveedor y recepciones netas por línea de compra.
 - Deuda histórica separada entre proveedores nacionales y extranjeros, mostrada en USD y MXN, con acceso a las órdenes relacionadas.
 - Ranking de productos y proveedores por piezas confirmadas, recibidas y pendientes.
