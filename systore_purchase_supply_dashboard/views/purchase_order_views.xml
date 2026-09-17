@@ -1,0 +1,86 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <record id="view_purchase_order_form_supply_payment" model="ir.ui.view">
+        <field name="name">purchase.order.form.supply.payment</field>
+        <field name="model">purchase.order</field>
+        <field name="inherit_id" ref="purchase.purchase_order_form"/>
+        <field name="arch" type="xml">
+            <xpath expr="//field[@name='partner_ref']" position="after">
+                <field name="systore_payment_status" widget="badge"
+                       decoration-danger="systore_payment_status == 'pending'"
+                       decoration-warning="systore_payment_status == 'partial'"
+                       decoration-success="systore_payment_status == 'paid'"/>
+            </xpath>
+            <xpath expr="//notebook" position="inside">
+                <page string="Pagos y abastecimiento" name="systore_payments_supply">
+                    <group>
+                        <group string="Clasificación">
+                            <field name="systore_purchase_origin"/>
+                            <div class="text-muted">La detección automática considera internacional una compra con costos capturados en USD.</div>
+                        </group>
+                        <group string="Control manual de pago">
+                            <field name="systore_company_currency_id" invisible="1"/>
+                            <field name="systore_is_international" invisible="1"/>
+                            <field name="systore_payment_status_manual"/>
+                            <field name="systore_amount_payable_mxn" readonly="1"/>
+                            <field name="systore_amount_paid_mxn" readonly="1"/>
+                            <field name="systore_amount_pending_mxn" readonly="1"/>
+                            <field name="systore_amount_paid_usd" readonly="1" invisible="not systore_is_international"/>
+                            <field name="systore_amount_pending_usd" readonly="1" invisible="not systore_is_international"/>
+                            <field name="systore_effective_exchange_rate" readonly="1" invisible="not systore_is_international"/>
+                            <field name="systore_payment_status" widget="badge" readonly="1"
+                                   decoration-danger="systore_payment_status == 'pending'"
+                                   decoration-warning="systore_payment_status == 'partial'"
+                                   decoration-success="systore_payment_status == 'paid'"/>
+                        </group>
+                    </group>
+                    <group string="Obligaciones internacionales" invisible="not systore_is_international">
+                        <group string="Mercancía (proveedor)">
+                            <field name="systore_merchandise_payable_usd" readonly="1"/>
+                            <field name="systore_merchandise_paid_usd" readonly="1"/>
+                            <field name="systore_merchandise_pending_usd" readonly="1"/>
+                        </group>
+                        <group string="Logística">
+                            <field name="systore_shipping_payable_usd" readonly="1"/>
+                            <field name="systore_shipping_paid_usd" readonly="1"/>
+                            <field name="systore_shipping_pending_usd" readonly="1"/>
+                        </group>
+                        <group string="Importación">
+                            <field name="systore_import_payable_mxn" readonly="1"/>
+                            <field name="systore_import_paid_mxn" readonly="1"/>
+                            <field name="systore_import_pending_mxn" readonly="1"/>
+                        </group>
+                    </group>
+                    <separator string="Abonos registrados"/>
+                    <button name="action_systore_open_payments"
+                            type="object"
+                            string="Abrir abonos"
+                            icon="fa-money"
+                            class="btn-primary"/>
+                    <div class="text-muted">
+                        Los abonos se abren en una pantalla independiente para evitar interferencias con la vista de desglose de costos.
+                    </div>
+                    <div class="alert alert-info" role="alert">
+                        Este control es operativo. No crea pagos, asientos ni conciliaciones contables.
+                    </div>
+                </page>
+            </xpath>
+        </field>
+    </record>
+
+    <record id="view_purchase_order_list_supply_payment" model="ir.ui.view">
+        <field name="name">purchase.order.list.supply.payment</field>
+        <field name="model">purchase.order</field>
+        <field name="inherit_id" ref="purchase.purchase_order_view_tree"/>
+        <field name="arch" type="xml">
+            <xpath expr="//field[@name='partner_id']" position="after">
+                <field name="systore_payment_status" widget="badge" optional="show"
+                       decoration-danger="systore_payment_status == 'pending'"
+                       decoration-warning="systore_payment_status == 'partial'"
+                       decoration-success="systore_payment_status == 'paid'"/>
+                <field name="systore_amount_pending_mxn" optional="hide"/>
+                <field name="systore_payment_status_manual" optional="hide"/>
+            </xpath>
+        </field>
+    </record>
+</odoo>

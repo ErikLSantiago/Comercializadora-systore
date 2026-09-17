@@ -1,0 +1,340 @@
+.o_systore_supply_dashboard {
+    background: #f3f5f7;
+    color: #173042;
+    padding-bottom: 32px;
+
+    .o_supply_header {
+        background: linear-gradient(120deg, #173042, #1f6f8b);
+        color: white;
+        padding: 22px 28px;
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        z-index: 2;
+        box-shadow: 0 2px 8px rgba(23, 48, 66, .16);
+
+        h1 { margin: 0; font-size: 26px; font-weight: 700; }
+        p { margin: 3px 0 0; opacity: .8; }
+    }
+
+    .o_supply_filters {
+        margin: 18px 24px 0;
+        padding: 14px 16px;
+        background: white;
+        border-radius: 12px;
+        display: grid;
+        grid-template-columns: repeat(3, minmax(150px, 1fr)) auto;
+        gap: 12px;
+        box-shadow: 0 2px 10px rgba(23, 48, 66, .06);
+
+        label { font-size: 12px; font-weight: 600; color: #52616b; }
+        input, select { margin-top: 4px; }
+    }
+
+    .o_supply_loading { padding: 70px; text-align: center; font-size: 18px; color: #64727c; }
+    .o_supply_kpis {
+        display: grid;
+        grid-template-columns: repeat(5, minmax(150px, 1fr));
+        gap: 12px;
+        padding: 18px 24px;
+    }
+    .o_supply_kpis_demand { grid-template-columns: repeat(6, minmax(150px, 1fr)); }
+    .o_supply_charts {
+        display: grid;
+        grid-template-columns: 1.25fr 1fr 1fr;
+        gap: 14px;
+        padding: 0 24px 18px;
+    }
+    .o_supply_chart_card {
+        min-height: 285px;
+        background: white;
+        border-radius: 12px;
+        padding: 18px;
+        box-shadow: 0 2px 10px rgba(23, 48, 66, .06);
+    }
+    .o_supply_chart_title {
+        h2 { margin: 0; font-size: 16px; font-weight: 700; }
+        small { display: block; color: #75848d; margin-top: 3px; line-height: 1.35; }
+    }
+    .o_supply_stacked_summary {
+        min-height: 205px;
+        display: flex;
+        flex-direction: column;
+        justify-content: center;
+    }
+    .o_supply_stacked_total {
+        margin-bottom: 14px;
+        strong { display: block; font-size: 25px; }
+        span { color: #75848d; font-size: 12px; }
+    }
+    .o_supply_stacked_bar {
+        width: 100%;
+        height: 58px;
+        display: flex;
+        overflow: hidden;
+        border-radius: 9px;
+        background: #e7ebee;
+        box-shadow: inset 0 0 0 1px rgba(23, 48, 66, .05);
+        &.empty::after { content: "Sin datos"; margin: auto; color: #87939a; font-size: 12px; }
+    }
+    .o_supply_stacked_segment {
+        height: 100%;
+        border: 0;
+        color: white;
+        font-weight: 700;
+        padding: 0;
+        transition: width .25s ease, filter .15s ease;
+        &:hover { filter: brightness(.93); }
+        &.complete { background: #2e8b57; }
+        &.partial { background: #c65353; }
+    }
+    .o_supply_stacked_legend {
+        display: grid;
+        grid-template-columns: repeat(2, 1fr);
+        gap: 9px;
+        margin-top: 14px;
+    }
+    .o_supply_legend_button {
+        display: grid;
+        grid-template-columns: 10px 1fr;
+        align-items: start;
+        gap: 8px;
+        border: 0;
+        border-radius: 7px;
+        background: transparent;
+        padding: 5px;
+        text-align: left;
+        &:hover { background: #f3f5f7; }
+        i { width: 9px; height: 9px; border-radius: 50%; margin-top: 4px; }
+        i.complete { background: #2e8b57; }
+        i.partial { background: #c65353; }
+        span strong, span small { display: block; }
+        span small { color: #75848d; font-size: 11px; }
+    }
+    .o_supply_pie_layout {
+        min-height: 205px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        gap: 22px;
+    }
+    .o_supply_pie {
+        --slice: 0%;
+        width: 138px;
+        height: 138px;
+        flex: 0 0 138px;
+        border-radius: 50%;
+        position: relative;
+        display: grid;
+        place-items: center;
+        &.channel { background: conic-gradient(#1f6f8b 0 var(--slice), #f4b942 var(--slice) 100%); }
+        &.pieces { background: conic-gradient(#2e8b57 0 var(--slice), #c65353 var(--slice) 100%); }
+        &.empty { background: #e7ebee; }
+        &::after {
+            content: "";
+            position: absolute;
+            width: 82px;
+            height: 82px;
+            border-radius: 50%;
+            background: white;
+        }
+        > div {
+            z-index: 1;
+            text-align: center;
+            strong { display: block; font-size: 20px; }
+            span { color: #75848d; font-size: 11px; }
+        }
+    }
+    .o_supply_legend {
+        min-width: 145px;
+        > button {
+            display: grid;
+            grid-template-columns: 10px 1fr auto;
+            align-items: center;
+            gap: 7px;
+            margin: 10px 0;
+            padding: 5px;
+            width: 100%;
+            border: 0;
+            border-radius: 7px;
+            background: transparent;
+            text-align: left;
+            font-size: 12px;
+            &:hover { background: #f3f5f7; }
+            span small { display: block; color: #75848d; font-size: 10px; white-space: nowrap; }
+        }
+        i { width: 9px; height: 9px; border-radius: 50%; }
+        i.wholesale { background: #1f6f8b; }
+        i.retail { background: #f4b942; }
+        i.received { background: #2e8b57; }
+        i.pending { background: #c65353; }
+    }
+    .o_supply_kpi {
+        background: white;
+        border-left: 4px solid #1f6f8b;
+        border-radius: 10px;
+        padding: 14px 16px;
+        box-shadow: 0 2px 10px rgba(23, 48, 66, .06);
+        span { display: block; color: #667781; font-size: 12px; margin-bottom: 5px; }
+        strong { font-size: 20px; }
+        &.success { border-left-color: #2e8b57; }
+        &.warning { border-left-color: #f4b942; }
+        &.danger { border-left-color: #c65353; }
+    }
+    .o_supply_panel {
+        margin: 0 24px 18px;
+        background: white;
+        border-radius: 12px;
+        padding: 16px;
+        box-shadow: 0 2px 10px rgba(23, 48, 66, .06);
+        overflow: hidden;
+    }
+    .o_supply_debt_total {
+        display: flex;
+        flex-wrap: wrap;
+        justify-content: flex-end;
+        gap: 12px;
+        color: #c65353;
+        font-size: 21px;
+    }
+    .o_supply_debt_heading {
+        display: flex;
+        align-items: flex-end;
+        gap: 14px;
+        label { color: #667781; font-size: 11px; font-weight: 600; }
+        select { min-width: 130px; margin-top: 3px; }
+    }
+    .o_supply_debt_sectors {
+        display: grid;
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+        gap: 18px;
+        margin: 0 24px 18px;
+        .o_supply_panel { margin: 0; }
+    }
+    .o_supply_debt_chart { display: grid; gap: 8px; }
+    .o_supply_debt_row {
+        display: grid;
+        grid-template-columns: minmax(160px, 1fr) 3fr minmax(110px, auto);
+        align-items: center;
+        gap: 12px;
+        width: 100%;
+        border: 0;
+        border-radius: 8px;
+        background: transparent;
+        padding: 7px;
+        text-align: left;
+        &:hover { background: #f7f8f9; }
+        > strong { text-align: right; color: #a13f3f; }
+    }
+    .o_supply_debt_track {
+        height: 18px;
+        overflow: hidden;
+        border-radius: 5px;
+        background: #f0e5e5;
+        i { display: block; height: 100%; background: #c65353; border-radius: 5px; }
+    }
+    .o_supply_rankings {
+        display: grid;
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+        gap: 14px;
+        padding: 0 24px;
+        .o_supply_panel { margin: 0 0 18px; }
+    }
+    .o_supply_ranking_list { display: grid; gap: 5px; }
+    .o_supply_received_table {
+        min-width: 900px;
+        th, td { padding: 8px 10px; }
+        td:first-child { min-width: 240px; }
+        td strong, td small { display: block; }
+        td small { margin-top: 2px; font-size: 10px; opacity: .78; }
+    }
+    .o_supply_received_cost_filter {
+        min-width: 150px;
+        font-size: 11px;
+        color: #52616b;
+        select { margin-top: 3px; }
+    }
+    .o_supply_clickable_row { cursor: pointer; }
+    .o_supply_received_total {
+        background: #eef4f6;
+        border-top: 2px solid #b9cbd3;
+        font-weight: 700;
+    }
+    .o_supply_ranking_row {
+        display: grid;
+        grid-template-columns: minmax(160px, 1.25fr) minmax(110px, 1fr) minmax(145px, auto);
+        align-items: center;
+        gap: 12px;
+        width: 100%;
+        min-height: 52px;
+        border: 0;
+        border-bottom: 1px solid #edf0f2;
+        background: transparent;
+        padding: 6px;
+        text-align: left;
+        &:hover { background: #f7f8f9; }
+    }
+    .o_supply_rank_name {
+        min-width: 0;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+        strong, small { display: block; overflow: hidden; text-overflow: ellipsis; }
+        small { color: #75848d; font-size: 10px; }
+    }
+    .o_supply_receipt_bar {
+        height: 11px;
+        display: flex;
+        overflow: hidden;
+        border-radius: 6px;
+        background: #e7ebee;
+        i.received { background: #2e8b57; }
+        i.pending { background: #c65353; }
+    }
+    .o_supply_rank_values {
+        text-align: right;
+        strong, small { display: block; }
+        small { color: #75848d; font-size: 10px; }
+    }
+    .o_supply_empty { padding: 28px 10px; text-align: center; color: #87939a; font-size: 12px; }
+    .o_supply_panel_title {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        margin-bottom: 10px;
+        h2 { margin: 0; font-size: 17px; font-weight: 700; }
+        small { color: #75848d; }
+    }
+    .o_supply_demand_panel {
+        table { min-width: 920px; }
+    }
+    .o_supply_demand_actions {
+        display: flex;
+        align-items: center;
+        justify-content: flex-end;
+    }
+    .o_supply_grid {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 0;
+    }
+    table { margin-bottom: 0; }
+    thead th { color: #64727c; font-size: 11px; text-transform: uppercase; white-space: nowrap; }
+    tbody td { font-size: 13px; }
+
+    @media (max-width: 1100px) {
+        .o_supply_kpis { grid-template-columns: repeat(2, 1fr); }
+        .o_supply_filters { grid-template-columns: repeat(2, 1fr); }
+        .o_supply_charts { grid-template-columns: 1fr; }
+        .o_supply_rankings { grid-template-columns: 1fr; }
+        .o_supply_debt_sectors { grid-template-columns: 1fr; }
+        .o_supply_grid { grid-template-columns: 1fr; }
+    }
+
+    @media (max-width: 720px) {
+        .o_supply_header { align-items: flex-start; gap: 12px; flex-direction: column; }
+        .o_supply_filters { grid-template-columns: 1fr; }
+        .o_supply_debt_row, .o_supply_ranking_row { grid-template-columns: 1fr; gap: 5px; }
+        .o_supply_debt_row > strong, .o_supply_rank_values { text-align: left; }
+    }
+}
