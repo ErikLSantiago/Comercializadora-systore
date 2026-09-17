@@ -33,6 +33,7 @@ export class SystoreSupplyDashboard extends Component {
                 },
                 rankings: {
                     products: [], received_products: [], received_products_by_supplier: [], suppliers: [], debts: [],
+                    received_products_totals: { values: {} },
                     debts_national: [], debts_international: [],
                     debt_national_mxn: 0,
                     debt_international_mxn: 0,
@@ -45,6 +46,7 @@ export class SystoreSupplyDashboard extends Component {
                 date_from: `${currentMonth}-01`,
                 date_to: `${currentMonth}-${String(lastDay).padStart(2, "0")}`,
                 received_cost_mode: "cost_net",
+                supplier_type: "",
                 channel: "",
                 warehouse_id: "",
                 supplier_id: "",
@@ -119,6 +121,11 @@ export class SystoreSupplyDashboard extends Component {
 
     onSupplier(event) {
         this.state.filters.supplier_id = event.target.value;
+    }
+
+    onSupplierType(event) {
+        this.state.filters.supplier_type = event.target.value;
+        this.state.filters.supplier_id = "";
     }
 
     currentMonth() {
@@ -233,6 +240,9 @@ export class SystoreSupplyDashboard extends Component {
         }
         if (this.state.filters.supplier_id) {
             domain.push(["supplier_id", "=", Number(this.state.filters.supplier_id)]);
+        }
+        if (this.state.filters.supplier_type) {
+            domain.push(["purchase_origin", "=", this.state.filters.supplier_type]);
         }
         return [...domain, ...extra];
     }

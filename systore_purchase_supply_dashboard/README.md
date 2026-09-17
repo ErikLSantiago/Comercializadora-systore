@@ -25,6 +25,8 @@ Versión de pruebas para Odoo 18.
 - Para compras nacionales sólo se presenta el costo neto MXN.
 - El selector de valuación de Productos recibidos cambia entre Costo USD, Costo MXN y Costo neto sin ocultar las piezas.
 - Cada estado de recepción muestra su cantidad y el valor calculado con el modo seleccionado.
+- El filtro Tipo de proveedor permite consultar únicamente compras Nacionales o Internacionales.
+- Productos recibidos incluye un total general de cantidades y valores para los filtros aplicados.
 - Recepciones brutas, devoluciones a proveedor y recepciones netas por línea de compra.
 - Deuda histórica separada entre proveedores nacionales y extranjeros, mostrada en USD y MXN, con acceso a las órdenes relacionadas.
 - Ranking de productos y proveedores por piezas confirmadas, recibidas y pendientes.

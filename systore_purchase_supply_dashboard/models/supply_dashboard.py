@@ -13,13 +13,15 @@ class SystoreSupplyDashboard(models.AbstractModel):
     _description = "Servicio del tablero de abastecimiento"
 
     @api.model
-    def _historical_purchase_orders(self, company, warehouse_id=None, channel=None):
+    def _historical_purchase_orders(
+        self, company, warehouse_id=None, channel=None, supplier_type=None
+    ):
         """Confirmed purchases used by the current accounts-payable follow-up."""
         orders = self.env["purchase.order"].sudo().search([
             ("company_id", "=", company.id),
             ("state", "in", ["purchase", "done"]),
         ])
-        if not warehouse_id and not channel:
+        if not warehouse_id and not channel and not supplier_type:
             return orders
         return orders.filtered(lambda order: (
             order.picking_type_id.warehouse_id
@@ -29,6 +31,10 @@ class SystoreSupplyDashboard(models.AbstractModel):
                 or order.picking_type_id.warehouse_id._systore_resolved_supply_channel(
                     order.picking_type_id.default_location_dest_id
                 ) == channel
+            )
+            and (
+                not supplier_type
+                or order._systore_resolved_purchase_origin() == supplier_type
             )
         ))
 
@@ -115,6 +121,9 @@ class SystoreSupplyDashboard(models.AbstractModel):
         channel = filters.get("channel")
         warehouse_id = filters.get("warehouse_id")
         supplier_id = filters.get("supplier_id")
+        supplier_type = filters.get("supplier_type")
+        if supplier_type not in ("national", "international"):
+            supplier_type = None
         if channel:
             demand_domain.append(("channel", "=", channel))
         if warehouse_id:
@@ -153,6 +162,7 @@ class SystoreSupplyDashboard(models.AbstractModel):
             channel=channel,
             warehouse_id=warehouse_id,
             supplier_id=supplier_id,
+            supplier_type=supplier_type,
             receipt_period=receipt_period,
         )
 
@@ -160,7 +170,8 @@ class SystoreSupplyDashboard(models.AbstractModel):
             [("company_id", "=", company.id)], ["name"], order="name"
         )
         historical_orders = self._historical_purchase_orders(
-            company, warehouse_id=warehouse_id, channel=channel
+            company, warehouse_id=warehouse_id, channel=channel,
+            supplier_type=supplier_type,
         )
         suppliers = historical_orders.mapped("partner_id")
         for order in historical_orders:
@@ -195,7 +206,7 @@ class SystoreSupplyDashboard(models.AbstractModel):
     @api.model
     def _get_chart_data(
         self, company, period, channel=None, warehouse_id=None,
-        supplier_id=None, receipt_period=None,
+        supplier_id=None, supplier_type=None, receipt_period=None,
     ):
         """Build lightweight chart totals for the selected calendar month."""
         Picking = self.env["stock.picking"].sudo()
@@ -283,6 +294,8 @@ class SystoreSupplyDashboard(models.AbstractModel):
             purchase_domain.append(("warehouse_id", "=", warehouse_id))
         if channel:
             purchase_domain.append(("channel", "=", channel))
+        if supplier_type:
+            purchase_domain.append(("purchase_origin", "=", supplier_type))
         base_purchase_lines = self.env["systore.supply.purchase.line"].search(purchase_domain)
         purchase_lines = base_purchase_lines.filtered(
             lambda line: not supplier_id or line.supplier_id.id == supplier_id
@@ -316,7 +329,8 @@ class SystoreSupplyDashboard(models.AbstractModel):
 
         purchase_orders = purchase_lines.mapped("purchase_order_id")
         debt_orders = self._historical_purchase_orders(
-            company, warehouse_id=warehouse_id, channel=channel
+            company, warehouse_id=warehouse_id, channel=channel,
+            supplier_type=supplier_type,
         )
         debt_by_sector = {
             "national": defaultdict(lambda: {
@@ -411,7 +425,7 @@ class SystoreSupplyDashboard(models.AbstractModel):
             partner = order.partner_id if order else move.picking_id.partner_id
             return purchase_line, order, partner
 
-        def move_matches_filters(move, partner):
+        def move_matches_filters(move, partner, order):
             warehouse = move.picking_type_id.warehouse_id
             if warehouse_id and (not warehouse or warehouse.id != warehouse_id):
                 return False
@@ -420,6 +434,11 @@ class SystoreSupplyDashboard(models.AbstractModel):
                 if warehouse else "retail"
             )
             if channel and resolved_channel != channel:
+                return False
+            if supplier_type and (
+                not order
+                or order._systore_resolved_purchase_origin() != supplier_type
+            ):
                 return False
             return not supplier_id or (partner and partner.id == supplier_id)
 
@@ -452,7 +471,7 @@ class SystoreSupplyDashboard(models.AbstractModel):
 
         for move in receipt_moves:
             purchase_line, order, partner = move_purchase_data(move)
-            if not partner or not move_matches_filters(move, partner):
+            if not partner or not move_matches_filters(move, partner, order):
                 continue
             qty, supplier_usd, supplier_mxn, net_cost_mxn, international = (
                 move_quantities_and_costs(move, purchase_line, order)
@@ -476,7 +495,10 @@ class SystoreSupplyDashboard(models.AbstractModel):
         for move in return_moves:
             purchase_line, order, partner = move_purchase_data(move)
             key = (partner.id, move.product_id.id) if partner else False
-            if not key or key not in received_products or not move_matches_filters(move, partner):
+            if (
+                not key or key not in received_products
+                or not move_matches_filters(move, partner, order)
+            ):
                 continue
             qty, supplier_usd, supplier_mxn, net_cost_mxn, international = (
                 move_quantities_and_costs(move, purchase_line, order)
@@ -627,6 +649,23 @@ class SystoreSupplyDashboard(models.AbstractModel):
                 "values": values["status_values"],
             })
         received_supplier_rows.sort(key=lambda row: row["gross"], reverse=True)
+        received_totals = {
+            "ordered": 0.0, "gross": 0.0, "returned": 0.0,
+            "net": 0.0, "pending": 0.0, "is_international": False,
+            "values": {
+                status: {
+                    "qty": 0.0, "cost_usd": 0.0,
+                    "cost_mxn": 0.0, "cost_net": 0.0,
+                }
+                for status in ("ordered", "gross", "returned", "net", "pending")
+            },
+        }
+        for supplier_row in received_supplier_rows:
+            received_totals["is_international"] |= supplier_row["is_international"]
+            for status in ("ordered", "gross", "returned", "net", "pending"):
+                received_totals[status] += supplier_row[status]
+                for metric, amount in supplier_row["values"][status].items():
+                    received_totals["values"][status][metric] += amount
 
         def debt_rows(sector):
             rows = [{
@@ -676,6 +715,7 @@ class SystoreSupplyDashboard(models.AbstractModel):
             "rankings": {
                 "products": product_rows,
                 "received_products_by_supplier": received_supplier_rows,
+                "received_products_totals": received_totals,
                 "suppliers": supplier_rows,
                 "debts": national_debts + international_debts,
                 "debts_national": national_debts,

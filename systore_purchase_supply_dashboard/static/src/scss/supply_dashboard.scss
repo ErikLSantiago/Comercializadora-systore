@@ -248,6 +248,11 @@
         select { margin-top: 3px; }
     }
     .o_supply_clickable_row { cursor: pointer; }
+    .o_supply_received_total {
+        background: #eef4f6;
+        border-top: 2px solid #b9cbd3;
+        font-weight: 700;
+    }
     .o_supply_ranking_row {
         display: grid;
         grid-template-columns: minmax(160px, 1.25fr) minmax(110px, 1fr) minmax(145px, auto);

@@ -1,5 +1,14 @@
 # Historial de cambios
 
+## 18.0.1.6.5
+
+- Se agregó al encabezado el filtro **Tipo de proveedor**: Todos, Nacional e Internacional.
+- El filtro se aplica a recepciones, Productos recibidos, rankings de compras, proveedores disponibles y deuda histórica.
+- Las métricas de ventas y demanda permanecen independientes del tipo de proveedor.
+- Productos recibidos incorpora una fila de **Total general**.
+- El total general suma piezas y valores de Solicitadas, Recibidas brutas, Devueltas, Recibidas netas y Pendientes.
+- La fila total responde al rango, proveedor, tipo de proveedor, almacén, canal y modo de valuación seleccionados.
+
 ## 18.0.1.6.4
 
 - Productos recibidos incorpora un selector de valuación: Costo USD, Costo MXN y Costo neto.

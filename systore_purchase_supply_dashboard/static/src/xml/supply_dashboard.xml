@@ -36,6 +36,13 @@
                         </t>
                     </select>
                 </label>
+                <label>Tipo de proveedor
+                    <select class="form-select" t-att-value="state.filters.supplier_type" t-on-change="onSupplierType">
+                        <option value="">Todos</option>
+                        <option value="national">Nacional</option>
+                        <option value="international">Internacional</option>
+                    </select>
+                </label>
                 <label>Proveedor
                     <select class="form-select" t-att-value="state.filters.supplier_id" t-on-change="onSupplier">
                         <option value="">Todos</option>
@@ -171,6 +178,16 @@
                                     <td colspan="6" class="o_supply_empty">No hay recepciones terminadas dentro del rango seleccionado.</td>
                                 </tr>
                             </tbody>
+                            <tfoot t-if="state.data.rankings.received_products_by_supplier.length">
+                                <tr class="o_supply_received_total">
+                                    <td><strong>Total general</strong></td>
+                                    <td class="text-end"><strong t-esc="formatQty(state.data.rankings.received_products_totals.ordered)"/><small t-esc="formatReceivedValue(state.data.rankings.received_products_totals, 'ordered')"/></td>
+                                    <td class="text-end"><strong t-esc="formatQty(state.data.rankings.received_products_totals.gross)"/><small t-esc="formatReceivedValue(state.data.rankings.received_products_totals, 'gross')"/></td>
+                                    <td class="text-end text-danger"><strong t-esc="formatQty(state.data.rankings.received_products_totals.returned)"/><small t-esc="formatReceivedValue(state.data.rankings.received_products_totals, 'returned')"/></td>
+                                    <td class="text-end text-success"><strong t-esc="formatQty(state.data.rankings.received_products_totals.net)"/><small t-esc="formatReceivedValue(state.data.rankings.received_products_totals, 'net')"/></td>
+                                    <td class="text-end" t-att-class="state.data.rankings.received_products_totals.pending ? 'text-danger' : ''"><strong t-esc="formatQty(state.data.rankings.received_products_totals.pending)"/><small t-esc="formatReceivedValue(state.data.rankings.received_products_totals, 'pending')"/></td>
+                                </tr>
+                            </tfoot>
                         </table>
                     </div>
                 </section>
