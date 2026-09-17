@@ -454,10 +454,9 @@ class SystoreSupplyDashboard(models.AbstractModel):
                 values["line_ids"].add(purchase_line.id)
 
         received_by_supplier = defaultdict(lambda: {
-            "name": "", "products": [], "ordered": 0.0, "gross": 0.0,
+            "name": "", "ordered": 0.0, "gross": 0.0,
             "returned": 0.0, "net": 0.0, "pending": 0.0,
         })
-        received_product_rows = []
         for (partner_id, product_id), values in received_products.items():
             product = self.env["product.product"].browse(product_id)
             ordered = pending = 0.0
@@ -485,16 +484,13 @@ class SystoreSupplyDashboard(models.AbstractModel):
                 "move_ids": list(values["move_ids"]),
                 "order_ids": list(values["order_ids"]),
             }
-            received_product_rows.append(row)
             supplier_values = received_by_supplier[partner_id]
             supplier_values["name"] = values["partner_name"]
-            supplier_values["products"].append(row)
             for metric in ("ordered", "gross", "returned", "net", "pending"):
                 supplier_values[metric] += row[metric]
 
         received_supplier_rows = []
         for partner_id, values in received_by_supplier.items():
-            values["products"].sort(key=lambda row: row["gross"], reverse=True)
             received_supplier_rows.append({
                 "id": partner_id,
                 "name": values["name"],
@@ -503,11 +499,8 @@ class SystoreSupplyDashboard(models.AbstractModel):
                 "returned": values["returned"],
                 "net": values["net"],
                 "pending": values["pending"],
-                "products": values["products"][:10],
             })
         received_supplier_rows.sort(key=lambda row: row["gross"], reverse=True)
-        received_supplier_rows = received_supplier_rows[:10]
-        received_product_rows.sort(key=lambda row: row["gross"], reverse=True)
 
         def debt_rows(sector):
             rows = [{
@@ -556,7 +549,6 @@ class SystoreSupplyDashboard(models.AbstractModel):
             },
             "rankings": {
                 "products": product_rows,
-                "received_products": received_product_rows[:100],
                 "received_products_by_supplier": received_supplier_rows,
                 "suppliers": supplier_rows,
                 "debts": national_debts + international_debts,

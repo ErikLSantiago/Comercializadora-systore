@@ -131,57 +131,37 @@
                     <div class="o_supply_panel_title">
                         <div>
                             <h2>Productos recibidos</h2>
-                            <small>Top 10 por piezas ingresadas desde proveedor entre <t t-esc="state.filters.date_from"/> y <t t-esc="state.filters.date_to"/>.</small>
+                            <small>Sumatoria por proveedor entre <t t-esc="state.filters.date_from"/> y <t t-esc="state.filters.date_to"/>.</small>
                         </div>
                     </div>
-                    <div class="o_supply_received_groups">
-                        <section t-foreach="state.data.rankings.received_products_by_supplier" t-as="supplier" t-key="supplier.id"
-                                 class="o_supply_received_supplier">
-                            <div class="o_supply_received_supplier_title">
-                                <strong t-esc="supplier.name"/>
-                                <small><t t-esc="formatQty(supplier.net)"/> piezas netas recibidas</small>
-                            </div>
-                            <div class="table-responsive">
-                                <table class="table table-sm table-hover align-middle o_supply_received_table">
-                                    <thead>
-                                        <tr>
-                                            <th>Producto</th>
-                                            <th class="text-end">Solicitadas</th>
-                                            <th class="text-end">Recibidas brutas</th>
-                                            <th class="text-end">Devueltas</th>
-                                            <th class="text-end">Recibidas netas</th>
-                                            <th class="text-end">Pendientes</th>
-                                        </tr>
-                                    </thead>
-                                    <tbody>
-                                        <tr t-foreach="supplier.products" t-as="row" t-key="supplier.id + '-' + row.id">
-                                            <td>
-                                                <button type="button" class="btn btn-link p-0 text-start"
-                                                        t-on-click="() => openIds('stock.move', 'Movimientos de ' + row.name, row.move_ids)">
-                                                    <strong t-esc="row.sku || 'Sin SKU'"/><small t-esc="row.name"/>
-                                                </button>
-                                            </td>
-                                            <td class="text-end" t-esc="formatQty(row.ordered)"/>
-                                            <td class="text-end" t-esc="formatQty(row.gross)"/>
-                                            <td class="text-end text-danger" t-esc="formatQty(row.returned)"/>
-                                            <td class="text-end fw-bold text-success" t-esc="formatQty(row.net)"/>
-                                            <td class="text-end fw-bold" t-att-class="row.pending ? 'text-danger' : ''" t-esc="formatQty(row.pending)"/>
-                                        </tr>
-                                    </tbody>
-                                    <tfoot>
-                                        <tr class="fw-bold">
-                                            <td>Total proveedor</td>
-                                            <td class="text-end" t-esc="formatQty(supplier.ordered)"/>
-                                            <td class="text-end" t-esc="formatQty(supplier.gross)"/>
-                                            <td class="text-end text-danger" t-esc="formatQty(supplier.returned)"/>
-                                            <td class="text-end text-success" t-esc="formatQty(supplier.net)"/>
-                                            <td class="text-end" t-esc="formatQty(supplier.pending)"/>
-                                        </tr>
-                                    </tfoot>
-                                </table>
-                            </div>
-                        </section>
-                        <div t-if="!state.data.rankings.received_products_by_supplier.length" class="o_supply_empty">No hay recepciones terminadas dentro del rango seleccionado.</div>
+                    <div class="table-responsive">
+                        <table class="table table-hover align-middle o_supply_received_table">
+                            <thead>
+                                <tr>
+                                    <th>Proveedor</th>
+                                    <th class="text-end">Solicitadas</th>
+                                    <th class="text-end">Recibidas brutas</th>
+                                    <th class="text-end">Devueltas</th>
+                                    <th class="text-end">Recibidas netas</th>
+                                    <th class="text-end">Pendientes</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                <tr t-foreach="state.data.rankings.received_products_by_supplier" t-as="supplier" t-key="supplier.id"
+                                    class="o_supply_clickable_row"
+                                    t-on-click="() => openPurchaseLines('Recepciones de ' + supplier.name, [['supplier_id', '=', supplier.id]])">
+                                    <td><strong t-esc="supplier.name"/></td>
+                                    <td class="text-end" t-esc="formatQty(supplier.ordered)"/>
+                                    <td class="text-end" t-esc="formatQty(supplier.gross)"/>
+                                    <td class="text-end text-danger" t-esc="formatQty(supplier.returned)"/>
+                                    <td class="text-end fw-bold text-success" t-esc="formatQty(supplier.net)"/>
+                                    <td class="text-end fw-bold" t-att-class="supplier.pending ? 'text-danger' : ''" t-esc="formatQty(supplier.pending)"/>
+                                </tr>
+                                <tr t-if="!state.data.rankings.received_products_by_supplier.length">
+                                    <td colspan="6" class="o_supply_empty">No hay recepciones terminadas dentro del rango seleccionado.</td>
+                                </tr>
+                            </tbody>
+                        </table>
                     </div>
                 </section>
 

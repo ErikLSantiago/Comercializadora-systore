@@ -1,5 +1,13 @@
 # Historial de cambios
 
+## 18.0.1.6.2
+
+- Se retiró el Top 10 y el desglose visible por producto de **Productos recibidos**.
+- El resumen ahora contiene una sola línea con las sumatorias de cada proveedor.
+- Se conservan Solicitadas, Recibidas brutas, Devueltas, Recibidas netas y Pendientes.
+- Al seleccionar una línea se abre **Recepciones de compra** filtrado por ese proveedor.
+- Los proveedores se ordenan de mayor a menor por piezas recibidas brutas, sin limitar el resultado a diez proveedores.
+
 ## 18.0.1.6.1
 
 - **Productos recibidos** ahora se organiza por proveedor y después por producto.
