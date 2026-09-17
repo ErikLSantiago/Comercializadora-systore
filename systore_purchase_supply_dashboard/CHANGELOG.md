@@ -1,5 +1,14 @@
 # Historial de cambios
 
+## 18.0.1.6.4
+
+- Productos recibidos incorpora un selector de valuación: Costo USD, Costo MXN y Costo neto.
+- Cada estado muestra simultáneamente las piezas y su valor: Solicitadas, Recibidas brutas, Devueltas, Recibidas netas y Pendientes.
+- Costo USD utiliza la mercancía `x_gross_usd` de compras internacionales.
+- Costo MXN convierte esa mercancía con el `x_exchange_rate` de cada orden.
+- Costo neto utiliza el costo global MXN tanto para compras internacionales como nacionales.
+- En proveedores nacionales, los modos Costo USD y Costo MXN muestran un guion y conservan visibles las piezas.
+
 ## 18.0.1.6.3
 
 - El resumen de Productos recibidos incorpora Costo proveedor USD, Costo proveedor MXN y Costo neto MXN.

@@ -235,9 +235,17 @@
     }
     .o_supply_ranking_list { display: grid; gap: 5px; }
     .o_supply_received_table {
-        min-width: 1250px;
+        min-width: 900px;
         th, td { padding: 8px 10px; }
         td:first-child { min-width: 240px; }
+        td strong, td small { display: block; }
+        td small { margin-top: 2px; font-size: 10px; opacity: .78; }
+    }
+    .o_supply_received_cost_filter {
+        min-width: 150px;
+        font-size: 11px;
+        color: #52616b;
+        select { margin-top: 3px; }
     }
     .o_supply_clickable_row { cursor: pointer; }
     .o_supply_ranking_row {

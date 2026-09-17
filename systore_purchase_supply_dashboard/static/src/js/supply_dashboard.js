@@ -44,6 +44,7 @@ export class SystoreSupplyDashboard extends Component {
                 period_month: currentMonth,
                 date_from: `${currentMonth}-01`,
                 date_to: `${currentMonth}-${String(lastDay).padStart(2, "0")}`,
+                received_cost_mode: "cost_net",
                 channel: "",
                 warehouse_id: "",
                 supplier_id: "",
@@ -107,6 +108,10 @@ export class SystoreSupplyDashboard extends Component {
         this.state.filters.date_to = event.target.value;
     }
 
+    onReceivedCostMode(event) {
+        this.state.filters.received_cost_mode = event.target.value;
+    }
+
     onWarehouse(event) {
         this.state.filters.warehouse_id = event.target.value;
         this.state.filters.supplier_id = "";
@@ -149,6 +154,15 @@ export class SystoreSupplyDashboard extends Component {
             currency: "USD",
             maximumFractionDigits: 2,
         }).format(value || 0);
+    }
+
+    formatReceivedValue(supplier, status) {
+        const mode = this.state.filters.received_cost_mode;
+        if (mode !== "cost_net" && !supplier.is_international) {
+            return "—";
+        }
+        const value = supplier.values?.[status]?.[mode] || 0;
+        return mode === "cost_usd" ? this.formatUsd(value) : this.formatMoney(value);
     }
 
     formatPercent(value) {

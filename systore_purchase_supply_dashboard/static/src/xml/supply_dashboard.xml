@@ -133,6 +133,13 @@
                             <h2>Productos recibidos</h2>
                             <small>Sumatoria por proveedor entre <t t-esc="state.filters.date_from"/> y <t t-esc="state.filters.date_to"/>.</small>
                         </div>
+                        <label class="o_supply_received_cost_filter">Valuación
+                            <select class="form-select form-select-sm" t-att-value="state.filters.received_cost_mode" t-on-change="onReceivedCostMode">
+                                <option value="cost_usd">Costo USD</option>
+                                <option value="cost_mxn">Costo MXN</option>
+                                <option value="cost_net">Costo neto</option>
+                            </select>
+                        </label>
                     </div>
                     <div class="table-responsive">
                         <table class="table table-hover align-middle o_supply_received_table">
@@ -144,9 +151,6 @@
                                     <th class="text-end">Devueltas</th>
                                     <th class="text-end">Recibidas netas</th>
                                     <th class="text-end">Pendientes</th>
-                                    <th class="text-end">Costo proveedor USD</th>
-                                    <th class="text-end">Costo proveedor MXN</th>
-                                    <th class="text-end">Costo neto MXN</th>
                                 </tr>
                             </thead>
                             <tbody>
@@ -157,23 +161,14 @@
                                         <strong t-esc="supplier.name"/>
                                         <small class="d-block text-muted" t-esc="supplier.origin == 'international' ? 'Internacional' : supplier.origin == 'mixed' ? 'Mixto' : 'Nacional'"/>
                                     </td>
-                                    <td class="text-end" t-esc="formatQty(supplier.ordered)"/>
-                                    <td class="text-end" t-esc="formatQty(supplier.gross)"/>
-                                    <td class="text-end text-danger" t-esc="formatQty(supplier.returned)"/>
-                                    <td class="text-end fw-bold text-success" t-esc="formatQty(supplier.net)"/>
-                                    <td class="text-end fw-bold" t-att-class="supplier.pending ? 'text-danger' : ''" t-esc="formatQty(supplier.pending)"/>
-                                    <td class="text-end">
-                                        <t t-if="supplier.is_international" t-esc="formatUsd(supplier.supplier_cost_usd)"/>
-                                        <t t-else="">—</t>
-                                    </td>
-                                    <td class="text-end">
-                                        <t t-if="supplier.is_international" t-esc="formatMoney(supplier.supplier_cost_mxn)"/>
-                                        <t t-else="">—</t>
-                                    </td>
-                                    <td class="text-end fw-bold" t-esc="formatMoney(supplier.net_cost_mxn)"/>
+                                    <td class="text-end"><strong t-esc="formatQty(supplier.ordered)"/><small t-esc="formatReceivedValue(supplier, 'ordered')"/></td>
+                                    <td class="text-end"><strong t-esc="formatQty(supplier.gross)"/><small t-esc="formatReceivedValue(supplier, 'gross')"/></td>
+                                    <td class="text-end text-danger"><strong t-esc="formatQty(supplier.returned)"/><small t-esc="formatReceivedValue(supplier, 'returned')"/></td>
+                                    <td class="text-end text-success"><strong t-esc="formatQty(supplier.net)"/><small t-esc="formatReceivedValue(supplier, 'net')"/></td>
+                                    <td class="text-end" t-att-class="supplier.pending ? 'text-danger' : ''"><strong t-esc="formatQty(supplier.pending)"/><small t-esc="formatReceivedValue(supplier, 'pending')"/></td>
                                 </tr>
                                 <tr t-if="!state.data.rankings.received_products_by_supplier.length">
-                                    <td colspan="9" class="o_supply_empty">No hay recepciones terminadas dentro del rango seleccionado.</td>
+                                    <td colspan="6" class="o_supply_empty">No hay recepciones terminadas dentro del rango seleccionado.</td>
                                 </tr>
                             </tbody>
                         </table>

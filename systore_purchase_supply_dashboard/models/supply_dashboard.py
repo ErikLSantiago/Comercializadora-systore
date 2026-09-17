@@ -500,13 +500,41 @@ class SystoreSupplyDashboard(models.AbstractModel):
             "supplier_cost_usd": 0.0, "supplier_cost_mxn": 0.0,
             "net_cost_mxn": 0.0,
             "has_international": False, "has_national": False,
+            "status_values": {
+                status: {
+                    "qty": 0.0, "cost_usd": 0.0,
+                    "cost_mxn": 0.0, "cost_net": 0.0,
+                }
+                for status in ("ordered", "gross", "returned", "net", "pending")
+            },
         })
         for (partner_id, product_id), values in received_products.items():
             product = self.env["product.product"].browse(product_id)
             ordered = pending = 0.0
+            ordered_cost_usd = ordered_cost_mxn = ordered_cost_net = 0.0
+            pending_cost_usd = pending_cost_mxn = pending_cost_net = 0.0
             for line in self.env["purchase.order.line"].browse(values["line_ids"]):
-                line_ordered = line.product_qty or 0.0
+                line_ordered_cost_qty = line.product_qty or 0.0
                 _, _, line_net, _ = PurchaseSnapshot._line_receipt_quantities(line)
+                line_pending_cost_qty = max(line_ordered_cost_qty - line_net, 0.0)
+                line_order = line.order_id
+                line_international = (
+                    line_order._systore_resolved_purchase_origin() == "international"
+                )
+                line_supplier_usd = (
+                    line.x_gross_usd or 0.0
+                ) if line_international else 0.0
+                line_supplier_mxn = line_supplier_usd * (
+                    line_order.x_exchange_rate or 0.0
+                )
+                line_net_unit_mxn = line_order._systore_line_cost_mxn(line)
+                ordered_cost_usd += line_ordered_cost_qty * line_supplier_usd
+                ordered_cost_mxn += line_ordered_cost_qty * line_supplier_mxn
+                ordered_cost_net += line_ordered_cost_qty * line_net_unit_mxn
+                pending_cost_usd += line_pending_cost_qty * line_supplier_usd
+                pending_cost_mxn += line_pending_cost_qty * line_supplier_mxn
+                pending_cost_net += line_pending_cost_qty * line_net_unit_mxn
+                line_ordered = line_ordered_cost_qty
                 if line.product_uom and product.uom_id and line.product_uom != product.uom_id:
                     line_ordered = line.product_uom._compute_quantity(line_ordered, product.uom_id)
                     line_net = line.product_uom._compute_quantity(line_net, product.uom_id)
@@ -524,6 +552,30 @@ class SystoreSupplyDashboard(models.AbstractModel):
             net_cost_mxn = max(
                 values["net_cost_mxn_gross"] - values["net_cost_mxn_returned"], 0.0
             )
+            status_values = {
+                "ordered": {
+                    "qty": ordered, "cost_usd": ordered_cost_usd,
+                    "cost_mxn": ordered_cost_mxn, "cost_net": ordered_cost_net,
+                },
+                "gross": {
+                    "qty": gross, "cost_usd": values["supplier_usd_gross"],
+                    "cost_mxn": values["supplier_mxn_gross"],
+                    "cost_net": values["net_cost_mxn_gross"],
+                },
+                "returned": {
+                    "qty": returned, "cost_usd": values["supplier_usd_returned"],
+                    "cost_mxn": values["supplier_mxn_returned"],
+                    "cost_net": values["net_cost_mxn_returned"],
+                },
+                "net": {
+                    "qty": net, "cost_usd": supplier_cost_usd,
+                    "cost_mxn": supplier_cost_mxn, "cost_net": net_cost_mxn,
+                },
+                "pending": {
+                    "qty": pending, "cost_usd": pending_cost_usd,
+                    "cost_mxn": pending_cost_mxn, "cost_net": pending_cost_net,
+                },
+            }
             row = {
                 "id": product_id,
                 "supplier_id": partner_id,
@@ -537,6 +589,7 @@ class SystoreSupplyDashboard(models.AbstractModel):
                 "supplier_cost_usd": supplier_cost_usd,
                 "supplier_cost_mxn": supplier_cost_mxn,
                 "net_cost_mxn": net_cost_mxn,
+                "values": status_values,
                 "move_ids": list(values["move_ids"]),
                 "order_ids": list(values["order_ids"]),
             }
@@ -548,6 +601,9 @@ class SystoreSupplyDashboard(models.AbstractModel):
                 supplier_values[metric] += row[metric]
             supplier_values["has_international"] |= values["has_international"]
             supplier_values["has_national"] |= values["has_national"]
+            for status, status_metrics in status_values.items():
+                for metric, amount in status_metrics.items():
+                    supplier_values["status_values"][status][metric] += amount
 
         received_supplier_rows = []
         for partner_id, values in received_by_supplier.items():
@@ -568,6 +624,7 @@ class SystoreSupplyDashboard(models.AbstractModel):
                     else "international" if values["has_international"]
                     else "national"
                 ),
+                "values": values["status_values"],
             })
         received_supplier_rows.sort(key=lambda row: row["gross"], reverse=True)
 
