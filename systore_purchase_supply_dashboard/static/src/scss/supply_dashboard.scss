@@ -234,6 +234,35 @@
         .o_supply_panel { margin: 0 0 18px; }
     }
     .o_supply_ranking_list { display: grid; gap: 5px; }
+    .o_supply_received_groups { display: grid; gap: 16px; }
+    .o_supply_received_supplier {
+        overflow: hidden;
+        border: 1px solid #e4e9ec;
+        border-radius: 9px;
+    }
+    .o_supply_received_supplier_title {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 12px;
+        padding: 10px 12px;
+        background: #f5f8f9;
+        border-bottom: 1px solid #e4e9ec;
+        strong { font-size: 14px; }
+        small { color: #52616b; }
+    }
+    .o_supply_received_table {
+        min-width: 850px;
+        th, td { padding: 8px 10px; }
+        td:first-child { min-width: 240px; }
+        td button {
+            color: #173042;
+            text-decoration: none;
+            strong, small { display: block; }
+            small { color: #75848d; font-size: 10px; }
+        }
+        tfoot { background: #f8fafb; }
+    }
     .o_supply_ranking_row {
         display: grid;
         grid-template-columns: minmax(160px, 1.25fr) minmax(110px, 1fr) minmax(145px, auto);

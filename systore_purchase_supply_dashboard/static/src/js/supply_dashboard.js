@@ -32,7 +32,7 @@ export class SystoreSupplyDashboard extends Component {
                     pieces: { total: 0, received: 0, pending: 0, received_percent: 0 },
                 },
                 rankings: {
-                    products: [], received_products: [], suppliers: [], debts: [],
+                    products: [], received_products: [], received_products_by_supplier: [], suppliers: [], debts: [],
                     debts_national: [], debts_international: [],
                     debt_national_mxn: 0,
                     debt_international_mxn: 0,

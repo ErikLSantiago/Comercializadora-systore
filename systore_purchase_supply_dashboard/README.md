@@ -17,7 +17,8 @@ Versión de pruebas para Odoo 18.
 - Gráfica de barras con órdenes de venta listas y parciales.
 - Gráfica de pastel con órdenes de venta por canal Mayoreo y Minorista.
 - Gráfica de pastel con piezas de compra recibidas y pendientes.
-- Top de productos recibidos directamente del historial de movimientos, con rango de fechas Desde/Hasta.
+- Top de productos recibidos directamente del historial de movimientos, agrupado por proveedor y con rango Desde/Hasta.
+- Resumen por producto con solicitadas, recibidas brutas, devueltas, recibidas netas y pendientes.
 - Recepciones brutas, devoluciones a proveedor y recepciones netas por línea de compra.
 - Deuda histórica separada entre proveedores nacionales y extranjeros, mostrada en USD y MXN, con acceso a las órdenes relacionadas.
 - Ranking de productos y proveedores por piezas confirmadas, recibidas y pendientes.

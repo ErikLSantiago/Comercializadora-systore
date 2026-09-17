@@ -380,57 +380,134 @@ class SystoreSupplyDashboard(models.AbstractModel):
             ("date", ">=", receipt_period["utc_start"]),
             ("date", "<", receipt_period["utc_end"]),
         ])
+        return_moves = self.env["stock.move"].sudo().search([
+            ("company_id", "=", company.id),
+            ("state", "=", "done"),
+            ("location_dest_id.usage", "=", "supplier"),
+            ("location_id.usage", "!=", "supplier"),
+            ("date", ">=", receipt_period["utc_start"]),
+            ("date", "<", receipt_period["utc_end"]),
+        ])
         received_products = defaultdict(lambda: {
-            "quantity": 0.0, "move_ids": set(), "order_ids": set(),
+            "gross": 0.0, "returned": 0.0, "move_ids": set(),
+            "order_ids": set(), "line_ids": set(),
         })
         PurchaseSnapshot = self.env["systore.supply.purchase.line"]
-        for move in receipt_moves:
+
+        def move_purchase_data(move):
+            purchase_line = (
+                move.purchase_line_id
+                if "purchase_line_id" in move._fields and move.purchase_line_id
+                else move.origin_returned_move_id.purchase_line_id
+                if move.origin_returned_move_id
+                and "purchase_line_id" in move.origin_returned_move_id._fields
+                else self.env["purchase.order.line"]
+            )
+            order = purchase_line.order_id if purchase_line else self.env["purchase.order"]
+            partner = order.partner_id if order else move.picking_id.partner_id
+            return purchase_line, order, partner
+
+        def move_matches_filters(move, partner):
             warehouse = move.picking_type_id.warehouse_id
             if warehouse_id and (not warehouse or warehouse.id != warehouse_id):
-                continue
+                return False
             resolved_channel = (
                 warehouse._systore_resolved_supply_channel(move.location_dest_id)
                 if warehouse else "retail"
             )
             if channel and resolved_channel != channel:
-                continue
-            order = (
-                move.purchase_line_id.order_id
-                if "purchase_line_id" in move._fields and move.purchase_line_id
-                else self.env["purchase.order"]
-            )
-            if supplier_id and (not order or order.partner_id.id != supplier_id):
+                return False
+            return not supplier_id or (partner and partner.id == supplier_id)
+
+        for move in receipt_moves:
+            purchase_line, order, partner = move_purchase_data(move)
+            if not partner or not move_matches_filters(move, partner):
                 continue
             qty = PurchaseSnapshot._move_done_qty(move)
             if move.product_uom and move.product_id.uom_id and move.product_uom != move.product_id.uom_id:
                 qty = move.product_uom._compute_quantity(qty, move.product_id.uom_id)
-            values = received_products[move.product_id.id]
+            values = received_products[(partner.id, move.product_id.id)]
+            values["partner_name"] = partner.display_name
             values["name"] = move.product_id.display_name
             values["sku"] = move.product_id.default_code or ""
-            values["quantity"] += qty
+            values["gross"] += qty
             values["move_ids"].add(move.id)
             if order:
                 values["order_ids"].add(order.id)
-        received_product_rows = sorted(
-            ({
+            if purchase_line:
+                values["line_ids"].add(purchase_line.id)
+
+        for move in return_moves:
+            purchase_line, order, partner = move_purchase_data(move)
+            key = (partner.id, move.product_id.id) if partner else False
+            if not key or key not in received_products or not move_matches_filters(move, partner):
+                continue
+            qty = PurchaseSnapshot._move_done_qty(move)
+            if move.product_uom and move.product_id.uom_id and move.product_uom != move.product_id.uom_id:
+                qty = move.product_uom._compute_quantity(qty, move.product_id.uom_id)
+            values = received_products[key]
+            values["returned"] += qty
+            values["move_ids"].add(move.id)
+            if order:
+                values["order_ids"].add(order.id)
+            if purchase_line:
+                values["line_ids"].add(purchase_line.id)
+
+        received_by_supplier = defaultdict(lambda: {
+            "name": "", "products": [], "ordered": 0.0, "gross": 0.0,
+            "returned": 0.0, "net": 0.0, "pending": 0.0,
+        })
+        received_product_rows = []
+        for (partner_id, product_id), values in received_products.items():
+            product = self.env["product.product"].browse(product_id)
+            ordered = pending = 0.0
+            for line in self.env["purchase.order.line"].browse(values["line_ids"]):
+                line_ordered = line.product_qty or 0.0
+                _, _, line_net, _ = PurchaseSnapshot._line_receipt_quantities(line)
+                if line.product_uom and product.uom_id and line.product_uom != product.uom_id:
+                    line_ordered = line.product_uom._compute_quantity(line_ordered, product.uom_id)
+                    line_net = line.product_uom._compute_quantity(line_net, product.uom_id)
+                ordered += line_ordered
+                pending += max(line_ordered - line_net, 0.0)
+            gross = values["gross"]
+            returned = values["returned"]
+            net = max(gross - returned, 0.0)
+            row = {
                 "id": product_id,
+                "supplier_id": partner_id,
                 "name": values["name"],
                 "sku": values["sku"],
-                "quantity": values["quantity"],
+                "ordered": ordered,
+                "gross": gross,
+                "returned": returned,
+                "net": net,
+                "pending": pending,
                 "move_ids": list(values["move_ids"]),
                 "order_ids": list(values["order_ids"]),
-            } for product_id, values in received_products.items()),
-            key=lambda row: row["quantity"],
-            reverse=True,
-        )[:10]
-        max_received_qty = max(
-            (row["quantity"] for row in received_product_rows), default=0.0
-        )
-        for row in received_product_rows:
-            row["percent"] = (
-                row["quantity"] / max_received_qty * 100.0
-                if max_received_qty else 0.0
-            )
+            }
+            received_product_rows.append(row)
+            supplier_values = received_by_supplier[partner_id]
+            supplier_values["name"] = values["partner_name"]
+            supplier_values["products"].append(row)
+            for metric in ("ordered", "gross", "returned", "net", "pending"):
+                supplier_values[metric] += row[metric]
+
+        received_supplier_rows = []
+        for partner_id, values in received_by_supplier.items():
+            values["products"].sort(key=lambda row: row["gross"], reverse=True)
+            received_supplier_rows.append({
+                "id": partner_id,
+                "name": values["name"],
+                "ordered": values["ordered"],
+                "gross": values["gross"],
+                "returned": values["returned"],
+                "net": values["net"],
+                "pending": values["pending"],
+                "products": values["products"][:10],
+            })
+        received_supplier_rows.sort(key=lambda row: row["gross"], reverse=True)
+        received_supplier_rows = received_supplier_rows[:10]
+        received_product_rows.sort(key=lambda row: row["gross"], reverse=True)
 
         def debt_rows(sector):
             rows = [{
@@ -479,7 +556,8 @@ class SystoreSupplyDashboard(models.AbstractModel):
             },
             "rankings": {
                 "products": product_rows,
-                "received_products": received_product_rows,
+                "received_products": received_product_rows[:100],
+                "received_products_by_supplier": received_supplier_rows,
                 "suppliers": supplier_rows,
                 "debts": national_debts + international_debts,
                 "debts_national": national_debts,

@@ -1,5 +1,14 @@
 # Historial de cambios
 
+## 18.0.1.6.1
+
+- **Productos recibidos** ahora se organiza por proveedor y después por producto.
+- Se agregaron las columnas Solicitadas, Recibidas brutas, Devueltas, Recibidas netas y Pendientes.
+- Cada proveedor muestra una fila de totales para las cinco cantidades.
+- Recibidas, devueltas y netas respetan el rango Desde/Hasta seleccionado.
+- Solicitadas y pendientes utilizan las líneas de compra relacionadas y su recepción neta histórica.
+- Los productos continúan abriendo los movimientos de inventario que forman el resultado.
+
 ## 18.0.1.6.0
 
 - Se agregó al tablero el Top 10 de **Productos recibidos** basado directamente en movimientos terminados desde proveedor.
