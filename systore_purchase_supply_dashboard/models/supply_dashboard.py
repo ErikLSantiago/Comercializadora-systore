@@ -312,9 +312,10 @@ class SystoreSupplyDashboard(models.AbstractModel):
                 ),
             })
         demand_rows.sort(
-            key=lambda row: (row["missing_to_buy_qty"], row["original_missing_qty"]),
+            key=lambda row: (row["open_demand_qty"], row["missing_to_buy_qty"]),
             reverse=True,
         )
+        demand_top_rows = demand_rows[:10]
 
         kpis = {
             "sale_orders": len(sale_orders),
@@ -385,7 +386,7 @@ class SystoreSupplyDashboard(models.AbstractModel):
             "kpis": kpis,
             "charts": chart_data["charts"],
             "purchases": [],
-            "demand": demand_rows,
+            "demand": demand_top_rows,
             "demand_period": demand_period,
             "demand_periods": [
                 {"key": month_key, "label": month_key}
@@ -958,6 +959,57 @@ class SystoreSupplyDashboard(models.AbstractModel):
                 for metric, amount in supplier_row["values"][status].items():
                     received_totals["values"][status][metric] += amount
 
+        supplier_palette = [
+            "#1f6f8b", "#f4b942", "#2e8b57", "#7b61a8", "#d46b45", "#5d8797",
+        ]
+        purchased_supplier_values = sorted(
+            (
+                {
+                    "id": row["id"],
+                    "name": row["name"],
+                    "value_mxn": row["values"]["ordered"]["cost_net"],
+                }
+                for row in received_supplier_rows
+                if row["values"]["ordered"]["cost_net"] > 0
+            ),
+            key=lambda row: row["value_mxn"],
+            reverse=True,
+        )
+        purchased_total_mxn = sum(
+            row["value_mxn"] for row in purchased_supplier_values
+        )
+        purchased_segments = purchased_supplier_values[:5]
+        other_value_mxn = sum(
+            row["value_mxn"] for row in purchased_supplier_values[5:]
+        )
+        if other_value_mxn:
+            purchased_segments.append({
+                "id": False,
+                "name": "Otros proveedores",
+                "value_mxn": other_value_mxn,
+            })
+        gradient_parts = []
+        gradient_cursor = 0.0
+        for index, segment in enumerate(purchased_segments):
+            segment["color"] = supplier_palette[index % len(supplier_palette)]
+            segment["percent"] = (
+                segment["value_mxn"] / purchased_total_mxn * 100.0
+                if purchased_total_mxn else 0.0
+            )
+            gradient_end = gradient_cursor + segment["percent"]
+            gradient_parts.append(
+                f'{segment["color"]} {gradient_cursor:.4f}% {gradient_end:.4f}%'
+            )
+            gradient_cursor = gradient_end
+        purchased_by_supplier = {
+            "total_mxn": purchased_total_mxn,
+            "segments": purchased_segments,
+            "style": (
+                "background: conic-gradient(" + ", ".join(gradient_parts) + ");"
+                if gradient_parts else ""
+            ),
+        }
+
         def debt_rows(sector):
             rows = [{
                 "id": partner_id,
@@ -1007,6 +1059,7 @@ class SystoreSupplyDashboard(models.AbstractModel):
                     "received_percent": received_pct,
                     "purchase_order_ids": purchase_orders.ids,
                 },
+                "purchased_by_supplier": purchased_by_supplier,
             },
             "rankings": {
                 "products": product_rows,

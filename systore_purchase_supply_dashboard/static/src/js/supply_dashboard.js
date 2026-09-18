@@ -32,6 +32,7 @@ export class SystoreSupplyDashboard extends Component {
                     demand_pieces: { requested: 0, covered: 0, to_buy: 0, covered_percent: 0, to_buy_percent: 0 },
                     channels: { total: 0, wholesale: 0, retail: 0, wholesale_percent: 0 },
                     pieces: { total: 0, received: 0, pending: 0, received_percent: 0 },
+                    purchased_by_supplier: { total_mxn: 0, segments: [], style: "" },
                 },
                 rankings: {
                     products: [], received_products: [], received_products_by_supplier: [], suppliers: [], debts: [],
@@ -49,7 +50,7 @@ export class SystoreSupplyDashboard extends Component {
                 date_from: `${currentMonth}-01`,
                 date_to: `${currentMonth}-${String(lastDay).padStart(2, "0")}`,
                 received_cost_mode: "cost_net",
-                foreign_debt_currency: "mxn",
+                foreign_debt_currency: "usd",
                 supplier_type: "",
                 channel: "",
                 warehouse_id: "",
@@ -142,8 +143,17 @@ export class SystoreSupplyDashboard extends Component {
 
     currentMonth() {
         const today = new Date();
-        const month = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, "0")}`;
-        const lastDay = new Date(today.getFullYear(), today.getMonth() + 1, 0).getDate();
+        this.selectCalendarMonth(today);
+    }
+
+    previousMonth() {
+        const today = new Date();
+        this.selectCalendarMonth(new Date(today.getFullYear(), today.getMonth() - 1, 1));
+    }
+
+    selectCalendarMonth(date) {
+        const month = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, "0")}`;
+        const lastDay = new Date(date.getFullYear(), date.getMonth() + 1, 0).getDate();
         this.state.filters.period_month = month;
         this.state.filters.date_from = `${month}-01`;
         this.state.filters.date_to = `${month}-${String(lastDay).padStart(2, "0")}`;
@@ -276,13 +286,14 @@ export class SystoreSupplyDashboard extends Component {
         return [...domain, ...extra];
     }
 
-    openPurchaseLines(name, extra = []) {
+    openPurchaseLines(name, extra = [], context = {}) {
         return this.action.doAction({
             type: "ir.actions.act_window",
             name,
             res_model: "systore.supply.purchase.line",
             views: [[false, "list"], [false, "pivot"], [false, "graph"]],
             domain: this.purchaseDomain(extra),
+            context,
             target: "current",
         });
     }

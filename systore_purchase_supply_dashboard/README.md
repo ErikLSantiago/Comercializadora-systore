@@ -37,6 +37,11 @@ Versión de pruebas para Odoo 18.
 - Clasificación explícita de almacenes como Mayoreo, Minorista o Sin gestión para compras.
 - Los almacenes sin gestión quedan fuera de todos los análisis, filtros y reportes del módulo.
 - El encabezado operativo muestra únicamente Piezas solicitadas, En compra y Por comprar.
+- El acceso rápido Mes anterior selecciona el mes calendario previo y sincroniza su rango de recepciones.
+- El panel Demanda muestra el Top 10 por piezas solicitadas; el análisis completo permanece disponible desde su botón.
+- La deuda extranjera inicia en USD y conserva el cambio manual a MXN.
+- Los rankings de productos y proveedores permiten abrir el reporte completo agrupado.
+- La gráfica Monto comprado por proveedor distribuye el costo neto MXN solicitado de la cohorte seleccionada.
 
 ## Dependencias
 

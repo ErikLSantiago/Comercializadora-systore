@@ -1,5 +1,15 @@
 # Historial de cambios
 
+## 18.0.1.8.3
+
+- El título principal del tablero usa gris claro para mejorar la jerarquía visual.
+- Se agregó el botón Mes anterior, que selecciona el mes calendario previo al actual y ajusta también el rango de recepciones.
+- Demanda muestra únicamente los diez productos con más piezas solicitadas; los indicadores generales conservan el universo completo.
+- La deuda de proveedores extranjeros abre por defecto en Dólares USD.
+- Productos más comprados y Proveedores con más compras incorporan el acceso Ver reporte completo con agrupación correspondiente.
+- Piezas recibidas y pendientes se movió inmediatamente antes de Productos recibidos.
+- Se agregó la gráfica Monto comprado por proveedor, valuada con el costo neto MXN solicitado de la cohorte de primera recepción.
+
 ## 18.0.1.8.2
 
 - Configuración ahora aparece como una pestaña superior accionable para administradores y conserva los accesos a Usuarios y Almacenes.
