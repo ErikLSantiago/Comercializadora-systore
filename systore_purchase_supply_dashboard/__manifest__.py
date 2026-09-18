@@ -1,6 +1,6 @@
 {
     "name": "Analítica de compras",
-    "version": "18.0.1.8.5",
+    "version": "18.0.1.8.6",
     "category": "Inventory/Purchase",
     "summary": "Conciliación de compras, recepciones, demanda, lotes y pagos manuales",
     "author": "Systore",

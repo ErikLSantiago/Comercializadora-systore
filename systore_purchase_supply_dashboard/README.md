@@ -95,6 +95,7 @@ Versión de pruebas para Odoo 18.
 - Por comprar: `max(faltante original - cobertura en compra, 0)`.
 - En la vista histórica, la cobertura disponible se asigna primero al mes de demanda más antiguo para no reutilizar una misma compra en varios meses.
 - Demanda de piezas: Cubiertas = Solicitadas - Por comprar.
+- El bloque de gráficas inicia separado visualmente del área de filtros para facilitar la lectura del tablero.
 - Las piezas ya recibidas dejan de contarse como cobertura en camino para evitar descontarlas también cuando pasan a piezas listas en inventario.
 - Las gráficas de órdenes cuentan cada orden de venta una sola vez; si tiene una operación parcial, prevalece el estado Parcial.
 - La gráfica por canal conserva ambos segmentos para mostrar la composición completa, aun cuando el filtro de canal esté seleccionado.

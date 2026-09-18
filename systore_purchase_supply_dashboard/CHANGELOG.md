@@ -1,5 +1,10 @@
 # Historial de cambios
 
+## 18.0.1.8.6
+
+- Se agregó espacio vertical entre el bloque de filtros y las gráficas Demanda de piezas y Órdenes por canal.
+- Se sustituyó el icono de la aplicación por la nueva versión proporcionada sin contorno exterior.
+
 ## 18.0.1.8.5
 
 - El módulo y su aplicación se renombraron a Analítica de compras.
