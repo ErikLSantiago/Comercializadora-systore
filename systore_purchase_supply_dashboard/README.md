@@ -1,4 +1,4 @@
-# Systore - Tablero de Compras y Abastecimiento
+# Analítica de compras
 
 Versión de pruebas para Odoo 18.
 
@@ -33,10 +33,11 @@ Versión de pruebas para Odoo 18.
 - Deuda histórica separada entre proveedores nacionales y extranjeros, con selector MXN/USD y acceso a las órdenes relacionadas.
 - Ranking de productos y proveedores por piezas confirmadas, recibidas y pendientes.
 - Filtro de proveedor para gráficas y listados de compras.
-- Acceso controlado mediante un grupo propio configurable desde Abastecimiento > Configuración > Usuarios con acceso.
+- Acceso controlado mediante un grupo propio configurable desde Analítica de compras > Configuración > Usuarios con acceso.
 - Clasificación explícita de almacenes como Mayoreo, Minorista o Sin gestión para compras.
 - Los almacenes sin gestión quedan fuera de todos los análisis, filtros y reportes del módulo.
-- El encabezado operativo muestra únicamente Piezas solicitadas, En compra y Por comprar.
+- El encabezado operativo utiliza fondo blanco y muestra Analítica de ventas en texto negro.
+- Las tarjetas Piezas solicitadas, En compra y Por comprar se retiraron de la interfaz; sus cálculos continúan alimentando la gráfica de demanda.
 - El acceso rápido Mes anterior selecciona el mes calendario previo y sincroniza su rango de recepciones.
 - El panel Demanda muestra el Top 10 por piezas solicitadas; el análisis completo permanece disponible desde su botón.
 - La deuda extranjera inicia en USD y conserva el cambio manual a MXN.
@@ -57,10 +58,10 @@ Versión de pruebas para Odoo 18.
 ## Configuración inicial
 
 1. Verificar que los almacenes de Mayoreo usen el código/prefijo `MXMAY` o `SDMAY`.
-2. Abrir **Abastecimiento > Tablero**.
+2. Abrir **Analítica de compras > Tablero**.
 3. Seleccionar un mes; el mes actual aparece por defecto.
 4. Presionar **Actualizar demanda**.
-5. Un administrador puede ajustar los usuarios autorizados y los canales de almacén desde **Abastecimiento > Configuración**.
+5. Un administrador puede ajustar los usuarios autorizados y los canales de almacén desde **Analítica de compras > Configuración**.
 6. La pestaña superior **Configuración** abre directamente la configuración general de acceso y conserva el submenú de Almacenes y canales.
 
 ## Reglas de la primera versión

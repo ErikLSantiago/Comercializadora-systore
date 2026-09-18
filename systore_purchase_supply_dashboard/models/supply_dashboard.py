@@ -20,7 +20,7 @@ class SystoreSupplyDashboard(models.AbstractModel):
             or self.env.user.has_group("base.group_system")
         ):
             raise AccessError(_(
-                "No tienes acceso al módulo Compras y abastecimiento. "
+                "No tienes acceso al módulo Analítica de compras. "
                 "Solicita que te agreguen desde Configuración."
             ))
 

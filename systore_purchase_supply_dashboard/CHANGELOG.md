@@ -1,5 +1,14 @@
 # Historial de cambios
 
+## 18.0.1.8.5
+
+- El módulo y su aplicación se renombraron a Analítica de compras.
+- Se sustituyó el icono de la aplicación por la imagen de Analítica de compras proporcionada.
+- El encabezado dejó de usar fondo degradado y ahora presenta un fondo blanco.
+- El título interno del encabezado cambió a Analítica de ventas con texto negro.
+- Monto comprado por proveedor ahora muestra el subtítulo Valor de compras a proveedores.
+- Se retiraron del tablero las tarjetas Piezas solicitadas, En compra y Por comprar; sus cálculos internos se conservan para la gráfica de demanda.
+
 ## 18.0.1.8.4
 
 - Pagos y abastecimiento muestra únicamente obligaciones y abonos de Mercancía; Logística e Importación quedan ocultos sin eliminar registros históricos.

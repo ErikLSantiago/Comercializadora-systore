@@ -1,7 +1,7 @@
 <?xml version="1.0" encoding="utf-8"?>
 <odoo>
     <record id="action_supply_dashboard" model="ir.actions.client">
-        <field name="name">Compras y abastecimiento</field>
+        <field name="name">Analítica de compras</field>
         <field name="tag">systore_supply_dashboard</field>
     </record>
 
@@ -22,7 +22,7 @@
                                options="{'no_create': True}"/>
                     </group>
                     <div class="alert alert-info" role="alert">
-                        Los usuarios agregados podrán abrir Compras y abastecimiento y heredarán el permiso básico de Compras requerido por el tablero.
+                        Los usuarios agregados podrán abrir Analítica de compras y heredarán el permiso básico de Compras requerido por el tablero.
                     </div>
                 </sheet>
             </form>
@@ -39,9 +39,9 @@
     </record>
 
     <menuitem id="menu_supply_dashboard_root"
-              name="Abastecimiento"
+              name="Analítica de compras"
               sequence="38"
-              web_icon="systore_purchase_supply_dashboard,static/description/icon.svg"
+              web_icon="systore_purchase_supply_dashboard,static/description/icon.png"
               groups="systore_purchase_supply_dashboard.group_supply_dashboard_user,base.group_system"/>
     <menuitem id="menu_supply_dashboard"
               name="Tablero"

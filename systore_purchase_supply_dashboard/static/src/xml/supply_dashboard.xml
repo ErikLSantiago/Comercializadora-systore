@@ -4,7 +4,7 @@
         <div class="o_systore_supply_dashboard h-100 overflow-auto">
             <div class="o_supply_header sticky-top">
                 <div>
-                    <h1>Demanda</h1>
+                    <h1>Analítica de ventas</h1>
                     <p>Órdenes de venta con traslados parciales originados en Existencias</p>
                 </div>
                 <div class="d-flex gap-2">
@@ -67,12 +67,6 @@
                 <i class="fa fa-circle-o-notch fa-spin"/> Cargando demanda…
             </div>
             <t t-else="">
-                <div class="o_supply_kpis o_supply_kpis_demand">
-                    <div class="o_supply_kpi"><span>Piezas solicitadas</span><strong t-esc="formatQty(state.data.kpis.open_demand_qty)"/></div>
-                    <div class="o_supply_kpi warning"><span>En compra</span><strong t-esc="formatQty(state.data.kpis.incoming_purchase_qty)"/></div>
-                    <div class="o_supply_kpi danger"><span>Por comprar</span><strong t-esc="formatQty(state.data.kpis.missing_to_buy_qty)"/></div>
-                </div>
-
                 <div class="o_supply_charts">
                     <section class="o_supply_chart_card">
                         <div class="o_supply_chart_title">
@@ -186,7 +180,7 @@
                         <div class="o_supply_chart_title o_supply_chart_title_with_filter">
                             <div>
                                 <h2>Monto comprado por proveedor</h2>
-                                <small>Valor de las piezas solicitadas en la cohorte seleccionada.</small>
+                                <small>Valor de compras a proveedores</small>
                             </div>
                             <label class="o_supply_received_cost_filter">Valuación
                                 <select class="form-select form-select-sm" t-att-value="state.filters.purchased_cost_mode" t-on-change="onPurchasedCostMode">

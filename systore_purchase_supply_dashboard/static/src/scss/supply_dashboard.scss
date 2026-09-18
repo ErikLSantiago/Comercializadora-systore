@@ -4,17 +4,18 @@
     padding-bottom: 32px;
 
     .o_supply_header {
-        background: linear-gradient(120deg, #173042, #1f6f8b);
-        color: white;
+        background: white;
+        color: #111827;
         padding: 22px 28px;
         display: flex;
         align-items: center;
         justify-content: space-between;
         z-index: 2;
-        box-shadow: 0 2px 8px rgba(23, 48, 66, .16);
+        border-bottom: 1px solid #dfe5e8;
+        box-shadow: 0 2px 8px rgba(23, 48, 66, .08);
 
-        h1 { margin: 0; color: #d8e0e4; font-size: 26px; font-weight: 700; }
-        p { margin: 3px 0 0; opacity: .8; }
+        h1 { margin: 0; color: #111827; font-size: 26px; font-weight: 700; }
+        p { margin: 3px 0 0; color: #52616b; }
     }
 
     .o_supply_filters {
