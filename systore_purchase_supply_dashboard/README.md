@@ -7,8 +7,10 @@ Versión de pruebas para Odoo 18.
 - Piezas ordenadas, recibidas y pendientes por línea de compra.
 - Cohorte mensual por primera recepción validada.
 - Valuación MXN con los campos de `purchase_recosteo_importacion`.
-- Demanda desde órdenes de venta con traslados parciales, consolidada por SKU.
+- Demanda histórica desde órdenes de venta con traslados parciales, consolidada por SKU y filtrable por mes o Todos.
 - Piezas solicitadas, listas, faltante original, cobertura en compras confirmadas y necesidad neta por producto.
+- El panel operativo simplificado muestra Solicitadas, En compra y Por comprar; las piezas listas dejan de aparecer cuando la operación sale de demanda.
+- El histórico representa demanda todavía pendiente: las operaciones Listas, Terminadas o Canceladas dejan de formar parte del panel.
 - Canal Mayoreo por prefijo de almacén/ubicación `MXMAY` o `SDMAY`.
 - Canal Minorista para cualquier otro almacén.
 - Trazabilidad Compra → lote → salida → Venta.
@@ -31,6 +33,10 @@ Versión de pruebas para Odoo 18.
 - Deuda histórica separada entre proveedores nacionales y extranjeros, con selector MXN/USD y acceso a las órdenes relacionadas.
 - Ranking de productos y proveedores por piezas confirmadas, recibidas y pendientes.
 - Filtro de proveedor para gráficas y listados de compras.
+- Acceso controlado mediante un grupo propio configurable desde Abastecimiento > Configuración > Usuarios con acceso.
+- Clasificación explícita de almacenes como Mayoreo, Minorista o Sin gestión para compras.
+- Los almacenes sin gestión quedan fuera de todos los análisis, filtros y reportes del módulo.
+- El encabezado operativo muestra únicamente Piezas solicitadas, En compra y Por comprar.
 
 ## Dependencias
 
@@ -47,15 +53,17 @@ Versión de pruebas para Odoo 18.
 2. Abrir **Abastecimiento > Tablero**.
 3. Seleccionar un mes; el mes actual aparece por defecto.
 4. Presionar **Actualizar demanda**.
+5. Un administrador puede ajustar los usuarios autorizados y los canales de almacén desde **Abastecimiento > Configuración**.
 
 ## Reglas de la primera versión
 
-- Recepciones: suma los movimientos terminados desde proveedor vinculados a cada línea de compra.
-- Productos recibidos: movimientos terminados cuyo origen es una ubicación de tipo Proveedor dentro del rango seleccionado.
-- Devolución a proveedor: movimiento terminado cuyo destino es una ubicación de tipo Proveedor.
+- Recepciones: sólo suma movimientos terminados desde una ubicación Proveedor hacia una ubicación Interna.
+- Una OC sólo entra al reporte si cuenta con al menos una recepción válida; confirmar la compra o informar `qty_received` sin movimiento no la incorpora.
+- Productos recibidos: identifica las OC con una recepción válida dentro del rango y suma como Solicitadas todas sus líneas de producto.
+- Recibidas brutas: suma exclusivamente las piezas de movimientos terminados Proveedor → Interna.
+- Devolución a proveedor: movimiento terminado Interna → Proveedor.
 - Recepción neta: piezas recibidas brutas menos piezas devueltas al proveedor.
-- Primera recepción: fecha mínima de un movimiento terminado desde una ubicación de proveedor.
-- Si una compra aún no tiene recepción, la fecha de reporte provisional es la fecha de la OC.
+- Primera recepción: fecha mínima de un movimiento terminado Proveedor → Interna.
 - Compra internacional automática: existe costo base o logística capturada en USD.
 - Obligación internacional: mercancía y logística en USD; importación en MXN, cada una conciliada por separado.
 - El tipo de cambio efectivo es ponderado por los importes pagados: MXN pagados / USD pagados.
@@ -73,6 +81,8 @@ Versión de pruebas para Odoo 18.
 - Faltante original por producto: `max(piezas solicitadas - piezas listas, 0)`.
 - Cobertura en compra: piezas de órdenes confirmadas del mismo producto que aún no han sido recibidas, respetando almacén y canal cuando se filtran.
 - Por comprar: `max(faltante original - cobertura en compra, 0)`.
+- En la vista histórica, la cobertura disponible se asigna primero al mes de demanda más antiguo para no reutilizar una misma compra en varios meses.
+- Demanda de piezas: Cubiertas = Solicitadas - Por comprar.
 - Las piezas ya recibidas dejan de contarse como cobertura en camino para evitar descontarlas también cuando pasan a piezas listas en inventario.
 - Las gráficas de órdenes cuentan cada orden de venta una sola vez; si tiene una operación parcial, prevalece el estado Parcial.
 - La gráfica por canal conserva ambos segmentos para mostrar la composición completa, aun cuando el filtro de canal esté seleccionado.
@@ -95,6 +105,9 @@ Versión de pruebas para Odoo 18.
 10. Marcar una orden antigua como Pagada y comprobar que desaparezca de la deuda histórica.
 11. Recibir 10 piezas, devolver 2 a proveedor y comprobar 10 brutas, 2 devueltas, 8 netas y 2 pendientes.
 12. Abrir una deuda desde el tablero y comprobar que muestre sus órdenes de compra.
+13. Retirar un usuario desde Configuración y comprobar que desaparezca el menú Abastecimiento para ese usuario.
+14. Marcar un almacén como Sin gestión para compras y comprobar que desaparezca de Demanda, recepciones y deuda.
+15. Cambiar un almacén entre Mayoreo y Minorista y comprobar que sus líneas históricas cambien de canal.
 
 ## Limitaciones deliberadas de V1
 

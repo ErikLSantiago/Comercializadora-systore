@@ -100,6 +100,7 @@
         <field name="res_model">systore.supply.purchase.line</field>
         <field name="view_mode">list,pivot,graph</field>
         <field name="search_view_id" ref="view_supply_purchase_line_search"/>
+        <field name="domain">[('warehouse_id', '!=', False), ('warehouse_id.systore_supply_management', '!=', 'excluded')]</field>
     </record>
 
     <record id="view_supply_demand_line_list" model="ir.ui.view">
@@ -180,6 +181,7 @@
         <field name="res_model">systore.supply.demand.line</field>
         <field name="view_mode">list,pivot,graph</field>
         <field name="search_view_id" ref="view_supply_demand_line_search"/>
+        <field name="domain">[('warehouse_id', '!=', False), ('warehouse_id.systore_supply_management', '!=', 'excluded')]</field>
     </record>
 
     <record id="view_supply_trace_line_list" model="ir.ui.view">
@@ -242,6 +244,7 @@
         <field name="res_model">systore.supply.trace.line</field>
         <field name="view_mode">list,pivot</field>
         <field name="search_view_id" ref="view_supply_trace_line_search"/>
+        <field name="domain">[('warehouse_id', '!=', False), ('warehouse_id.systore_supply_management', '!=', 'excluded')]</field>
     </record>
 
     <record id="view_purchase_payment_list" model="ir.ui.view">

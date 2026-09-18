@@ -1,6 +1,6 @@
 {
     "name": "Systore - Tablero de Compras y Abastecimiento",
-    "version": "18.0.1.7.0",
+    "version": "18.0.1.8.1",
     "category": "Inventory/Purchase",
     "summary": "Conciliación de compras, recepciones, demanda, lotes y pagos manuales",
     "author": "Systore",
@@ -14,6 +14,7 @@
         "stock_upc_validation",
     ],
     "data": [
+        "security/supply_security.xml",
         "security/ir.model.access.csv",
         "views/supply_dashboard_views.xml",
         "views/purchase_order_views.xml",
@@ -28,5 +29,6 @@
         ],
     },
     "application": True,
+    "post_init_hook": "post_init_hook",
     "installable": True,
 }

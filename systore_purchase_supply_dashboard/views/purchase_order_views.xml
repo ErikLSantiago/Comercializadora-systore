@@ -7,12 +7,14 @@
         <field name="arch" type="xml">
             <xpath expr="//field[@name='partner_ref']" position="after">
                 <field name="systore_payment_status" widget="badge"
+                       groups="systore_purchase_supply_dashboard.group_supply_dashboard_user,base.group_system"
                        decoration-danger="systore_payment_status == 'pending'"
                        decoration-warning="systore_payment_status == 'partial'"
                        decoration-success="systore_payment_status == 'paid'"/>
             </xpath>
             <xpath expr="//notebook" position="inside">
-                <page string="Pagos y abastecimiento" name="systore_payments_supply">
+                <page string="Pagos y abastecimiento" name="systore_payments_supply"
+                      groups="systore_purchase_supply_dashboard.group_supply_dashboard_user,base.group_system">
                     <group>
                         <group string="Clasificación">
                             <field name="systore_purchase_origin"/>
@@ -75,11 +77,14 @@
         <field name="arch" type="xml">
             <xpath expr="//field[@name='partner_id']" position="after">
                 <field name="systore_payment_status" widget="badge" optional="show"
+                       groups="systore_purchase_supply_dashboard.group_supply_dashboard_user,base.group_system"
                        decoration-danger="systore_payment_status == 'pending'"
                        decoration-warning="systore_payment_status == 'partial'"
                        decoration-success="systore_payment_status == 'paid'"/>
-                <field name="systore_amount_pending_mxn" optional="hide"/>
-                <field name="systore_payment_status_manual" optional="hide"/>
+                <field name="systore_amount_pending_mxn" optional="hide"
+                       groups="systore_purchase_supply_dashboard.group_supply_dashboard_user,base.group_system"/>
+                <field name="systore_payment_status_manual" optional="hide"
+                       groups="systore_purchase_supply_dashboard.group_supply_dashboard_user,base.group_system"/>
             </xpath>
         </field>
     </record>

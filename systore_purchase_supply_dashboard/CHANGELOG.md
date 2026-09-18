@@ -1,5 +1,43 @@
 # Historial de cambios
 
+## 18.0.1.8.1
+
+- Las recepciones válidas exigen un movimiento terminado de Proveedor a Interna; los destinos de tránsito ya no califican.
+- Se eliminó el uso de `qty_received` como sustituto cuando no existe evidencia de movimiento válida.
+- Las órdenes confirmadas sin ninguna recepción real dejan de incorporarse a Recepciones de compra.
+- Una orden queda incluida desde su primera recepción válida y sus piezas solicitadas suman todas las líneas de producto de esa orden.
+- Las devoluciones válidas exigen el recorrido inverso: Interna a Proveedor.
+- Se corrigió la ubicación usada para resolver el canal de una devolución.
+- Caso de control P01937: 50 solicitadas, 80 brutas, 30 devueltas, 50 netas y 0 pendientes.
+
+## 18.0.1.8.0
+
+- Se agregó el menú **Configuración** para administradores del sistema.
+- Configuración contiene **Usuarios con acceso**, desde donde se administra el nuevo grupo propio del módulo.
+- El grupo del tablero hereda el permiso Usuario de Compras requerido para consultar órdenes, recepciones y proveedores.
+- Durante la actualización, los usuarios que ya tenían acceso a Compras se incorporan inicialmente al nuevo grupo para evitar bloquear la operación; después pueden retirarse manualmente.
+- Configuración incorpora **Almacenes y canales** con las opciones Mayoreo, Minorista y Sin gestión para compras.
+- Los almacenes Sin gestión para compras se excluyen de Demanda, compras confirmadas, recepciones, deuda, rankings, trazabilidad y filtros del tablero.
+- Al cambiar un almacén entre Mayoreo y Minorista, el canal de sus fotografías históricas se sincroniza inmediatamente sin esperar otra actualización mensual.
+- Los almacenes `MXMAY` y `SDMAY` existentes conservan automáticamente la clasificación Mayoreo al actualizar.
+- El resumen superior se simplificó a Piezas solicitadas, En compra y Por comprar; se retiraron las demás tarjetas.
+- El acceso al servicio del tablero también se valida en servidor, no únicamente mediante la visibilidad del menú.
+
+## 18.0.1.7.1
+
+- Demanda elimina de su tabla las columnas Listas y Faltante original.
+- El panel Demanda se movió antes de Productos recibidos.
+- El gráfico Órdenes listas y parciales se sustituyó por **Demanda de piezas**.
+- La barra muestra Piezas cubiertas y Por comprar; Piezas cubiertas se calcula como Solicitadas menos Por comprar.
+- El indicador Piezas listas se reemplazó por Piezas cubiertas para mantener la misma definición del gráfico.
+- Se agregó el filtro **Periodo de demanda**, con la opción Todos y los meses que contienen fotografías de demanda.
+- Todos acumula las fotografías mensuales vigentes y consolida sus cantidades por SKU.
+- Las operaciones que ya pasaron a Listo, Terminado o Cancelado se excluyen del histórico pendiente, aunque conserven una fotografía mensual anterior.
+- Si existieran fotografías duplicadas de una misma operación y producto, el tablero utiliza únicamente la más reciente.
+- La cobertura de compras confirmadas se distribuye primero a la demanda más antigua, evitando aplicar la misma compra completa en cada mes.
+- La actualización continúa ejecutándose por un solo mes para conservar el rendimiento del tablero.
+- Si una operación cambia de mes programado, su fotografía anterior se retira al actualizar el nuevo mes para evitar duplicarla.
+
 ## 18.0.1.7.0
 
 - La deuda extranjera incorpora un selector visual para consultar saldos y abonos en MXN o USD.

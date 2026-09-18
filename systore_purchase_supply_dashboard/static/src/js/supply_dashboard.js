@@ -29,6 +29,7 @@ export class SystoreSupplyDashboard extends Component {
                     readiness: [],
                     readiness_total: 0,
                     readiness_pieces: 0,
+                    demand_pieces: { requested: 0, covered: 0, to_buy: 0, covered_percent: 0, to_buy_percent: 0 },
                     channels: { total: 0, wholesale: 0, retail: 0, wholesale_percent: 0 },
                     pieces: { total: 0, received: 0, pending: 0, received_percent: 0 },
                 },
@@ -40,10 +41,11 @@ export class SystoreSupplyDashboard extends Component {
                     debt_international_mxn: 0,
                     debt_international_usd: 0,
                 },
-                purchases: [], demand: [], trace: [], suppliers: [], warehouses: [], counts: {},
+                purchases: [], demand: [], demand_periods: [], trace: [], suppliers: [], warehouses: [], counts: {},
             },
             filters: {
                 period_month: currentMonth,
+                demand_period: "all",
                 date_from: `${currentMonth}-01`,
                 date_to: `${currentMonth}-${String(lastDay).padStart(2, "0")}`,
                 received_cost_mode: "cost_net",
@@ -97,6 +99,10 @@ export class SystoreSupplyDashboard extends Component {
         this.state.filters.date_from = `${event.target.value}-01`;
         this.state.filters.date_to = `${event.target.value}-${String(lastDay).padStart(2, "0")}`;
         this.state.filters.supplier_id = "";
+    }
+
+    onDemandPeriod(event) {
+        this.state.filters.demand_period = event.target.value;
     }
 
     onChannel(event) {
@@ -250,6 +256,8 @@ export class SystoreSupplyDashboard extends Component {
         const nextMonth = new Date(Date.UTC(year, monthNumber, 1));
         const nextMonthKey = `${nextMonth.getUTCFullYear()}-${String(nextMonth.getUTCMonth() + 1).padStart(2, "0")}-01`;
         const domain = [
+            ["warehouse_id", "!=", false],
+            ["warehouse_id.systore_supply_management", "!=", "excluded"],
             ["report_date", ">=", `${month}-01`],
             ["report_date", "<", nextMonthKey],
         ];
@@ -279,11 +287,17 @@ export class SystoreSupplyDashboard extends Component {
         });
     }
 
-    openDemandLines(name, productId) {
+    openDemandLines(name, productId = false) {
         const domain = [
-            ["period_month", "=", `${this.state.filters.period_month}-01`],
-            ["product_id", "=", productId],
+            ["warehouse_id", "!=", false],
+            ["warehouse_id.systore_supply_management", "!=", "excluded"],
         ];
+        if (this.state.filters.demand_period !== "all") {
+            domain.push(["period_month", "=", `${this.state.filters.demand_period}-01`]);
+        }
+        if (productId) {
+            domain.push(["product_id", "=", productId]);
+        }
         if (this.state.filters.channel) {
             domain.push(["channel", "=", this.state.filters.channel]);
         }

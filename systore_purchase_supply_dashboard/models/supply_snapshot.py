@@ -98,7 +98,7 @@ class SystoreSupplyPurchaseLine(models.Model):
             lambda move: (
                 move.state == "done"
                 and move.location_id.usage == "supplier"
-                and move.location_dest_id.usage != "supplier"
+                and move.location_dest_id.usage == "internal"
             )
         )
         if not moves:
@@ -107,6 +107,7 @@ class SystoreSupplyPurchaseLine(models.Model):
                 ("company_id", "=", order.company_id.id),
                 ("state", "=", "done"),
                 ("location_id.usage", "=", "supplier"),
+                ("location_dest_id.usage", "=", "internal"),
             ])
         dates = [
             move.picking_id.date_done or move.date
@@ -130,25 +131,35 @@ class SystoreSupplyPurchaseLine(models.Model):
     @api.model
     def _line_receipt_quantities(self, line):
         StockMove = self.env["stock.move"].sudo()
-        moves = line.move_ids.filtered(lambda move: move.state == "done")
-        if moves:
-            moves |= StockMove.search([
+        line_moves = line.move_ids.filtered(lambda move: move.state == "done")
+        receipt_moves = line_moves.filtered(
+            lambda move: (
+                move.location_id.usage == "supplier"
+                and move.location_dest_id.usage == "internal"
+            )
+        )
+        return_moves = line_moves.filtered(
+            lambda move: (
+                move.location_id.usage == "internal"
+                and move.location_dest_id.usage == "supplier"
+            )
+        )
+        if receipt_moves:
+            return_moves |= StockMove.search([
                 ("state", "=", "done"),
-                ("origin_returned_move_id", "in", moves.ids),
+                ("origin_returned_move_id", "in", receipt_moves.ids),
+                ("location_id.usage", "=", "internal"),
+                ("location_dest_id.usage", "=", "supplier"),
             ])
-        gross = returned = 0.0
-        return_moves = StockMove.browse()
-        for move in moves:
+
+        def line_uom_qty(move):
             qty = self._move_done_qty(move)
             if move.product_uom and line.product_uom and move.product_uom != line.product_uom:
                 qty = move.product_uom._compute_quantity(qty, line.product_uom)
-            if move.location_id.usage == "supplier" and move.location_dest_id.usage != "supplier":
-                gross += qty
-            elif move.location_dest_id.usage == "supplier" and move.location_id.usage != "supplier":
-                returned += qty
-                return_moves |= move
-        if not moves and line.qty_received:
-            gross = line.qty_received
+            return qty
+
+        gross = sum(line_uom_qty(move) for move in receipt_moves)
+        returned = sum(line_uom_qty(move) for move in return_moves)
         return gross, returned, max(gross - returned, 0.0), return_moves
 
     @api.model
@@ -158,6 +169,7 @@ class SystoreSupplyPurchaseLine(models.Model):
             ("company_id", "=", company.id),
             ("state", "=", "done"),
             ("location_id.usage", "=", "supplier"),
+            ("location_dest_id.usage", "=", "internal"),
             ("date", ">=", period["utc_start"]),
             ("date", "<", period["utc_end"]),
         ])
@@ -165,7 +177,7 @@ class SystoreSupplyPurchaseLine(models.Model):
             ("company_id", "=", company.id),
             ("state", "=", "done"),
             ("location_dest_id.usage", "=", "supplier"),
-            ("location_id.usage", "!=", "supplier"),
+            ("location_id.usage", "=", "internal"),
             ("date", ">=", period["utc_start"]),
             ("date", "<", period["utc_end"]),
         ])
@@ -180,13 +192,12 @@ class SystoreSupplyPurchaseLine(models.Model):
                 ("company_id", "=", company.id),
                 ("name", "in", origins),
             ])
-        orders |= self.env["purchase.order"].sudo().search([
-            ("company_id", "=", company.id),
-            ("state", "in", ["purchase", "done"]),
-            ("date_order", ">=", period["utc_start"]),
-            ("date_order", "<", period["utc_end"]),
-        ])
-        orders = orders.filtered(lambda order: order.state in ("purchase", "done"))
+        orders = orders.filtered(
+            lambda order: (
+                order.state in ("purchase", "done")
+                and self._first_receipt_date(order)
+            )
+        )
 
         rows_in_month = self.sudo().search([
             ("company_id", "=", company.id),
@@ -202,10 +213,12 @@ class SystoreSupplyPurchaseLine(models.Model):
         currency = company.currency_id
         for order in orders:
             first_receipt = self._first_receipt_date(order)
-            report_date = fields.Date.to_date(first_receipt or order.date_order)
+            report_date = fields.Date.to_date(first_receipt)
             warehouse = order.picking_type_id.warehouse_id
+            if not warehouse or not warehouse._systore_is_managed_for_supply():
+                continue
             destination = order.picking_type_id.default_location_dest_id
-            channel = warehouse._systore_resolved_supply_channel(destination) if warehouse else "retail"
+            channel = warehouse._systore_resolved_supply_channel(destination)
             purchase_origin = order._systore_resolved_purchase_origin()
             for line in order.order_line.filtered(lambda item: not item.display_type and item.product_id):
                 ordered = line.product_qty or 0.0
@@ -336,6 +349,12 @@ class SystoreSupplyDemandLine(models.Model):
             ("scheduled_date", ">=", period["utc_start"]),
             ("scheduled_date", "<", period["utc_end"]),
         ])
+        if pickings:
+            self.sudo().search([
+                ("company_id", "=", company.id),
+                ("picking_id", "in", pickings.ids),
+                ("period_month", "!=", period["month_start"]),
+            ]).unlink()
         now = fields.Datetime.now()
         values = []
         for picking in pickings:
@@ -343,7 +362,7 @@ class SystoreSupplyDemandLine(models.Model):
             if not sale:
                 continue
             warehouse = sale.warehouse_id or picking.picking_type_id.warehouse_id
-            if not warehouse:
+            if not warehouse or not warehouse._systore_is_managed_for_supply():
                 continue
             moves_by_product = defaultdict(lambda: self.env["stock.move"])
             for move in picking.move_ids_without_package.filtered(
@@ -473,6 +492,8 @@ class SystoreSupplyTraceLine(models.Model):
             if not order or not sale:
                 continue
             warehouse = sale.warehouse_id
+            if not warehouse or not warehouse._systore_is_managed_for_supply():
+                continue
             quantity = self._move_line_qty(move_line)
             if move_line.product_uom_id != move_line.product_id.uom_id:
                 quantity = move_line.product_uom_id._compute_quantity(
@@ -489,8 +510,8 @@ class SystoreSupplyTraceLine(models.Model):
                 "move_line_id": move_line.id,
                 "lot_id": move_line.lot_id.id,
                 "supplier_id": order.partner_id.id,
-                "warehouse_id": warehouse.id if warehouse else False,
-                "channel": warehouse._systore_resolved_supply_channel(picking.location_id) if warehouse else "retail",
+                "warehouse_id": warehouse.id,
+                "channel": warehouse._systore_resolved_supply_channel(picking.location_id),
                 "product_id": move_line.product_id.id,
                 "sku": move_line.product_id.default_code or "",
                 "quantity": quantity,
