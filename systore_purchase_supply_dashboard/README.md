@@ -41,7 +41,9 @@ Versión de pruebas para Odoo 18.
 - El panel Demanda muestra el Top 10 por piezas solicitadas; el análisis completo permanece disponible desde su botón.
 - La deuda extranjera inicia en USD y conserva el cambio manual a MXN.
 - Los rankings de productos y proveedores permiten abrir el reporte completo agrupado.
-- La gráfica Monto comprado por proveedor distribuye el costo neto MXN solicitado de la cohorte seleccionada.
+- La gráfica Monto comprado por proveedor distribuye el valor solicitado de la cohorte seleccionada según la valuación elegida.
+- La gráfica Monto comprado por proveedor alterna entre Costo USD, Costo MXN y Costo neto; Costo USD es la selección inicial.
+- Productos recibidos inicia en Costo USD y conserva sus tres modos de valuación.
 
 ## Dependencias
 
@@ -76,9 +78,11 @@ Versión de pruebas para Odoo 18.
 - El tipo de cambio efectivo es ponderado por los importes pagados: MXN pagados / USD pagados.
 - Si todavía no existen abonos USD, el equivalente pendiente usa `x_exchange_rate` de la orden.
 - Compra nacional: el monto por pagar es `amount_total`, incluido el impuesto de la orden.
-- El desplegable **Estado de pago** permite conservar el cálculo automático o marcar manualmente la orden como Pagada.
+- El desplegable **Estado efectivo de pago** permite conservar el cálculo automático o fijar manualmente Pendiente, Parcial o Pagada.
 - En modo Automático: sin abonos es Pendiente, con abonos incompletos es Parcial y con el total cubierto es Pagada.
 - Una orden marcada manualmente como Pagada no aporta saldo pendiente a la trazabilidad ni al tablero.
+- La captura visible de abonos se limita temporalmente a Mercancía; los registros históricos de Logística e Importación se conservan ocultos.
+- Los abonos de Mercancía pueden eliminarse para corregir errores operativos; el saldo y el estado se recalculan al eliminar.
 - La deuda consulta todas las órdenes confirmadas o terminadas; no se limita al mes seleccionado.
 - Costo internacional: `x_calc_price_mxn`.
 - Costo nacional: `price_unit`, convertido a moneda de compañía cuando corresponda.

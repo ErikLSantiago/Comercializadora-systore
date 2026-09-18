@@ -181,15 +181,17 @@ class PurchaseOrder(models.Model):
     systore_payment_status_manual = fields.Selection(
         [
             ("automatic", "Automático según abonos"),
+            ("pending", "Pendiente"),
+            ("partial", "Parcial"),
             ("paid", "Pagada"),
         ],
-        string="Estado de pago",
+        string="Estado efectivo de pago",
         required=True,
         default="automatic",
         tracking=True,
         help=(
-            "Permite cerrar manualmente la deuda. Al elegir Pagada, la orden "
-            "deja de aportar saldos pendientes al tablero."
+            "Permite usar el estado calculado por los abonos o fijar manualmente "
+            "la orden como Pendiente, Parcial o Pagada."
         ),
     )
     systore_is_international = fields.Boolean(
@@ -379,6 +381,8 @@ class PurchaseOrder(models.Model):
                 order.systore_shipping_pending_usd = 0.0
                 order.systore_import_pending_mxn = 0.0
                 status = "paid"
+            elif manual_status in ("pending", "partial"):
+                status = manual_status
             elif not has_payment:
                 status = "pending"
             elif has_pending:
@@ -468,10 +472,14 @@ class PurchaseOrder(models.Model):
             "res_model": "systore.purchase.payment",
             "view_mode": "list,form",
             "views": [(list_view.id, "list"), (form_view.id, "form")],
-            "domain": [("purchase_order_id", "=", self.id)],
+            "domain": [
+                ("purchase_order_id", "=", self.id),
+                ("concept", "=", "merchandise"),
+            ],
             "context": {
                 "default_purchase_order_id": self.id,
                 "default_partner_id": self.partner_id.id,
+                "default_concept": "merchandise",
                 "default_payment_currency": (
                     "usd" if self._systore_resolved_purchase_origin() == "international"
                     else "mxn"

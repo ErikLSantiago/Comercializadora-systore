@@ -62,6 +62,12 @@
         h2 { margin: 0; font-size: 16px; font-weight: 700; }
         small { display: block; color: #75848d; margin-top: 3px; line-height: 1.35; }
     }
+    .o_supply_chart_title_with_filter {
+        display: flex;
+        align-items: flex-start;
+        justify-content: space-between;
+        gap: 14px;
+    }
     .o_supply_stacked_summary {
         min-height: 205px;
         display: flex;

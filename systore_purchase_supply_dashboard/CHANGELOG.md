@@ -1,5 +1,14 @@
 # Historial de cambios
 
+## 18.0.1.8.4
+
+- Pagos y abastecimiento muestra únicamente obligaciones y abonos de Mercancía; Logística e Importación quedan ocultos sin eliminar registros históricos.
+- Estado efectivo de pago es un desplegable con Automático, Pendiente, Parcial y Pagada; volver de Pagada a Pendiente restaura el saldo calculado.
+- La lista de Abonos permite eliminar registros y recalcula automáticamente pagos, saldo y estado.
+- Monto comprado por proveedor permite alternar entre Costo USD, Costo MXN y Costo neto.
+- Monto comprado por proveedor inicia en Costo USD.
+- Productos recibidos inicia en Costo USD.
+
 ## 18.0.1.8.3
 
 - El título principal del tablero usa gris claro para mejorar la jerarquía visual.

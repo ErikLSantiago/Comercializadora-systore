@@ -32,7 +32,11 @@ export class SystoreSupplyDashboard extends Component {
                     demand_pieces: { requested: 0, covered: 0, to_buy: 0, covered_percent: 0, to_buy_percent: 0 },
                     channels: { total: 0, wholesale: 0, retail: 0, wholesale_percent: 0 },
                     pieces: { total: 0, received: 0, pending: 0, received_percent: 0 },
-                    purchased_by_supplier: { total_mxn: 0, segments: [], style: "" },
+                    purchased_by_supplier: {
+                        cost_usd: { total: 0, segments: [], style: "" },
+                        cost_mxn: { total: 0, segments: [], style: "" },
+                        cost_net: { total: 0, segments: [], style: "" },
+                    },
                 },
                 rankings: {
                     products: [], received_products: [], received_products_by_supplier: [], suppliers: [], debts: [],
@@ -49,7 +53,8 @@ export class SystoreSupplyDashboard extends Component {
                 demand_period: "all",
                 date_from: `${currentMonth}-01`,
                 date_to: `${currentMonth}-${String(lastDay).padStart(2, "0")}`,
-                received_cost_mode: "cost_net",
+                received_cost_mode: "cost_usd",
+                purchased_cost_mode: "cost_usd",
                 foreign_debt_currency: "usd",
                 supplier_type: "",
                 channel: "",
@@ -121,6 +126,10 @@ export class SystoreSupplyDashboard extends Component {
 
     onReceivedCostMode(event) {
         this.state.filters.received_cost_mode = event.target.value;
+    }
+
+    onPurchasedCostMode(event) {
+        this.state.filters.purchased_cost_mode = event.target.value;
     }
 
     onForeignDebtCurrency(event) {
@@ -204,6 +213,18 @@ export class SystoreSupplyDashboard extends Component {
         }
         const value = supplier.values?.[status]?.[mode] || 0;
         return mode === "cost_usd" ? this.formatUsd(value) : this.formatMoney(value);
+    }
+
+    purchasedSupplierChart() {
+        const mode = this.state.filters.purchased_cost_mode;
+        return this.state.data.charts.purchased_by_supplier?.[mode]
+            || { total: 0, segments: [], style: "" };
+    }
+
+    formatPurchasedValue(value) {
+        return this.state.filters.purchased_cost_mode === "cost_usd"
+            ? this.formatUsd(value)
+            : this.formatMoney(value);
     }
 
     formatPercent(value) {

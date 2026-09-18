@@ -30,7 +30,7 @@
                             <field name="systore_amount_paid_usd" readonly="1" invisible="not systore_is_international"/>
                             <field name="systore_amount_pending_usd" readonly="1" invisible="not systore_is_international"/>
                             <field name="systore_effective_exchange_rate" readonly="1" invisible="not systore_is_international"/>
-                            <field name="systore_payment_status" widget="badge" readonly="1"
+                            <field name="systore_payment_status" string="Estado aplicado" widget="badge" readonly="1"
                                    decoration-danger="systore_payment_status == 'pending'"
                                    decoration-warning="systore_payment_status == 'partial'"
                                    decoration-success="systore_payment_status == 'paid'"/>
@@ -42,16 +42,6 @@
                             <field name="systore_merchandise_paid_usd" readonly="1"/>
                             <field name="systore_merchandise_pending_usd" readonly="1"/>
                         </group>
-                        <group string="Logística">
-                            <field name="systore_shipping_payable_usd" readonly="1"/>
-                            <field name="systore_shipping_paid_usd" readonly="1"/>
-                            <field name="systore_shipping_pending_usd" readonly="1"/>
-                        </group>
-                        <group string="Importación">
-                            <field name="systore_import_payable_mxn" readonly="1"/>
-                            <field name="systore_import_paid_mxn" readonly="1"/>
-                            <field name="systore_import_pending_mxn" readonly="1"/>
-                        </group>
                     </group>
                     <separator string="Abonos registrados"/>
                     <button name="action_systore_open_payments"
@@ -60,7 +50,7 @@
                             icon="fa-money"
                             class="btn-primary"/>
                     <div class="text-muted">
-                        Los abonos se abren en una pantalla independiente para evitar interferencias con la vista de desglose de costos.
+                        Por ahora sólo se muestran abonos de mercancía. Desde la lista puedes eliminar un registro capturado por error.
                     </div>
                     <div class="alert alert-info" role="alert">
                         Este control es operativo. No crea pagos, asientos ni conciliaciones contables.

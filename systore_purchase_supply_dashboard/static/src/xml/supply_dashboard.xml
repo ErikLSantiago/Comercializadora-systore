@@ -183,24 +183,33 @@
                     </section>
 
                     <section class="o_supply_chart_card">
-                        <div class="o_supply_chart_title">
-                            <h2>Monto comprado por proveedor</h2>
-                            <small>Costo neto MXN de las piezas solicitadas en la cohorte seleccionada.</small>
+                        <div class="o_supply_chart_title o_supply_chart_title_with_filter">
+                            <div>
+                                <h2>Monto comprado por proveedor</h2>
+                                <small>Valor de las piezas solicitadas en la cohorte seleccionada.</small>
+                            </div>
+                            <label class="o_supply_received_cost_filter">Valuación
+                                <select class="form-select form-select-sm" t-att-value="state.filters.purchased_cost_mode" t-on-change="onPurchasedCostMode">
+                                    <option value="cost_usd">Costo USD</option>
+                                    <option value="cost_mxn">Costo MXN</option>
+                                    <option value="cost_net">Costo neto</option>
+                                </select>
+                            </label>
                         </div>
                         <div class="o_supply_pie_layout">
                             <div class="o_supply_pie supplier-amount"
-                                 t-att-class="state.data.charts.purchased_by_supplier.total_mxn ? '' : 'empty'"
-                                 t-att-style="state.data.charts.purchased_by_supplier.style">
-                                <div><strong t-esc="formatMoney(state.data.charts.purchased_by_supplier.total_mxn)"/><span>comprado</span></div>
+                                 t-att-class="purchasedSupplierChart().total ? '' : 'empty'"
+                                 t-att-style="purchasedSupplierChart().style">
+                                <div><strong t-esc="formatPurchasedValue(purchasedSupplierChart().total)"/><span>comprado</span></div>
                             </div>
                             <div class="o_supply_legend o_supply_supplier_amount_legend">
-                                <button t-foreach="state.data.charts.purchased_by_supplier.segments" t-as="segment" t-key="segment.id || segment.name"
+                                <button t-foreach="purchasedSupplierChart().segments" t-as="segment" t-key="segment.id || segment.name"
                                         type="button" t-att-disabled="!segment.id"
                                         t-on-click="() => segment.id &amp;&amp; openPurchaseLines('Compras a ' + segment.name, [['supplier_id', '=', segment.id]])">
                                     <i t-att-style="'background: ' + segment.color + ';'"/>
-                                    <span><t t-esc="segment.name"/><small><t t-esc="formatMoney(segment.value_mxn)"/> · <t t-esc="formatPercent(segment.percent)"/></small></span>
+                                    <span><t t-esc="segment.name"/><small><t t-esc="formatPurchasedValue(segment.value)"/> · <t t-esc="formatPercent(segment.percent)"/></small></span>
                                 </button>
-                                <div t-if="!state.data.charts.purchased_by_supplier.segments.length" class="o_supply_empty">Sin montos de compra para el rango.</div>
+                                <div t-if="!purchasedSupplierChart().segments.length" class="o_supply_empty">Sin montos de compra para el rango.</div>
                             </div>
                         </div>
                     </section>

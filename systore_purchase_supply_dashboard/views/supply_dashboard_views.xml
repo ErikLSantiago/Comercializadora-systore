@@ -251,11 +251,10 @@
         <field name="name">systore.purchase.payment.list</field>
         <field name="model">systore.purchase.payment</field>
         <field name="arch" type="xml">
-            <list>
+            <list delete="1">
                 <field name="payment_date"/>
                 <field name="purchase_order_id"/>
                 <field name="partner_id"/>
-                <field name="concept"/>
                 <field name="payment_currency"/>
                 <field name="currency_id" column_invisible="True"/>
                 <field name="amount_usd" optional="show" sum="Total USD"/>
@@ -277,7 +276,6 @@
                         <field name="purchase_order_id"/>
                         <field name="payment_date"/>
                         <field name="partner_id"/>
-                        <field name="concept"/>
                         <field name="payment_currency"/>
                         <field name="currency_id" invisible="1"/>
                         <field name="amount_usd" invisible="payment_currency != 'usd'" required="payment_currency == 'usd'"/>
@@ -296,5 +294,7 @@
         <field name="res_model">systore.purchase.payment</field>
         <field name="view_mode">list,form</field>
         <field name="view_id" ref="view_purchase_payment_list"/>
+        <field name="domain">[('concept', '=', 'merchandise')]</field>
+        <field name="context">{'default_concept': 'merchandise'}</field>
     </record>
 </odoo>
