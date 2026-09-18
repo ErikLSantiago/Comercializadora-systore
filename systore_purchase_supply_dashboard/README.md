@@ -54,12 +54,14 @@ Versión de pruebas para Odoo 18.
 3. Seleccionar un mes; el mes actual aparece por defecto.
 4. Presionar **Actualizar demanda**.
 5. Un administrador puede ajustar los usuarios autorizados y los canales de almacén desde **Abastecimiento > Configuración**.
+6. La pestaña superior **Configuración** abre directamente la configuración general de acceso y conserva el submenú de Almacenes y canales.
 
 ## Reglas de la primera versión
 
 - Recepciones: sólo suma movimientos terminados desde una ubicación Proveedor hacia una ubicación Interna.
 - Una OC sólo entra al reporte si cuenta con al menos una recepción válida; confirmar la compra o informar `qty_received` sin movimiento no la incorpora.
 - Productos recibidos: identifica las OC con una recepción válida dentro del rango y suma como Solicitadas todas sus líneas de producto.
+- El rango de Productos recibidos se aplica a la primera recepción válida de la OC; las entradas posteriores actualizan esa cohorte sin repetir la orden en otros meses.
 - Recibidas brutas: suma exclusivamente las piezas de movimientos terminados Proveedor → Interna.
 - Devolución a proveedor: movimiento terminado Interna → Proveedor.
 - Recepción neta: piezas recibidas brutas menos piezas devueltas al proveedor.

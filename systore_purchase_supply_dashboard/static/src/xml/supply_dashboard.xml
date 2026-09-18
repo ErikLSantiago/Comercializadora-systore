@@ -183,7 +183,7 @@
                     <div class="o_supply_panel_title">
                         <div>
                             <h2>Productos recibidos</h2>
-                            <small>Sumatoria por proveedor entre <t t-esc="state.filters.date_from"/> y <t t-esc="state.filters.date_to"/>.</small>
+                            <small>Órdenes cuya primera recepción ocurrió entre <t t-esc="state.filters.date_from"/> y <t t-esc="state.filters.date_to"/>. Las recepciones posteriores actualizan la misma cohorte.</small>
                         </div>
                         <label class="o_supply_received_cost_filter">Valuación
                             <select class="form-select form-select-sm" t-att-value="state.filters.received_cost_mode" t-on-change="onReceivedCostMode">

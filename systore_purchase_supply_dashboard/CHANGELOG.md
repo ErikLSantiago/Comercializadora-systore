@@ -1,5 +1,12 @@
 # Historial de cambios
 
+## 18.0.1.8.2
+
+- Configuración ahora aparece como una pestaña superior accionable para administradores y conserva los accesos a Usuarios y Almacenes.
+- Productos recibidos asigna cada orden exclusivamente al rango que contiene su primera recepción válida Proveedor → Interna.
+- Las recepciones posteriores actualizan cantidades, devoluciones y costos históricos de la cohorte original, pero no vuelven a incluir la OC en meses posteriores.
+- P01814 permanece en junio de 2026 por su primera recepción del 22/06/2026; la recepción del 07/08/2026 actualiza junio sin incorporarla a agosto.
+
 ## 18.0.1.8.1
 
 - Las recepciones válidas exigen un movimiento terminado de Proveedor a Interna; los destinos de tránsito ya no califican.

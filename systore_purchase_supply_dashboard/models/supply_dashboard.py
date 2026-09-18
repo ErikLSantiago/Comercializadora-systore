@@ -591,19 +591,12 @@ class SystoreSupplyDashboard(models.AbstractModel):
         supplier_rows = ranking_rows(suppliers, limit=10)
 
         receipt_period = receipt_period or period
-        receipt_moves = self.env["stock.move"].sudo().search([
+        StockMove = self.env["stock.move"].sudo()
+        candidate_receipt_moves = StockMove.search([
             ("company_id", "=", company.id),
             ("state", "=", "done"),
             ("location_id.usage", "=", "supplier"),
             ("location_dest_id.usage", "=", "internal"),
-            ("date", ">=", receipt_period["utc_start"]),
-            ("date", "<", receipt_period["utc_end"]),
-        ])
-        return_moves = self.env["stock.move"].sudo().search([
-            ("company_id", "=", company.id),
-            ("state", "=", "done"),
-            ("location_dest_id.usage", "=", "supplier"),
-            ("location_id.usage", "=", "internal"),
             ("date", ">=", receipt_period["utc_start"]),
             ("date", "<", receipt_period["utc_end"]),
         ])
@@ -627,10 +620,15 @@ class SystoreSupplyDashboard(models.AbstractModel):
                 else self.env["purchase.order.line"]
             )
             order = purchase_line.order_id if purchase_line else self.env["purchase.order"]
-            if not order and move.picking_id.origin:
+            purchase_origins = list(filter(None, [
+                move.picking_id.origin,
+                move.origin_returned_move_id.picking_id.origin
+                if move.origin_returned_move_id else False,
+            ]))
+            if not order and purchase_origins:
                 order = self.env["purchase.order"].sudo().search([
                     ("company_id", "=", company.id),
-                    ("name", "=", move.picking_id.origin),
+                    ("name", "in", purchase_origins),
                     ("state", "in", ["purchase", "done"]),
                 ], limit=1)
                 matching_lines = order.order_line.filtered(
@@ -691,10 +689,65 @@ class SystoreSupplyDashboard(models.AbstractModel):
             )
             return display_qty, supplier_usd, supplier_mxn, net_cost_mxn, international
 
+        period_start = fields.Datetime.to_datetime(receipt_period["utc_start"])
+        period_end = fields.Datetime.to_datetime(receipt_period["utc_end"])
         qualifying_orders = self.env["purchase.order"].sudo()
+        first_receipt_by_order = {}
+        for move in candidate_receipt_moves:
+            _purchase_line, order, partner = move_purchase_data(move)
+            if not order or not partner or not move_matches_filters(move, partner, order):
+                continue
+            if order.id not in first_receipt_by_order:
+                first_receipt_by_order[order.id] = fields.Datetime.to_datetime(
+                    PurchaseSnapshot._first_receipt_date(order)
+                )
+            first_receipt = first_receipt_by_order[order.id]
+            if first_receipt and period_start <= first_receipt < period_end:
+                qualifying_orders |= order
+
+        # El rango selecciona la cohorte por primera recepción. Una vez que la
+        # OC pertenece a esa cohorte, todas sus recepciones y devoluciones
+        # históricas actualizan el resultado sin moverla a otro mes.
+        if qualifying_orders:
+            receipt_moves = StockMove.search([
+                ("company_id", "=", company.id),
+                ("state", "=", "done"),
+                ("location_id.usage", "=", "supplier"),
+                ("location_dest_id.usage", "=", "internal"),
+                "|",
+                ("purchase_line_id.order_id", "in", qualifying_orders.ids),
+                ("picking_id.origin", "in", qualifying_orders.mapped("name")),
+            ])
+            return_moves = StockMove.search([
+                ("company_id", "=", company.id),
+                ("state", "=", "done"),
+                ("location_id.usage", "=", "internal"),
+                ("location_dest_id.usage", "=", "supplier"),
+                "|", "|",
+                ("purchase_line_id.order_id", "in", qualifying_orders.ids),
+                (
+                    "origin_returned_move_id.purchase_line_id.order_id",
+                    "in",
+                    qualifying_orders.ids,
+                ),
+                (
+                    "origin_returned_move_id.picking_id.origin",
+                    "in",
+                    qualifying_orders.mapped("name"),
+                ),
+            ])
+        else:
+            receipt_moves = StockMove.browse()
+            return_moves = StockMove.browse()
+
         for move in receipt_moves:
             purchase_line, order, partner = move_purchase_data(move)
-            if not order or not partner or not move_matches_filters(move, partner, order):
+            if (
+                not order
+                or order not in qualifying_orders
+                or not partner
+                or not move_matches_filters(move, partner, order)
+            ):
                 continue
             qty, supplier_usd, supplier_mxn, net_cost_mxn, international = (
                 move_quantities_and_costs(move, purchase_line, order)
@@ -711,7 +764,6 @@ class SystoreSupplyDashboard(models.AbstractModel):
             values["has_national"] |= bool(order and not international)
             values["move_ids"].add(move.id)
             values["order_ids"].add(order.id)
-            qualifying_orders |= order
             if purchase_line:
                 values["line_ids"].add(purchase_line.id)
 
