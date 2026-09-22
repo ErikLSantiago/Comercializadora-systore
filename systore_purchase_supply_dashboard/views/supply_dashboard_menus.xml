@@ -1,0 +1,95 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <record id="action_supply_dashboard" model="ir.actions.client">
+        <field name="name">Analítica de compras</field>
+        <field name="tag">systore_supply_dashboard</field>
+    </record>
+
+    <record id="view_supply_dashboard_access_group_form" model="ir.ui.view">
+        <field name="name">res.groups.supply.dashboard.access.form</field>
+        <field name="model">res.groups</field>
+        <field name="arch" type="xml">
+            <form string="Usuarios con acceso" create="0" delete="0">
+                <sheet>
+                    <div class="oe_title">
+                        <h1>Usuarios con acceso al módulo</h1>
+                    </div>
+                    <group>
+                        <field name="name" readonly="1"/>
+                        <field name="users" string="Usuarios autorizados"
+                               widget="many2many_tags"
+                               domain="[('share', '=', False)]"
+                               options="{'no_create': True}"/>
+                    </group>
+                    <div class="alert alert-info" role="alert">
+                        Los usuarios agregados podrán abrir Analítica de compras y heredarán el permiso básico de Compras requerido por el tablero.
+                    </div>
+                </sheet>
+            </form>
+        </field>
+    </record>
+
+    <record id="action_supply_dashboard_access_group" model="ir.actions.act_window">
+        <field name="name">Usuarios con acceso</field>
+        <field name="res_model">res.groups</field>
+        <field name="view_mode">form</field>
+        <field name="view_id" ref="view_supply_dashboard_access_group_form"/>
+        <field name="res_id" ref="group_supply_dashboard_user"/>
+        <field name="target">current</field>
+    </record>
+
+    <menuitem id="menu_supply_dashboard_root"
+              name="Analítica de compras"
+              sequence="38"
+              web_icon="systore_purchase_supply_dashboard,static/description/icon.png"
+              groups="systore_purchase_supply_dashboard.group_supply_dashboard_user,base.group_system"/>
+    <menuitem id="menu_supply_dashboard"
+              name="Tablero"
+              parent="menu_supply_dashboard_root"
+              action="action_supply_dashboard"
+              sequence="1"
+              groups="systore_purchase_supply_dashboard.group_supply_dashboard_user,base.group_system"/>
+    <menuitem id="menu_supply_purchase_lines"
+              name="Recepciones de compra"
+              parent="menu_supply_dashboard_root"
+              action="action_supply_purchase_lines"
+              sequence="20"
+              groups="systore_purchase_supply_dashboard.group_supply_dashboard_user,base.group_system"/>
+    <menuitem id="menu_supply_demand_lines"
+              name="Demanda"
+              parent="menu_supply_dashboard_root"
+              action="action_supply_demand_lines"
+              sequence="10"
+              groups="systore_purchase_supply_dashboard.group_supply_dashboard_user,base.group_system"/>
+    <menuitem id="menu_supply_trace_lines"
+              name="Trazabilidad por lote"
+              parent="menu_supply_dashboard_root"
+              action="action_supply_trace_lines"
+              sequence="30"
+              groups="systore_purchase_supply_dashboard.group_supply_dashboard_user,base.group_system"/>
+    <menuitem id="menu_purchase_payments"
+              name="Pagos manuales"
+              parent="menu_supply_dashboard_root"
+              action="action_purchase_payments"
+              sequence="40"
+              groups="systore_purchase_supply_dashboard.group_supply_dashboard_user,base.group_system"/>
+
+    <menuitem id="menu_supply_configuration"
+              name="Configuración"
+              parent="menu_supply_dashboard_root"
+              action="action_supply_dashboard_access_group"
+              sequence="90"
+              groups="base.group_system"/>
+    <menuitem id="menu_supply_configuration_users"
+              name="Usuarios con acceso"
+              parent="menu_supply_configuration"
+              action="action_supply_dashboard_access_group"
+              sequence="10"
+              groups="base.group_system"/>
+    <menuitem id="menu_supply_configuration_warehouses"
+              name="Almacenes y canales"
+              parent="menu_supply_configuration"
+              action="action_warehouse_supply_configuration"
+              sequence="20"
+              groups="base.group_system"/>
+</odoo>

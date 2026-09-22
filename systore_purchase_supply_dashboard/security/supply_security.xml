@@ -1,0 +1,8 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <record id="group_supply_dashboard_user" model="res.groups">
+        <field name="name">Acceso a Analítica de compras</field>
+        <field name="comment">Usuarios autorizados para consultar y operar el tablero de compras y abastecimiento.</field>
+        <field name="implied_ids" eval="[(4, ref('purchase.group_purchase_user'))]"/>
+    </record>
+</odoo>
