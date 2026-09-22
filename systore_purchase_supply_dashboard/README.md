@@ -8,6 +8,8 @@ Versión preparada para producción en Odoo 18.
 - Cohorte mensual por primera recepción validada.
 - Valuación MXN con los campos de `purchase_recosteo_importacion`.
 - Demanda histórica desde órdenes de venta con traslados parciales, consolidada por SKU y filtrable por mes o Todos.
+- El selector Demanda hasta acumula los meses anteriores hasta el corte seleccionado y excluye cualquier mes posterior.
+- El filtro Producto permite buscar y seleccionar uno o varios SKU simultáneamente.
 - Piezas solicitadas, listas, faltante original, cobertura en compras confirmadas y necesidad neta por producto.
 - El panel operativo simplificado muestra Solicitadas, En compra y Por comprar; las piezas listas dejan de aparecer cuando la operación sale de demanda.
 - El histórico representa demanda todavía pendiente: las operaciones Listas, Terminadas o Canceladas dejan de formar parte del panel.
@@ -17,7 +19,7 @@ Versión preparada para producción en Odoo 18.
 - Traslados parciales proporcionados por `stock_upc_validation`.
 - Pagos operativos manuales por concepto, fecha, moneda y tipo de cambio, sin efectos contables.
 - Gráfica de Demanda de piezas con cantidades cubiertas y por comprar.
-- Gráfica de pastel con órdenes de venta por canal Mayoreo y Minorista.
+- Gráfica de pastel con órdenes en espera por canal, número de órdenes y piezas solicitadas.
 - Gráfica de pastel con piezas de compra recibidas y pendientes.
 - Resumen de productos recibidos directamente del historial de movimientos, totalizado por proveedor y con rango Desde/Hasta.
 - Sumatorias por proveedor de solicitadas, recibidas brutas, devueltas, recibidas netas y pendientes.
@@ -90,6 +92,8 @@ Versión preparada para producción en Odoo 18.
 - Cada actualización procesa solamente un mes. No existe actualización global.
 - Demanda: operaciones `Parcial` cuya ubicación origen se llama `Existencias`.
 - Periodo de demanda: mes de `scheduled_date` de la operación.
+- Demanda hasta: al seleccionar un mes se usa la fotografía más reciente de cada operación/producto disponible hasta ese mes; Todos conserva el universo vigente completo.
+- En existencia: suma de Piezas listas (`reserved_qty`) de las operaciones incluidas en el corte.
 - Faltante original por producto: `max(piezas solicitadas - piezas listas, 0)`.
 - Cobertura en compra: piezas de órdenes confirmadas del mismo producto que aún no han sido recibidas, respetando almacén y canal cuando se filtran.
 - Por comprar: `max(faltante original - cobertura en compra, 0)`.
@@ -97,8 +101,7 @@ Versión preparada para producción en Odoo 18.
 - Demanda de piezas: Cubiertas = Solicitadas - Por comprar.
 - El bloque de gráficas inicia separado visualmente del área de filtros para facilitar la lectura del tablero.
 - Las piezas ya recibidas dejan de contarse como cobertura en camino para evitar descontarlas también cuando pasan a piezas listas en inventario.
-- Las gráficas de órdenes cuentan cada orden de venta una sola vez; si tiene una operación parcial, prevalece el estado Parcial.
-- La gráfica por canal conserva ambos segmentos para mostrar la composición completa, aun cuando el filtro de canal esté seleccionado.
+- La gráfica de órdenes en espera cuenta cada orden de venta una sola vez y distribuye sus piezas solicitadas por canal.
 - La gráfica de piezas usa las líneas de compra de la cohorte mensual y respeta los filtros de almacén y canal.
 - El filtro de proveedor se aplica a compras, recepciones, deuda y rankings; no se atribuye proveedor a ventas sin una relación trazable.
 - Los segmentos y renglones del tablero son navegables hacia las órdenes o líneas que originan cada resultado.

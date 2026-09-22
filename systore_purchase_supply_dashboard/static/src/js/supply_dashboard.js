@@ -24,7 +24,7 @@ export class SystoreSupplyDashboard extends Component {
             data: {
                 charts: {
                     demand_pieces: { requested: 0, covered: 0, to_buy: 0, covered_percent: 0, to_buy_percent: 0 },
-                    channels: { total: 0, wholesale: 0, retail: 0, wholesale_percent: 0 },
+                    waiting_channels: { total: 0, wholesale: 0, retail: 0, wholesale_percent: 0 },
                     pieces: { total: 0, received: 0, pending: 0, received_percent: 0 },
                     purchased_by_supplier: {
                         cost_usd: { total: 0, segments: [], style: "" },
@@ -40,11 +40,13 @@ export class SystoreSupplyDashboard extends Component {
                     debt_international_mxn: 0,
                     debt_international_usd: 0,
                 },
-                demand: [], demand_periods: [], suppliers: [], warehouses: [],
+                demand: [], demand_line_ids: [], demand_periods: [], products: [], suppliers: [], warehouses: [],
             },
+            openFilter: "",
+            productSearch: "",
             filters: {
                 period_month: currentMonth,
-                demand_period: "all",
+                demand_period: currentMonth,
                 date_from: `${currentMonth}-01`,
                 date_to: `${currentMonth}-${String(lastDay).padStart(2, "0")}`,
                 received_cost_mode: "cost_usd",
@@ -54,6 +56,7 @@ export class SystoreSupplyDashboard extends Component {
                 channel: "",
                 warehouse_id: "",
                 supplier_id: "",
+                product_ids: [],
             },
         });
         onWillStart(() => this.loadData());
@@ -66,7 +69,12 @@ export class SystoreSupplyDashboard extends Component {
                 "systore.supply.dashboard",
                 "get_dashboard_data",
                 [],
-                { filters: { ...this.state.filters } }
+                {
+                    filters: {
+                        ...this.state.filters,
+                        product_ids: [...this.state.filters.product_ids],
+                    },
+                }
             );
         } finally {
             this.state.loading = false;
@@ -94,6 +102,7 @@ export class SystoreSupplyDashboard extends Component {
 
     onPeriodMonth(event) {
         this.state.filters.period_month = event.target.value;
+        this.state.filters.demand_period = event.target.value;
         const [year, month] = event.target.value.split("-").map(Number);
         const lastDay = new Date(year, month, 0).getDate();
         this.state.filters.date_from = `${event.target.value}-01`;
@@ -144,6 +153,61 @@ export class SystoreSupplyDashboard extends Component {
         this.state.filters.supplier_id = "";
     }
 
+    onProductSearch(event) {
+        this.state.productSearch = event.target.value;
+    }
+
+    toggleProductFilter() {
+        this.state.openFilter = this.state.openFilter === "product_ids" ? "" : "product_ids";
+    }
+
+    onProductToggle(event) {
+        const productId = Number(event.target.value);
+        const selected = new Set(this.state.filters.product_ids);
+        if (event.target.checked) {
+            selected.add(productId);
+        } else {
+            selected.delete(productId);
+        }
+        this.state.filters.product_ids = [...selected];
+    }
+
+    clearProductFilter() {
+        this.state.filters.product_ids = [];
+        this.state.productSearch = "";
+    }
+
+    isProductSelected(productId) {
+        return this.state.filters.product_ids.includes(productId);
+    }
+
+    selectedProductLabels() {
+        const selected = new Set(this.state.filters.product_ids);
+        const labels = this.state.data.products
+            .filter((product) => selected.has(product.id))
+            .map((product) => this.productOptionLabel(product));
+        if (labels.length <= 2) {
+            return labels;
+        }
+        return [labels[0], labels[1], `+${labels.length - 2}`];
+    }
+
+    productOptionLabel(product) {
+        return product.sku ? `[${product.sku}] ${product.name || ""}` : (product.name || "Sin nombre");
+    }
+
+    filteredProducts() {
+        const query = this.state.productSearch.trim().toLocaleLowerCase("es-MX");
+        return this.state.data.products.filter((product) => {
+            if (!query) {
+                return true;
+            }
+            return `${product.sku || ""} ${product.name || ""}`
+                .toLocaleLowerCase("es-MX")
+                .includes(query);
+        }).slice(0, 100);
+    }
+
     currentMonth() {
         const today = new Date();
         this.selectCalendarMonth(today);
@@ -158,6 +222,7 @@ export class SystoreSupplyDashboard extends Component {
         const month = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, "0")}`;
         const lastDay = new Date(date.getFullYear(), date.getMonth() + 1, 0).getDate();
         this.state.filters.period_month = month;
+        this.state.filters.demand_period = month;
         this.state.filters.date_from = `${month}-01`;
         this.state.filters.date_to = `${month}-${String(lastDay).padStart(2, "0")}`;
         this.state.filters.supplier_id = "";
@@ -275,6 +340,9 @@ export class SystoreSupplyDashboard extends Component {
         if (this.state.filters.supplier_type) {
             domain.push(["purchase_origin", "=", this.state.filters.supplier_type]);
         }
+        if (this.state.filters.product_ids.length) {
+            domain.push(["product_id", "in", [...this.state.filters.product_ids]]);
+        }
         return [...domain, ...extra];
     }
 
@@ -295,17 +363,13 @@ export class SystoreSupplyDashboard extends Component {
             ["warehouse_id", "!=", false],
             ["warehouse_id.systore_supply_management", "!=", "excluded"],
         ];
-        if (this.state.filters.demand_period !== "all") {
-            domain.push(["period_month", "=", `${this.state.filters.demand_period}-01`]);
-        }
+        domain.push(
+            this.state.data.demand_line_ids.length
+                ? ["id", "in", this.state.data.demand_line_ids]
+                : ["id", "=", 0]
+        );
         if (productId) {
             domain.push(["product_id", "=", productId]);
-        }
-        if (this.state.filters.channel) {
-            domain.push(["channel", "=", this.state.filters.channel]);
-        }
-        if (this.state.filters.warehouse_id) {
-            domain.push(["warehouse_id", "=", Number(this.state.filters.warehouse_id)]);
         }
         return this.action.doAction({
             type: "ir.actions.act_window",

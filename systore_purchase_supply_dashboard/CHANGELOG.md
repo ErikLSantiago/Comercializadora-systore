@@ -1,5 +1,22 @@
 # Historial de cambios
 
+## 18.0.1.8.9
+
+- Se corrigió la incompatibilidad SCSS que hacía que Odoo reutilizara una hoja de estilos anterior.
+- El filtro Producto adopta el selector multiselección con búsqueda y etiquetas de Analítica de ventas.
+- La gráfica Órdenes en espera por canal vuelve a mostrar su dona y mantiene los accesos a las órdenes relacionadas.
+- Se retiró la gráfica Órdenes por canal y su consulta de inventario ya innecesaria.
+
+## 18.0.1.8.8
+
+- Se agregó la gráfica Órdenes en espera por canal, con órdenes únicas y piezas solicitadas de Demanda para Mayoreo y Minorista.
+- Demanda incorpora la columna En existencia con la suma de Piezas listas.
+- Se agregó el filtro múltiple Producto con búsqueda por SKU o nombre.
+- El filtro Producto se aplica a demanda, órdenes por canal, recepciones, piezas y rankings relacionados con productos.
+- El selector Demanda hasta funciona como corte acumulado: incluye la demanda vigente de los meses anteriores y del mes elegido, excluyendo los posteriores.
+- El corte mensual toma la fotografía más reciente disponible hasta el mes consultado y el reporte completo abre únicamente esas líneas, sin duplicar fotografías mensuales.
+- Mes actual, Mes anterior y Mes operativo sincronizan automáticamente el corte de Demanda.
+
 ## 18.0.1.8.7
 
 - Se sustituyó el icono de la aplicación por la versión final proporcionada.
