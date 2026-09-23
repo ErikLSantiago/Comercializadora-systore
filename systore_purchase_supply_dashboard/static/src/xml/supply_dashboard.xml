@@ -90,7 +90,7 @@
                 <i class="fa fa-circle-o-notch fa-spin"/> Cargando demanda…
             </div>
             <t t-else="">
-                <section class="o_supply_panel o_supply_credit_panel">
+                <section class="o_supply_panel o_supply_credit_panel o_supply_financial_start">
                     <div class="o_supply_panel_title">
                         <div>
                             <h2>Crédito con proveedores</h2>
@@ -129,7 +129,7 @@
                     </div>
                 </section>
 
-                <div class="o_supply_debt_sectors o_supply_debt_sectors_stacked">
+                <div class="o_supply_debt_sectors">
                     <section class="o_supply_panel o_supply_debt_panel">
                         <div class="o_supply_panel_title">
                             <div><h2>Deuda a proveedores extranjeros</h2><small>Histórico de órdenes confirmadas internacionales.</small></div>
