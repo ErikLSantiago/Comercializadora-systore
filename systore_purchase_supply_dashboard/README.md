@@ -19,7 +19,7 @@ Versión preparada para producción en Odoo 18.
 - Traslados parciales proporcionados por `stock_upc_validation`.
 - Pagos operativos manuales por concepto, fecha, moneda y tipo de cambio, sin efectos contables.
 - Gráfica de Demanda de piezas con cantidades cubiertas y por comprar.
-- Gráfica de pastel con órdenes en espera por canal, número de órdenes y piezas solicitadas.
+- Gráfica de pastel con piezas solicitadas en espera por canal; el número de órdenes se conserva como dato secundario.
 - Gráfica de pastel con piezas de compra recibidas y pendientes.
 - Resumen de productos recibidos directamente del historial de movimientos, totalizado por proveedor y con rango Desde/Hasta.
 - Sumatorias por proveedor de solicitadas, recibidas brutas, devueltas, recibidas netas y pendientes.
@@ -32,13 +32,21 @@ Versión preparada para producción en Odoo 18.
 - El filtro Tipo de proveedor permite consultar únicamente compras Nacionales o Internacionales.
 - Productos recibidos incluye un total general de cantidades y valores para los filtros aplicados.
 - Recepciones brutas, devoluciones a proveedor y recepciones netas por línea de compra.
-- Deuda histórica separada entre proveedores nacionales y extranjeros, con selector MXN/USD y acceso a las órdenes relacionadas.
+- Deuda histórica de mercancía separada entre proveedores nacionales y extranjeros, con selector MXN/USD y acceso a las órdenes relacionadas.
+- Control de líneas de crédito de proveedor con límite, moneda, crédito ocupado y disponible.
+- Condición Contado/Crédito independiente por orden, aunque el proveedor tenga una línea autorizada.
+- Inicio y vencimiento de crédito capturados directamente por orden; los días naturales se calculan entre ambas fechas.
+- Gráfica con una barra por proveedor que compara el límite total contra el crédito ocupado.
+- En compras internacionales la línea consume únicamente mercancía USD; logística e importación no forman parte del crédito del proveedor.
+- Los abonos parciales liberan línea automáticamente y las órdenes pagadas dejan de consumir crédito.
 - Ranking de productos y proveedores por piezas confirmadas, recibidas y pendientes.
 - Filtro de proveedor para gráficas y listados de compras.
 - Acceso controlado mediante un grupo propio configurable desde Analítica de compras > Configuración > Usuarios con acceso.
 - Clasificación explícita de almacenes como Mayoreo, Minorista o Sin gestión para compras.
 - Los almacenes sin gestión quedan fuera de todos los análisis, filtros y reportes del módulo.
 - El encabezado operativo utiliza fondo blanco y muestra Analítica de compras en texto negro.
+- Los paneles Demanda y Productos recibidos permiten ocultar o mostrar independientemente su tabla para compactar el tablero.
+- Crédito con proveedores se presenta inmediatamente después de Productos recibidos.
 - Las tarjetas Piezas solicitadas, En compra y Por comprar se retiraron de la interfaz; sus cálculos continúan alimentando la gráfica de demanda.
 - El acceso rápido Mes anterior selecciona el mes calendario previo y sincroniza su rango de recepciones.
 - El panel Demanda muestra el Top 10 por piezas solicitadas; el análisis completo permanece disponible desde su botón.
@@ -65,6 +73,8 @@ Versión preparada para producción en Odoo 18.
 4. Presionar **Actualizar demanda**.
 5. Un administrador puede ajustar los usuarios autorizados y los canales de almacén desde **Analítica de compras > Configuración**.
 6. La pestaña superior **Configuración** abre directamente la configuración general de acceso y conserva el submenú de Almacenes y canales.
+7. En el contacto del proveedor, abrir **Crédito de proveedor** para informar la autorización, moneda y límite.
+8. En cada OC, abrir **Pagos y abastecimiento**, elegir Contado o Crédito y, cuando aplique, capturar Inicio de crédito y Vencimiento crédito.
 
 ## Reglas de la primera versión
 
@@ -77,8 +87,8 @@ Versión preparada para producción en Odoo 18.
 - Recepción neta: piezas recibidas brutas menos piezas devueltas al proveedor.
 - Primera recepción: fecha mínima de un movimiento terminado Proveedor → Interna.
 - Compra internacional automática: existe costo base o logística capturada en USD.
-- Obligación internacional: mercancía y logística en USD; importación en MXN, cada una conciliada por separado.
-- El tipo de cambio efectivo es ponderado por los importes pagados: MXN pagados / USD pagados.
+- La deuda del tablero y el estado efectivo de pago consideran únicamente mercancía del proveedor de la orden; logística e importación quedan fuera de este análisis.
+- El tipo de cambio efectivo es ponderado por los abonos de mercancía: MXN pagados al proveedor / USD pagados al proveedor.
 - Si todavía no existen abonos USD, el equivalente pendiente usa `x_exchange_rate` de la orden.
 - Compra nacional: el monto por pagar es `amount_total`, incluido el impuesto de la orden.
 - El desplegable **Estado efectivo de pago** permite conservar el cálculo automático o fijar manualmente Pendiente, Parcial o Pagada.
@@ -86,6 +96,10 @@ Versión preparada para producción en Odoo 18.
 - Una orden marcada manualmente como Pagada no aporta saldo pendiente a la trazabilidad ni al tablero.
 - La captura visible de abonos se limita temporalmente a Mercancía; los registros históricos de Logística e Importación se conservan ocultos.
 - Los abonos de Mercancía pueden eliminarse para corregir errores operativos; el saldo y el estado se recalculan al eliminar.
+- Los días de crédito son naturales y se calculan como la diferencia entre Inicio de crédito y Vencimiento crédito, sin mover fines de semana o festivos.
+- La línea autorizada del proveedor no determina la condición de la compra; cada OC debe definirse expresamente como Contado o Crédito.
+- Una compra de Contado continúa en la deuda operativa si está pendiente, pero no consume la línea de crédito.
+- Las órdenes confirmadas a crédito consumen la línea por su saldo pendiente de mercancía, aunque la fecha de inicio todavía no haya llegado.
 - La deuda consulta todas las órdenes confirmadas o terminadas; no se limita al mes seleccionado.
 - Costo internacional: `x_calc_price_mxn`.
 - Costo nacional: `price_unit`, convertido a moneda de compañía cuando corresponda.
@@ -101,7 +115,7 @@ Versión preparada para producción en Odoo 18.
 - Demanda de piezas: Cubiertas = Solicitadas - Por comprar.
 - El bloque de gráficas inicia separado visualmente del área de filtros para facilitar la lectura del tablero.
 - Las piezas ya recibidas dejan de contarse como cobertura en camino para evitar descontarlas también cuando pasan a piezas listas en inventario.
-- La gráfica de órdenes en espera cuenta cada orden de venta una sola vez y distribuye sus piezas solicitadas por canal.
+- La gráfica de órdenes en espera se segmenta por cantidad de piezas solicitadas; cada orden de venta se cuenta una sola vez únicamente en el dato secundario.
 - La gráfica de piezas usa las líneas de compra de la cohorte mensual y respeta los filtros de almacén y canal.
 - El filtro de proveedor se aplica a compras, recepciones, deuda y rankings; no se atribuye proveedor a ventas sin una relación trazable.
 - Los segmentos y renglones del tablero son navegables hacia las órdenes o líneas que originan cada resultado.
@@ -124,6 +138,12 @@ Versión preparada para producción en Odoo 18.
 13. Retirar un usuario desde Configuración y comprobar que desaparezca el menú Analítica de compras para ese usuario.
 14. Marcar un almacén como Sin gestión para compras y comprobar que desaparezca de Demanda, recepciones y deuda.
 15. Cambiar un almacén entre Mayoreo y Minorista y comprobar que sus líneas históricas cambien de canal.
+16. Configurar un proveedor con límite USD 1,000, confirmar dos órdenes a crédito y comprobar que el utilizado y disponible se acumulen.
+17. Confirmar una compra de Contado para el mismo proveedor y comprobar que no consuma crédito.
+18. Registrar un abono parcial USD y comprobar que libere la misma cantidad de línea.
+19. Capturar distintos inicios y vencimientos por orden y verificar el cálculo de días naturales.
+20. Marcar una orden como Pagada y comprobar que deje de consumir crédito.
+21. Cubrir toda la mercancía de una compra internacional y comprobar que quede Pagada aunque Logística o Importación conserven saldo histórico.
 
 ## Limitaciones deliberadas de V1
 

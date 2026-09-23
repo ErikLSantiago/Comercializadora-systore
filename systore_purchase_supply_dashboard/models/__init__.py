@@ -1,3 +1,4 @@
+from . import supplier_credit
 from . import purchase_payment
 from . import stock_warehouse
 from . import supply_snapshot

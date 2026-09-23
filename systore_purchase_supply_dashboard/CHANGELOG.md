@@ -1,5 +1,37 @@
 # Historial de cambios
 
+## 18.0.1.9.3
+
+- Se retiró el subtítulo operativo del encabezado para simplificar la presentación del tablero.
+- Crédito con proveedores se movió inmediatamente debajo de Productos recibidos.
+- Demanda y Productos recibidos incorporan interruptores independientes para mostrar u ocultar sus tablas.
+
+## 18.0.1.9.2
+
+- La gráfica Órdenes en espera por canal ahora distribuye y muestra piezas solicitadas; conserva el número de órdenes como dato secundario.
+- La deuda y el estado efectivo de pago consideran únicamente la mercancía facturada por el proveedor de la orden.
+- Los pagos y saldos de Logística e Importación se conservan históricamente, pero ya no forman parte del tablero ni impiden que una orden quede Pagada.
+- Los importes MXN y USD de seguimiento se renombraron para aclarar que corresponden al proveedor de mercancía.
+
+## 18.0.1.9.1
+
+- La configuración del proveedor conserva únicamente la autorización, moneda y límite de crédito.
+- El inicio y el vencimiento del crédito se capturan directamente en cada orden de compra; los días naturales se calculan como referencia.
+- Se retiraron los umbrales, avisos anticipados y mensajes automáticos de utilización de crédito.
+- Tener una línea autorizada ya no clasifica automáticamente cada compra como crédito: la orden exige elegir Contado o Crédito.
+- El panel Crédito con proveedores muestra una barra por proveedor que compara el límite total contra el saldo ocupado.
+
+## 18.0.1.9.0
+
+- Se agregó la configuración de línea de crédito en proveedores, con moneda, límite, días naturales, evento de inicio y umbrales de alerta.
+- Cada orden puede clasificarse como Contado o Crédito y conserva una fotografía editable de las condiciones negociadas.
+- El plazo puede iniciar por confirmación, despacho del proveedor, primera recepción, recepción completa, fecha límite del proveedor o fecha manual.
+- Se calculan fecha inicial, vencimiento, monto sujeto a crédito, abonos, saldo, días restantes y estado operativo.
+- Las compras internacionales consumen únicamente el saldo de mercancía USD; logística e importación quedan excluidas de la línea.
+- Los abonos parciales liberan crédito y una orden Pagada deja de consumir la línea.
+- Se agregó el panel Crédito con proveedores, con límite, utilizado, disponible, utilización, próximos vencimientos y vencidos.
+- Al confirmar una orden se registra una advertencia en el chatter cuando alcanza el umbral o excede la línea, sin bloquear la operación.
+
 ## 18.0.1.8.9
 
 - Se corrigió la incompatibilidad SCSS que hacía que Odoo reutilizara una hoja de estilos anterior.

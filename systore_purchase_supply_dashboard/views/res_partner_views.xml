@@ -1,0 +1,38 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <record id="view_partner_form_supplier_credit" model="ir.ui.view">
+        <field name="name">res.partner.form.supplier.credit</field>
+        <field name="model">res.partner</field>
+        <field name="inherit_id" ref="base.view_partner_form"/>
+        <field name="arch" type="xml">
+            <xpath expr="//notebook" position="inside">
+                <page string="Crédito de proveedor" name="systore_supplier_credit"
+                      groups="systore_purchase_supply_dashboard.group_supply_dashboard_user,base.group_system">
+                    <group>
+                        <group string="Línea autorizada">
+                            <field name="systore_supplier_credit_enabled"/>
+                            <field name="systore_supplier_credit_currency_id"
+                                   invisible="not systore_supplier_credit_enabled"
+                                   required="systore_supplier_credit_enabled"/>
+                            <field name="systore_supplier_credit_limit"
+                                   invisible="not systore_supplier_credit_enabled"/>
+                        </group>
+                    </group>
+                    <group string="Situación actual" invisible="not systore_supplier_credit_enabled">
+                        <group>
+                            <field name="systore_supplier_credit_used" readonly="1"/>
+                            <field name="systore_supplier_credit_available" readonly="1"/>
+                        </group>
+                        <group>
+                            <field name="systore_supplier_credit_overdue" readonly="1"/>
+                            <field name="systore_supplier_credit_utilization" readonly="1"/>
+                        </group>
+                    </group>
+                    <div class="alert alert-info" role="alert" invisible="not systore_supplier_credit_enabled">
+                        El crédito utilizado considera únicamente órdenes confirmadas marcadas como Crédito. En compras internacionales sólo incluye mercancía del proveedor, sin logística ni importación.
+                    </div>
+                </page>
+            </xpath>
+        </field>
+    </record>
+</odoo>

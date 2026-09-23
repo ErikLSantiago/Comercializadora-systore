@@ -21,10 +21,15 @@ export class SystoreSupplyDashboard extends Component {
         this.state = useState({
             loading: true,
             refreshing: false,
+            showDemandTable: true,
+            showReceivedProductsTable: true,
             data: {
                 charts: {
                     demand_pieces: { requested: 0, covered: 0, to_buy: 0, covered_percent: 0, to_buy_percent: 0 },
-                    waiting_channels: { total: 0, wholesale: 0, retail: 0, wholesale_percent: 0 },
+                    waiting_channels: {
+                        total: 0, total_orders: 0, wholesale: 0, retail: 0,
+                        wholesale_orders: 0, retail_orders: 0, wholesale_percent: 0,
+                    },
                     pieces: { total: 0, received: 0, pending: 0, received_percent: 0 },
                     purchased_by_supplier: {
                         cost_usd: { total: 0, segments: [], style: "" },
@@ -39,6 +44,8 @@ export class SystoreSupplyDashboard extends Component {
                     debt_national_mxn: 0,
                     debt_international_mxn: 0,
                     debt_international_usd: 0,
+                    credit_suppliers: [],
+                    credit_provider_count: 0,
                 },
                 demand: [], demand_line_ids: [], demand_periods: [], products: [], suppliers: [], warehouses: [],
             },
@@ -137,6 +144,14 @@ export class SystoreSupplyDashboard extends Component {
 
     onForeignDebtCurrency(event) {
         this.state.filters.foreign_debt_currency = event.target.value;
+    }
+
+    toggleDemandTable() {
+        this.state.showDemandTable = !this.state.showDemandTable;
+    }
+
+    toggleReceivedProductsTable() {
+        this.state.showReceivedProductsTable = !this.state.showReceivedProductsTable;
     }
 
     onWarehouse(event) {
@@ -247,6 +262,18 @@ export class SystoreSupplyDashboard extends Component {
             currency: "USD",
             maximumFractionDigits: 2,
         }).format(value || 0);
+    }
+
+    formatCredit(value, currency) {
+        try {
+            return new Intl.NumberFormat("es-MX", {
+                style: "currency",
+                currency: currency || "USD",
+                maximumFractionDigits: 2,
+            }).format(value || 0);
+        } catch {
+            return `${this.formatQty(value)} ${currency || ""}`.trim();
+        }
     }
 
     formatForeignDebt(usdValue, mxnValue) {

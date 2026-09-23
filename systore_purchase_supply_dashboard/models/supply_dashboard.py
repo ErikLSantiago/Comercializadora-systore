@@ -50,6 +50,65 @@ class SystoreSupplyDashboard(models.AbstractModel):
         ))
 
     @api.model
+    def _supplier_credit_rows(
+        self, company, supplier_id=None, supplier_type=None
+    ):
+        """Return the supplier credit position independently from the month filter."""
+        credit_orders = self._historical_purchase_orders(
+            company, supplier_type=supplier_type
+        ).filtered(lambda order: (
+            order.systore_purchase_condition == "credit"
+            and (not supplier_id or order.partner_id.id == supplier_id)
+        ))
+        partners = credit_orders.mapped("partner_id")
+        if not supplier_type:
+            configured_domain = [
+                ("systore_supplier_credit_enabled", "=", True),
+                ("supplier_rank", ">", 0),
+            ]
+            if supplier_id:
+                configured_domain.append(("id", "=", supplier_id))
+            partners |= self.env["res.partner"].sudo().search(configured_domain)
+
+        rows = []
+        for partner in partners:
+            partner_orders = credit_orders.filtered(lambda order: order.partner_id == partner)
+            currency = (
+                partner.systore_supplier_credit_currency_id
+                or (partner_orders[:1].systore_credit_currency_id if partner_orders else False)
+                or company.currency_id
+            )
+            used = 0.0
+            for order in partner_orders:
+                used += order._systore_credit_balance_in_currency(currency)
+
+            limit_amount = partner.systore_supplier_credit_limit or 0.0
+            available = limit_amount - used
+            utilization = (
+                used / limit_amount * 100.0
+                if limit_amount else (100.0 if used else 0.0)
+            )
+            rows.append({
+                "id": partner.id,
+                "name": partner.display_name,
+                "currency": currency.name,
+                "currency_symbol": currency.symbol or currency.name,
+                "limit": limit_amount,
+                "used": used,
+                "available": available,
+                "excess": max(-available, 0.0),
+                "utilization": utilization,
+                "utilization_bar": min(max(utilization, 0.0), 100.0),
+                "order_count": len(partner_orders),
+                "order_ids": partner_orders.ids,
+            })
+        rows.sort(
+            key=lambda row: (row["utilization"], row["used"]),
+            reverse=True,
+        )
+        return rows
+
+    @api.model
     def _month_period(self, period_month=None):
         """Return one strict calendar month using the user's timezone."""
         if not period_month:
@@ -219,7 +278,8 @@ class SystoreSupplyDashboard(models.AbstractModel):
         waiting_counts = {
             key: len(order_ids) for key, order_ids in waiting_order_ids.items()
         }
-        waiting_total = sum(waiting_counts.values())
+        waiting_total_orders = sum(waiting_counts.values())
+        waiting_total_pieces = sum(waiting_pieces.values())
 
         demand_by_product_month = defaultdict(lambda: {
             "open": 0.0, "ready": 0.0, "missing": 0.0,
@@ -367,15 +427,16 @@ class SystoreSupplyDashboard(models.AbstractModel):
             ),
         }
         chart_data["charts"]["waiting_channels"] = {
-            "total": waiting_total,
-            "wholesale": waiting_counts["wholesale"],
-            "retail": waiting_counts["retail"],
+            "total": waiting_total_pieces,
+            "total_orders": waiting_total_orders,
+            "wholesale": waiting_pieces["wholesale"],
+            "retail": waiting_pieces["retail"],
             "wholesale_percent": (
-                waiting_counts["wholesale"] / waiting_total * 100.0
-                if waiting_total else 0.0
+                waiting_pieces["wholesale"] / waiting_total_pieces * 100.0
+                if waiting_total_pieces else 0.0
             ),
-            "wholesale_pieces": waiting_pieces["wholesale"],
-            "retail_pieces": waiting_pieces["retail"],
+            "wholesale_orders": waiting_counts["wholesale"],
+            "retail_orders": waiting_counts["retail"],
             "wholesale_sale_ids": list(waiting_order_ids["wholesale"]),
             "retail_sale_ids": list(waiting_order_ids["retail"]),
         }
@@ -962,6 +1023,11 @@ class SystoreSupplyDashboard(models.AbstractModel):
 
         national_debts = debt_rows("national")
         international_debts = debt_rows("international")
+        credit_rows = self._supplier_credit_rows(
+            company,
+            supplier_id=supplier_id,
+            supplier_type=supplier_type,
+        )
 
         return {
             "charts": {
@@ -989,5 +1055,7 @@ class SystoreSupplyDashboard(models.AbstractModel):
                 "debt_international_usd": sum(
                     value["usd"] for value in debt_by_sector["international"].values()
                 ),
+                "credit_suppliers": credit_rows,
+                "credit_provider_count": len(credit_rows),
             },
         }

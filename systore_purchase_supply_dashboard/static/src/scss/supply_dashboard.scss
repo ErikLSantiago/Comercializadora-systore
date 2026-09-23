@@ -334,6 +334,53 @@
         background: #f0e5e5;
         i { display: block; height: 100%; background: #c65353; border-radius: 5px; }
     }
+    .o_supply_credit_panel { overflow: hidden; }
+    .o_supply_credit_summary {
+        display: flex;
+        gap: 18px;
+        text-align: right;
+        span, strong, small { display: block; }
+        strong { font-size: 18px; }
+        small { color: #75848d; font-size: 10px; }
+    }
+    .o_supply_credit_chart { display: grid; gap: 10px; }
+    .o_supply_credit_bar_row {
+        display: grid;
+        gap: 7px;
+        width: 100%;
+        border: 0;
+        border-bottom: 1px solid #edf0f2;
+        background: transparent;
+        padding: 9px 6px 12px;
+        text-align: left;
+        &:hover { background: #f7f8f9; }
+        &.is-exceeded .o_supply_credit_track i { background: #c65353; }
+    }
+    .o_supply_credit_bar_heading,
+    .o_supply_credit_bar_details {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 16px;
+    }
+    .o_supply_credit_bar_heading > strong {
+        flex: 0 0 auto;
+        color: #344054;
+        text-align: right;
+    }
+    .o_supply_credit_bar_details {
+        color: #75848d;
+        font-size: 10px;
+    }
+    .o_supply_credit_track {
+        display: block;
+        width: 100%;
+        height: 18px;
+        overflow: hidden;
+        border-radius: 9px;
+        background: #e7ebee;
+        i { display: block; height: 100%; border-radius: 9px; background: #2e8b57; }
+    }
     .o_supply_rankings {
         display: grid;
         grid-template-columns: repeat(2, minmax(0, 1fr));
@@ -354,6 +401,25 @@
         font-size: 11px;
         color: #52616b;
         select { margin-top: 3px; }
+    }
+    .o_supply_panel_actions,
+    .o_supply_demand_actions {
+        display: flex;
+        align-items: center;
+        justify-content: flex-end;
+        gap: 14px;
+    }
+    .o_supply_table_switch {
+        display: flex;
+        align-items: center;
+        gap: 6px;
+        min-height: 31px;
+        margin: 0;
+        color: #52616b;
+        font-size: 11px;
+        white-space: nowrap;
+        .form-check-input { margin: 0; cursor: pointer; }
+        .form-check-label { cursor: pointer; }
     }
     .o_supply_clickable_row { cursor: pointer; }
     .o_supply_received_total {
@@ -409,11 +475,6 @@
     .o_supply_demand_panel {
         table { min-width: 920px; }
     }
-    .o_supply_demand_actions {
-        display: flex;
-        align-items: center;
-        justify-content: flex-end;
-    }
     table { margin-bottom: 0; }
     thead th { color: #64727c; font-size: 11px; text-transform: uppercase; white-space: nowrap; }
     tbody td { font-size: 13px; }
@@ -435,5 +496,17 @@
         .o_supply_filters { grid-template-columns: 1fr; }
         .o_supply_debt_row, .o_supply_ranking_row { grid-template-columns: 1fr; gap: 5px; }
         .o_supply_debt_row > strong, .o_supply_rank_values { text-align: left; }
+        .o_supply_panel_title { align-items: flex-start; gap: 10px; }
+        .o_supply_panel_actions, .o_supply_demand_actions {
+            align-items: flex-end;
+            flex-direction: column;
+            gap: 6px;
+        }
+        .o_supply_credit_bar_heading, .o_supply_credit_bar_details {
+            align-items: flex-start;
+            flex-direction: column;
+            gap: 4px;
+        }
+        .o_supply_credit_bar_heading > strong { text-align: left; }
     }
 }
