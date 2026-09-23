@@ -1,5 +1,11 @@
 # Historial de cambios
 
+## 18.0.1.9.4
+
+- El tablero inicia, después de los filtros, con Crédito con proveedores.
+- A continuación se muestran en secuencia vertical Deuda a proveedores extranjeros y Deuda a proveedores nacionales.
+- Las demás gráficas y tablas conservan su funcionamiento y continúan después de los bloques financieros.
+
 ## 18.0.1.9.3
 
 - Se retiró el subtítulo operativo del encabezado para simplificar la presentación del tablero.

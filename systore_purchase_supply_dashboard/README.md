@@ -46,7 +46,7 @@ Versión preparada para producción en Odoo 18.
 - Los almacenes sin gestión quedan fuera de todos los análisis, filtros y reportes del módulo.
 - El encabezado operativo utiliza fondo blanco y muestra Analítica de compras en texto negro.
 - Los paneles Demanda y Productos recibidos permiten ocultar o mostrar independientemente su tabla para compactar el tablero.
-- Crédito con proveedores se presenta inmediatamente después de Productos recibidos.
+- Después de los filtros, el tablero presenta Crédito con proveedores, Deuda a proveedores extranjeros y Deuda a proveedores nacionales, en ese orden.
 - Las tarjetas Piezas solicitadas, En compra y Por comprar se retiraron de la interfaz; sus cálculos continúan alimentando la gráfica de demanda.
 - El acceso rápido Mes anterior selecciona el mes calendario previo y sincroniza su rango de recepciones.
 - El panel Demanda muestra el Top 10 por piezas solicitadas; el análisis completo permanece disponible desde su botón.
