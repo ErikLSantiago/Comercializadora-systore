@@ -34,6 +34,36 @@
                                    decoration-danger="systore_payment_status == 'pending'"
                                    decoration-warning="systore_payment_status == 'partial'"
                                    decoration-success="systore_payment_status == 'paid'"/>
+                            <div class="text-muted">
+                                El saldo y el estado consideran únicamente la mercancía del proveedor; no incluyen Logística ni Importación.
+                            </div>
+                        </group>
+                    </group>
+                    <separator string="Condiciones de la compra y crédito"/>
+                    <group>
+                        <group string="Condición negociada">
+                            <field name="systore_purchase_condition"/>
+                            <field name="systore_credit_currency_id"
+                                   invisible="systore_purchase_condition != 'credit'"
+                                   required="systore_purchase_condition == 'credit'"/>
+                            <field name="systore_credit_start_date"
+                                   invisible="systore_purchase_condition != 'credit'"
+                                   required="systore_purchase_condition == 'credit'"/>
+                            <field name="systore_credit_due_date"
+                                   invisible="systore_purchase_condition != 'credit'"
+                                   required="systore_purchase_condition == 'credit'"/>
+                            <field name="systore_credit_days" readonly="1"
+                                   invisible="systore_purchase_condition != 'credit'"/>
+                        </group>
+                        <group string="Seguimiento del crédito" invisible="systore_purchase_condition != 'credit'">
+                            <field name="systore_credit_status" widget="badge" readonly="1"
+                                   decoration-muted="systore_credit_status == 'not_started'"
+                                   decoration-info="systore_credit_status == 'active'"
+                                   decoration-danger="systore_credit_status == 'overdue'"
+                                   decoration-success="systore_credit_status == 'paid'"/>
+                            <field name="systore_credit_amount" readonly="1"/>
+                            <field name="systore_credit_paid" readonly="1"/>
+                            <field name="systore_credit_balance" readonly="1"/>
                         </group>
                     </group>
                     <group string="Obligaciones internacionales" invisible="not systore_is_international">
@@ -75,6 +105,16 @@
                        groups="systore_purchase_supply_dashboard.group_supply_dashboard_user,base.group_system"/>
                 <field name="systore_payment_status_manual" optional="hide"
                        groups="systore_purchase_supply_dashboard.group_supply_dashboard_user,base.group_system"/>
+                <field name="systore_purchase_condition" optional="show"
+                       groups="systore_purchase_supply_dashboard.group_supply_dashboard_user,base.group_system"/>
+                <field name="systore_credit_due_date" optional="show"
+                       groups="systore_purchase_supply_dashboard.group_supply_dashboard_user,base.group_system"/>
+                <field name="systore_credit_status" widget="badge" optional="show"
+                       groups="systore_purchase_supply_dashboard.group_supply_dashboard_user,base.group_system"
+                       decoration-muted="systore_credit_status == 'not_started'"
+                       decoration-info="systore_credit_status == 'active'"
+                       decoration-danger="systore_credit_status == 'overdue'"
+                       decoration-success="systore_credit_status == 'paid'"/>
             </xpath>
         </field>
     </record>

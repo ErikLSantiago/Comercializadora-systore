@@ -1,5 +1,69 @@
 # Historial de cambios
 
+## 18.0.1.9.4
+
+- El tablero inicia, después de los filtros, con Crédito con proveedores.
+- A continuación se muestran en secuencia vertical Deuda a proveedores extranjeros y Deuda a proveedores nacionales.
+- Las demás gráficas y tablas conservan su funcionamiento y continúan después de los bloques financieros.
+
+## 18.0.1.9.3
+
+- Se retiró el subtítulo operativo del encabezado para simplificar la presentación del tablero.
+- Crédito con proveedores se movió inmediatamente debajo de Productos recibidos.
+- Demanda y Productos recibidos incorporan interruptores independientes para mostrar u ocultar sus tablas.
+
+## 18.0.1.9.2
+
+- La gráfica Órdenes en espera por canal ahora distribuye y muestra piezas solicitadas; conserva el número de órdenes como dato secundario.
+- La deuda y el estado efectivo de pago consideran únicamente la mercancía facturada por el proveedor de la orden.
+- Los pagos y saldos de Logística e Importación se conservan históricamente, pero ya no forman parte del tablero ni impiden que una orden quede Pagada.
+- Los importes MXN y USD de seguimiento se renombraron para aclarar que corresponden al proveedor de mercancía.
+
+## 18.0.1.9.1
+
+- La configuración del proveedor conserva únicamente la autorización, moneda y límite de crédito.
+- El inicio y el vencimiento del crédito se capturan directamente en cada orden de compra; los días naturales se calculan como referencia.
+- Se retiraron los umbrales, avisos anticipados y mensajes automáticos de utilización de crédito.
+- Tener una línea autorizada ya no clasifica automáticamente cada compra como crédito: la orden exige elegir Contado o Crédito.
+- El panel Crédito con proveedores muestra una barra por proveedor que compara el límite total contra el saldo ocupado.
+
+## 18.0.1.9.0
+
+- Se agregó la configuración de línea de crédito en proveedores, con moneda, límite, días naturales, evento de inicio y umbrales de alerta.
+- Cada orden puede clasificarse como Contado o Crédito y conserva una fotografía editable de las condiciones negociadas.
+- El plazo puede iniciar por confirmación, despacho del proveedor, primera recepción, recepción completa, fecha límite del proveedor o fecha manual.
+- Se calculan fecha inicial, vencimiento, monto sujeto a crédito, abonos, saldo, días restantes y estado operativo.
+- Las compras internacionales consumen únicamente el saldo de mercancía USD; logística e importación quedan excluidas de la línea.
+- Los abonos parciales liberan crédito y una orden Pagada deja de consumir la línea.
+- Se agregó el panel Crédito con proveedores, con límite, utilizado, disponible, utilización, próximos vencimientos y vencidos.
+- Al confirmar una orden se registra una advertencia en el chatter cuando alcanza el umbral o excede la línea, sin bloquear la operación.
+
+## 18.0.1.8.9
+
+- Se corrigió la incompatibilidad SCSS que hacía que Odoo reutilizara una hoja de estilos anterior.
+- El filtro Producto adopta el selector multiselección con búsqueda y etiquetas de Analítica de ventas.
+- La gráfica Órdenes en espera por canal vuelve a mostrar su dona y mantiene los accesos a las órdenes relacionadas.
+- Se retiró la gráfica Órdenes por canal y su consulta de inventario ya innecesaria.
+
+## 18.0.1.8.8
+
+- Se agregó la gráfica Órdenes en espera por canal, con órdenes únicas y piezas solicitadas de Demanda para Mayoreo y Minorista.
+- Demanda incorpora la columna En existencia con la suma de Piezas listas.
+- Se agregó el filtro múltiple Producto con búsqueda por SKU o nombre.
+- El filtro Producto se aplica a demanda, órdenes por canal, recepciones, piezas y rankings relacionados con productos.
+- El selector Demanda hasta funciona como corte acumulado: incluye la demanda vigente de los meses anteriores y del mes elegido, excluyendo los posteriores.
+- El corte mensual toma la fotografía más reciente disponible hasta el mes consultado y el reporte completo abre únicamente esas líneas, sin duplicar fotografías mensuales.
+- Mes actual, Mes anterior y Mes operativo sincronizan automáticamente el corte de Demanda.
+
+## 18.0.1.8.7
+
+- Se sustituyó el icono de la aplicación por la versión final proporcionada.
+- El título interno del tablero cambió de Analítica de ventas a Analítica de compras.
+- Se reactivó la reconstrucción mensual de Trazabilidad por lote desde el botón Actualizar demanda.
+- La notificación de actualización informa las líneas reconstruidas de demanda, recepción y trazabilidad.
+- Se retiraron métodos JavaScript, datos de respuesta, estilos KPI y el SVG anterior que ya no tenían consumidores activos.
+- El paquete de producción excluye archivos compilados y temporales.
+
 ## 18.0.1.8.6
 
 - Se agregó espacio vertical entre el bloque de filtros y las gráficas Demanda de piezas y Órdenes por canal.

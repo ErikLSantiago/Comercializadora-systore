@@ -6,7 +6,7 @@
         <field name="inherit_id" ref="wholesale_allocation.view_warehouse_form_wholesale_allocation"/>
         <field name="arch" type="xml">
             <xpath expr="//sheet/group" position="inside">
-                <group string="Tablero de abastecimiento" groups="base.group_system">
+                <group string="Analítica de compras" groups="base.group_system">
                     <field name="systore_supply_management"/>
                     <field name="systore_resolved_supply_channel" widget="badge" readonly="1"/>
                     <div class="text-muted">Los almacenes Sin gestión para compras no aparecen en demanda, recepciones, deuda ni rankings.</div>

@@ -1,8 +1,8 @@
 {
     "name": "Analítica de compras",
-    "version": "18.0.1.8.6",
+    "version": "18.0.1.9.4",
     "category": "Inventory/Purchase",
-    "summary": "Conciliación de compras, recepciones, demanda, lotes y pagos manuales",
+    "summary": "Compras, demanda, recepciones, pagos y crédito de proveedores",
     "author": "Systore",
     "license": "LGPL-3",
     "depends": [
@@ -17,6 +17,7 @@
         "security/supply_security.xml",
         "security/ir.model.access.csv",
         "views/supply_dashboard_views.xml",
+        "views/res_partner_views.xml",
         "views/purchase_order_views.xml",
         "views/stock_warehouse_views.xml",
         "views/supply_dashboard_menus.xml",

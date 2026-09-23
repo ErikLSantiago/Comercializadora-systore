@@ -10,7 +10,7 @@ from odoo.exceptions import AccessError, UserError
 
 class SystoreSupplyDashboard(models.AbstractModel):
     _name = "systore.supply.dashboard"
-    _description = "Servicio del tablero de abastecimiento"
+    _description = "Servicio de Analítica de compras"
 
     def _check_systore_supply_access(self):
         if not (
@@ -48,6 +48,65 @@ class SystoreSupplyDashboard(models.AbstractModel):
                 or order._systore_resolved_purchase_origin() == supplier_type
             )
         ))
+
+    @api.model
+    def _supplier_credit_rows(
+        self, company, supplier_id=None, supplier_type=None
+    ):
+        """Return the supplier credit position independently from the month filter."""
+        credit_orders = self._historical_purchase_orders(
+            company, supplier_type=supplier_type
+        ).filtered(lambda order: (
+            order.systore_purchase_condition == "credit"
+            and (not supplier_id or order.partner_id.id == supplier_id)
+        ))
+        partners = credit_orders.mapped("partner_id")
+        if not supplier_type:
+            configured_domain = [
+                ("systore_supplier_credit_enabled", "=", True),
+                ("supplier_rank", ">", 0),
+            ]
+            if supplier_id:
+                configured_domain.append(("id", "=", supplier_id))
+            partners |= self.env["res.partner"].sudo().search(configured_domain)
+
+        rows = []
+        for partner in partners:
+            partner_orders = credit_orders.filtered(lambda order: order.partner_id == partner)
+            currency = (
+                partner.systore_supplier_credit_currency_id
+                or (partner_orders[:1].systore_credit_currency_id if partner_orders else False)
+                or company.currency_id
+            )
+            used = 0.0
+            for order in partner_orders:
+                used += order._systore_credit_balance_in_currency(currency)
+
+            limit_amount = partner.systore_supplier_credit_limit or 0.0
+            available = limit_amount - used
+            utilization = (
+                used / limit_amount * 100.0
+                if limit_amount else (100.0 if used else 0.0)
+            )
+            rows.append({
+                "id": partner.id,
+                "name": partner.display_name,
+                "currency": currency.name,
+                "currency_symbol": currency.symbol or currency.name,
+                "limit": limit_amount,
+                "used": used,
+                "available": available,
+                "excess": max(-available, 0.0),
+                "utilization": utilization,
+                "utilization_bar": min(max(utilization, 0.0), 100.0),
+                "order_count": len(partner_orders),
+                "order_ids": partner_orders.ids,
+            })
+        rows.sort(
+            key=lambda row: (row["utilization"], row["used"]),
+            reverse=True,
+        )
+        return rows
 
     @api.model
     def _month_period(self, period_month=None):
@@ -111,11 +170,12 @@ class SystoreSupplyDashboard(models.AbstractModel):
         with self.env.cr.savepoint():
             purchases = self.env["systore.supply.purchase.line"]._rebuild_snapshot(company, period)
             demand = self.env["systore.supply.demand.line"]._rebuild_snapshot(company, period)
+            trace = self.env["systore.supply.trace.line"]._rebuild_snapshot(company, period)
         return {
             "period_month": period["key"],
             "purchases": purchases,
             "demand": demand,
-            "trace": 0,
+            "trace": trace,
         }
 
     @api.model
@@ -143,6 +203,18 @@ class SystoreSupplyDashboard(models.AbstractModel):
         warehouse_id = filters.get("warehouse_id")
         supplier_id = filters.get("supplier_id")
         supplier_type = filters.get("supplier_type")
+        raw_product_ids = filters.get("product_ids") or []
+        if not isinstance(raw_product_ids, (list, tuple, set)):
+            raw_product_ids = [raw_product_ids]
+        product_ids = []
+        for value in raw_product_ids:
+            try:
+                product_id = int(value)
+            except (TypeError, ValueError):
+                continue
+            if product_id > 0:
+                product_ids.append(product_id)
+        product_ids = list(dict.fromkeys(product_ids))
         if supplier_type not in ("national", "international"):
             supplier_type = None
         if channel:
@@ -153,7 +225,33 @@ class SystoreSupplyDashboard(models.AbstractModel):
         if supplier_id:
             supplier_id = int(supplier_id)
         DemandLine = self.env["systore.supply.demand.line"]
-        candidate_demand_lines = DemandLine.search(demand_domain)
+        available_period_lines = DemandLine.search(demand_domain)
+        available_demand_months = sorted({
+            fields.Date.to_string(line.period_month)[:7]
+            for line in available_period_lines
+            if line.period_month
+        }, reverse=True)
+        if demand_period != "all" and demand_period not in available_demand_months:
+            available_demand_months.append(demand_period)
+            available_demand_months.sort(reverse=True)
+
+        scoped_demand_domain = list(demand_domain)
+        if demand_period != "all":
+            scoped_demand_domain.append(
+                ("period_month", "<=", fields.Date.to_date(f"{demand_period}-01"))
+            )
+        product_option_lines = DemandLine.search(scoped_demand_domain)
+        product_options = [{
+            "id": product.id,
+            "name": product.display_name,
+            "sku": product.default_code or "",
+        } for product in sorted(
+            product_option_lines.mapped("product_id"),
+            key=lambda item: ((item.default_code or "").lower(), (item.display_name or "").lower()),
+        )]
+        if product_ids:
+            scoped_demand_domain.append(("product_id", "in", product_ids))
+        candidate_demand_lines = DemandLine.search(scoped_demand_domain)
         latest_line_by_operation_product = {}
         for line in candidate_demand_lines:
             key = (line.picking_id.id, line.product_id.id)
@@ -167,18 +265,24 @@ class SystoreSupplyDashboard(models.AbstractModel):
         all_demand_lines = DemandLine.browse(
             [line.id for line in latest_line_by_operation_product.values()]
         )
-        available_demand_months = sorted({
-            fields.Date.to_string(line.period_month)[:7]
-            for line in all_demand_lines
-            if line.period_month
-        }, reverse=True)
-        if demand_period != "all" and demand_period not in available_demand_months:
-            available_demand_months.append(demand_period)
-            available_demand_months.sort(reverse=True)
+
+        waiting_order_ids = {"wholesale": set(), "retail": set()}
+        waiting_pieces = defaultdict(float)
+        for line in all_demand_lines:
+            if line.open_demand_qty <= 0:
+                continue
+            line_channel = line.channel if line.channel in waiting_order_ids else "retail"
+            if line.sale_order_id:
+                waiting_order_ids[line_channel].add(line.sale_order_id.id)
+            waiting_pieces[line_channel] += line.open_demand_qty
+        waiting_counts = {
+            key: len(order_ids) for key, order_ids in waiting_order_ids.items()
+        }
+        waiting_total_orders = sum(waiting_counts.values())
+        waiting_total_pieces = sum(waiting_pieces.values())
 
         demand_by_product_month = defaultdict(lambda: {
             "open": 0.0, "ready": 0.0, "missing": 0.0,
-            "sale_ids": set(), "picking_ids": set(),
             "warehouse_names": set(), "channels": set(),
         })
         for line in all_demand_lines:
@@ -191,8 +295,6 @@ class SystoreSupplyDashboard(models.AbstractModel):
             values["open"] += line.open_demand_qty
             values["ready"] += line.reserved_qty
             values["missing"] += line.missing_to_buy_qty
-            values["sale_ids"].add(line.sale_order_id.id)
-            values["picking_ids"].add(line.picking_id.id)
             values["warehouse_names"].add(line.warehouse_id.display_name)
             values["channels"].add(line.channel)
 
@@ -255,24 +357,10 @@ class SystoreSupplyDashboard(models.AbstractModel):
                     "net_missing": max(values["missing"] - applied_incoming, 0.0),
                 }
 
-        selected_allocations = {
-            key: values
-            for key, values in allocated_by_product_month.items()
-            if demand_period == "all" or key[1] == demand_period
-        }
-        selected_demand_lines = all_demand_lines.filtered(
-            lambda line: line.period_month and (
-                demand_period == "all"
-                or fields.Date.to_string(line.period_month)[:7] == demand_period
-            )
-        )
-        sale_orders = selected_demand_lines.mapped("sale_order_id")
-        pickings = selected_demand_lines.mapped("picking_id")
-
+        selected_allocations = allocated_by_product_month
         demand_by_product = defaultdict(lambda: {
             "open": 0.0, "ready": 0.0, "missing": 0.0,
             "incoming": 0.0, "net_missing": 0.0,
-            "sale_ids": set(), "picking_ids": set(),
             "warehouse_names": set(), "channels": set(), "months": set(),
         })
         for (product_id, month_key), values in selected_allocations.items():
@@ -281,9 +369,7 @@ class SystoreSupplyDashboard(models.AbstractModel):
                 product[field_name] = values[field_name]
             for field_name in ("open", "ready", "missing", "incoming", "net_missing"):
                 product[field_name] += values[field_name]
-            for field_name in (
-                "sale_ids", "picking_ids", "warehouse_names", "channels"
-            ):
+            for field_name in ("warehouse_names", "channels"):
                 product[field_name].update(values[field_name])
             product["months"].add(month_key)
 
@@ -302,11 +388,8 @@ class SystoreSupplyDashboard(models.AbstractModel):
                 "month_names": ", ".join(sorted(values["months"], reverse=True)),
                 "open_demand_qty": values["open"],
                 "reserved_qty": values["ready"],
-                "original_missing_qty": values["missing"],
                 "incoming_purchase_qty": values["incoming"],
                 "missing_to_buy_qty": values["net_missing"],
-                "sale_order_ids": list(values["sale_ids"]),
-                "picking_ids": list(values["picking_ids"]),
                 "coverage_status": (
                     "incoming" if values["net_missing"] <= 0 else "partial"
                 ),
@@ -317,19 +400,6 @@ class SystoreSupplyDashboard(models.AbstractModel):
         )
         demand_top_rows = demand_rows[:10]
 
-        kpis = {
-            "sale_orders": len(sale_orders),
-            "partial_pickings": len(pickings),
-            "open_demand_qty": sum(row["open_demand_qty"] for row in demand_rows),
-            "ready_qty": sum(row["reserved_qty"] for row in demand_rows),
-            "missing_to_buy_qty": sum(
-                row["missing_to_buy_qty"] for row in demand_rows
-            ),
-            "incoming_purchase_qty": sum(
-                row["incoming_purchase_qty"] for row in demand_rows
-            ),
-        }
-
         chart_data = self._get_chart_data(
             company,
             period,
@@ -337,12 +407,12 @@ class SystoreSupplyDashboard(models.AbstractModel):
             warehouse_id=warehouse_id,
             supplier_id=supplier_id,
             supplier_type=supplier_type,
+            product_ids=product_ids,
             receipt_period=receipt_period,
         )
-        requested_pieces = kpis["open_demand_qty"]
-        pieces_to_buy = kpis["missing_to_buy_qty"]
+        requested_pieces = sum(row["open_demand_qty"] for row in demand_rows)
+        pieces_to_buy = sum(row["missing_to_buy_qty"] for row in demand_rows)
         covered_pieces = max(requested_pieces - pieces_to_buy, 0.0)
-        kpis["covered_qty"] = covered_pieces
         chart_data["charts"]["demand_pieces"] = {
             "requested": requested_pieces,
             "covered": covered_pieces,
@@ -355,6 +425,20 @@ class SystoreSupplyDashboard(models.AbstractModel):
                 pieces_to_buy / requested_pieces * 100.0
                 if requested_pieces else 0.0
             ),
+        }
+        chart_data["charts"]["waiting_channels"] = {
+            "total": waiting_total_pieces,
+            "total_orders": waiting_total_orders,
+            "wholesale": waiting_pieces["wholesale"],
+            "retail": waiting_pieces["retail"],
+            "wholesale_percent": (
+                waiting_pieces["wholesale"] / waiting_total_pieces * 100.0
+                if waiting_total_pieces else 0.0
+            ),
+            "wholesale_orders": waiting_counts["wholesale"],
+            "retail_orders": waiting_counts["retail"],
+            "wholesale_sale_ids": list(waiting_order_ids["wholesale"]),
+            "retail_sale_ids": list(waiting_order_ids["retail"]),
         }
 
         warehouses = self.env["stock.warehouse"].search_read(
@@ -380,115 +464,26 @@ class SystoreSupplyDashboard(models.AbstractModel):
             for supplier in suppliers.sorted(lambda item: (item.display_name or "").lower())
         ]
         return {
-            "period_month": period["key"],
-            "date_from": receipt_period["date_from"],
-            "date_to": receipt_period["date_to"],
-            "kpis": kpis,
             "charts": chart_data["charts"],
-            "purchases": [],
             "demand": demand_top_rows,
-            "demand_period": demand_period,
+            "demand_line_ids": all_demand_lines.ids,
             "demand_periods": [
                 {"key": month_key, "label": month_key}
                 for month_key in available_demand_months
             ],
-            "trace": [],
+            "products": product_options,
             "suppliers": supplier_options,
             "rankings": chart_data["rankings"],
             "warehouses": warehouses,
-            "counts": {
-                "purchase_lines": 0,
-                "demand_lines": len(selected_demand_lines),
-                "trace_lines": 0,
-            },
         }
 
     @api.model
     def _get_chart_data(
         self, company, period, channel=None, warehouse_id=None,
-        supplier_id=None, supplier_type=None, receipt_period=None,
+        supplier_id=None, supplier_type=None, product_ids=None, receipt_period=None,
     ):
         """Build lightweight chart totals for the selected calendar month."""
-        Picking = self.env["stock.picking"].sudo()
-        pickings = Picking.search([
-            ("company_id", "=", company.id),
-            ("state", "!=", "cancel"),
-            ("systore_batch_readiness_state", "in", ["complete", "partial"]),
-            ("location_id.name", "=ilike", "Existencias"),
-            ("scheduled_date", ">=", period["utc_start"]),
-            ("scheduled_date", "<", period["utc_end"]),
-        ])
-        DemandLine = self.env["systore.supply.demand.line"]
-        sale_metrics = {}
-        for picking in pickings:
-            sale = DemandLine._sale_from_picking(picking)
-            if not sale:
-                continue
-            warehouse = sale.warehouse_id or picking.picking_type_id.warehouse_id
-            if (
-                not warehouse
-                or not warehouse._systore_is_managed_for_supply()
-                or (warehouse_id and warehouse.id != warehouse_id)
-            ):
-                continue
-            resolved_channel = warehouse._systore_resolved_supply_channel(picking.location_id)
-            status = picking.systore_batch_readiness_state
-            metrics = sale_metrics.setdefault(sale.id, {
-                "status": status,
-                "channel": resolved_channel,
-                "pieces": 0.0,
-            })
-            if status == "partial":
-                metrics["status"] = "partial"
-            for move in picking.move_ids_without_package.filtered(
-                lambda item: item.state != "cancel" and item.product_id
-            ):
-                metrics["pieces"] += DemandLine._convert_qty(
-                    move.product_uom_qty or 0.0,
-                    move.product_uom,
-                    move.product_id,
-                )
-
-        status_counts = defaultdict(int)
-        status_pieces = defaultdict(float)
-        status_sale_ids = defaultdict(list)
-        channel_counts = defaultdict(int)
-        channel_pieces = defaultdict(float)
-        channel_sale_ids = defaultdict(list)
-        for sale_id, metrics in sale_metrics.items():
-            status = metrics["status"]
-            resolved_channel = metrics["channel"]
-            channel_counts[resolved_channel] += 1
-            channel_pieces[resolved_channel] += metrics["pieces"]
-            channel_sale_ids[resolved_channel].append(sale_id)
-            if not channel or resolved_channel == channel:
-                status_counts[status] += 1
-                status_pieces[status] += metrics["pieces"]
-                status_sale_ids[status].append(sale_id)
-
-        status_total = status_counts.get("complete", 0) + status_counts.get("partial", 0)
-        readiness = [
-            {
-                "key": "complete",
-                "label": "Listas",
-                "value": status_counts.get("complete", 0),
-                "pieces": status_pieces.get("complete", 0.0),
-                "percent": status_counts.get("complete", 0) / status_total * 100.0 if status_total else 0.0,
-                "sale_ids": status_sale_ids.get("complete", []),
-            },
-            {
-                "key": "partial",
-                "label": "Parciales",
-                "value": status_counts.get("partial", 0),
-                "pieces": status_pieces.get("partial", 0.0),
-                "percent": status_counts.get("partial", 0) / status_total * 100.0 if status_total else 0.0,
-                "sale_ids": status_sale_ids.get("partial", []),
-            },
-        ]
-
-        channel_total = channel_counts.get("wholesale", 0) + channel_counts.get("retail", 0)
-        wholesale_pct = channel_counts.get("wholesale", 0) / channel_total * 100.0 if channel_total else 0.0
-
+        product_ids = set(product_ids or [])
         purchase_domain = [
             ("company_id", "=", company.id),
             ("warehouse_id", "!=", False),
@@ -502,6 +497,8 @@ class SystoreSupplyDashboard(models.AbstractModel):
             purchase_domain.append(("channel", "=", channel))
         if supplier_type:
             purchase_domain.append(("purchase_origin", "=", supplier_type))
+        if product_ids:
+            purchase_domain.append(("product_id", "in", list(product_ids)))
         base_purchase_lines = self.env["systore.supply.purchase.line"].search(purchase_domain)
         purchase_lines = base_purchase_lines.filtered(
             lambda line: not supplier_id or line.supplier_id.id == supplier_id
@@ -512,11 +509,10 @@ class SystoreSupplyDashboard(models.AbstractModel):
         received_pct = received_qty / pieces_total * 100.0 if pieces_total else 0.0
 
         products = defaultdict(lambda: {
-            "order_ids": set(), "ordered": 0.0, "received": 0.0, "pending": 0.0,
+            "order_ids": set(), "ordered": 0.0, "received": 0.0,
         })
         suppliers = defaultdict(lambda: {
-            "order_ids": set(), "debt_order_ids": set(),
-            "ordered": 0.0, "received": 0.0, "pending": 0.0,
+            "order_ids": set(), "ordered": 0.0, "received": 0.0,
         })
         for line in purchase_lines:
             product = products[line.product_id.id]
@@ -524,16 +520,13 @@ class SystoreSupplyDashboard(models.AbstractModel):
             product["order_ids"].add(line.purchase_order_id.id)
             product["ordered"] += line.ordered_qty
             product["received"] += line.net_received_qty
-            product["pending"] += line.pending_qty
 
             supplier = suppliers[line.supplier_id.id]
             supplier["name"] = line.supplier_id.display_name
             supplier["order_ids"].add(line.purchase_order_id.id)
             supplier["ordered"] += line.ordered_qty
             supplier["received"] += line.net_received_qty
-            supplier["pending"] += line.pending_qty
 
-        purchase_orders = purchase_lines.mapped("purchase_order_id")
         debt_orders = self._historical_purchase_orders(
             company, warehouse_id=warehouse_id, channel=channel,
             supplier_type=supplier_type,
@@ -579,12 +572,7 @@ class SystoreSupplyDashboard(models.AbstractModel):
                     "order_count": len(values["order_ids"]),
                     "ordered": ordered,
                     "received": received,
-                    "pending": values["pending"],
                     "received_percent": min(received / ordered * 100.0, 100.0) if ordered else 0.0,
-                    "order_ids": list(values["order_ids"]),
-                    "debt_order_ids": list(values.get("debt_order_ids", set())),
-                    "debt": values.get("debt", 0.0),
-                    "debt_usd": values.get("debt_usd", 0.0),
                 })
             return result
 
@@ -602,8 +590,7 @@ class SystoreSupplyDashboard(models.AbstractModel):
             ("date", "<", receipt_period["utc_end"]),
         ])
         received_products = defaultdict(lambda: {
-            "gross": 0.0, "returned": 0.0, "move_ids": set(),
-            "order_ids": set(), "line_ids": set(),
+            "gross": 0.0, "returned": 0.0, "line_ids": set(),
             "supplier_usd_gross": 0.0, "supplier_usd_returned": 0.0,
             "supplier_mxn_gross": 0.0, "supplier_mxn_returned": 0.0,
             "net_cost_mxn_gross": 0.0, "net_cost_mxn_returned": 0.0,
@@ -747,6 +734,7 @@ class SystoreSupplyDashboard(models.AbstractModel):
                 not order
                 or order not in qualifying_orders
                 or not partner
+                or (product_ids and move.product_id.id not in product_ids)
                 or not move_matches_filters(move, partner, order)
             ):
                 continue
@@ -763,8 +751,6 @@ class SystoreSupplyDashboard(models.AbstractModel):
             values["net_cost_mxn_gross"] += net_cost_mxn
             values["has_international"] |= international
             values["has_national"] |= bool(order and not international)
-            values["move_ids"].add(move.id)
-            values["order_ids"].add(order.id)
             if purchase_line:
                 values["line_ids"].add(purchase_line.id)
 
@@ -773,13 +759,16 @@ class SystoreSupplyDashboard(models.AbstractModel):
         for order in qualifying_orders:
             international = order._systore_resolved_purchase_origin() == "international"
             for line in order.order_line.filtered(
-                lambda item: not item.display_type and item.product_id
+                lambda item: (
+                    not item.display_type
+                    and item.product_id
+                    and (not product_ids or item.product_id.id in product_ids)
+                )
             ):
                 values = received_products[(order.partner_id.id, line.product_id.id)]
                 values["partner_name"] = order.partner_id.display_name
                 values["name"] = line.product_id.display_name
                 values["sku"] = line.product_id.default_code or ""
-                values["order_ids"].add(order.id)
                 values["line_ids"].add(line.id)
                 values["has_international"] |= international
                 values["has_national"] |= not international
@@ -789,6 +778,7 @@ class SystoreSupplyDashboard(models.AbstractModel):
             key = (partner.id, move.product_id.id) if partner else False
             if (
                 not key or key not in received_products
+                or (product_ids and move.product_id.id not in product_ids)
                 or not move_matches_filters(move, partner, order)
             ):
                 continue
@@ -802,9 +792,6 @@ class SystoreSupplyDashboard(models.AbstractModel):
             values["net_cost_mxn_returned"] += net_cost_mxn
             values["has_international"] |= international
             values["has_national"] |= bool(order and not international)
-            values["move_ids"].add(move.id)
-            if order:
-                values["order_ids"].add(order.id)
             if purchase_line:
                 values["line_ids"].add(purchase_line.id)
 
@@ -904,8 +891,6 @@ class SystoreSupplyDashboard(models.AbstractModel):
                 "supplier_cost_mxn": supplier_cost_mxn,
                 "net_cost_mxn": net_cost_mxn,
                 "values": status_values,
-                "move_ids": list(values["move_ids"]),
-                "order_ids": list(values["order_ids"]),
             }
             supplier_values = received_by_supplier[partner_id]
             supplier_values["name"] = values["partner_name"]
@@ -1038,28 +1023,19 @@ class SystoreSupplyDashboard(models.AbstractModel):
 
         national_debts = debt_rows("national")
         international_debts = debt_rows("international")
+        credit_rows = self._supplier_credit_rows(
+            company,
+            supplier_id=supplier_id,
+            supplier_type=supplier_type,
+        )
 
         return {
             "charts": {
-                "readiness": readiness,
-                "readiness_total": status_total,
-                "readiness_pieces": sum(status_pieces.values()),
-                "channels": {
-                    "total": channel_total,
-                    "wholesale": channel_counts.get("wholesale", 0),
-                    "retail": channel_counts.get("retail", 0),
-                    "wholesale_percent": wholesale_pct,
-                    "wholesale_pieces": channel_pieces.get("wholesale", 0.0),
-                    "retail_pieces": channel_pieces.get("retail", 0.0),
-                    "wholesale_sale_ids": channel_sale_ids.get("wholesale", []),
-                    "retail_sale_ids": channel_sale_ids.get("retail", []),
-                },
                 "pieces": {
                     "total": pieces_total,
                     "received": received_qty,
                     "pending": pending_qty,
                     "received_percent": received_pct,
-                    "purchase_order_ids": purchase_orders.ids,
                 },
                 "purchased_by_supplier": purchased_by_supplier,
             },
@@ -1068,7 +1044,6 @@ class SystoreSupplyDashboard(models.AbstractModel):
                 "received_products_by_supplier": received_supplier_rows,
                 "received_products_totals": received_totals,
                 "suppliers": supplier_rows,
-                "debts": national_debts + international_debts,
                 "debts_national": national_debts,
                 "debts_international": international_debts,
                 "debt_national_mxn": sum(
@@ -1080,5 +1055,7 @@ class SystoreSupplyDashboard(models.AbstractModel):
                 "debt_international_usd": sum(
                     value["usd"] for value in debt_by_sector["international"].values()
                 ),
+                "credit_suppliers": credit_rows,
+                "credit_provider_count": len(credit_rows),
             },
         }

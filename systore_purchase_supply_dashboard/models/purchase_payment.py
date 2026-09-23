@@ -1,5 +1,5 @@
 from odoo import _, api, fields, models
-from odoo.exceptions import ValidationError
+from odoo.exceptions import UserError, ValidationError
 
 
 class SystorePurchasePayment(models.Model):
@@ -146,7 +146,7 @@ class PurchaseOrder(models.Model):
         readonly=True,
     )
     systore_amount_payable_mxn = fields.Monetary(
-        string="Monto total a pagar (MXN)",
+        string="Monto proveedor a pagar (MXN)",
         currency_field="systore_company_currency_id",
         compute="_compute_systore_payment_obligations",
         store=True,
@@ -156,13 +156,13 @@ class PurchaseOrder(models.Model):
         ),
     )
     systore_amount_paid_mxn = fields.Monetary(
-        string="Pagado (MXN)",
+        string="Pagado al proveedor (MXN)",
         currency_field="systore_company_currency_id",
         compute="_compute_systore_payment_totals",
         store=True,
     )
     systore_amount_pending_mxn = fields.Monetary(
-        string="Pendiente (MXN)",
+        string="Pendiente con proveedor (MXN)",
         currency_field="systore_company_currency_id",
         compute="_compute_systore_payment_totals",
         store=True,
@@ -218,13 +218,13 @@ class PurchaseOrder(models.Model):
         store=True,
     )
     systore_amount_paid_usd = fields.Float(
-        string="Pagado (USD)",
+        string="Pagado al proveedor (USD)",
         compute="_compute_systore_payment_totals",
         store=True,
         digits=(16, 2),
     )
     systore_amount_pending_usd = fields.Float(
-        string="Pendiente (USD)",
+        string="Pendiente con proveedor (USD)",
         compute="_compute_systore_payment_totals",
         store=True,
         digits=(16, 2),
@@ -268,6 +268,253 @@ class PurchaseOrder(models.Model):
         required=True,
         tracking=True,
     )
+    systore_purchase_condition = fields.Selection(
+        [
+            ("undefined", "Sin definir"),
+            ("cash", "Contado"),
+            ("credit", "Crédito"),
+        ],
+        string="Condición de compra",
+        required=True,
+        default="undefined",
+        tracking=True,
+        index=True,
+        help="Define si esta orden consume o no la línea de crédito del proveedor.",
+    )
+    systore_credit_currency_id = fields.Many2one(
+        "res.currency",
+        string="Moneda del crédito",
+        copy=True,
+        tracking=True,
+    )
+    systore_credit_days = fields.Integer(
+        string="Días de crédito",
+        compute="_compute_systore_credit_days",
+        store=True,
+        help="Días naturales entre el inicio y el vencimiento del crédito.",
+    )
+    systore_credit_start_date = fields.Date(
+        string="Inicio de crédito",
+        copy=False,
+        tracking=True,
+        index=True,
+    )
+    systore_credit_due_date = fields.Date(
+        string="Vencimiento crédito",
+        copy=False,
+        tracking=True,
+        index=True,
+    )
+    systore_credit_amount = fields.Monetary(
+        string="Monto sujeto a crédito",
+        currency_field="systore_credit_currency_id",
+        compute="_compute_systore_credit_amounts",
+        store=True,
+    )
+    systore_credit_paid = fields.Monetary(
+        string="Abonado al crédito",
+        currency_field="systore_credit_currency_id",
+        compute="_compute_systore_credit_amounts",
+        store=True,
+    )
+    systore_credit_balance = fields.Monetary(
+        string="Saldo que consume crédito",
+        currency_field="systore_credit_currency_id",
+        compute="_compute_systore_credit_amounts",
+        store=True,
+    )
+    systore_credit_status = fields.Selection(
+        [
+            ("not_applicable", "No aplica"),
+            ("not_started", "Crédito por iniciar"),
+            ("active", "Vigente"),
+            ("overdue", "Vencido"),
+            ("paid", "Pagado"),
+        ],
+        string="Estado del crédito",
+        compute="_compute_systore_credit_status",
+    )
+
+    @api.model
+    def _systore_credit_defaults_from_partner(self, partner):
+        if not partner:
+            return {"systore_purchase_condition": "undefined"}
+        if not partner.systore_supplier_credit_enabled:
+            return {"systore_purchase_condition": "cash"}
+        return {
+            "systore_purchase_condition": "undefined",
+            "systore_credit_currency_id": (
+                partner.systore_supplier_credit_currency_id.id
+                if partner.systore_supplier_credit_currency_id else False
+            ),
+        }
+
+    @api.onchange("partner_id")
+    def _onchange_systore_credit_partner(self):
+        for order in self:
+            defaults = order._systore_credit_defaults_from_partner(order.partner_id)
+            for field_name, value in defaults.items():
+                order[field_name] = value
+
+    @api.onchange("systore_purchase_condition")
+    def _onchange_systore_purchase_condition(self):
+        for order in self:
+            if order.systore_purchase_condition != "credit":
+                continue
+            partner = order.partner_id
+            if partner and not order.systore_credit_currency_id:
+                order.systore_credit_currency_id = (
+                    partner.systore_supplier_credit_currency_id
+                    or order.company_id.currency_id
+                )
+
+    @api.model_create_multi
+    def create(self, vals_list):
+        Partner = self.env["res.partner"]
+        prepared = []
+        for values in vals_list:
+            vals = dict(values)
+            if vals.get("partner_id") and not vals.get("systore_purchase_condition"):
+                defaults = self._systore_credit_defaults_from_partner(
+                    Partner.browse(vals["partner_id"])
+                )
+                defaults.update(vals)
+                vals = defaults
+            prepared.append(vals)
+        return super().create(prepared)
+
+    @api.depends("systore_credit_start_date", "systore_credit_due_date")
+    def _compute_systore_credit_days(self):
+        for order in self:
+            if order.systore_credit_start_date and order.systore_credit_due_date:
+                order.systore_credit_days = (
+                    order.systore_credit_due_date - order.systore_credit_start_date
+                ).days
+            else:
+                order.systore_credit_days = 0
+
+    def _systore_convert_credit_amount(self, amount, source_currency, target_currency):
+        self.ensure_one()
+        if not amount or not source_currency or not target_currency:
+            return 0.0
+        if source_currency == target_currency:
+            return amount
+        usd = self.env.ref("base.USD", raise_if_not_found=False)
+        company_currency = self.company_id.currency_id
+        exchange_rate = self.x_exchange_rate or 0.0
+        if usd and exchange_rate:
+            if source_currency == usd and target_currency == company_currency:
+                return amount * exchange_rate
+            if source_currency == company_currency and target_currency == usd:
+                return amount / exchange_rate
+        conversion_date = fields.Date.to_date(self.date_order) or fields.Date.context_today(self)
+        return source_currency._convert(
+            amount, target_currency, self.company_id, conversion_date
+        )
+
+    @api.depends(
+        "systore_purchase_condition",
+        "systore_credit_currency_id",
+        "systore_is_international",
+        "systore_merchandise_payable_usd",
+        "systore_merchandise_paid_usd",
+        "systore_merchandise_pending_usd",
+        "systore_amount_payable_mxn",
+        "systore_amount_paid_mxn",
+        "systore_amount_pending_mxn",
+        "systore_payment_status_manual",
+        "x_exchange_rate",
+    )
+    def _compute_systore_credit_amounts(self):
+        usd = self.env.ref("base.USD", raise_if_not_found=False)
+        for order in self:
+            amount = paid = balance = 0.0
+            target_currency = order.systore_credit_currency_id
+            if order.systore_purchase_condition == "credit" and target_currency:
+                if order.systore_is_international and usd:
+                    source_currency = usd
+                    source_amount = order.systore_merchandise_payable_usd
+                    source_paid = order.systore_merchandise_paid_usd
+                    source_balance = order.systore_merchandise_pending_usd
+                else:
+                    source_currency = order.company_id.currency_id
+                    source_amount = order.systore_amount_payable_mxn
+                    source_paid = order.systore_amount_paid_mxn
+                    source_balance = order.systore_amount_pending_mxn
+                amount = order._systore_convert_credit_amount(
+                    source_amount, source_currency, target_currency
+                )
+                paid = order._systore_convert_credit_amount(
+                    source_paid, source_currency, target_currency
+                )
+                balance = order._systore_convert_credit_amount(
+                    source_balance, source_currency, target_currency
+                )
+            order.systore_credit_amount = amount
+            order.systore_credit_paid = min(paid, amount) if amount else 0.0
+            order.systore_credit_balance = min(balance, amount) if amount else 0.0
+
+    def _systore_credit_balance_in_currency(self, currency):
+        self.ensure_one()
+        return self._systore_convert_credit_amount(
+            self.systore_credit_balance,
+            self.systore_credit_currency_id,
+            currency,
+        )
+
+    @api.depends(
+        "systore_purchase_condition",
+        "systore_credit_start_date",
+        "systore_credit_due_date",
+        "systore_credit_amount",
+        "systore_credit_balance",
+        "systore_payment_status",
+    )
+    def _compute_systore_credit_status(self):
+        today = fields.Date.context_today(self)
+        for order in self:
+            start_date = order.systore_credit_start_date
+            due_date = order.systore_credit_due_date
+            if order.systore_purchase_condition != "credit":
+                status = "not_applicable"
+            elif order.systore_payment_status == "paid" or (
+                order.systore_credit_amount > 0 and order.systore_credit_balance <= 0
+            ):
+                status = "paid"
+            elif not start_date or not due_date or today < start_date:
+                status = "not_started"
+            elif due_date < today:
+                status = "overdue"
+            else:
+                status = "active"
+            order.systore_credit_status = status
+
+    @api.constrains("systore_credit_start_date", "systore_credit_due_date")
+    def _check_systore_credit_dates(self):
+        for order in self:
+            if (
+                order.systore_credit_start_date
+                and order.systore_credit_due_date
+                and order.systore_credit_due_date < order.systore_credit_start_date
+            ):
+                raise ValidationError(
+                    "El vencimiento del crédito no puede ser anterior a su inicio."
+                )
+
+    def button_confirm(self):
+        for order in self:
+            if order.systore_purchase_condition == "undefined":
+                raise UserError(_(
+                    "Define si la orden %s es una compra de Contado o a Crédito."
+                ) % order.name)
+            if order.systore_purchase_condition == "credit":
+                if not order.systore_credit_currency_id:
+                    raise UserError(_("Selecciona la moneda del crédito."))
+                if not order.systore_credit_start_date:
+                    raise UserError(_("Captura el inicio del crédito."))
+                if not order.systore_credit_due_date:
+                    raise UserError(_("Captura el vencimiento del crédito."))
+        return super().button_confirm()
 
     @api.depends(
         "systore_purchase_origin",
@@ -288,10 +535,7 @@ class PurchaseOrder(models.Model):
                     merchandise_usd += qty * (line.x_gross_usd or 0.0)
                     shipping_usd += qty * (line.x_ship_usd or 0.0)
                     import_mxn += qty * (line.x_import_mxn or 0.0)
-                payable_mxn = (
-                    (merchandise_usd + shipping_usd) * (order.x_exchange_rate or 0.0)
-                    + import_mxn
-                )
+                payable_mxn = merchandise_usd * (order.x_exchange_rate or 0.0)
             else:
                 payable_mxn = order.amount_total or 0.0
             order.systore_is_international = international
@@ -316,19 +560,29 @@ class PurchaseOrder(models.Model):
     def _compute_systore_payment_totals(self):
         for order in self:
             payments = order.systore_payment_line_ids
-            usd_payments = payments.filtered(lambda item: item.payment_currency == "usd")
-            paid_mxn = sum(payments.mapped("amount_mxn"))
-            paid_usd = sum(usd_payments.mapped("amount_usd"))
-            paid_mxn_usd = sum(usd_payments.mapped("amount_mxn"))
-            effective_rate = paid_mxn_usd / paid_usd if paid_usd else 0.0
-            merchandise = usd_payments.filtered(lambda item: item.concept == "merchandise")
-            shipping = usd_payments.filtered(lambda item: item.concept == "shipping")
+            merchandise_payments = payments.filtered(
+                lambda item: item.concept == "merchandise"
+            )
+            merchandise = merchandise_payments.filtered(
+                lambda item: item.payment_currency == "usd"
+            )
+            shipping = payments.filtered(
+                lambda item: (
+                    item.concept == "shipping" and item.payment_currency == "usd"
+                )
+            )
             import_payments = payments.filtered(
                 lambda item: item.concept == "import" and item.payment_currency == "mxn"
             )
             merchandise_paid = sum(merchandise.mapped("amount_usd"))
+            merchandise_paid_mxn = sum(merchandise.mapped("amount_mxn"))
+            national_paid_mxn = sum(merchandise_payments.mapped("amount_mxn"))
             shipping_paid = sum(shipping.mapped("amount_usd"))
             import_paid = sum(import_payments.mapped("amount_mxn"))
+            effective_rate = (
+                merchandise_paid_mxn / merchandise_paid
+                if merchandise_paid else 0.0
+            )
             merchandise_pending = max(
                 order.systore_merchandise_payable_usd - merchandise_paid, 0.0
             )
@@ -339,33 +593,26 @@ class PurchaseOrder(models.Model):
 
             if order.systore_is_international:
                 merchandise_rate = (
-                    sum(merchandise.mapped("amount_mxn")) / merchandise_paid
-                    if merchandise_paid else (order.x_exchange_rate or 0.0)
+                    effective_rate or order.x_exchange_rate or 0.0
                 )
-                shipping_rate = (
-                    sum(shipping.mapped("amount_mxn")) / shipping_paid
-                    if shipping_paid else (order.x_exchange_rate or 0.0)
-                )
-                pending_mxn = (
-                    merchandise_pending * merchandise_rate
-                    + shipping_pending * shipping_rate
-                    + import_pending
-                )
-                has_payment = paid_usd > 0 or import_paid > 0
-                has_pending = (
-                    merchandise_pending >= 0.01
-                    or shipping_pending >= 0.01
-                    or import_pending >= (order.company_id.currency_id.rounding or 0.01)
-                )
+                paid_mxn = merchandise_paid_mxn
+                paid_usd = merchandise_paid
+                pending_mxn = merchandise_pending * merchandise_rate
+                pending_usd = merchandise_pending
+                has_payment = merchandise_paid > 0
+                has_pending = merchandise_pending >= 0.01
             else:
+                paid_mxn = national_paid_mxn
+                paid_usd = 0.0
                 pending_mxn = max(order.systore_amount_payable_mxn - paid_mxn, 0.0)
+                pending_usd = 0.0
                 has_payment = paid_mxn > 0
                 has_pending = pending_mxn >= (order.company_id.currency_id.rounding or 0.01)
 
             order.systore_amount_paid_mxn = paid_mxn
             order.systore_amount_pending_mxn = pending_mxn
             order.systore_amount_paid_usd = paid_usd
-            order.systore_amount_pending_usd = merchandise_pending + shipping_pending
+            order.systore_amount_pending_usd = pending_usd
             order.systore_effective_exchange_rate = effective_rate
             order.systore_merchandise_paid_usd = merchandise_paid
             order.systore_merchandise_pending_usd = merchandise_pending
@@ -378,8 +625,6 @@ class PurchaseOrder(models.Model):
                 order.systore_amount_pending_mxn = 0.0
                 order.systore_amount_pending_usd = 0.0
                 order.systore_merchandise_pending_usd = 0.0
-                order.systore_shipping_pending_usd = 0.0
-                order.systore_import_pending_mxn = 0.0
                 status = "paid"
             elif manual_status in ("pending", "partial"):
                 status = manual_status
@@ -410,53 +655,16 @@ class PurchaseOrder(models.Model):
             merchandise_paid_mxn / self.systore_merchandise_paid_usd
             if self.systore_merchandise_paid_usd else (self.x_exchange_rate or 0.0)
         )
-        shipping_paid_mxn = sum(self.systore_payment_line_ids.filtered(
-            lambda item: item.concept == "shipping" and item.payment_currency == "usd"
-        ).mapped("amount_mxn"))
-        shipping_rate = (
-            shipping_paid_mxn / self.systore_shipping_paid_usd
-            if self.systore_shipping_paid_usd else (self.x_exchange_rate or 0.0)
-        )
-        components = []
         if self.systore_merchandise_pending_usd > 0:
-            components.append({
+            return [{
                 "partner": self.partner_id,
                 "concept": "merchandise",
                 "paid_usd": self.systore_merchandise_paid_usd,
                 "paid_mxn": merchandise_paid_mxn,
                 "pending_usd": self.systore_merchandise_pending_usd,
                 "pending_mxn": self.systore_merchandise_pending_usd * merchandise_rate,
-            })
-        if self.systore_shipping_pending_usd > 0:
-            components.append({
-                "partner": self.company_id.x_vendor_shipping_id,
-                "concept": "shipping",
-                "paid_usd": self.systore_shipping_paid_usd,
-                "paid_mxn": shipping_paid_mxn,
-                "pending_usd": self.systore_shipping_pending_usd,
-                "pending_mxn": self.systore_shipping_pending_usd * shipping_rate,
-            })
-        if self.systore_import_pending_mxn > 0:
-            import_rate = (
-                self.systore_effective_exchange_rate
-                or self.x_exchange_rate
-                or 0.0
-            )
-            components.append({
-                "partner": self.company_id.x_vendor_import_id,
-                "concept": "import",
-                "paid_usd": (
-                    self.systore_import_paid_mxn / import_rate
-                    if import_rate else 0.0
-                ),
-                "paid_mxn": self.systore_import_paid_mxn,
-                "pending_usd": (
-                    self.systore_import_pending_mxn / import_rate
-                    if import_rate else 0.0
-                ),
-                "pending_mxn": self.systore_import_pending_mxn,
-            })
-        return [item for item in components if item["partner"]]
+            }]
+        return []
 
     def action_systore_open_payments(self):
         self.ensure_one()

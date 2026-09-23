@@ -4,8 +4,7 @@
         <div class="o_systore_supply_dashboard h-100 overflow-auto">
             <div class="o_supply_header sticky-top">
                 <div>
-                    <h1>Analítica de ventas</h1>
-                    <p>Órdenes de venta con traslados parciales originados en Existencias</p>
+                    <h1>Analítica de compras</h1>
                 </div>
                 <div class="d-flex gap-2">
                     <button class="btn btn-outline-secondary" t-on-click="previousMonth">Mes anterior</button>
@@ -20,7 +19,7 @@
 
             <div class="o_supply_filters">
                 <label>Mes operativo a actualizar<input type="month" class="form-control" required="required" t-att-value="state.filters.period_month" t-on-change="onPeriodMonth"/></label>
-                <label>Periodo de demanda
+                <label>Demanda hasta
                     <select class="form-select" t-att-value="state.filters.demand_period" t-on-change="onDemandPeriod">
                         <option value="all">Todos</option>
                         <t t-foreach="state.data.demand_periods" t-as="demandPeriod" t-key="demandPeriod.key">
@@ -28,6 +27,30 @@
                         </t>
                     </select>
                 </label>
+                <div class="o_supply_product_filter">
+                    <span class="o_supply_filter_label">Producto</span>
+                    <button type="button" class="o_supply_filter_trigger" t-on-click="toggleProductFilter">
+                        <span t-if="!state.filters.product_ids.length" class="o_supply_filter_placeholder">Buscar producto…</span>
+                        <span t-else="" class="o_supply_filter_chips">
+                            <span t-foreach="selectedProductLabels()" t-as="label" t-key="label" class="o_supply_filter_chip"><t t-esc="label"/></span>
+                        </span>
+                        <i class="fa fa-caret-down"/>
+                    </button>
+                    <div t-if="state.openFilter === 'product_ids'" class="o_supply_product_menu">
+                        <input type="search" class="o_supply_product_search" placeholder="Buscar por SKU o nombre…"
+                               t-att-value="state.productSearch" t-on-input="onProductSearch"/>
+                        <div class="o_supply_product_options">
+                            <label t-foreach="filteredProducts()" t-as="product" t-key="product.id">
+                                <input type="checkbox" t-att-value="product.id"
+                                       t-att-checked="isProductSelected(product.id)" t-on-change="onProductToggle"/>
+                                <span t-esc="productOptionLabel(product)"/>
+                            </label>
+                            <div t-if="!filteredProducts().length" class="o_supply_product_empty">Sin coincidencias</div>
+                        </div>
+                        <button type="button" class="btn btn-link btn-sm" t-on-click="clearProductFilter"
+                                t-att-disabled="!state.filters.product_ids.length">Limpiar</button>
+                    </div>
+                </div>
                 <label>Recepciones desde<input type="date" class="form-control" required="required" t-att-value="state.filters.date_from" t-on-change="onDateFrom"/></label>
                 <label>Recepciones hasta<input type="date" class="form-control" required="required" t-att-value="state.filters.date_to" t-on-change="onDateTo"/></label>
                 <label>Canal
@@ -67,8 +90,95 @@
                 <i class="fa fa-circle-o-notch fa-spin"/> Cargando demanda…
             </div>
             <t t-else="">
+                <section class="o_supply_panel o_supply_credit_panel">
+                    <div class="o_supply_panel_title">
+                        <div>
+                            <h2>Crédito con proveedores</h2>
+                            <small>Cada barra representa el límite total del proveedor y el tramo coloreado muestra el crédito ocupado.</small>
+                        </div>
+                        <div class="o_supply_credit_summary">
+                            <span><strong t-esc="formatQty(state.data.rankings.credit_provider_count)"/><small>proveedores</small></span>
+                        </div>
+                    </div>
+                    <div class="o_supply_credit_chart">
+                        <button t-foreach="state.data.rankings.credit_suppliers" t-as="row" t-key="row.id"
+                                type="button" class="o_supply_credit_bar_row"
+                                t-att-class="row.available &lt; 0 ? 'is-exceeded' : ''"
+                                t-on-click="() => openIds('purchase.order', 'Crédito de ' + row.name, row.order_ids)">
+                            <span class="o_supply_credit_bar_heading">
+                                <span class="o_supply_rank_name">
+                                    <strong t-esc="row.name"/>
+                                    <small><t t-esc="formatQty(row.order_count)"/> órdenes a crédito · <t t-esc="row.currency"/></small>
+                                </span>
+                                <strong><t t-esc="formatCredit(row.used, row.currency)"/> / <t t-esc="formatCredit(row.limit, row.currency)"/></strong>
+                            </span>
+                            <span class="o_supply_credit_track">
+                                <i t-att-style="'width: ' + row.utilization_bar + '%;'"/>
+                            </span>
+                            <span class="o_supply_credit_bar_details">
+                                <small>Crédito ocupado: <strong t-esc="formatCredit(row.used, row.currency)"/></small>
+                                <small t-att-class="row.available &lt; 0 ? 'text-danger' : ''">
+                                    <t t-if="row.available &gt;= 0">Disponible: <strong t-esc="formatCredit(row.available, row.currency)"/></t>
+                                    <t t-else="">Excedido: <strong t-esc="formatCredit(row.excess, row.currency)"/></t>
+                                </small>
+                            </span>
+                        </button>
+                        <div t-if="!state.data.rankings.credit_suppliers.length" class="o_supply_empty">
+                            No hay líneas de crédito configuradas para los filtros seleccionados.
+                        </div>
+                    </div>
+                </section>
+
+                <div class="o_supply_debt_sectors o_supply_debt_sectors_stacked">
+                    <section class="o_supply_panel o_supply_debt_panel">
+                        <div class="o_supply_panel_title">
+                            <div><h2>Deuda a proveedores extranjeros</h2><small>Histórico de órdenes confirmadas internacionales.</small></div>
+                            <div class="o_supply_debt_heading">
+                                <label>Moneda
+                                    <select class="form-select form-select-sm" t-att-value="state.filters.foreign_debt_currency" t-on-change="onForeignDebtCurrency">
+                                        <option value="mxn">Pesos MXN</option>
+                                        <option value="usd">Dólares USD</option>
+                                    </select>
+                                </label>
+                                <div class="o_supply_debt_total">
+                                    <strong t-esc="formatForeignDebt(state.data.rankings.debt_international_usd, state.data.rankings.debt_international_mxn)"/>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="o_supply_debt_chart">
+                            <button t-foreach="state.data.rankings.debts_international" t-as="row" t-key="row.id" type="button"
+                                    class="o_supply_debt_row"
+                                    t-on-click="() => openIds('purchase.order', 'Deuda extranjera: ' + row.name, row.debt_order_ids)">
+                                <span class="o_supply_rank_name">
+                                    <strong t-esc="row.name"/>
+                                    <small>Abonado: <t t-esc="formatForeignDebt(row.paid_usd, row.paid_mxn)"/></small>
+                                </span>
+                                <span class="o_supply_debt_track"><i t-att-style="'width: ' + foreignDebtPercent(row) + '%;'"/></span>
+                                <strong t-esc="formatForeignDebt(row.debt_usd, row.debt)"/>
+                            </button>
+                            <div t-if="!state.data.rankings.debts_international.length" class="o_supply_empty">No hay deuda extranjera pendiente.</div>
+                        </div>
+                    </section>
+                    <section class="o_supply_panel o_supply_debt_panel">
+                        <div class="o_supply_panel_title">
+                            <div><h2>Deuda a proveedores nacionales</h2><small>Histórico de órdenes confirmadas nacionales.</small></div>
+                            <div class="o_supply_debt_total"><strong t-esc="formatMoney(state.data.rankings.debt_national_mxn)"/></div>
+                        </div>
+                        <div class="o_supply_debt_chart">
+                            <button t-foreach="state.data.rankings.debts_national" t-as="row" t-key="row.id" type="button"
+                                    class="o_supply_debt_row"
+                                    t-on-click="() => openIds('purchase.order', 'Deuda nacional: ' + row.name, row.debt_order_ids)">
+                                <span class="o_supply_rank_name"><strong t-esc="row.name"/><small>Abonado: <t t-esc="formatMoney(row.paid_mxn)"/></small></span>
+                                <span class="o_supply_debt_track"><i t-att-style="'width: ' + row.debt_percent + '%;'"/></span>
+                                <strong t-esc="formatMoney(row.debt)"/>
+                            </button>
+                            <div t-if="!state.data.rankings.debts_national.length" class="o_supply_empty">No hay deuda nacional pendiente.</div>
+                        </div>
+                    </section>
+                </div>
+
                 <div class="o_supply_charts">
-                    <section class="o_supply_chart_card">
+                    <section class="o_supply_chart_card o_supply_chart_card_demand">
                         <div class="o_supply_chart_title">
                             <h2>Demanda de piezas</h2>
                             <small>Solicitadas menos Por comprar muestra las piezas ya cubiertas.</small>
@@ -107,18 +217,18 @@
 
                     <section class="o_supply_chart_card">
                         <div class="o_supply_chart_title">
-                            <h2>Órdenes por canal</h2>
-                            <small>Distribución entre Mayoreo y Minorista.</small>
+                            <h2>Órdenes en espera por canal</h2>
+                            <small>Piezas solicitadas dentro del corte de demanda, distribuidas por canal.</small>
                         </div>
                         <div class="o_supply_pie_layout">
-                            <div class="o_supply_pie channel"
-                                 t-att-class="state.data.charts.channels.total ? '' : 'empty'"
-                                 t-att-style="'--slice: ' + state.data.charts.channels.wholesale_percent + '%;'">
-                                <div><strong t-esc="formatQty(state.data.charts.channels.total)"/><span>órdenes</span></div>
+                            <div class="o_supply_pie waiting-channel"
+                                 t-att-class="state.data.charts.waiting_channels.total ? '' : 'empty'"
+                                 t-att-style="'--slice: ' + state.data.charts.waiting_channels.wholesale_percent + '%;'">
+                                <div><strong t-esc="formatQty(state.data.charts.waiting_channels.total)"/><span>piezas</span></div>
                             </div>
                             <div class="o_supply_legend">
-                                <button type="button" t-on-click="() => openIds('sale.order', 'Mayoreo', state.data.charts.channels.wholesale_sale_ids)"><i class="wholesale"/><span>Mayoreo<small><t t-esc="formatQty(state.data.charts.channels.wholesale)"/> órdenes · <t t-esc="formatQty(state.data.charts.channels.wholesale_pieces)"/> piezas</small></span></button>
-                                <button type="button" t-on-click="() => openIds('sale.order', 'Minorista', state.data.charts.channels.retail_sale_ids)"><i class="retail"/><span>Minorista<small><t t-esc="formatQty(state.data.charts.channels.retail)"/> órdenes · <t t-esc="formatQty(state.data.charts.channels.retail_pieces)"/> piezas</small></span></button>
+                                <button type="button" t-on-click="() => openIds('sale.order', 'Mayoreo en espera', state.data.charts.waiting_channels.wholesale_sale_ids)"><i class="wholesale"/><span>Mayoreo<small><t t-esc="formatQty(state.data.charts.waiting_channels.wholesale)"/> piezas · <t t-esc="formatQty(state.data.charts.waiting_channels.wholesale_orders)"/> órdenes</small></span></button>
+                                <button type="button" t-on-click="() => openIds('sale.order', 'Minorista en espera', state.data.charts.waiting_channels.retail_sale_ids)"><i class="retail"/><span>Minorista<small><t t-esc="formatQty(state.data.charts.waiting_channels.retail)"/> piezas · <t t-esc="formatQty(state.data.charts.waiting_channels.retail_orders)"/> órdenes</small></span></button>
                             </div>
                         </div>
                     </section>
@@ -132,13 +242,18 @@
                             <small>Top 10 por piezas solicitadas. Las compras confirmadas pendientes de recepción reducen las piezas por comprar.</small>
                         </div>
                         <div class="o_supply_demand_actions">
+                            <label class="form-check form-switch o_supply_table_switch">
+                                <input class="form-check-input" type="checkbox" role="switch"
+                                       t-att-checked="state.showDemandTable" t-on-change="toggleDemandTable"/>
+                                <span class="form-check-label">Mostrar tabla</span>
+                            </label>
                             <button class="btn btn-link" t-on-click="() => openDemandLines('Análisis de demanda')">Abrir análisis completo</button>
                         </div>
                     </div>
-                    <div class="table-responsive">
+                    <div t-if="state.showDemandTable" class="table-responsive">
                         <table class="table table-hover align-middle">
                             <thead>
-                                <tr><th>SKU / Producto</th><th>Mes</th><th>Almacén</th><th>Canal</th><th class="text-end">Solicitadas</th><th class="text-end">En compra</th><th class="text-end">Por comprar</th><th>Estado</th></tr>
+                                <tr><th>SKU / Producto</th><th>Mes</th><th>Almacén</th><th>Canal</th><th class="text-end">Solicitadas</th><th class="text-end">En existencia</th><th class="text-end">En compra</th><th class="text-end">Por comprar</th><th>Estado</th></tr>
                             </thead>
                             <tbody>
                                 <tr t-foreach="state.data.demand" t-as="row" t-key="row.id">
@@ -147,11 +262,12 @@
                                     <td t-esc="row.warehouse_names"/>
                                     <td t-esc="row.channel_names"/>
                                     <td class="text-end" t-esc="formatQty(row.open_demand_qty)"/>
+                                    <td class="text-end text-success fw-bold" t-esc="formatQty(row.reserved_qty)"/>
                                     <td class="text-end text-warning fw-bold" t-esc="formatQty(row.incoming_purchase_qty)"/>
                                     <td class="text-end fw-bold text-danger" t-esc="formatQty(row.missing_to_buy_qty)"/>
                                     <td><span class="badge" t-att-class="badgeClass(row.coverage_status)" t-esc="coverageLabel(row.coverage_status)"/></td>
                                 </tr>
-                                <tr t-if="!state.data.demand.length"><td colspan="8" class="text-center text-muted py-5">No hay demanda pendiente para el periodo seleccionado.</td></tr>
+                                <tr t-if="!state.data.demand.length"><td colspan="9" class="text-center text-muted py-5">No hay demanda pendiente para el periodo seleccionado.</td></tr>
                             </tbody>
                         </table>
                     </div>
@@ -215,15 +331,22 @@
                             <h2>Productos recibidos</h2>
                             <small>Órdenes cuya primera recepción ocurrió entre <t t-esc="state.filters.date_from"/> y <t t-esc="state.filters.date_to"/>. Las recepciones posteriores actualizan la misma cohorte.</small>
                         </div>
-                        <label class="o_supply_received_cost_filter">Valuación
-                            <select class="form-select form-select-sm" t-att-value="state.filters.received_cost_mode" t-on-change="onReceivedCostMode">
-                                <option value="cost_usd">Costo USD</option>
-                                <option value="cost_mxn">Costo MXN</option>
-                                <option value="cost_net">Costo neto</option>
-                            </select>
-                        </label>
+                        <div class="o_supply_panel_actions">
+                            <label class="form-check form-switch o_supply_table_switch">
+                                <input class="form-check-input" type="checkbox" role="switch"
+                                       t-att-checked="state.showReceivedProductsTable" t-on-change="toggleReceivedProductsTable"/>
+                                <span class="form-check-label">Mostrar tabla</span>
+                            </label>
+                            <label class="o_supply_received_cost_filter">Valuación
+                                <select class="form-select form-select-sm" t-att-value="state.filters.received_cost_mode" t-on-change="onReceivedCostMode">
+                                    <option value="cost_usd">Costo USD</option>
+                                    <option value="cost_mxn">Costo MXN</option>
+                                    <option value="cost_net">Costo neto</option>
+                                </select>
+                            </label>
+                        </div>
                     </div>
-                    <div class="table-responsive">
+                    <div t-if="state.showReceivedProductsTable" class="table-responsive">
                         <table class="table table-hover align-middle o_supply_received_table">
                             <thead>
                                 <tr>
@@ -266,54 +389,6 @@
                         </table>
                     </div>
                 </section>
-
-                <div class="o_supply_debt_sectors">
-                    <section class="o_supply_panel o_supply_debt_panel">
-                        <div class="o_supply_panel_title">
-                            <div><h2>Deuda a proveedores nacionales</h2><small>Histórico de órdenes confirmadas nacionales.</small></div>
-                            <div class="o_supply_debt_total"><strong t-esc="formatMoney(state.data.rankings.debt_national_mxn)"/></div>
-                        </div>
-                        <div class="o_supply_debt_chart">
-                            <button t-foreach="state.data.rankings.debts_national" t-as="row" t-key="row.id" type="button"
-                                    class="o_supply_debt_row"
-                                    t-on-click="() => openIds('purchase.order', 'Deuda nacional: ' + row.name, row.debt_order_ids)">
-                                <span class="o_supply_rank_name"><strong t-esc="row.name"/><small>Abonado: <t t-esc="formatMoney(row.paid_mxn)"/></small></span>
-                                <span class="o_supply_debt_track"><i t-att-style="'width: ' + row.debt_percent + '%;'"/></span>
-                                <strong t-esc="formatMoney(row.debt)"/>
-                            </button>
-                            <div t-if="!state.data.rankings.debts_national.length" class="o_supply_empty">No hay deuda nacional pendiente.</div>
-                        </div>
-                    </section>
-                    <section class="o_supply_panel o_supply_debt_panel">
-                        <div class="o_supply_panel_title">
-                            <div><h2>Deuda a proveedores extranjeros</h2><small>Histórico de órdenes confirmadas internacionales.</small></div>
-                            <div class="o_supply_debt_heading">
-                                <label>Moneda
-                                    <select class="form-select form-select-sm" t-att-value="state.filters.foreign_debt_currency" t-on-change="onForeignDebtCurrency">
-                                        <option value="mxn">Pesos MXN</option>
-                                        <option value="usd">Dólares USD</option>
-                                    </select>
-                                </label>
-                                <div class="o_supply_debt_total">
-                                    <strong t-esc="formatForeignDebt(state.data.rankings.debt_international_usd, state.data.rankings.debt_international_mxn)"/>
-                                </div>
-                            </div>
-                        </div>
-                        <div class="o_supply_debt_chart">
-                            <button t-foreach="state.data.rankings.debts_international" t-as="row" t-key="row.id" type="button"
-                                    class="o_supply_debt_row"
-                                    t-on-click="() => openIds('purchase.order', 'Deuda extranjera: ' + row.name, row.debt_order_ids)">
-                                <span class="o_supply_rank_name">
-                                    <strong t-esc="row.name"/>
-                                    <small>Abonado: <t t-esc="formatForeignDebt(row.paid_usd, row.paid_mxn)"/></small>
-                                </span>
-                                <span class="o_supply_debt_track"><i t-att-style="'width: ' + foreignDebtPercent(row) + '%;'"/></span>
-                                <strong t-esc="formatForeignDebt(row.debt_usd, row.debt)"/>
-                            </button>
-                            <div t-if="!state.data.rankings.debts_international.length" class="o_supply_empty">No hay deuda extranjera pendiente.</div>
-                        </div>
-                    </section>
-                </div>
 
                 <div class="o_supply_rankings">
                     <section class="o_supply_panel">
