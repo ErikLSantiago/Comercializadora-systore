@@ -1,5 +1,10 @@
 # Historial de cambios
 
+## 18.0.1.9.5
+
+- Se agregó separación visual entre los filtros y Crédito con proveedores.
+- Deuda a proveedores extranjeros y Deuda a proveedores nacionales vuelven a compartir una misma fila, conservando ese orden de izquierda a derecha.
+
 ## 18.0.1.9.4
 
 - El tablero inicia, después de los filtros, con Crédito con proveedores.

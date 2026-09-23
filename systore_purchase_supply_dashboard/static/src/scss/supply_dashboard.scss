@@ -290,6 +290,7 @@
         box-shadow: 0 2px 10px rgba(23, 48, 66, .06);
         overflow: hidden;
     }
+    .o_supply_financial_start { margin-top: 18px; }
     .o_supply_debt_total {
         display: flex;
         flex-wrap: wrap;
@@ -311,7 +312,6 @@
         gap: 18px;
         margin: 0 24px 18px;
         .o_supply_panel { margin: 0; }
-        &.o_supply_debt_sectors_stacked { grid-template-columns: 1fr; }
     }
     .o_supply_debt_chart { display: grid; gap: 8px; }
     .o_supply_debt_row {
