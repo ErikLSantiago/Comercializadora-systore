@@ -1,5 +1,17 @@
 # Historial de cambios
 
+## 18.0.1.9.7
+
+- Corregido el contexto de los métodos usados por los botones de deuda para evitar el error de JavaScript `Cannot read properties of undefined (reading 'state')`.
+- Los controles **Desplegar resto de proveedores**, **Mostrar menos** y **Ver reporte completo** conservan ahora correctamente el estado del componente Owl.
+
+## 18.0.1.9.6
+
+- Los paneles de deuda muestran inicialmente los 10 proveedores con mayor saldo y permiten desplegar el resto.
+- Se agregó un acceso al reporte completo de órdenes que integran la deuda nacional o internacional.
+- La deuda se reconstruye al cierre del Mes operativo seleccionado: sólo incluye órdenes confirmadas y abonos con fecha hasta ese día.
+- Los pagos posteriores al mes consultado ya no reducen retroactivamente la deuda histórica.
+
 ## 18.0.1.9.5
 
 - Se agregó separación visual entre los filtros y Crédito con proveedores.

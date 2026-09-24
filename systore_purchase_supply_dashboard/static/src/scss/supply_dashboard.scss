@@ -314,6 +314,16 @@
         .o_supply_panel { margin: 0; }
     }
     .o_supply_debt_chart { display: grid; gap: 8px; }
+    .o_supply_debt_actions {
+        display: flex;
+        align-items: center;
+        justify-content: flex-end;
+        gap: 8px;
+        margin-top: 12px;
+        padding-top: 10px;
+        border-top: 1px solid #edf0f2;
+        .btn-link { margin-right: auto; }
+    }
     .o_supply_debt_row {
         display: grid;
         grid-template-columns: minmax(160px, 1fr) 3fr minmax(110px, auto);
@@ -497,6 +507,8 @@
         .o_supply_filters { grid-template-columns: 1fr; }
         .o_supply_debt_row, .o_supply_ranking_row { grid-template-columns: 1fr; gap: 5px; }
         .o_supply_debt_row > strong, .o_supply_rank_values { text-align: left; }
+        .o_supply_debt_actions { align-items: stretch; flex-direction: column; }
+        .o_supply_debt_actions .btn-link { margin-right: 0; }
         .o_supply_panel_title { align-items: flex-start; gap: 10px; }
         .o_supply_panel_actions, .o_supply_demand_actions {
             align-items: flex-end;

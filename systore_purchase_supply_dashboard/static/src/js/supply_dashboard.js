@@ -15,6 +15,10 @@ export class SystoreSupplyDashboard extends Component {
         this.openIds = this.openIds.bind(this);
         this.openPurchaseLines = this.openPurchaseLines.bind(this);
         this.openDemandLines = this.openDemandLines.bind(this);
+        this.debtRows = this.debtRows.bind(this);
+        this.toggleDebtProviders = this.toggleDebtProviders.bind(this);
+        this.debtOrderIds = this.debtOrderIds.bind(this);
+        this.debtCutoffLabel = this.debtCutoffLabel.bind(this);
         const today = new Date();
         const currentMonth = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, "0")}`;
         const lastDay = new Date(today.getFullYear(), today.getMonth() + 1, 0).getDate();
@@ -23,6 +27,8 @@ export class SystoreSupplyDashboard extends Component {
             refreshing: false,
             showDemandTable: true,
             showReceivedProductsTable: true,
+            showAllInternationalDebt: false,
+            showAllNationalDebt: false,
             data: {
                 charts: {
                     demand_pieces: { requested: 0, covered: 0, to_buy: 0, covered_percent: 0, to_buy_percent: 0 },
@@ -44,6 +50,7 @@ export class SystoreSupplyDashboard extends Component {
                     debt_national_mxn: 0,
                     debt_international_mxn: 0,
                     debt_international_usd: 0,
+                    debt_cutoff_date: "",
                     credit_suppliers: [],
                     credit_provider_count: 0,
                 },
@@ -152,6 +159,44 @@ export class SystoreSupplyDashboard extends Component {
 
     toggleReceivedProductsTable() {
         this.state.showReceivedProductsTable = !this.state.showReceivedProductsTable;
+    }
+
+    debtRows(sector) {
+        const rows = sector === "international"
+            ? this.state.data.rankings.debts_international
+            : this.state.data.rankings.debts_national;
+        const expanded = sector === "international"
+            ? this.state.showAllInternationalDebt
+            : this.state.showAllNationalDebt;
+        return expanded ? rows : rows.slice(0, 10);
+    }
+
+    toggleDebtProviders(sector) {
+        if (sector === "international") {
+            this.state.showAllInternationalDebt = !this.state.showAllInternationalDebt;
+        } else {
+            this.state.showAllNationalDebt = !this.state.showAllNationalDebt;
+        }
+    }
+
+    debtOrderIds(sector) {
+        const rows = sector === "international"
+            ? this.state.data.rankings.debts_international
+            : this.state.data.rankings.debts_national;
+        return [...new Set(rows.flatMap((row) => row.debt_order_ids || []))];
+    }
+
+    debtCutoffLabel() {
+        const value = this.state.data.rankings.debt_cutoff_date;
+        if (!value) {
+            return "cierre seleccionado";
+        }
+        const [year, month, day] = value.split("-").map(Number);
+        return new Intl.DateTimeFormat("es-MX", {
+            day: "2-digit",
+            month: "short",
+            year: "numeric",
+        }).format(new Date(year, month - 1, day));
     }
 
     onWarehouse(event) {
