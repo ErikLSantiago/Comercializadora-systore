@@ -26,9 +26,10 @@ class SystoreSupplyDashboard(models.AbstractModel):
 
     @api.model
     def _historical_purchase_orders(
-        self, company, warehouse_id=None, channel=None, supplier_type=None
+        self, company, warehouse_id=None, channel=None, supplier_type=None,
+        date_to=None,
     ):
-        """Confirmed purchases used by the current accounts-payable follow-up."""
+        """Confirmed purchases used by accounts payable up to an optional date."""
         orders = self.env["purchase.order"].sudo().search([
             ("company_id", "=", company.id),
             ("state", "in", ["purchase", "done"]),
@@ -46,6 +47,11 @@ class SystoreSupplyDashboard(models.AbstractModel):
             and (
                 not supplier_type
                 or order._systore_resolved_purchase_origin() == supplier_type
+            )
+            and (
+                not date_to
+                or not (order.date_approve or order.date_order)
+                or fields.Date.to_date(order.date_approve or order.date_order) <= date_to
             )
         ))
 
@@ -448,15 +454,18 @@ class SystoreSupplyDashboard(models.AbstractModel):
             ],
             ["name"], order="name"
         )
+        debt_cutoff_date = period["month_end"] - timedelta(days=1)
         historical_orders = self._historical_purchase_orders(
             company, warehouse_id=warehouse_id, channel=channel,
-            supplier_type=supplier_type,
+            supplier_type=supplier_type, date_to=debt_cutoff_date,
         )
         suppliers = historical_orders.mapped("partner_id")
         for order in historical_orders:
             suppliers |= self.env["res.partner"].browse([
                 component["partner"].id
-                for component in order._systore_debt_components()
+                for component in order._systore_debt_components(
+                    as_of_date=debt_cutoff_date
+                )
                 if component.get("partner")
             ])
         supplier_options = [
@@ -527,9 +536,10 @@ class SystoreSupplyDashboard(models.AbstractModel):
             supplier["ordered"] += line.ordered_qty
             supplier["received"] += line.net_received_qty
 
+        debt_cutoff_date = period["month_end"] - timedelta(days=1)
         debt_orders = self._historical_purchase_orders(
             company, warehouse_id=warehouse_id, channel=channel,
-            supplier_type=supplier_type,
+            supplier_type=supplier_type, date_to=debt_cutoff_date,
         )
         debt_by_sector = {
             "national": defaultdict(lambda: {
@@ -543,7 +553,9 @@ class SystoreSupplyDashboard(models.AbstractModel):
         }
         for order in debt_orders:
             sector = order._systore_resolved_purchase_origin()
-            for component in order._systore_debt_components():
+            for component in order._systore_debt_components(
+                as_of_date=debt_cutoff_date
+            ):
                 partner = component["partner"]
                 if supplier_id and partner.id != supplier_id:
                     continue
@@ -1019,7 +1031,7 @@ class SystoreSupplyDashboard(models.AbstractModel):
                 row["debt_percent_usd"] = (
                     row["debt_usd"] / max_debt_usd * 100.0 if max_debt_usd else 0.0
                 )
-            return rows[:10]
+            return rows
 
         national_debts = debt_rows("national")
         international_debts = debt_rows("international")
@@ -1055,6 +1067,7 @@ class SystoreSupplyDashboard(models.AbstractModel):
                 "debt_international_usd": sum(
                     value["usd"] for value in debt_by_sector["international"].values()
                 ),
+                "debt_cutoff_date": fields.Date.to_string(debt_cutoff_date),
                 "credit_suppliers": credit_rows,
                 "credit_provider_count": len(credit_rows),
             },

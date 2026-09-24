@@ -636,33 +636,50 @@ class PurchaseOrder(models.Model):
                 status = "paid"
             order.systore_payment_status = status
 
-    def _systore_debt_components(self):
+    def _systore_debt_components(self, as_of_date=None):
         self.ensure_one()
+        if self.systore_payment_status_manual == "paid":
+            return []
+
+        payments = self.systore_payment_line_ids.filtered(
+            lambda item: (
+                item.concept == "merchandise"
+                and (not as_of_date or item.payment_date <= as_of_date)
+            )
+        )
         if not self.systore_is_international:
+            paid_mxn = sum(payments.mapped("amount_mxn"))
+            pending_mxn = max((self.amount_total or 0.0) - paid_mxn, 0.0)
             return [{
                 "partner": self.partner_id,
                 "concept": "merchandise",
                 "paid_usd": 0.0,
-                "paid_mxn": self.systore_amount_paid_mxn,
+                "paid_mxn": paid_mxn,
                 "pending_usd": 0.0,
-                "pending_mxn": self.systore_amount_pending_mxn,
-            }] if self.systore_amount_pending_mxn > 0 else []
+                "pending_mxn": pending_mxn,
+            }] if pending_mxn > 0 else []
 
-        merchandise_paid_mxn = sum(self.systore_payment_line_ids.filtered(
-            lambda item: item.concept == "merchandise" and item.payment_currency == "usd"
-        ).mapped("amount_mxn"))
-        merchandise_rate = (
-            merchandise_paid_mxn / self.systore_merchandise_paid_usd
-            if self.systore_merchandise_paid_usd else (self.x_exchange_rate or 0.0)
+        usd_payments = payments.filtered(
+            lambda item: item.payment_currency == "usd"
         )
-        if self.systore_merchandise_pending_usd > 0:
+        paid_usd = sum(usd_payments.mapped("amount_usd"))
+        merchandise_paid_mxn = sum(usd_payments.mapped("amount_mxn"))
+        merchandise_rate = (
+            merchandise_paid_mxn / paid_usd
+            if paid_usd else (self.x_exchange_rate or 0.0)
+        )
+        pending_usd = max(
+            (self.systore_merchandise_payable_usd or 0.0) - paid_usd,
+            0.0,
+        )
+        if pending_usd > 0:
             return [{
                 "partner": self.partner_id,
                 "concept": "merchandise",
-                "paid_usd": self.systore_merchandise_paid_usd,
+                "paid_usd": paid_usd,
                 "paid_mxn": merchandise_paid_mxn,
-                "pending_usd": self.systore_merchandise_pending_usd,
-                "pending_mxn": self.systore_merchandise_pending_usd * merchandise_rate,
+                "pending_usd": pending_usd,
+                "pending_mxn": pending_usd * merchandise_rate,
             }]
         return []
 
