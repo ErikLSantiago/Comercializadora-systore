@@ -297,4 +297,43 @@
         <field name="domain">[('concept', '=', 'merchandise')]</field>
         <field name="context">{'default_concept': 'merchandise'}</field>
     </record>
+
+    <record id="view_supply_debt_report_international_list" model="ir.ui.view">
+        <field name="name">systore.supply.debt.report.international.list</field>
+        <field name="model">systore.supply.debt.report</field>
+        <field name="arch" type="xml">
+            <list string="Deuda a proveedores extranjeros" create="0" edit="0" delete="0">
+                <field name="cutoff_date"/>
+                <field name="supplier_id"/>
+                <field name="order_count" sum="Órdenes"/>
+                <field name="purchase_order_ids" widget="many2many_tags" optional="show"/>
+                <field name="total_usd" sum="Monto de deuda USD"/>
+                <field name="paid_usd" sum="Pagado USD"/>
+                <field name="balance_usd" sum="Saldo por pagar USD"/>
+                <field name="effective_exchange_rate" optional="show"/>
+                <field name="total_mxn" sum="Monto de deuda MXN"/>
+                <field name="paid_mxn" sum="Pagado MXN"/>
+                <field name="balance_mxn" sum="Saldo por pagar MXN"/>
+                <field name="usd_currency_id" column_invisible="1"/>
+                <field name="currency_id" column_invisible="1"/>
+            </list>
+        </field>
+    </record>
+
+    <record id="view_supply_debt_report_national_list" model="ir.ui.view">
+        <field name="name">systore.supply.debt.report.national.list</field>
+        <field name="model">systore.supply.debt.report</field>
+        <field name="arch" type="xml">
+            <list string="Deuda a proveedores nacionales" create="0" edit="0" delete="0">
+                <field name="cutoff_date"/>
+                <field name="supplier_id"/>
+                <field name="order_count" sum="Órdenes"/>
+                <field name="purchase_order_ids" widget="many2many_tags" optional="show"/>
+                <field name="total_mxn" sum="Monto de deuda MXN"/>
+                <field name="paid_mxn" sum="Pagado MXN"/>
+                <field name="balance_mxn" sum="Saldo por pagar MXN"/>
+                <field name="currency_id" column_invisible="1"/>
+            </list>
+        </field>
+    </record>
 </odoo>

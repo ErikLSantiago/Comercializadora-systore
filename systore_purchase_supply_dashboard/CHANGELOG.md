@@ -1,5 +1,12 @@
 # Historial de cambios
 
+## 18.0.1.9.8
+
+- Se agregó un reporte histórico de deuda agrupado por proveedor y ligado al mes operativo consultado.
+- El reporte internacional muestra monto de deuda, pagado y saldo por pagar tanto en USD como en MXN, además del tipo de cambio efectivo.
+- El reporte nacional muestra monto de deuda, pagado y saldo por pagar en MXN.
+- Cada fila conserva las órdenes de compra que integran el saldo y permite consultar un proveedor desde la gráfica o todos desde **Ver reporte completo**.
+
 ## 18.0.1.9.7
 
 - Corregido el contexto de los métodos usados por los botones de deuda para evitar el error de JavaScript `Cannot read properties of undefined (reading 'state')`.

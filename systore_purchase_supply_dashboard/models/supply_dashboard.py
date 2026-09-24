@@ -56,6 +56,133 @@ class SystoreSupplyDashboard(models.AbstractModel):
         ))
 
     @api.model
+    def _historical_debt_positions(
+        self, company, cutoff_date, warehouse_id=None, channel=None,
+        supplier_id=None, supplier_type=None,
+    ):
+        """Group supplier merchandise debt at an exact historical cutoff."""
+        debt_orders = self._historical_purchase_orders(
+            company,
+            warehouse_id=warehouse_id,
+            channel=channel,
+            supplier_type=supplier_type,
+            date_to=cutoff_date,
+        )
+        grouped = {
+            "national": defaultdict(lambda: {
+                "total_mxn": 0.0, "total_usd": 0.0,
+                "paid_mxn": 0.0, "paid_usd": 0.0,
+                "mxn": 0.0, "usd": 0.0,
+                "order_ids": set(), "name": "",
+            }),
+            "international": defaultdict(lambda: {
+                "total_mxn": 0.0, "total_usd": 0.0,
+                "paid_mxn": 0.0, "paid_usd": 0.0,
+                "mxn": 0.0, "usd": 0.0,
+                "order_ids": set(), "name": "",
+            }),
+        }
+        for order in debt_orders:
+            sector = order._systore_resolved_purchase_origin()
+            for component in order._systore_debt_components(
+                as_of_date=cutoff_date
+            ):
+                partner = component["partner"]
+                if supplier_id and partner.id != supplier_id:
+                    continue
+                debt = grouped[sector][partner.id]
+                debt["name"] = partner.display_name
+                debt["total_mxn"] += component.get("total_mxn", 0.0)
+                debt["total_usd"] += component.get("total_usd", 0.0)
+                debt["paid_mxn"] += component.get("paid_mxn", 0.0)
+                debt["paid_usd"] += component.get("paid_usd", 0.0)
+                debt["mxn"] += component["pending_mxn"]
+                debt["usd"] += component["pending_usd"]
+                debt["order_ids"].add(order.id)
+        return grouped
+
+    @api.model
+    def action_open_debt_report(self, sector, filters=None, supplier_id=None):
+        """Create an isolated historical debt report for the current user."""
+        self._check_systore_supply_access()
+        if sector not in ("national", "international"):
+            raise UserError(_("Selecciona un tipo de proveedor válido."))
+        filters = filters or {}
+        period = self._month_period(filters.get("period_month"))
+        cutoff_date = period["month_end"] - timedelta(days=1)
+        warehouse_id = filters.get("warehouse_id")
+        if warehouse_id:
+            warehouse_id = int(warehouse_id)
+        channel = filters.get("channel") or None
+        supplier_type = filters.get("supplier_type")
+        if supplier_type not in ("national", "international"):
+            supplier_type = None
+        selected_supplier_id = supplier_id or filters.get("supplier_id")
+        if selected_supplier_id:
+            selected_supplier_id = int(selected_supplier_id)
+
+        grouped = self._historical_debt_positions(
+            self.env.company,
+            cutoff_date,
+            warehouse_id=warehouse_id,
+            channel=channel,
+            supplier_id=selected_supplier_id,
+            supplier_type=supplier_type,
+        )[sector]
+        usd_currency = self.env.ref("base.USD", raise_if_not_found=False)
+        if not usd_currency:
+            usd_currency = self.env["res.currency"].search(
+                [("name", "=", "USD")], limit=1
+            )
+        if not usd_currency:
+            raise UserError(_("No se encontró la moneda USD en Odoo."))
+
+        rows = []
+        for partner_id, values in grouped.items():
+            if values["mxn"] <= 0 and values["usd"] <= 0:
+                continue
+            total_usd = values["total_usd"]
+            rows.append({
+                "company_id": self.env.company.id,
+                "usd_currency_id": usd_currency.id,
+                "cutoff_date": cutoff_date,
+                "sector": sector,
+                "supplier_id": partner_id,
+                "purchase_order_ids": [(6, 0, list(values["order_ids"]))],
+                "order_count": len(values["order_ids"]),
+                "effective_exchange_rate": (
+                    values["total_mxn"] / total_usd if total_usd else 0.0
+                ),
+                "total_usd": total_usd,
+                "paid_usd": values["paid_usd"],
+                "balance_usd": values["usd"],
+                "total_mxn": values["total_mxn"],
+                "paid_mxn": values["paid_mxn"],
+                "balance_mxn": values["mxn"],
+            })
+        report_lines = (
+            self.env["systore.supply.debt.report"].create(rows)
+            if rows else self.env["systore.supply.debt.report"].browse()
+        )
+        view_xmlid = (
+            "systore_purchase_supply_dashboard.view_supply_debt_report_international_list"
+            if sector == "international"
+            else "systore_purchase_supply_dashboard.view_supply_debt_report_national_list"
+        )
+        return {
+            "type": "ir.actions.act_window",
+            "name": _("Deuda a proveedores extranjeros")
+            if sector == "international"
+            else _("Deuda a proveedores nacionales"),
+            "res_model": "systore.supply.debt.report",
+            "view_mode": "list",
+            "views": [(self.env.ref(view_xmlid).id, "list")],
+            "domain": [("id", "in", report_lines.ids)],
+            "context": {"create": False, "edit": False, "delete": False},
+            "target": "current",
+        }
+
+    @api.model
     def _supplier_credit_rows(
         self, company, supplier_id=None, supplier_type=None
     ):
@@ -537,35 +664,14 @@ class SystoreSupplyDashboard(models.AbstractModel):
             supplier["received"] += line.net_received_qty
 
         debt_cutoff_date = period["month_end"] - timedelta(days=1)
-        debt_orders = self._historical_purchase_orders(
-            company, warehouse_id=warehouse_id, channel=channel,
-            supplier_type=supplier_type, date_to=debt_cutoff_date,
+        debt_by_sector = self._historical_debt_positions(
+            company,
+            debt_cutoff_date,
+            warehouse_id=warehouse_id,
+            channel=channel,
+            supplier_id=supplier_id,
+            supplier_type=supplier_type,
         )
-        debt_by_sector = {
-            "national": defaultdict(lambda: {
-                "mxn": 0.0, "usd": 0.0, "paid_mxn": 0.0, "paid_usd": 0.0,
-                "order_ids": set(), "name": "",
-            }),
-            "international": defaultdict(lambda: {
-                "mxn": 0.0, "usd": 0.0, "paid_mxn": 0.0, "paid_usd": 0.0,
-                "order_ids": set(), "name": "",
-            }),
-        }
-        for order in debt_orders:
-            sector = order._systore_resolved_purchase_origin()
-            for component in order._systore_debt_components(
-                as_of_date=debt_cutoff_date
-            ):
-                partner = component["partner"]
-                if supplier_id and partner.id != supplier_id:
-                    continue
-                debt = debt_by_sector[sector][partner.id]
-                debt["name"] = partner.display_name
-                debt["mxn"] += component["pending_mxn"]
-                debt["usd"] += component["pending_usd"]
-                debt["paid_mxn"] += component.get("paid_mxn", 0.0)
-                debt["paid_usd"] += component.get("paid_usd", 0.0)
-                debt["order_ids"].add(order.id)
 
         def ranking_rows(grouped, limit=None):
             result = []
@@ -1013,6 +1119,8 @@ class SystoreSupplyDashboard(models.AbstractModel):
             rows = [{
                 "id": partner_id,
                 "name": values["name"] or "Sin proveedor",
+                "total_mxn": values["total_mxn"],
+                "total_usd": values["total_usd"],
                 "debt": values["mxn"],
                 "debt_usd": values["usd"],
                 "paid_mxn": values["paid_mxn"],

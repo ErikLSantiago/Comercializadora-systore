@@ -649,10 +649,13 @@ class PurchaseOrder(models.Model):
         )
         if not self.systore_is_international:
             paid_mxn = sum(payments.mapped("amount_mxn"))
-            pending_mxn = max((self.amount_total or 0.0) - paid_mxn, 0.0)
+            total_mxn = self.amount_total or 0.0
+            pending_mxn = max(total_mxn - paid_mxn, 0.0)
             return [{
                 "partner": self.partner_id,
                 "concept": "merchandise",
+                "total_usd": 0.0,
+                "total_mxn": total_mxn,
                 "paid_usd": 0.0,
                 "paid_mxn": paid_mxn,
                 "pending_usd": 0.0,
@@ -668,18 +671,19 @@ class PurchaseOrder(models.Model):
             merchandise_paid_mxn / paid_usd
             if paid_usd else (self.x_exchange_rate or 0.0)
         )
-        pending_usd = max(
-            (self.systore_merchandise_payable_usd or 0.0) - paid_usd,
-            0.0,
-        )
+        total_usd = self.systore_merchandise_payable_usd or 0.0
+        pending_usd = max(total_usd - paid_usd, 0.0)
         if pending_usd > 0:
+            pending_mxn = pending_usd * merchandise_rate
             return [{
                 "partner": self.partner_id,
                 "concept": "merchandise",
+                "total_usd": total_usd,
+                "total_mxn": merchandise_paid_mxn + pending_mxn,
                 "paid_usd": paid_usd,
                 "paid_mxn": merchandise_paid_mxn,
                 "pending_usd": pending_usd,
-                "pending_mxn": pending_usd * merchandise_rate,
+                "pending_mxn": pending_mxn,
             }]
         return []
 
