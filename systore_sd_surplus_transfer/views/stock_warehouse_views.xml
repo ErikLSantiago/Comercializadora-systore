@@ -1,0 +1,25 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <!--
+        Vista heredada de 18.0.1.0.0. Se mantiene con el mismo XML ID pero
+        inactiva para que una actualización del módulo retire la configuración
+        antigua por almacén sin dejar una vista huérfana.
+    -->
+    <record id="view_warehouse_form_sd_surplus_transfer" model="ir.ui.view">
+        <field name="name">stock.warehouse.form.sd.surplus.transfer.legacy</field>
+        <field name="model">stock.warehouse</field>
+        <field name="inherit_id" ref="stock.view_warehouse"/>
+        <field name="active" eval="False"/>
+        <field name="arch" type="xml">
+            <xpath expr="//sheet" position="inside">
+                <group invisible="1">
+                    <field name="surplus_transfer_enabled"/>
+                    <field name="surplus_source_location_id"/>
+                    <field name="surplus_destination_warehouse_id"/>
+                    <field name="surplus_destination_location_id"/>
+                    <field name="surplus_picking_type_id"/>
+                </group>
+            </xpath>
+        </field>
+    </record>
+</odoo>
