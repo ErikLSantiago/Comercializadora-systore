@@ -1,0 +1,41 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <record id="view_stock_rule_form_surplus" model="ir.ui.view">
+        <field name="name">stock.rule.form.surplus</field>
+        <field name="model">stock.rule</field>
+        <field name="inherit_id" ref="stock.view_stock_rule_form"/>
+        <field name="arch" type="xml">
+            <xpath expr="//field[@name='location_src_id']" position="attributes">
+                <attribute name="required">action in ['pull', 'push', 'pull_push', 'surplus']</attribute>
+            </xpath>
+
+            <xpath expr="//field[@name='warehouse_id']" position="attributes">
+                <attribute name="invisible">action in ['push', 'surplus']</attribute>
+            </xpath>
+
+            <xpath expr="//field[@name='company_id'][@groups='base.group_multi_company']" position="attributes">
+                <attribute name="required">action in ['push', 'surplus']</attribute>
+            </xpath>
+
+            <xpath expr="//field[@name='partner_address_id']/.." position="attributes">
+                <attribute name="invisible">action not in ['pull', 'push', 'pull_push', 'surplus']</attribute>
+            </xpath>
+
+            <xpath expr="//field[@name='partner_address_id']" position="attributes">
+                <attribute name="invisible">action in ['push', 'surplus']</attribute>
+            </xpath>
+
+            <xpath expr="//field[@name='push_domain']" position="attributes">
+                <attribute name="invisible">action not in ['push', 'pull_push', 'surplus']</attribute>
+            </xpath>
+
+            <xpath expr="//field[@name='rule_message']" position="after">
+                <div class="alert alert-info mt-2" role="alert" invisible="action != 'surplus'">
+                    <span>
+                        Surplus se activa cuando la mercancía llega a la ubicación de origen. Primero intenta reservar la demanda pendiente que consume esa ubicación y después crea la operación configurada únicamente por el excedente de esa llegada.
+                    </span>
+                </div>
+            </xpath>
+        </field>
+    </record>
+</odoo>
