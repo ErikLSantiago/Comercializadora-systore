@@ -17,7 +17,7 @@ export class SystoreSupplyDashboard extends Component {
         this.openDemandLines = this.openDemandLines.bind(this);
         this.debtRows = this.debtRows.bind(this);
         this.toggleDebtProviders = this.toggleDebtProviders.bind(this);
-        this.debtOrderIds = this.debtOrderIds.bind(this);
+        this.openDebtReport = this.openDebtReport.bind(this);
         this.debtCutoffLabel = this.debtCutoffLabel.bind(this);
         const today = new Date();
         const currentMonth = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, "0")}`;
@@ -179,11 +179,21 @@ export class SystoreSupplyDashboard extends Component {
         }
     }
 
-    debtOrderIds(sector) {
-        const rows = sector === "international"
-            ? this.state.data.rankings.debts_international
-            : this.state.data.rankings.debts_national;
-        return [...new Set(rows.flatMap((row) => row.debt_order_ids || []))];
+    async openDebtReport(sector, supplierId = false) {
+        const action = await this.orm.call(
+            "systore.supply.dashboard",
+            "action_open_debt_report",
+            [],
+            {
+                sector,
+                filters: {
+                    ...this.state.filters,
+                    product_ids: [...this.state.filters.product_ids],
+                },
+                supplier_id: supplierId || false,
+            }
+        );
+        return this.action.doAction(action);
     }
 
     debtCutoffLabel() {

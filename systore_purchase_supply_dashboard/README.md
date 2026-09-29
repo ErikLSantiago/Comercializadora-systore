@@ -32,7 +32,7 @@ Versión preparada para producción en Odoo 18.
 - El filtro Tipo de proveedor permite consultar únicamente compras Nacionales o Internacionales.
 - Productos recibidos incluye un total general de cantidades y valores para los filtros aplicados.
 - Recepciones brutas, devoluciones a proveedor y recepciones netas por línea de compra.
-- Deuda histórica de mercancía separada entre proveedores nacionales y extranjeros, con selector MXN/USD, expansión de proveedores y acceso al reporte completo.
+- Deuda histórica de mercancía separada entre proveedores nacionales y extranjeros, con selector MXN/USD, expansión de proveedores y reporte completo con deuda original, pagos y saldo por proveedor al corte.
 - Control de líneas de crédito de proveedor con límite, moneda, crédito ocupado y disponible.
 - Condición Contado/Crédito independiente por orden, aunque el proveedor tenga una línea autorizada.
 - Inicio y vencimiento de crédito capturados directamente por orden; los días naturales se calculan entre ambas fechas.
@@ -97,10 +97,11 @@ Versión preparada para producción en Odoo 18.
 - La captura visible de abonos se limita temporalmente a Mercancía; los registros históricos de Logística e Importación se conservan ocultos.
 - Los abonos de Mercancía pueden eliminarse para corregir errores operativos; el saldo y el estado se recalculan al eliminar.
 - Los días de crédito son naturales y se calculan como la diferencia entre Inicio de crédito y Vencimiento crédito, sin mover fines de semana o festivos.
-- La línea autorizada del proveedor no determina la condición de la compra; cada OC debe definirse expresamente como Contado o Crédito.
+- La línea autorizada del proveedor no determina la condición de la compra; cada OC puede confirmarse como Sin definir y clasificarse posteriormente como Contado o Crédito.
 - Una compra de Contado continúa en la deuda operativa si está pendiente, pero no consume la línea de crédito.
 - Las órdenes confirmadas a crédito consumen la línea por su saldo pendiente de mercancía, aunque la fecha de inicio todavía no haya llegado.
 - La deuda se calcula al cierre del Mes operativo: incluye órdenes confirmadas hasta ese día y resta únicamente los abonos cuya fecha no sea posterior al corte.
+- El reporte internacional expresa deuda, pagos y saldo en USD y MXN; el nacional presenta los mismos importes en MXN.
 - Las órdenes marcadas manualmente como Pagada permanecen fuera de la deuda en cualquier corte histórico.
 - Costo internacional: `x_calc_price_mxn`.
 - Costo nacional: `price_unit`, convertido a moneda de compañía cuando corresponda.

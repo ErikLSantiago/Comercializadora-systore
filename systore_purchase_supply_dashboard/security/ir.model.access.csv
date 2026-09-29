@@ -7,3 +7,5 @@ access_supply_payment_system,supply.payment.system,model_systore_purchase_paymen
 access_supply_purchase_line_system,supply.purchase.line.system,model_systore_supply_purchase_line,base.group_system,1,0,0,0
 access_supply_demand_line_system,supply.demand.line.system,model_systore_supply_demand_line,base.group_system,1,0,0,0
 access_supply_trace_line_system,supply.trace.line.system,model_systore_supply_trace_line,base.group_system,1,0,0,0
+access_supply_debt_report_user,supply.debt.report.user,model_systore_supply_debt_report,systore_purchase_supply_dashboard.group_supply_dashboard_user,1,0,1,1
+access_supply_debt_report_system,supply.debt.report.system,model_systore_supply_debt_report,base.group_system,1,0,1,1
