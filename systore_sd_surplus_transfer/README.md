@@ -150,4 +150,19 @@ Después de actualizar:
 
 ## Versión
 
-`18.0.1.1.0`
+`18.0.1.2.0`
+
+
+## Documento origen y separación de pasos posteriores (18.0.1.2.0)
+
+- La operación creada por Surplus ya no usa textos como `Surplus de SD/IN/00001` en **Documento origen**.
+- Si la llegada proviene de una orden de compra y `purchase_stock` está instalado, se usa directamente el número de la OC. En otros flujos se propaga el `Documento origen` de la operación que disparó Surplus.
+- El mismo documento origen se escribe también en los movimientos de stock para que las reglas Push posteriores lo conserven.
+- Cuando la regla Surplus tiene **Propagación del grupo de aprovisionamiento = Propagar**, se crea un grupo exclusivo para esa operación Surplus y se escribe tanto en el picking como en sus movimientos. Así, pasos posteriores como `MX/Entrada -> MX/Existencias` no se consolidan con operaciones de otro documento origen.
+- Las opciones nativas **Dejar vacío** y **Fijo** conservan su significado. Para separar por documento origen, utilice **Propagar** en la regla Surplus.
+
+Ejemplo esperado:
+
+- Recepción SD originada por `P02500` -> operación Surplus con Documento origen `P02500`.
+- Al validar esa recepción Surplus, el almacenamiento generado conserva Documento origen `P02500`.
+- Una segunda recepción de `P02501` genera otro almacenamiento independiente con Documento origen `P02501`; no se unen como `P02500,P02501`.

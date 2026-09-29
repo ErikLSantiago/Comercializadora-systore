@@ -346,6 +346,57 @@ class StockPicking(models.Model):
         return lines_by_rule, processed_move_ids
 
     # ---------------------------------------------------------------------
+    # Source document / propagation helpers
+    # ---------------------------------------------------------------------
+
+    def _surplus_source_document(self):
+        """Return the business source document that must follow Surplus.
+
+        For purchase receipts we prefer the actual purchase order number when
+        ``purchase_stock`` is installed.  The module intentionally keeps only
+        ``stock`` as a hard dependency, so purchase fields are accessed only
+        when they exist.  For generic inventory flows, the current picking
+        origin is propagated unchanged.
+        """
+        self.ensure_one()
+
+        if 'purchase_id' in self._fields and self.purchase_id:
+            return self.purchase_id.name
+
+        if 'purchase_line_id' in self.env['stock.move']._fields:
+            purchase_orders = self.move_ids.mapped('purchase_line_id.order_id')
+            if len(purchase_orders) == 1:
+                return purchase_orders.name
+
+        if self.is_surplus_auto_transfer and self.surplus_source_receipt_id:
+            source_document = self.surplus_source_receipt_id._surplus_source_document()
+            if source_document:
+                return source_document
+
+        return (self.origin or '').strip() or self.name
+
+    def _surplus_propagation_group(self, rule, source_document):
+        """Return the procurement group used by the Surplus chain.
+
+        Native push moves copy ``group_id``.  Giving every Surplus transfer its
+        own group when the rule is configured as *Propagate* prevents the next
+        step (for example MX/Entrada -> MX/Existencias) from being consolidated
+        with a different source document.  The group is also written on each
+        stock.move, not only on the picking, so native push propagation keeps it.
+        """
+        self.ensure_one()
+        if rule.group_propagation_option == 'fixed':
+            return rule.group_id
+        if rule.group_propagation_option != 'propagate':
+            return self.env['procurement.group']
+
+        group_name = source_document or self.name
+        return self.env['procurement.group'].sudo().create({
+            'name': group_name,
+            'move_type': self.group_id.move_type or 'direct',
+        })
+
+    # ---------------------------------------------------------------------
     # Transfer creation from stock.rule configuration
     # ---------------------------------------------------------------------
 
@@ -360,12 +411,8 @@ class StockPicking(models.Model):
         company = rule.company_id or self.company_id
         scheduled_date = fields.Datetime.now() + relativedelta(days=rule.delay or 0)
 
-        if rule.group_propagation_option == 'fixed':
-            group = rule.group_id
-        elif rule.group_propagation_option == 'propagate':
-            group = self.group_id
-        else:
-            group = self.env['procurement.group']
+        source_document = self._surplus_source_document()
+        group = self._surplus_propagation_group(rule, source_document)
 
         transfer = self.env['stock.picking'].sudo().with_context(
             skip_surplus_auto_processing=True,
@@ -374,7 +421,7 @@ class StockPicking(models.Model):
             'location_id': source_location.id,
             'location_dest_id': destination_location.id,
             'company_id': company.id,
-            'origin': _('Surplus de %s', self.name),
+            'origin': source_document,
             'scheduled_date': scheduled_date,
             'group_id': group.id if group else False,
             'is_surplus_auto_transfer': True,
@@ -397,7 +444,8 @@ class StockPicking(models.Model):
                 'location_id': source_location.id,
                 'location_dest_id': destination_location.id,
                 'company_id': company.id,
-                'origin': self.name,
+                'origin': source_document,
+                'group_id': group.id if group else False,
                 'procure_method': 'make_to_stock',
                 'rule_id': rule.id,
                 'warehouse_id': (

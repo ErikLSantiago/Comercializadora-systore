@@ -1,6 +1,6 @@
 {
     'name': 'Systore - Surplus Route',
-    'version': '18.0.1.1.0',
+    'version': '18.0.1.2.0',
     'summary': 'Añade la acción Surplus a las reglas de inventario de Odoo',
     'description': """
 Systore - Surplus Route
@@ -15,7 +15,9 @@ Surplus, el módulo:
 - respeta cualquier extensión del motor de reservas, incluyendo Wholesale Allocation;
 - calcula únicamente el excedente atribuible a la llegada que acaba de validarse;
 - crea y reserva la operación configurada en la propia regla por la cantidad sobrante;
-- conserva el lote/serie de la llegada en productos rastreados.
+- conserva el lote/serie de la llegada en productos rastreados;
+- propaga el documento origen real (por ejemplo la OC) a los pasos siguientes;
+- separa los pasos posteriores por grupo cuando la regla usa Propagar, evitando consolidar documentos de origen distintos.
 
 La configuración vive en Rutas/Reglas, no en el almacén, por lo que la misma
 lógica puede reutilizarse en otros almacenes y flujos.
