@@ -1,5 +1,24 @@
 # Historial de cambios
 
+## 18.0.1.9.10
+
+- **Sin definir** vuelve a ser una condición válida al confirmar o aprobar una orden de compra.
+- La orden puede clasificarse posteriormente como **Contado** o **Crédito** desde Pagos y abastecimiento.
+- Se retiró el bloqueo de confirmación incorporado en la versión 18.0.1.9.9 y la validación anterior asociada al botón Confirmar.
+
+## 18.0.1.9.9
+
+- Una orden ya no puede pasar a Compra o Hecho mientras **Condición de compra** permanezca en **Sin definir**.
+- La validación se aplica al confirmar, aprobar, importar o cambiar el estado mediante automatizaciones y otros módulos.
+- Las compras a crédito conservan como obligatorios la moneda, el inicio y el vencimiento del crédito antes de quedar confirmadas.
+
+## 18.0.1.9.8
+
+- Se agregó un reporte histórico de deuda agrupado por proveedor y ligado al mes operativo consultado.
+- El reporte internacional muestra monto de deuda, pagado y saldo por pagar tanto en USD como en MXN, además del tipo de cambio efectivo.
+- El reporte nacional muestra monto de deuda, pagado y saldo por pagar en MXN.
+- Cada fila conserva las órdenes de compra que integran el saldo y permite consultar un proveedor desde la gráfica o todos desde **Ver reporte completo**.
+
 ## 18.0.1.9.7
 
 - Corregido el contexto de los métodos usados por los botones de deuda para evitar el error de JavaScript `Cannot read properties of undefined (reading 'state')`.

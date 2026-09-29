@@ -1,5 +1,5 @@
 from odoo import _, api, fields, models
-from odoo.exceptions import UserError, ValidationError
+from odoo.exceptions import ValidationError
 
 
 class SystorePurchasePayment(models.Model):
@@ -501,21 +501,6 @@ class PurchaseOrder(models.Model):
                     "El vencimiento del crédito no puede ser anterior a su inicio."
                 )
 
-    def button_confirm(self):
-        for order in self:
-            if order.systore_purchase_condition == "undefined":
-                raise UserError(_(
-                    "Define si la orden %s es una compra de Contado o a Crédito."
-                ) % order.name)
-            if order.systore_purchase_condition == "credit":
-                if not order.systore_credit_currency_id:
-                    raise UserError(_("Selecciona la moneda del crédito."))
-                if not order.systore_credit_start_date:
-                    raise UserError(_("Captura el inicio del crédito."))
-                if not order.systore_credit_due_date:
-                    raise UserError(_("Captura el vencimiento del crédito."))
-        return super().button_confirm()
-
     @api.depends(
         "systore_purchase_origin",
         "amount_total",
@@ -649,10 +634,13 @@ class PurchaseOrder(models.Model):
         )
         if not self.systore_is_international:
             paid_mxn = sum(payments.mapped("amount_mxn"))
-            pending_mxn = max((self.amount_total or 0.0) - paid_mxn, 0.0)
+            total_mxn = self.amount_total or 0.0
+            pending_mxn = max(total_mxn - paid_mxn, 0.0)
             return [{
                 "partner": self.partner_id,
                 "concept": "merchandise",
+                "total_usd": 0.0,
+                "total_mxn": total_mxn,
                 "paid_usd": 0.0,
                 "paid_mxn": paid_mxn,
                 "pending_usd": 0.0,
@@ -668,18 +656,19 @@ class PurchaseOrder(models.Model):
             merchandise_paid_mxn / paid_usd
             if paid_usd else (self.x_exchange_rate or 0.0)
         )
-        pending_usd = max(
-            (self.systore_merchandise_payable_usd or 0.0) - paid_usd,
-            0.0,
-        )
+        total_usd = self.systore_merchandise_payable_usd or 0.0
+        pending_usd = max(total_usd - paid_usd, 0.0)
         if pending_usd > 0:
+            pending_mxn = pending_usd * merchandise_rate
             return [{
                 "partner": self.partner_id,
                 "concept": "merchandise",
+                "total_usd": total_usd,
+                "total_mxn": merchandise_paid_mxn + pending_mxn,
                 "paid_usd": paid_usd,
                 "paid_mxn": merchandise_paid_mxn,
                 "pending_usd": pending_usd,
-                "pending_mxn": pending_usd * merchandise_rate,
+                "pending_mxn": pending_mxn,
             }]
         return []
 
