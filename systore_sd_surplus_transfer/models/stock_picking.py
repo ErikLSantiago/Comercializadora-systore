@@ -208,6 +208,7 @@ class StockPicking(models.Model):
             'rule': self.env['stock.rule'],
             'product': self.env['product.product'],
             'lot': self.env['stock.lot'],
+            'purchase_order': self.env['purchase.order'],
             'received_qty': 0.0,
             'source_move_ids': set(),
         })
@@ -217,6 +218,11 @@ class StockPicking(models.Model):
             rule = self.env['stock.rule'].browse(rule_id).exists()
             if not move or not rule or move.state != 'done':
                 continue
+
+            # The purchase order is deliberately obtained only from the direct
+            # purchase line of the incoming move.  Do not derive it from origin,
+            # lots, chained moves or similarly named documents.
+            purchase_order = move.purchase_line_id.order_id
 
             source_move_had_line = False
             for line in move.move_line_ids:
@@ -239,7 +245,7 @@ class StockPicking(models.Model):
                     continue
 
                 lot_name = lot.name if lot else False
-                key = (rule.id, product.id, lot_name)
+                key = (rule.id, product.id, lot_name, purchase_order.id or False)
                 qty = line.product_uom_id._compute_quantity(
                     line.quantity,
                     product.uom_id,
@@ -249,6 +255,7 @@ class StockPicking(models.Model):
                 bucket['rule'] = rule
                 bucket['product'] = product
                 bucket['lot'] = lot
+                bucket['purchase_order'] = purchase_order
                 bucket['received_qty'] += qty
                 bucket['source_move_ids'].add(move.id)
                 source_move_had_line = True
@@ -268,10 +275,11 @@ class StockPicking(models.Model):
                     product.uom_id,
                     rounding_method='HALF-UP',
                 )
-                key = (rule.id, product.id, False)
+                key = (rule.id, product.id, False, purchase_order.id or False)
                 bucket = buckets[key]
                 bucket['rule'] = rule
                 bucket['product'] = product
+                bucket['purchase_order'] = purchase_order
                 bucket['received_qty'] += qty
                 bucket['source_move_ids'].add(move.id)
 
@@ -314,93 +322,48 @@ class StockPicking(models.Model):
             rule = self.env['stock.rule'].browse(rule_id)
             self._surplus_assign_origin_demand(rule, products)
 
-        lines_by_rule = defaultdict(list)
+        lines_by_rule_and_order = defaultdict(list)
         processed_move_ids = set()
+        remaining_free = {}
         for key, values in buckets.items():
             rule = values['rule']
             product = values['product']
             lot = values['lot']
             received_qty = values['received_qty']
+            purchase_order = values['purchase_order']
             processed_move_ids |= values['source_move_ids']
             rounding = product.uom_id.rounding
 
-            post_free = self._surplus_free_quantity(
-                product,
-                rule.location_src_id,
-                lot=lot,
-            )
-            pre_free = pre_snapshot.get(key, 0.0)
-            free_from_arrival = max(post_free - pre_free, 0.0)
-            qty = min(received_qty, free_from_arrival)
+            stock_key = (rule.id, product.id, lot.name if lot else False)
+            if stock_key not in remaining_free:
+                post_free = self._surplus_free_quantity(
+                    product,
+                    rule.location_src_id,
+                    lot=lot,
+                )
+                pre_free = pre_snapshot.get(stock_key, 0.0)
+                remaining_free[stock_key] = max(post_free - pre_free, 0.0)
+
+            qty = min(received_qty, remaining_free[stock_key])
             qty = float_round(qty, precision_rounding=rounding, rounding_method='DOWN')
 
             if float_is_zero(qty, precision_rounding=rounding):
                 continue
 
-            lines_by_rule[rule.id].append({
+            remaining_free[stock_key] = max(remaining_free[stock_key] - qty, 0.0)
+            lines_by_rule_and_order[(rule.id, purchase_order.id or False)].append({
                 'product': product,
                 'lot': lot,
                 'qty': qty,
             })
 
-        return lines_by_rule, processed_move_ids
-
-    # ---------------------------------------------------------------------
-    # Source document / propagation helpers
-    # ---------------------------------------------------------------------
-
-    def _surplus_source_document(self):
-        """Return the business source document that must follow Surplus.
-
-        For purchase receipts we prefer the actual purchase order number when
-        ``purchase_stock`` is installed.  The module intentionally keeps only
-        ``stock`` as a hard dependency, so purchase fields are accessed only
-        when they exist.  For generic inventory flows, the current picking
-        origin is propagated unchanged.
-        """
-        self.ensure_one()
-
-        if 'purchase_id' in self._fields and self.purchase_id:
-            return self.purchase_id.name
-
-        if 'purchase_line_id' in self.env['stock.move']._fields:
-            purchase_orders = self.move_ids.mapped('purchase_line_id.order_id')
-            if len(purchase_orders) == 1:
-                return purchase_orders.name
-
-        if self.is_surplus_auto_transfer and self.surplus_source_receipt_id:
-            source_document = self.surplus_source_receipt_id._surplus_source_document()
-            if source_document:
-                return source_document
-
-        return (self.origin or '').strip() or self.name
-
-    def _surplus_propagation_group(self, rule, source_document):
-        """Return the procurement group used by the Surplus chain.
-
-        Native push moves copy ``group_id``.  Giving every Surplus transfer its
-        own group when the rule is configured as *Propagate* prevents the next
-        step (for example MX/Entrada -> MX/Existencias) from being consolidated
-        with a different source document.  The group is also written on each
-        stock.move, not only on the picking, so native push propagation keeps it.
-        """
-        self.ensure_one()
-        if rule.group_propagation_option == 'fixed':
-            return rule.group_id
-        if rule.group_propagation_option != 'propagate':
-            return self.env['procurement.group']
-
-        group_name = source_document or self.name
-        return self.env['procurement.group'].sudo().create({
-            'name': group_name,
-            'move_type': self.group_id.move_type or 'direct',
-        })
+        return lines_by_rule_and_order, processed_move_ids
 
     # ---------------------------------------------------------------------
     # Transfer creation from stock.rule configuration
     # ---------------------------------------------------------------------
 
-    def _surplus_create_transfer(self, rule, transfer_lines):
+    def _surplus_create_transfer(self, rule, transfer_lines, purchase_order=False):
         self.ensure_one()
         if not transfer_lines:
             return self.env['stock.picking']
@@ -410,9 +373,21 @@ class StockPicking(models.Model):
         picking_type = rule.picking_type_id
         company = rule.company_id or self.company_id
         scheduled_date = fields.Datetime.now() + relativedelta(days=rule.delay or 0)
+        # For purchase receipts this value has one, and only one, source:
+        # purchase.order.name reached through stock.move.purchase_line_id.
+        origin = purchase_order.name if purchase_order else self.name
 
-        source_document = self._surplus_source_document()
-        group = self._surplus_propagation_group(rule, source_document)
+        if rule.group_propagation_option == 'fixed':
+            group = rule.group_id
+        elif rule.group_propagation_option == 'propagate':
+            # An exclusive group prevents Odoo's following push rule from
+            # consolidating different purchase orders into one picking.
+            group = self.env['procurement.group'].sudo().create({
+                'name': origin,
+                'partner_id': self.partner_id.id or False,
+            })
+        else:
+            group = self.env['procurement.group']
 
         transfer = self.env['stock.picking'].sudo().with_context(
             skip_surplus_auto_processing=True,
@@ -421,7 +396,7 @@ class StockPicking(models.Model):
             'location_id': source_location.id,
             'location_dest_id': destination_location.id,
             'company_id': company.id,
-            'origin': source_document,
+            'origin': origin,
             'scheduled_date': scheduled_date,
             'group_id': group.id if group else False,
             'is_surplus_auto_transfer': True,
@@ -444,8 +419,7 @@ class StockPicking(models.Model):
                 'location_id': source_location.id,
                 'location_dest_id': destination_location.id,
                 'company_id': company.id,
-                'origin': source_document,
-                'group_id': group.id if group else False,
+                'origin': origin,
                 'procure_method': 'make_to_stock',
                 'rule_id': rule.id,
                 'warehouse_id': (
@@ -495,12 +469,19 @@ class StockPicking(models.Model):
 
     def _surplus_process_after_done(self, context_data):
         self.ensure_one()
-        lines_by_rule, processed_move_ids = self._surplus_quantities_to_transfer(context_data)
+        lines_by_rule_and_order, processed_move_ids = self._surplus_quantities_to_transfer(
+            context_data
+        )
 
-        for rule_id, transfer_lines in lines_by_rule.items():
+        for (rule_id, purchase_order_id), transfer_lines in lines_by_rule_and_order.items():
             rule = self.env['stock.rule'].browse(rule_id).exists()
             if rule and rule.action == 'surplus':
-                self._surplus_create_transfer(rule, transfer_lines)
+                purchase_order = self.env['purchase.order'].browse(purchase_order_id).exists()
+                self._surplus_create_transfer(
+                    rule,
+                    transfer_lines,
+                    purchase_order=purchase_order,
+                )
 
         # Mark arrivals as evaluated even when no excess remained. This is
         # intentional: stock freed later must not be mistaken for this arrival.
