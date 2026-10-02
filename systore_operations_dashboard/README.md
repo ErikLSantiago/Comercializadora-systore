@@ -1,8 +1,13 @@
 # Tablero de operaciones · Odoo 18
 
-Versión **18.0.1.2.1** · Nombre técnico `systore_operations_dashboard`.
+Versión **18.0.1.2.2** · Nombre técnico `systore_operations_dashboard`.
 
 ## Cambios
+
+- Recolección excluye borradores en su tarjeta, listas y operación móvil.
+- **Operar** abre dos pestañas: **Por procesar** muestra cada recolección individual del almacén, incluida la que pertenece a un batch; **Baches** muestra únicamente los lotes con recolecciones asignadas. Cambiar de pestaña reinicia la paginación y la búsqueda.
+- Las dos pestañas consultan todas las fechas del almacén seleccionado y mantienen el filtro **Completa**. El tablero conserva sus propios filtros de fecha.
+- El detalle incorpora la imagen nativa del producto y retira de la pantalla «Lote / serie nativa». Los lotes y su trazabilidad se conservan en Odoo.
 
 - Recepciones se divide en **Ingresos (In)** y **Almacenamiento (Storage)**. Solo aparecen los tipos nativos activos y seleccionados: una recepción de un paso muestra In; dos pasos muestran In y Storage.
 - Pick, Pack y Out muestran piezas solicitadas en su unidad de inventario, batches y órdenes de venta. El detalle agrupa las operaciones de cada batch y muestra también sus lotes nativos cuando existen.
@@ -27,18 +32,18 @@ En la tarjeta **Recolección**, pulse **Operar**. **Abrir operaciones** conserva
 
 ### Panel
 
-Se retiraron los textos introductorios: sobre las tarjetas queda únicamente el buscador. Las tarjetas conservan documento de origen, tipo, estado, órdenes y piezas.
+Se retiraron los textos introductorios: sobre las tarjetas queda únicamente el buscador. Las tarjetas conservan documento de origen, tipo, estado, órdenes y piezas. Por procesar muestra una tarjeta por operación; Baches muestra una tarjeta por lote.
 
-El filtro utiliza el campo nativo de su módulo UPC **`systore_batch_readiness_state = 'complete'` (Completa)**. Este es el nombre técnico existente, sin la letra «l» adicional de `readliness`. Solo se muestran operaciones pendientes completas del almacén y fecha consultados. Para un batch se comprueban todas sus operaciones pendientes: si alguna está parcial, el batch completo queda fuera de este panel. No se valida un subconjunto ocultando sus miembros parciales.
+El filtro utiliza el campo nativo de su módulo UPC **`systore_batch_readiness_state = 'complete'` (Completa)**. Este es el nombre técnico existente, sin la letra «l» adicional de `readliness`. Solo se muestran operaciones pendientes completas del almacén, de cualquier fecha, excluyendo borradores. Para un batch se comprueban todas sus operaciones pendientes: si alguna está parcial, el batch completo queda fuera de este panel. No se valida un subconjunto ocultando sus miembros parciales.
 
-El buscador consulta origen y referencia dentro de la página. Hay 30 tarjetas por página. Los batches incluyen todas sus recolecciones pendientes autorizadas, aunque alguna tenga otra fecha. Los batches que mezclan etapas o almacenes fuera del alcance autorizado tampoco se ofrecen en esta pantalla. Las vistas nativas permiten revisar estos registros.
+El buscador consulta origen y referencia dentro de la página. Hay 30 tarjetas por página. Los batches incluyen todas sus recolecciones pendientes autorizadas. Si contienen una operación en borrador, no se ofrecen para validar hasta resolver ese borrador en la vista original. Los batches que mezclan etapas o almacenes fuera del alcance autorizado tampoco se ofrecen en esta pantalla. Las vistas nativas permiten revisar estos registros.
 
 ### Batch e individual
 
 - **Batch:** se suman las piezas de sus órdenes por **producto + ubicación de origen + unidad**. Si el mismo producto está en dos ubicaciones, aparece una fila por ubicación. El detalle se ordena por producto y ubicación.
 - **Individual:** solo se incluyen las piezas y ubicaciones de esa operación. Abrir un ID individual no incorpora otras órdenes aunque pertenezca a un batch.
 
-La agrupación es de presentación: conserva los IDs de las líneas, sus lotes nativos y los vínculos con las órdenes. No mezcla reservas ni modifica la trazabilidad. Las cantidades a recoger corresponden a las reservas completas; para parciales, otras unidades o ajustes de reserva se conserva **Abrir original**.
+La imagen se consulta mediante la ruta autenticada de Odoo para la variante del producto. Si no tiene imagen o no carga, se muestra un marcador. La agrupación es de presentación: conserva los IDs de las líneas, sus lotes nativos y los vínculos con las órdenes. No mezcla reservas ni modifica la trazabilidad. Las cantidades a recoger corresponden a las reservas completas; para parciales, otras unidades o ajustes de reserva se conserva **Abrir original**.
 
 ### Validación
 
@@ -85,7 +90,7 @@ Consultar el tablero no valida operaciones ni cambia reservas. Abrir una prepara
 
 ## Verificación
 
-Comprobaciones locales: 32 pruebas Python de fechas, contadores, paquetes, agrupación por producto/ubicación, captura UPC, filtro Completa y alcance individual; compilación de tres plantillas con Owl de Odoo 18; navegación al tablero conservando filtros, captura UPC compartida entre ubicaciones, validación sin series, errores y asistentes del cliente; registro de acciones con el conversor/cargador nativos; sintaxis Python/JavaScript, XML y manifiesto.
+Comprobaciones locales: 32 pruebas Python de fechas, contadores, paquetes, agrupación por producto/ubicación, captura UPC, filtro Completa, exclusión de borradores, pestañas de individuales/batches y alcance individual; compilación de tres plantillas con Owl de Odoo 18; navegación al tablero conservando filtros, cambio de pestaña y ruta de imagen, captura UPC compartida entre ubicaciones, validación sin series, errores y asistentes del cliente; registro de acciones con el conversor/cargador nativos; sintaxis Python/JavaScript, XML y manifiesto.
 
 Estas pruebas usan dobles de ORM y plantillas sin navegador. **No se ejecutó Odoo completo ni la app móvil real.** Las pruebas nativas incluidas en `tests/test_operations_dashboard.py` cubren un batch de dos ventas agrupado en tres piezas, apertura individual limitada, UPC incorrecto/correcto y confirmación sin crear series en Pick. Ejecútelas en la rama SH con `--test-enable --test-tags /systore_operations_dashboard --stop-after-init`.
 

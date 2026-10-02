@@ -13,7 +13,7 @@ export class MobilePick extends Component {
         this.destroyed = false;
         this.scanRef = useRef('upcInput');
         this.state = useState({page:'panel', busy:false, error:'', message:'', panel:null,
-            detail:null, captures:[], index:0, query:'', pageNumber:0});
+            detail:null, captures:[], index:0, query:'', pageNumber:0, mode:this.params.batch_id ? 'batches' : 'pending'});
         onWillUnmount(() => { this.destroyed = true; });
         useEffect(() => { this.scanRef.el?.focus(); }, () => [this.state.page, this.state.index]);
         onWillStart(async () => {
@@ -30,18 +30,26 @@ export class MobilePick extends Component {
         catch (error) { if (!this.destroyed) this.state.error = error.data?.message || error.message || 'No se pudo completar la operación.'; }
         finally { if (!this.destroyed) this.state.busy = false; }
     }
-    async loadPanel(page = 0) {
+    async loadPanel(page = 0, mode = this.state.mode) {
         await this.run(async () => {
             const panel = await this.call('get_mobile_pick_panel', [this.params.warehouse_id,
-                this.params.date || false, this.params.scope || 'date', page]);
+                this.params.date || false, this.params.scope || 'date', page, mode]);
             if (this.destroyed) return;
             this.state.panel = panel;
+            this.state.mode = mode;
             this.state.pageNumber = page;
             this.state.page = 'panel';
             this.state.detail = null;
             this.state.captures = [];
         });
     }
+    async switchMode(mode) {
+        if (mode === this.state.mode || this.state.busy) return;
+        this.state.query = '';
+        await this.loadPanel(0, mode);
+    }
+    imageURL(productId) { return `/web/image/product.product/${productId}/image_128`; }
+    imageError(event) { event.target.style.visibility = 'hidden'; }
     get cards() {
         const text = this.state.query.trim().toLocaleLowerCase();
         return (this.state.panel?.cards || []).filter(card =>

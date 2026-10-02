@@ -43,17 +43,21 @@ class MobilePickDashboard(models.AbstractModel):
                 'blocked': '', 'is_batch': bool(batch)}
 
     @api.model
-    def get_mobile_pick_panel(self, warehouse_id, selected_date=False, scope='date', page=0):
+    def get_mobile_pick_panel(self, warehouse_id, selected_date=False, scope='date', page=0, mode='pending'):
         warehouse = self._warehouse(warehouse_id)
         day, today, timezone = self._parameters(selected_date, scope)
+        if mode not in ('pending', 'batches'):
+            raise ValidationError(_('Vista de recolección inválida.'))
         if type(page) is not int or page < 0:
             raise ValidationError(_('Página inválida.'))
         pickings = self.env['stock.picking'].search(
-            AND([self._filtered_domain(warehouse, 'pick', day, scope, today, timezone),
-                 [('systore_batch_readiness_state', '=', 'complete')]]), order='scheduled_date, id')
+            AND([self._section_domain(warehouse, 'pick'),
+                 [('state', '!=', 'draft'), ('systore_batch_readiness_state', '=', 'complete')]]), order='scheduled_date, id')
         groups = {}
         for picking in pickings:
-            key = ('batch', picking.batch_id.id) if picking.batch_id else ('picking', picking.id)
+            if mode == 'batches' and not picking.batch_id:
+                continue
+            key = ('batch', picking.batch_id.id) if mode == 'batches' else ('picking', picking.id)
             groups.setdefault(key, self.env['stock.picking'])
             groups[key] |= picking
         cards = []
@@ -71,7 +75,7 @@ class MobilePickDashboard(models.AbstractModel):
             card['blocked'] = error
             cards.append(card)
         return {'warehouse': warehouse.name, 'cards': cards[page * 30:(page + 1) * 30], 'page': page,
-                'has_more': (page + 1) * 30 < len(cards), 'total': len(cards)}
+                'has_more': (page + 1) * 30 < len(cards), 'total': len(cards), 'mode': mode}
 
     def _mobile_detail(self, warehouse, pickings, batch):
         rows, reasons = [], []

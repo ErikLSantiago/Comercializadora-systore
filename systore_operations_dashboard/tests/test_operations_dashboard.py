@@ -123,7 +123,7 @@ class TestOperationsDashboard(TransactionCase):
         self.assertIn(dispatch_pick.id, transfer_ids)
         self.assertNotIn(dispatch_out.id, transfer_ids)
         recoleccion = self.service.open_operations(self.warehouse.id, 'pick', '2026-10-01')
-        self.assertIn(dispatch_pick.id, picking_model.search(recoleccion['domain']).ids)
+        self.assertNotIn(dispatch_pick.id, picking_model.search(recoleccion['domain']).ids)  # Borrador excluido de Pick
         salida = self.service.open_operations(self.warehouse.id, 'out', '2026-10-01')
         self.assertIn(dispatch_out.id, picking_model.search(salida['domain']).ids)
         self.assertNotIn(dispatch_pick.id, picking_model.search(salida['domain']).ids)
@@ -240,7 +240,7 @@ class TestOperationsDashboard(TransactionCase):
         picks.action_assign()
         batch = self.env['stock.picking.batch'].create({
             'picking_type_id': self.warehouse.pick_type_id.id, 'picking_ids': [Command.set(picks.ids)]})
-        panel = self.service.get_mobile_pick_panel(self.warehouse.id, scope='all')
+        panel = self.service.get_mobile_pick_panel(self.warehouse.id, scope='all', mode='batches')
         card = next(c for c in panel['cards'] if c['batch_id'] == batch.id)
         self.assertEqual(card['orders'], 2)
         self.assertEqual(card['pieces'], 3)

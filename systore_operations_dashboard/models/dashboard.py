@@ -85,6 +85,8 @@ class OperationsDashboard(models.AbstractModel):
             types = {'pick': warehouse.pick_type_id, 'pack': warehouse.pack_type_id,
                      'out': warehouse.out_type_id}[section]
             specific = [('picking_type_id', 'in', types.ids)]
+        if section == 'pick':
+            specific.append(('state', '!=', 'draft'))
         return AND([common, specific])
 
     @api.model

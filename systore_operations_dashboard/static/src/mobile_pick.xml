@@ -15,6 +15,12 @@
             <div t-if="state.message" class="alert alert-success" role="status" t-esc="state.message"/>
             <p t-if="state.busy" class="smp-status" role="status"><i class="fa fa-spinner fa-spin"/> Procesando…</p>
             <t t-if="state.page === 'panel'">
+                <nav class="smp-mode-tabs" aria-label="Tipo de recolección">
+                    <button t-on-click="() => this.switchMode('pending')" t-att-class="{'active':state.mode === 'pending'}"
+                            t-att-aria-pressed="state.mode === 'pending'" t-att-disabled="state.busy">Por procesar</button>
+                    <button t-on-click="() => this.switchMode('batches')" t-att-class="{'active':state.mode === 'batches'}"
+                            t-att-aria-pressed="state.mode === 'batches'" t-att-disabled="state.busy">Baches</button>
+                </nav>
                 <label class="smp-search"><span class="visually-hidden">Buscar recolecciones</span><input type="search" t-model="state.query" placeholder="Buscar documento de origen o referencia"/></label>
                 <div class="smp-grid">
                     <button t-foreach="cards" t-as="card" t-key="card.key" class="smp-card smp-operation"
@@ -47,9 +53,13 @@
                 <div class="smp-grid">
                     <article t-foreach="state.detail.rows" t-as="row" t-key="row.id" class="smp-card smp-product">
                         <div class="smp-location"><i class="fa fa-map-marker"/><div><span class="smp-label">Ubicación de origen</span><strong t-esc="row.location"/></div></div>
-                        <span class="smp-label">Producto</span><h3 t-esc="row.product"/>
+                        <div class="smp-product-heading">
+                            <div class="smp-product-image"><i class="fa fa-cube" aria-hidden="true"/>
+                                <img t-att-src="imageURL(row.product_id)" t-att-alt="row.product" loading="lazy"
+                                     width="96" height="96" t-on-error="imageError"/></div>
+                            <div><span class="smp-label">Producto</span><h3 t-esc="row.product"/></div>
+                        </div>
                         <p class="smp-muted"><t t-esc="row.origin || row.operation"/></p>
-                        <p class="smp-muted" t-if="row.lot">Lote / serie nativa: <t t-esc="row.lot"/></p>
                         <div class="smp-quantity"><span>Recoger</span><strong t-esc="format(row.qty)"/><span t-esc="row.uom"/></div>
                     </article>
                 </div>
