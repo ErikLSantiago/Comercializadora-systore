@@ -23,7 +23,7 @@
     .sod-period span { font-size: 12px; color: var(--sod-muted); }
     .sod-cards { display: grid; grid-template-columns: repeat(12, minmax(0, 1fr)); gap: 18px; }
     .sod-card { grid-column: span 4; background: white; padding: 22px; border: 1px solid var(--sod-border); border-top: 4px solid #4a8793; border-radius: 10px; box-shadow: 0 3px 12px #26334905; }
-    .sod-card-receipts, .sod-card-transfers { grid-column: span 6; }
+    .sod-card-in, .sod-card-storage, .sod-card-transfers { grid-column: span 4; }
     .sod-card-transfers { border-top-color: #b68b43; }
     .sod-card-pick, .sod-card-pack, .sod-card-out { border-top-color: #756895; }
     .sod-card-title { display: flex; justify-content: space-between; align-items: center; margin-bottom: 18px; }

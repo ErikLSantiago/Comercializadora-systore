@@ -19,7 +19,7 @@ export class OperationsDashboard extends Component {
         this.destroyed = false;
         this.state = useState({
             loading: true, opening: false, error: '', warehouses: [], warehouseId: null,
-            today: '', date: '', scope: 'date', activeSection: 'receipts', data: null,
+            today: '', date: '', scope: 'date', activeSection: 'in', data: null,
         });
         onWillStart(() => this.reload());
         onWillUnmount(() => { this.destroyed = true; this.requestId++; });
@@ -45,6 +45,8 @@ export class OperationsDashboard extends Component {
     format(value) {
         return new Intl.NumberFormat('es-MX').format(value || 0);
     }
+
+    isReceipt(key) { return key === 'in' || key === 'storage'; }
 
     displayDate(value) {
         return value ? DateTime.fromISO(value).toFormat('dd/MM/yyyy') : 'Sin fecha';
@@ -81,7 +83,7 @@ export class OperationsDashboard extends Component {
             this.state.data = data;
             this.state.today = data.today;
             if (!data.sections.some(section => section.key === this.state.activeSection)) {
-                this.state.activeSection = data.sections[0]?.key || 'receipts';
+                this.state.activeSection = data.sections[0]?.key || 'transfers';
             }
         } catch (error) {
             if (!this.destroyed && requestId === this.requestId) {
@@ -118,10 +120,11 @@ export class OperationsDashboard extends Component {
         if (this.state.opening || this.state.loading || !this.state.data) return;
         this.state.opening = true;
         try {
-            const action = await this.orm.call('systore.operations.dashboard', 'open_operations', [
-                this.state.warehouseId, section, this.state.date, this.state.scope,
-                row?.purchase_id || false, row?.picking_id || false,
-            ]);
+            const guided = ['pick', 'pack', 'out'].includes(section);
+            const args = [this.state.warehouseId, section, this.state.date, this.state.scope];
+            if (guided) { args.push(row?.picking_id || false, row?.batch_id || false); }
+            else { args.push(row?.purchase_id || false, row?.picking_id || false); }
+            const action = await this.orm.call('systore.operations.dashboard', guided ? 'open_guided_operation' : 'open_operations', args);
             await this.action.doAction(action);
         } catch (error) {
             this.notification.add(error.data?.message || error.message || 'No fue posible abrir la operación.',
@@ -129,6 +132,17 @@ export class OperationsDashboard extends Component {
         } finally {
             if (!this.destroyed) this.state.opening = false;
         }
+    }
+
+    async openBatches(section) {
+        if (this.state.opening || this.state.loading) return;
+        this.state.opening = true;
+        try {
+            const action = await this.orm.call('systore.operations.dashboard', 'open_batches', [
+                this.state.warehouseId, section, this.state.date, this.state.scope]);
+            await this.action.doAction(action);
+        } catch (error) { this.notification.add(error.data?.message || error.message, {type:'danger'}); }
+        finally { if (!this.destroyed) this.state.opening = false; }
     }
 }
 

@@ -9,8 +9,9 @@ from odoo.osv.expression import AND
 from .date_policy import SCOPES, local_day_bounds, local_date, matches_scope
 
 
-SECTIONS = ('receipts', 'transfers', 'pick', 'pack', 'out')
-TITLES = {'receipts': 'Recepciones', 'transfers': 'Transferencias',
+RECEIPT_SECTIONS = ('in', 'storage')
+SECTIONS = ('in', 'storage', 'transfers', 'pick', 'pack', 'out')
+TITLES = {'in': 'Ingresos (In)', 'storage': 'Almacenamiento (Storage)', 'transfers': 'Transferencias',
           'pick': 'Recolección (Pick)', 'pack': 'Empaquetado (Pack)', 'out': 'Salidas (Out)'}
 
 
@@ -67,8 +68,8 @@ class OperationsDashboard(models.AbstractModel):
             ('state', 'not in', ['done', 'cancel']),
             ('picking_type_id', 'in', warehouse.systore_operations_type_ids.ids),
         ]
-        if section == 'receipts':
-            types = (warehouse.in_type_id | warehouse.store_type_id | warehouse.qc_type_id)
+        if section in RECEIPT_SECTIONS:
+            types = warehouse.in_type_id if section == 'in' else warehouse.store_type_id
             specific = [
                 ('picking_type_id', 'in', types.ids),
                 ('location_dest_id', 'child_of', warehouse.view_location_id.id),
@@ -88,12 +89,14 @@ class OperationsDashboard(models.AbstractModel):
 
     @api.model
     def _visible_sections(self, warehouse):
-        sections = ['receipts', 'transfers']
-        for key, operation_type in [('pick', warehouse.pick_type_id),
+        sections = []
+        for key, operation_type in [('in', warehouse.in_type_id), ('storage', warehouse.store_type_id),
+                                    ('pick', warehouse.pick_type_id),
                                     ('pack', warehouse.pack_type_id), ('out', warehouse.out_type_id)]:
             if (operation_type and operation_type.active
                     and operation_type in warehouse.systore_operations_type_ids):
                 sections.append(key)
+        sections.insert(sum(key in RECEIPT_SECTIONS for key in sections), 'transfers')
         return sections
 
     @api.model
@@ -111,7 +114,7 @@ class OperationsDashboard(models.AbstractModel):
     @api.model
     def _filtered_domain(self, warehouse, section, day, scope, today, timezone):
         base = self._section_domain(warehouse, section)
-        if section != 'receipts':
+        if section not in RECEIPT_SECTIONS:
             return AND([base, self._datetime_domain('scheduled_date', day, scope, today, timezone)])
         # Filter exact operational metadata from readable pickings. A relational
         # date domain would require Purchase ACLs and may combine date bounds
@@ -173,7 +176,7 @@ class OperationsDashboard(models.AbstractModel):
         return sum(move.product_uom._compute_quantity(move.product_uom_qty,
                                                       move.product_id.uom_id, round=False)
                    for move in picking.move_ids
-                   if move.state != 'cancel' and move.product_id.type != 'service')
+                   if move.state not in ('done', 'cancel') and move.product_id.type != 'service')
 
     @api.model
     def _totals(self, entries):
@@ -181,6 +184,7 @@ class OperationsDashboard(models.AbstractModel):
             'orders': sum(bool(entry.get('purchase_id')) for entry in entries),
             'packages': sum(entry.get('packages', 0) for entry in entries),
             'pieces': sum(entry.get('pieces', 0) for entry in entries),
+            'batches': len({entry['batch_id'] for entry in entries if entry.get('batch_id')}),
             'operations': len({pid for entry in entries for pid in entry['picking_ids']}),
         }
 
@@ -193,18 +197,19 @@ class OperationsDashboard(models.AbstractModel):
             pickings = self.env['stock.picking'].search(self._section_domain(warehouse, section),
                                                        order='scheduled_date, id')
             pickings.fetch(['name', 'scheduled_date', 'state', 'partner_id', 'picking_type_id',
-                            'location_id', 'location_dest_id', 'systore_operations_sale_names'])
-            if section == 'receipts':
+                            'location_id', 'location_dest_id', 'systore_operations_sale_names', 'batch_id'])
+            if section in RECEIPT_SECTIONS:
                 entries = self._receipt_entries(pickings)
             else:
                 entries = [{'key': 'p%s' % p.id, 'purchase_id': False, 'label': p.name,
-                            'date': p.scheduled_date, 'picking_ids': [p.id]} for p in pickings]
+                            'date': p.scheduled_date, 'pieces': self._picking_pieces(p),
+                            'batch_id': p.batch_id.id, 'picking_ids': [p.id]} for p in pickings]
             selected = [e for e in entries if matches_scope(e['date'], scope, day, today, timezone)]
             def count_for(count_day, count_scope='date'):
                 return self._totals([e for e in entries
                                      if matches_scope(e['date'], count_scope, count_day, today, timezone)])
             rows = []
-            if section == 'receipts':
+            if section in RECEIPT_SECTIONS:
                 selected.sort(key=lambda e: (e['date'] or fields.Datetime.to_datetime('9999-01-01'), e['label']))
                 for entry in selected[:60]:
                     rows.append({
@@ -217,11 +222,23 @@ class OperationsDashboard(models.AbstractModel):
                     })
             else:
                 selected_ids = {pid for e in selected for pid in e['picking_ids']}
-                for picking in pickings.filtered(lambda p: p.id in selected_ids)[:60]:
+                groups = {}
+                for picking in pickings.filtered(lambda p: p.id in selected_ids):
+                    group_key = 'b%s' % picking.batch_id.id if picking.batch_id and section != 'transfers' else 'p%s' % picking.id
+                    groups.setdefault(group_key, self.env['stock.picking'])
+                    groups[group_key] |= picking
+                for group_key, grouped_pickings in list(groups.items())[:60]:
+                    picking = grouped_pickings[0]
+                    batch = picking.batch_id if group_key.startswith('b') else False
                     rows.append({
-                        'key': 'p%s' % picking.id, 'label': picking.name, 'picking_id': picking.id,
+                        'key': group_key, 'label': batch.name if batch else picking.name,
+                        'picking_id': False if batch else picking.id,
+                        'batch_id': batch.id if batch else False,
+                        'batch': batch.name if batch else '', 'operations': len(grouped_pickings),
+                        'pieces': sum(self._picking_pieces(p) for p in grouped_pickings),
+                        'native_lots': ', '.join(sorted(set(grouped_pickings.move_line_ids.lot_id.mapped('name')))),
                         'type': picking.picking_type_id.name, 'state': picking.state,
-                        'sale_order': picking.systore_operations_sale_names or '',
+                        'sale_order': ', '.join(sorted(set(filter(None, grouped_pickings.mapped('systore_operations_sale_names'))))),
                         'date': fields.Date.to_string(local_date(picking.scheduled_date, timezone)),
                         'source': picking.location_id.display_name,
                         'destination': picking.location_dest_id.display_name,
@@ -230,7 +247,7 @@ class OperationsDashboard(models.AbstractModel):
                 'key': section, 'title': TITLES[section], 'selected': self._totals(selected),
                 'today': count_for(today), 'tomorrow': count_for(today + timedelta(days=1)),
                 'overdue': count_for(today, 'overdue'), 'undated': count_for(today, 'undated'),
-                'rows': rows, 'truncated': len(selected) > 60,
+                'rows': rows, 'truncated': (len(selected) if section in RECEIPT_SECTIONS else len(groups)) > 60,
             })
         return {'sections': sections, 'selected_date': fields.Date.to_string(day),
                 'today': fields.Date.to_string(today), 'stock_location': warehouse.lot_stock_id.display_name}
@@ -242,7 +259,7 @@ class OperationsDashboard(models.AbstractModel):
         day, today, timezone = self._parameters(selected_date, scope)
         domain = self._filtered_domain(warehouse, section, day, scope, today, timezone)
         if purchase_id:
-            if section != 'receipts' or isinstance(purchase_id, bool) or not isinstance(purchase_id, int):
+            if section not in RECEIPT_SECTIONS or isinstance(purchase_id, bool) or not isinstance(purchase_id, int):
                 raise ValidationError(_('Compra inválida.'))
             domain = AND([domain, [('systore_operations_purchase_ids', 'in', [purchase_id])]])
         action = {

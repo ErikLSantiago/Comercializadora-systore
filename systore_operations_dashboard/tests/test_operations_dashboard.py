@@ -1,7 +1,7 @@
 from datetime import datetime
 
 from odoo import Command, fields
-from odoo.exceptions import AccessError, ValidationError
+from odoo.exceptions import AccessError, UserError, ValidationError
 from odoo.tests import TransactionCase, tagged
 from odoo.tests.common import new_test_user
 
@@ -43,7 +43,7 @@ class TestOperationsDashboard(TransactionCase):
 
     def receipt_section(self, date='2026-10-01', scope='date'):
         data = self.service.get_dashboard(self.warehouse.id, date, scope)
-        return next(section for section in data['sections'] if section['key'] == 'receipts')
+        return next(section for section in data['sections'] if section['key'] == 'in')
 
     def test_two_step_receipt_counts_packages_once(self):
         order = self.make_order()
@@ -56,7 +56,10 @@ class TestOperationsDashboard(TransactionCase):
         self.assertEqual(section['selected']['orders'], 1)
         self.assertEqual(section['selected']['packages'], 7)
         self.assertEqual(len(section['rows']), 1)
-        self.assertEqual(section['rows'][0]['operations'], len(pickings))
+        self.assertEqual(section['rows'][0]['operations'], len(pickings.filtered(lambda p: p.picking_type_id == self.warehouse.in_type_id)))
+        storage = next(s for s in self.service.get_dashboard(self.warehouse.id, '2026-10-01')['sections'] if s['key'] == 'storage')
+        self.assertEqual(storage['selected']['packages'], 7)
+        self.assertEqual(storage['selected']['pieces'], 10)
         self.assertEqual(section['selected']['pieces'], 10)
 
     def test_expected_date_change_and_negative_packages(self):
@@ -73,7 +76,7 @@ class TestOperationsDashboard(TransactionCase):
         with self.assertRaises(AccessError):
             unassigned.get_dashboard(self.warehouse.id)
         with self.assertRaises(AccessError):
-            unassigned.open_operations(self.warehouse.id, 'receipts')
+            unassigned.open_operations(self.warehouse.id, 'in')
         self.warehouse.systore_operations_enabled = False
         with self.assertRaises(AccessError):
             self.service.get_dashboard(self.warehouse.id)
@@ -86,11 +89,11 @@ class TestOperationsDashboard(TransactionCase):
 
     def test_native_operation_action_and_forged_id(self):
         order = self.make_order()
-        action = self.service.open_operations(self.warehouse.id, 'receipts', '2026-10-01', 'date', order.id)
+        action = self.service.open_operations(self.warehouse.id, 'in', '2026-10-01', 'date', order.id)
         self.assertEqual(action['res_model'], 'stock.picking')
         self.assertEqual(action['views'][-1], (False, 'form'))
         with self.assertRaises(AccessError):
-            self.service.open_operations(self.warehouse.id, 'receipts', '2026-10-01',
+            self.service.open_operations(self.warehouse.id, 'in', '2026-10-01',
                                          'date', order.id, 2147483647)
 
     def test_inventory_operator_can_read_po_summary_without_purchase_group(self):
@@ -134,17 +137,15 @@ class TestOperationsDashboard(TransactionCase):
         self.assertEqual(section['selected']['pieces'], 10)
 
     def test_checkboxes_exclude_operation_types(self):
-        order = self.make_order()
+        self.make_order()
         self.warehouse.systore_operations_type_ids = self.warehouse.store_type_id
-        self.assertEqual(self.receipt_section()['selected']['pieces'], 10)
-        action = self.service.open_operations(self.warehouse.id, 'receipts', '2026-10-01')
-        pickings = self.env['stock.picking'].search(action['domain'])
-        self.assertTrue(pickings)
-        self.assertEqual(pickings.picking_type_id, self.warehouse.store_type_id)
-        self.assertNotIn('pick', self.service._visible_sections(self.warehouse))
+        data = self.service.get_dashboard(self.warehouse.id, '2026-10-01')
+        self.assertEqual([s['key'] for s in data['sections']], ['storage', 'transfers'])
+        self.assertEqual(data['sections'][0]['selected']['pieces'], 10)
+        action = self.service.open_operations(self.warehouse.id, 'storage', '2026-10-01')
+        self.assertEqual(self.env['stock.picking'].search(action['domain']).picking_type_id, self.warehouse.store_type_id)
         self.warehouse.systore_operations_type_ids = False
-        self.assertEqual(self.receipt_section()['selected']['orders'], 0)
-        self.assertEqual(self.service._visible_sections(self.warehouse), ['receipts', 'transfers'])
+        self.assertEqual(self.service._visible_sections(self.warehouse), ['transfers'])
 
     def test_sale_reference_on_all_shipping_steps(self):
         sale = self.env['sale.order'].create({
@@ -161,3 +162,62 @@ class TestOperationsDashboard(TransactionCase):
         start, end = local_day_bounds(fields.Date.to_date('2026-10-01'), 'America/Mexico_City')
         self.assertEqual(start, datetime(2026, 10, 1, 6))
         self.assertEqual(end, datetime(2026, 10, 2, 6))
+
+    def test_guided_three_steps_and_scanned_delivery(self):
+        """Run in Odoo.sh: native reservation, UPC, series, guide and delivery."""
+        company = self.warehouse.company_id
+        company.systore_upc_validation_warehouse_ids |= self.warehouse
+        self.warehouse.pick_type_id.systore_require_upc_on_picking = True
+        self.warehouse.pack_type_id.systore_require_tracking_on_pack = True
+        self.warehouse.out_type_id.write({'systore_require_upc_on_picking': False,
+                                         'systore_require_tracking_on_pack': False})
+        self.product.barcode = 'SOD-UPC-TEST'
+        self.env['stock.quant']._update_available_quantity(self.product, self.warehouse.lot_stock_id, 5)
+        sale = self.env['sale.order'].create({
+            'partner_id': self.vendor.id, 'warehouse_id': self.warehouse.id,
+            'order_line': [Command.create({'product_id': self.product.id,
+                                          'product_uom_qty': 2, 'price_unit': 50})],
+        })
+        sale.action_confirm()
+        pick = sale.picking_ids.filtered(lambda p: p.picking_type_id == self.warehouse.pick_type_id)
+        pick.action_assign()
+        batch = self.env['stock.picking.batch'].create({
+            'picking_type_id': self.warehouse.pick_type_id.id,
+            'picking_ids': [Command.set(pick.ids)],
+        })
+        action = self.service.open_guided_operation(self.warehouse.id, 'pick', scope='all', batch_id=batch.id)
+        wizard = self.env['stock.picking.upc.wizard'].with_user(self.user).browse(action['res_id'])
+        self.assertEqual(sum(wizard.line_ids.mapped('systore_requested_qty')), 2)
+        wizard.line_ids.write({'demand_qty': 2, 'upc_ean': 'WRONG-UPC'})
+        with self.assertRaises(ValidationError), self.cr.savepoint():
+            wizard.action_confirm()
+        wizard.line_ids.upc_ean = self.product.barcode
+        wizard.action_confirm()
+        self.assertEqual(pick.state, 'done')
+        pack = sale.picking_ids.filtered(lambda p: p.picking_type_id == self.warehouse.pack_type_id)
+        action = self.service.open_guided_operation(self.warehouse.id, 'pack', scope='all', picking_id=pack.id)
+        wizard = self.env['stock.picking.upc.wizard'].with_user(self.user).browse(action['res_id'])
+        for number, line in enumerate(wizard.line_ids):
+            line.write({'upc_ean': self.product.barcode, 'serial_imei': 'SOD-SERIAL-%s' % number})
+        wizard.tracking_ref = 'SOD-GUIDE-TEST'
+        wizard.action_confirm()
+        self.assertEqual(pack.state, 'done')
+        self.assertEqual(len(pack.move_line_ids.serial_captured_ids), 2)
+        out = sale.picking_ids.filtered(lambda p: p.picking_type_id == self.warehouse.out_type_id)
+        action = self.service.open_guided_operation(self.warehouse.id, 'out', scope='all', picking_id=out.id)
+        session = self.env['systore.operations.dispatch.session'].with_user(self.user).browse(action['params']['session_id'])
+        self.assertEqual(session.get_snapshot()['scanned'], 0)
+        with self.assertRaises(UserError), self.cr.savepoint():
+            session.scan_package('FOREIGN-GUIDE')
+        result = session.scan_package('SOD-GUIDE-TEST')
+        self.assertEqual(result['snapshot']['scanned'], 1)
+        self.assertEqual(out.state, 'done')
+        self.assertEqual(result['snapshot']['validated'], 1)
+        with self.assertRaises(UserError), self.cr.savepoint():
+            session.scan_package('SOD-GUIDE-TEST')
+
+    def test_receipt_stage_visibility_follows_native_steps(self):
+        self.assertIn('storage', self.service._visible_sections(self.warehouse))
+        self.warehouse.reception_steps = 'one_step'
+        self.assertIn('in', self.service._visible_sections(self.warehouse))
+        self.assertNotIn('storage', self.service._visible_sections(self.warehouse))
