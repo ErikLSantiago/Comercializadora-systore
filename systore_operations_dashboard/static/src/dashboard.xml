@@ -1,0 +1,156 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<templates xml:space="preserve">
+    <t t-name="systore_operations_dashboard.Dashboard">
+        <div class="systore-operations-dashboard">
+            <header class="sod-header">
+                <div>
+                    <div class="sod-eyebrow">INVENTARIO</div>
+                    <h1>Tablero de operaciones</h1>
+                    <p>Planifica la jornada y abre cada operación para trabajarla.</p>
+                </div>
+                <div class="sod-warehouse">
+                    <label for="sod-warehouse">Almacén</label>
+                    <select id="sod-warehouse" class="form-select" t-on-change="changeWarehouse"
+                            t-att-disabled="state.loading || !state.warehouses.length">
+                        <option t-if="!state.warehouses.length" value="">Sin almacenes asignados</option>
+                        <option t-foreach="state.warehouses" t-as="warehouse" t-key="warehouse.id"
+                                t-att-value="warehouse.id" t-att-selected="warehouse.id === state.warehouseId">
+                            <t t-esc="warehouse.code"/> · <t t-esc="warehouse.name"/> — <t t-esc="warehouse.company"/>
+                        </option>
+                    </select>
+                </div>
+            </header>
+
+            <div class="sod-toolbar">
+                <div class="sod-date-buttons" role="group" aria-label="Filtros de fecha">
+                    <button class="btn" t-att-class="{'btn-primary': state.scope === 'date' &amp;&amp; state.date === state.today, 'btn-outline-secondary': !(state.scope === 'date' &amp;&amp; state.date === state.today)}"
+                            t-on-click="() => this.filter('today')" t-att-disabled="state.loading">Hoy</button>
+                    <button class="btn" t-att-class="{'btn-primary': state.scope === 'date' &amp;&amp; state.date === tomorrow, 'btn-outline-secondary': !(state.scope === 'date' &amp;&amp; state.date === tomorrow)}"
+                            t-on-click="() => this.filter('tomorrow')" t-att-disabled="state.loading">Mañana</button>
+                    <button class="btn" t-att-class="{'btn-primary': state.scope === 'overdue', 'btn-outline-secondary': state.scope !== 'overdue'}"
+                            t-on-click="() => this.filter('overdue')" t-att-disabled="state.loading">Atrasadas</button>
+                    <button class="btn" t-att-class="{'btn-primary': state.scope === 'all', 'btn-outline-secondary': state.scope !== 'all'}"
+                            t-on-click="() => this.filter('all')" t-att-disabled="state.loading">Todas</button>
+                    <button class="btn" t-att-class="{'btn-primary': state.scope === 'undated', 'btn-outline-secondary': state.scope !== 'undated'}"
+                            t-on-click="() => this.filter('undated')" t-att-disabled="state.loading">Sin fecha</button>
+                </div>
+                <div class="sod-date-input">
+                    <label for="sod-date">Consultar fecha</label>
+                    <input id="sod-date" type="date" class="form-control" t-att-value="state.date"
+                           t-on-change="chooseDate" t-att-disabled="state.loading"/>
+                </div>
+                <button class="btn btn-outline-secondary sod-refresh" t-on-click="reload" t-att-disabled="state.loading">
+                    <i class="fa fa-refresh me-2" aria-hidden="true"/>Actualizar
+                </button>
+            </div>
+
+            <div t-if="state.error" class="alert alert-danger" role="alert"><t t-esc="state.error"/></div>
+            <div t-elif="state.loading" class="sod-empty" role="status">
+                <i class="fa fa-spinner fa-spin me-2" aria-hidden="true"/>Consultando operaciones…
+            </div>
+            <div t-elif="!state.warehouses.length" class="sod-empty">
+                <i class="fa fa-building-o sod-empty-icon" aria-hidden="true"/>
+                <h2>No tienes almacenes asignados</h2>
+                <p>Un administrador debe habilitar el tablero y asignarte en Inventario → Configuración → Almacenes.</p>
+            </div>
+            <t t-elif="state.data">
+                <div class="sod-period">
+                    <strong t-esc="dateLabel"/>
+                    <span>Solo operaciones pendientes · Existencias: <t t-esc="state.data.stock_location"/></span>
+                </div>
+                <div class="sod-cards">
+                    <article t-foreach="state.data.sections" t-as="section" t-key="section.key"
+                             class="sod-card" t-att-class="'sod-card-' + section.key">
+                        <div class="sod-card-title">
+                            <h2 t-esc="section.title"/>
+                            <i class="fa" t-att-class="{'fa-arrow-down': section.key === 'receipts', 'fa-exchange': section.key === 'transfers', 'fa-truck': section.key === 'dispatches'}" aria-hidden="true"/>
+                        </div>
+                        <div class="sod-main-count">
+                            <strong t-esc="format(section.key === 'receipts' ? section.selected.orders : section.selected.operations)"/>
+                            <span t-esc="section.key === 'receipts' ? 'órdenes de compra' : 'operaciones'"/>
+                        </div>
+                        <div t-if="section.key === 'receipts'" class="sod-secondary-count">
+                            <strong t-esc="format(section.selected.packages)"/> bultos esperados
+                            <span>· <t t-esc="format(section.selected.operations)"/> operaciones</span>
+                        </div>
+                        <div t-else="" class="sod-secondary-count">
+                            <t t-if="section.key === 'transfers'">Salidas desde Existencias y sus sububicaciones</t>
+                            <t t-else="">Entrega de 1, 2 o 3 pasos: Pick, Pack y Out</t>
+                        </div>
+                        <div class="sod-mini-counts">
+                            <button t-on-click="() => this.filter('today')" class="sod-mini">
+                                <span>Hoy</span><strong t-esc="format(section.key === 'receipts' ? section.today.orders : section.today.operations)"/>
+                                <small t-if="section.key === 'receipts'"><t t-esc="format(section.today.packages)"/> bultos</small>
+                            </button>
+                            <button t-on-click="() => this.filter('tomorrow')" class="sod-mini">
+                                <span>Mañana</span><strong t-esc="format(section.key === 'receipts' ? section.tomorrow.orders : section.tomorrow.operations)"/>
+                                <small t-if="section.key === 'receipts'"><t t-esc="format(section.tomorrow.packages)"/> bultos</small>
+                            </button>
+                            <button t-on-click="() => this.filter('overdue')" class="sod-mini sod-overdue">
+                                <span>Atrasadas</span><strong t-esc="format(section.key === 'receipts' ? section.overdue.orders : section.overdue.operations)"/>
+                                <small t-if="section.key === 'receipts'"><t t-esc="format(section.overdue.packages)"/> bultos</small>
+                            </button>
+                        </div>
+                        <div class="sod-card-actions">
+                            <button class="btn btn-primary" t-on-click="() => this.openOperations(section.key)" t-att-disabled="state.opening">
+                                Abrir operaciones <i class="fa fa-arrow-right ms-1" aria-hidden="true"/>
+                            </button>
+                            <button class="btn btn-link" t-on-click="() => { this.state.activeSection = section.key; }">Ver detalle</button>
+                        </div>
+                    </article>
+                </div>
+                <div class="sod-detail">
+                    <div class="sod-detail-header">
+                        <nav class="sod-tabs" aria-label="Detalle por sección">
+                            <button t-foreach="state.data.sections" t-as="section" t-key="section.key"
+                                    t-att-class="{'active': state.activeSection === section.key}"
+                                    t-on-click="() => { this.state.activeSection = section.key; }" t-esc="section.title"/>
+                        </nav>
+                        <span t-esc="dateLabel"/>
+                    </div>
+                    <t t-if="activeSection">
+                        <p class="sod-table-caption" t-if="activeSection.key === 'receipts'">
+                            Una fila por compra, con sus bultos totales informados. La fecha corresponde a Fecha esperada de la compra.
+                        </p>
+                        <p class="sod-table-caption" t-else="">Una fila por operación. La fecha corresponde a su fecha programada.</p>
+                        <div class="sod-table-scroll" t-if="activeSection.rows.length">
+                            <table class="table table-hover align-middle mb-0">
+                                <thead><tr>
+                                    <th t-esc="activeSection.key === 'receipts' ? 'Orden de compra / operación' : 'Operación'"/>
+                                    <th t-if="activeSection.key === 'receipts'">Proveedor</th>
+                                    <th t-else="">Etapa</th>
+                                    <th>Fecha</th>
+                                    <t t-if="activeSection.key === 'receipts'">
+                                        <th class="text-end">Bultos</th><th class="text-end">Operaciones</th>
+                                    </t>
+                                    <t t-else=""><th>Origen</th><th>Destino</th><th>Estado</th></t>
+                                    <th><span class="visually-hidden">Acción</span></th>
+                                </tr></thead>
+                                <tbody>
+                                    <tr t-foreach="activeSection.rows" t-as="row" t-key="row.key">
+                                        <td class="fw-bold"><t t-esc="row.label"/><small t-if="activeSection.key === 'receipts' &amp;&amp; !row.purchase_id" class="d-block text-muted">Sin compra vinculada</small></td>
+                                        <td t-esc="activeSection.key === 'receipts' ? row.partner : row.type"/>
+                                        <td class="text-nowrap" t-esc="displayDate(row.date)"/>
+                                        <t t-if="activeSection.key === 'receipts'">
+                                            <td class="text-end" t-esc="format(row.packages)"/><td class="text-end" t-esc="format(row.operations)"/>
+                                        </t>
+                                        <t t-else=""><td t-esc="row.source"/><td t-esc="row.destination"/>
+                                            <td><span class="sod-state" t-att-class="{'sod-state-ready': row.state === 'assigned'}" t-esc="stateLabel(row.state)"/></td>
+                                        </t>
+                                        <td class="text-end"><button class="btn btn-sm btn-outline-primary" t-att-disabled="state.opening"
+                                            t-on-click="() => this.openOperations(activeSection.key, row)">Operar</button></td>
+                                    </tr>
+                                </tbody>
+                            </table>
+                        </div>
+                        <div t-else="" class="sod-no-rows">No hay operaciones pendientes para este filtro.</div>
+                        <div t-if="activeSection.truncated" class="sod-more">
+                            Se muestran las primeras 60 filas. <button class="btn btn-link" t-on-click="() => this.openOperations(activeSection.key)">Abrir lista completa</button>
+                        </div>
+                    </t>
+                </div>
+                <p class="sod-footnote">Transferencias puede incluir Pick o una entrega directa cuando salen de Existencias. Los totales de las secciones no son acumulables.</p>
+            </t>
+        </div>
+    </t>
+</templates>

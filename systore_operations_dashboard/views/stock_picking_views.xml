@@ -1,0 +1,24 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <record id="view_operations_picking_list" model="ir.ui.view">
+        <field name="name">stock.picking.operations.dashboard.list</field>
+        <field name="model">stock.picking</field>
+        <field name="priority">1000</field>
+        <field name="arch" type="xml">
+            <list string="Operaciones pendientes" create="0" default_order="scheduled_date, id"
+                  decoration-success="state == 'assigned'" decoration-muted="state == 'draft'">
+                <field name="name"/>
+                <field name="picking_type_id"/>
+                <field name="systore_operations_purchase_names" optional="show"/>
+                <field name="systore_operations_expected_date" optional="show"/>
+                <field name="systore_operations_packages" optional="show"/>
+                <field name="scheduled_date"/>
+                <field name="partner_id" optional="show"/>
+                <field name="location_id" optional="show"/>
+                <field name="location_dest_id" optional="show"/>
+                <field name="origin" optional="hide"/>
+                <field name="state" widget="badge"/>
+            </list>
+        </field>
+    </record>
+</odoo>
