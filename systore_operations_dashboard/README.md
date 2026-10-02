@@ -1,12 +1,12 @@
 # Tablero de operaciones · Odoo 18
 
-Versión **18.0.1.1.0** · Nombre técnico `systore_operations_dashboard`.
+Versión **18.0.1.2.0** · Nombre técnico `systore_operations_dashboard`.
 
 ## Cambios
 
 - Recepciones se divide en **Ingresos (In)** y **Almacenamiento (Storage)**. Solo aparecen los tipos nativos activos y seleccionados: una recepción de un paso muestra In; dos pasos muestran In y Storage.
 - Pick, Pack y Out muestran piezas solicitadas en su unidad de inventario, batches y órdenes de venta. El detalle agrupa las operaciones de cada batch y muestra también sus lotes nativos cuando existen.
-- Pick y Pack abren pantallas sencillas que reutilizan el asistente de `stock_upc_validation` y guardan las series con `adicional_serial_number`.
+- **Pick estrena un panel y un detalle móvil**, con captura de series antes de validar. Pack conserva su pantalla de preparación. Ambos se integran con los módulos UPC y series instalados.
 - Out comienza con una lista vacía para escanear paquetes y valida cada salida al completar sus paquetes, conservando los asistentes y controles nativos de Odoo.
 - Se conserva la aplicación independiente Operaciones, la selección de almacén, permisos por usuario, checks de tipos, referencia del proveedor y filtros de fecha. También la corrección del registro de la acción del tablero que originaba el error KeyNotFoundError.
 
@@ -21,13 +21,36 @@ Actualice el addon existente; no instale una copia con otro nombre. Requiere Odo
 
 No se cambian rutas, ubicaciones ni número de pasos del almacén. En tres pasos, las validaciones avanzan los movimientos nativos Existencias → Zona de empaquetado → Salida → Clientes. Los nombres de ubicaciones pueden variar. En un paso, Out conserva los requisitos nativos de la entrega y requiere un paquete o guía para identificarla.
 
-## Operar Pick
+## Recolección móvil: nuevo flujo de esta versión
 
-Use **Batches** para consultar o crear batches nativos del tipo correspondiente. También puede usar la acción nativa Añadir a lote. La pantalla guiada requiere que Pick pertenezca a un batch; no agrupa pedidos arbitrariamente.
+En la tarjeta **Recolección**, pulse **Operar** para abrir la pantalla móvil. **Abrir operaciones** conserva la lista nativa de Odoo. En el detalle de una operación móvil, **Abrir original** permite volver a su formulario o batch nativo.
 
-Al abrir un batch de Pick, se suman las piezas por producto entre sus órdenes. La pantalla muestra números de orden, producto, piezas solicitadas, recolectadas y UPC. Registre la cantidad recolectada y escanee el UPC de cada producto; **Validar y continuar** comprueba el código y avanza mediante la validación original de UPC/Odoo. Un UPC corresponde al total recolectado del producto, igual que en el módulo suministrado. Cantidades parciales conservan el asistente de pedido pendiente.
+### Pantalla 1: panel
 
-La operación debe estar completamente disponible. Se rechazan cantidades negativas, cantidades superiores a las disponibles y excepciones de omisión de UPC en esta pantalla. Las excepciones autorizadas siguen disponibles mediante el flujo original del módulo.
+Tarjetas táctiles muestran la referencia de operación o batch, el campo **Documento de origen** real (`origin`), tipo de operación y estado. Incluyen el número de órdenes de venta vinculadas y piezas; los batches muestran además cuántas transferencias incluyen. Una operación sin venta vinculada muestra cero órdenes, sin inventar una relación a partir de su origen.
+
+El panel usa el almacén y la fecha elegidos en el tablero. Incluye recolecciones individuales y batches existentes; no obliga a crear un batch para trabajar una operación individual. Los batches se muestran completos, aunque algunas órdenes tengan otra fecha. Un batch que mezcla etapas o almacenes fuera del alcance autorizado queda bloqueado para este flujo. Se muestran 30 tarjetas por página, con búsqueda de origen o referencia dentro de la página y navegación Anterior/Siguiente.
+
+### Pantalla 2: productos por recoger
+
+Cada tarjeta muestra **Ubicación de origen**, **Producto** y **Recoger**, con la cantidad reservada y su unidad. Se respeta la ubicación real de cada línea reservada: si un producto se recoge de distintas ubicaciones, aparecen tarjetas separadas. Se muestran origen del pedido y lote nativo como información auxiliar.
+
+El botón grande **Validar recolección** permanece al pie de la pantalla. Las operaciones en espera pueden consultarse; para validarlas deben estar completamente disponibles. Esta primera pantalla procesa la cantidad completa reservada en unidades enteras, usando la unidad de inventario. Para cantidades parciales, otras unidades, reservas faltantes o ajustes de lotes, use **Abrir original**.
+
+### Captura y validación
+
+Al pulsar Validar recolección aparece una captura móvil por producto/ubicación:
+
+- Capture un **Número de serie / IMEI por pieza**, manualmente o mediante un lector que escriba en el campo y envíe Enter. No se implementa escaneo por cámara en esta versión.
+- Si Stock UPC Validation lo exige, capture también el UPC. Su comprobación se delega al módulo instalado, incluyendo los códigos múltiples admitidos por él.
+- Si el tipo de operación exige guía, se solicita la guía de cada pedido. En dos pasos, esto permite capturar la información de preparación en Pick.
+- **Confirmar y validar** se habilita al completar la captura. Se vuelve a comprobar el almacén autorizado, disponibilidad, cantidades, series y si la reserva cambió desde que se abrió.
+- Se rechazan series faltantes y duplicadas en la misma operación. Si el producto tiene seguimiento nativo por serie, el número debe coincidir con su serie reservada. Para productos cuyo lote nativo es una PO, la serie adicional queda vinculada a la línea de ese lote; no sustituye el lote PO.
+- Las series se guardan mediante el modelo de `adicional_serial_number` instalado. Las reglas de UPC y la validación de inventario se ejecutan mediante los asistentes/métodos originales. Cualquier asistente adicional de Odoo se conserva; si se cancela, la operación continúa pendiente en el panel.
+
+Las series aún no confirmadas viven en la pantalla; si vuelve al panel o cierra la app antes de confirmar, debe capturarlas de nuevo. Las series ya registradas en Pick se muestran y conservan. Si una preparación que exige guía tiene series previamente registradas pero aún exige su asistente UPC, se deriva al formulario original para revisar ese caso.
+
+Esta versión añade una interfaz Owl adaptable dentro de Odoo, compatible con el espacio web que utiliza su app móvil. No es una aplicación móvil separada ni un modo sin conexión. El ZIP contiene solamente `systore_operations_dashboard`: no incluye copias de los módulos UPC, códigos múltiples o series, y no sustituye sus versiones instaladas.
 
 ## Operar Pack
 
@@ -66,10 +89,8 @@ Consultar el tablero no valida operaciones ni cambia reservas. Abrir una prepara
 
 ## Verificación
 
-Comprobaciones locales: 19 pruebas Python de fechas, agregaciones, etapas y resolución de paquetes; compilación de ambas plantillas con Owl de Odoo 18; filtros y navegación del tablero; sesión de escaneo vacía, asistente nativo y errores del cliente; registro de ambas acciones con el conversor y cargador nativos; sintaxis Python/JavaScript, XML y referencias de archivos.
+Comprobaciones locales: 31 pruebas Python de fechas, contadores, etapas, paquetes y entradas de series; compilación de las tres plantillas con Owl de Odoo 18; navegación nativa frente a móvil; panel, búsqueda, detalle, capturas, duplicados, reserva cambiada y asistentes del cliente; registro de las tres acciones con el conversor/cargador nativos; sintaxis Python/JavaScript, XML y rutas del manifiesto.
 
-Estas comprobaciones usan adaptadores de ORM y ejecución de plantillas sin montar un navegador. **No se ejecutó una instancia completa de Odoo ni se validaron movimientos reales en Odoo.sh.**
+Las pruebas locales usan dobles de ORM y plantillas sin montar un navegador. **No se ejecutó Odoo completo ni la app móvil real.** Las pruebas nativas incluidas en `tests/test_operations_dashboard.py` cubren un batch móvil de dos ventas, UPC incorrecto/correcto, guardado de tres series y validación nativa. Ejecútelas en la rama SH con `--test-enable --test-tags /systore_operations_dashboard --stop-after-init`.
 
-Se incluyen pruebas `TransactionCase` en `tests/test_operations_dashboard.py`, incluyendo el recorrido nativo de tres pasos con UPC incorrecto, UPC correcto, series, guía y entrega escaneada. Ejecútelas en su base de pruebas con `--test-enable --test-tags /systore_operations_dashboard --stop-after-init`.
-
-Antes de producción, pruebe su configuración real de uno, dos y tres pasos, dos órdenes en un batch del mismo producto, recepción parcial, lotes/series nativos, varios paquetes, códigos duplicados y usuarios restringidos. Compruebe los asistentes de pedido pendiente y que la guía llegue a Out.
+Prueba de aceptación en smartphone: abra Operaciones → Recolección → Operar; revise una operación individual y un batch, sus documentos de origen, ubicaciones y piezas. Pulse Validar recolección; compruebe serie faltante, duplicada, UPC incorrecto y captura correcta. Confirme que el Pick quede hecho y avance la siguiente etapa nativa. Abra también Abrir operaciones para verificar el acceso al formulario original.

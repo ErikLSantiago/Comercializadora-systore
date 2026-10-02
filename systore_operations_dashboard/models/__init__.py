@@ -4,3 +4,5 @@ from . import stock_picking
 from . import dashboard
 from . import guided_operation
 from . import dispatch_session
+
+from . import mobile_pick

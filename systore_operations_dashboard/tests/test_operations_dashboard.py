@@ -221,3 +221,46 @@ class TestOperationsDashboard(TransactionCase):
         self.warehouse.reception_steps = 'one_step'
         self.assertIn('in', self.service._visible_sections(self.warehouse))
         self.assertNotIn('storage', self.service._visible_sections(self.warehouse))
+
+    def test_mobile_panel_series_and_delegated_batch_validation(self):
+        self.warehouse.company_id.systore_upc_validation_warehouse_ids |= self.warehouse
+        self.warehouse.pick_type_id.write({'systore_require_upc_on_picking': True,
+                                          'systore_require_tracking_on_pack': False})
+        self.product.barcode = 'SOD-MOBILE-UPC'
+        self.env['stock.quant']._update_available_quantity(self.product, self.warehouse.lot_stock_id, 8)
+        picks = self.env['stock.picking']
+        for quantity in (1, 2):
+            sale = self.env['sale.order'].create({
+                'partner_id': self.vendor.id, 'warehouse_id': self.warehouse.id,
+                'order_line': [Command.create({'product_id': self.product.id,
+                                              'product_uom_qty': quantity, 'price_unit': 50})],
+            })
+            sale.action_confirm()
+            picks |= sale.picking_ids.filtered(lambda p: p.picking_type_id == self.warehouse.pick_type_id)
+        picks.action_assign()
+        batch = self.env['stock.picking.batch'].create({
+            'picking_type_id': self.warehouse.pick_type_id.id, 'picking_ids': [Command.set(picks.ids)]})
+        panel = self.service.get_mobile_pick_panel(self.warehouse.id, scope='all')
+        card = next(c for c in panel['cards'] if c['batch_id'] == batch.id)
+        self.assertEqual(card['orders'], 2)
+        self.assertEqual(card['pieces'], 3)
+        self.assertEqual(set(card['origins']), set(picks.mapped('origin')))
+        detail = self.service.get_mobile_pick_detail(self.warehouse.id, batch_id=batch.id)
+        self.assertTrue(detail['can_validate'], detail['notice'])
+        captures = [{'id': r['id'], 'serials': ['MOBILE-%s-%s' % (r['id'], i) for i in range(int(r['qty']))],
+                     'upc': 'WRONG'} for r in detail['rows']]
+        with self.assertRaises(ValidationError), self.cr.savepoint():
+            self.service.validate_mobile_pick(self.warehouse.id, False, batch.id, detail['token'], captures)
+        self.assertFalse(picks.move_line_ids.serial_captured_ids)
+        for capture in captures:
+            capture['upc'] = self.product.barcode
+        result = self.service.validate_mobile_pick(self.warehouse.id, False, batch.id, detail['token'], captures)
+        self.assertTrue(result['complete'])
+        self.assertTrue(all(p.state == 'done' for p in picks))
+        self.assertEqual(len(picks.move_line_ids.serial_captured_ids), 3)
+        self.assertEqual(self.service.open_mobile_pick(self.warehouse.id)['tag'],
+                         'systore_operations_dashboard.mobile_pick')
+
+    def test_mobile_panel_denies_unassigned_operator(self):
+        with self.assertRaises(AccessError):
+            self.service.with_user(self.other_user).get_mobile_pick_panel(self.warehouse.id, scope='all')

@@ -124,6 +124,9 @@ class GuidedStockPicking(models.Model):
                         if self.picking_type_id == operation_type), False)
         if not section:
             raise UserError(_('Esta operación no corresponde a Pick, Pack ni Out del almacén.'))
+        if section == 'pick':
+            return self.env['systore.operations.dashboard'].open_mobile_pick(
+                warehouse.id, scope='all', picking_id=self.id)
         return self.env['systore.operations.dashboard'].open_guided_operation(
             warehouse.id, section, scope='all', picking_id=self.id)
 
@@ -188,6 +191,9 @@ class GuidedBatch(models.Model):
         section = next((key for key, operation_type in [('pick', warehouse.pick_type_id),
                          ('pack', warehouse.pack_type_id), ('out', warehouse.out_type_id)]
                         if picking.picking_type_id == operation_type), False)
+        if section == 'pick':
+            return self.env['systore.operations.dashboard'].open_mobile_pick(
+                warehouse.id, scope='all', batch_id=self.id)
         return self.env['systore.operations.dashboard'].open_guided_operation(
             warehouse.id, section, scope='all', batch_id=self.id)
 

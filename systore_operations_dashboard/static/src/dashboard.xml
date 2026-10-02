@@ -103,7 +103,10 @@
                             </button>
                         </div>
                         <div class="sod-card-actions">
-                            <button class="btn btn-primary" t-on-click="() => this.openOperations(section.key)" t-att-disabled="state.opening">
+                            <button t-if="section.key === 'pick'" class="btn btn-primary btn-lg" t-on-click="() => this.openMobilePick()" t-att-disabled="state.opening">
+                                <i class="fa fa-mobile me-1" aria-hidden="true"/> Operar
+                            </button>
+                            <button class="btn" t-att-class="section.key === 'pick' ? 'btn-outline-secondary' : 'btn-primary'" t-on-click="() => this.openOperations(section.key)" t-att-disabled="state.opening">
                                 Abrir operaciones <i class="fa fa-arrow-right ms-1" aria-hidden="true"/>
                             </button>
                             <button class="btn btn-link" t-on-click="() => { this.state.activeSection = section.key; }">Ver detalle</button>
@@ -160,7 +163,7 @@
                                             <td><span class="sod-state" t-att-class="{'sod-state-ready': row.state === 'assigned'}" t-esc="stateLabel(row.state)"/></td>
                                         </t>
                                         <td class="text-end"><button class="btn btn-sm btn-outline-primary" t-att-disabled="state.opening"
-                                            t-on-click="() => this.openOperations(activeSection.key, row)">Operar</button></td>
+                                            t-on-click="() => activeSection.key === 'pick' ? this.openMobilePick(row) : this.openOperations(activeSection.key, row)">Operar</button></td>
                                     </tr>
                                 </tbody>
                                 <tfoot t-if="isReceipt(activeSection.key)">

@@ -120,7 +120,7 @@ export class OperationsDashboard extends Component {
         if (this.state.opening || this.state.loading || !this.state.data) return;
         this.state.opening = true;
         try {
-            const guided = ['pick', 'pack', 'out'].includes(section);
+            const guided = ['pack', 'out'].includes(section);
             const args = [this.state.warehouseId, section, this.state.date, this.state.scope];
             if (guided) { args.push(row?.picking_id || false, row?.batch_id || false); }
             else { args.push(row?.purchase_id || false, row?.picking_id || false); }
@@ -132,6 +132,18 @@ export class OperationsDashboard extends Component {
         } finally {
             if (!this.destroyed) this.state.opening = false;
         }
+    }
+
+    async openMobilePick(row = null) {
+        if (this.state.opening || this.state.loading || !this.state.data) return;
+        this.state.opening = true;
+        try {
+            const action = await this.orm.call('systore.operations.dashboard', 'open_mobile_pick', [
+                this.state.warehouseId, this.state.date, this.state.scope,
+                row?.picking_id || false, row?.batch_id || false]);
+            await this.action.doAction(action);
+        } catch (error) { this.notification.add(error.data?.message || error.message, {type:'danger'}); }
+        finally { if (!this.destroyed) this.state.opening = false; }
     }
 
     async openBatches(section) {
