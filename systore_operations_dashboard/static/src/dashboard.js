@@ -3,7 +3,9 @@
 import { Component, onWillStart, onWillUnmount, useState } from '@odoo/owl';
 import { registry } from '@web/core/registry';
 import { useService } from '@web/core/utils/hooks';
-import { DateTime } from 'luxon';
+
+// Odoo 18 loads Luxon as a global library in web._assets_core.
+const { DateTime } = luxon;
 
 export class OperationsDashboard extends Component {
     static template = 'systore_operations_dashboard.Dashboard';

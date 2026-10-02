@@ -1,6 +1,21 @@
 # Tablero de operaciones · Odoo 18
 
-Versión: **18.0.1.0.0**. Nombre técnico: `systore_operations_dashboard`.
+Versión: **18.0.1.0.1**. Nombre técnico: `systore_operations_dashboard`.
+
+## Cambios de esta versión
+
+- Aplicación independiente **Operaciones** en el menú principal de Odoo, con icono propio y acceso directo al tablero. Se conserva el nombre técnico del módulo para actualizar la instalación anterior y sus configuraciones; no se necesita instalar un segundo addon.
+- Corrección de `KeyNotFoundError: Cannot find key "systore_operations_dashboard.dashboard" in the "actions" registry`: el import de `luxon` de la primera versión generaba una dependencia de módulo inexistente. En Odoo 18, Luxon se proporciona como librería global; ahora se utiliza esa librería.
+- Se comprobó el registro de la acción ejecutando JavaScript transformado por el conversor nativo de Odoo 18, además de las pruebas de fechas, agregaciones y plantilla.
+
+## Actualizar desde 18.0.1.0.0
+
+1. Sustituya la carpeta del módulo en el repositorio por la incluida en este ZIP y espere a que la rama de Odoo.sh termine de reconstruirse.
+2. En Aplicaciones, actualice **Systore · Tablero de operaciones**. Es una actualización de la misma aplicación: no desinstale el módulo anterior.
+3. Recargue el navegador con **Ctrl + F5** para cargar el JavaScript nuevo.
+4. Abra **Operaciones → Tablero de operaciones** desde el menú principal.
+
+Se conservan los almacenes participantes, los usuarios asignados y los bultos capturados. La actualización mueve el acceso anterior de Inventario a la aplicación Operaciones.
 
 ## Instalación en Odoo.sh
 
@@ -9,7 +24,7 @@ Versión: **18.0.1.0.0**. Nombre técnico: `systore_operations_dashboard`.
 3. Instale el módulo. Sus dependencias son `web` y `purchase_stock`, módulos nativos. No requiere Surplus ni cambia reglas de stock.
 4. En **Inventario → Configuración → Almacenes**, marque **Participa en tablero de operaciones** y seleccione **Usuarios del tablero** en cada almacén participante.
 5. Asigne a los operadores el permiso nativo de Usuario de Inventario. También deben tener acceso a la compañía del almacén y seleccionarla entre las compañías activas.
-6. Entre en **Inventario → Tablero de operaciones**.
+6. Entre en **Operaciones → Tablero de operaciones** desde el menú principal de Odoo.
 
 No se habilita ningún almacén automáticamente. Si no hay usuarios asignados, el almacén no aparece, incluso para un administrador de Inventario. La asignación limita el tablero; no sustituye ni amplía las reglas de acceso de Inventario.
 
