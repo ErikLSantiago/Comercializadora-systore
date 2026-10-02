@@ -76,10 +76,15 @@ class OperationsDashboard(models.AbstractModel):
                 ('location_dest_id.usage', 'in', ['internal', 'transit']),
             ]
         elif section == 'transfers':
-            # Source criterion intentionally includes native picks and one-step deliveries.
+            warehouses = self.env['stock.warehouse'].with_context(active_test=False).search([
+                ('company_id', '=', warehouse.company_id.id)])
+            dedicated_types = (warehouses.pick_type_id | warehouses.pack_type_id |
+                               warehouses.out_type_id | warehouses.in_type_id)
             specific = [
                 ('location_id', 'child_of', warehouse.lot_stock_id.id),
                 ('location_dest_id', '!=', False),
+                ('picking_type_id', 'not in', dedicated_types.ids),
+                ('picking_type_id.code', '=', 'internal'),
             ]
         else:
             types = {'pick': warehouse.pick_type_id, 'pack': warehouse.pack_type_id,

@@ -1,8 +1,13 @@
 # Tablero de operaciones · Odoo 18
 
-Versión **18.0.1.2.3** · Nombre técnico `systore_operations_dashboard`.
+Versión **18.0.1.3.0** · Nombre técnico `systore_operations_dashboard`.
 
 ## Cambios
+
+- La aplicación abre una pantalla de botones con los almacenes autorizados. Seleccione uno para entrar al tablero; **Almacenes** permite volver.
+- Un UPC rechazado en las pantallas guiadas muestra únicamente **No coincide UPC/IMEI**. Los errores de permisos o cantidades conservan su explicación.
+- Transferencias excluye los tipos nativos In, Pick, Pack y Out.
+- **Ingresos → Operar** abre el nuevo panel móvil por compra, con productos, imágenes, cantidades y comprobación UPC antes de avanzar.
 
 - **Siguiente producto** comprueba inmediatamente el UPC con el validador de `stock_upc_validation`. Un código incorrecto deja al usuario en el mismo producto y muestra el error. En el último producto aparece **Comprobar UPC**.
 - La pantalla de UPC incorpora imagen y cantidad **Recoger**, sumada para ese producto entre sus ubicaciones. Editar el código retira la marca UPC correcto.
@@ -58,6 +63,16 @@ Antes de validar se comprueban permisos, estado Completa, disponibilidad, cantid
 
 La interfaz funciona dentro de Odoo y de su app móvil con conexión. El ZIP contiene solamente el tablero; no incluye copias ni reemplaza los módulos UPC o series instalados.
 
+## Ingresos móvil
+
+En **Ingresos**, pulse **Operar**. El panel respeta la fecha esperada y el filtro del tablero y muestra las compras, proveedor, referencia y bultos. Si una compra tiene varias recepciones, seleccione la operación. Una recepción que consolida varias compras valida todas sus líneas visibles y lo indica antes de confirmar.
+
+El detalle muestra imágenes, demanda y cantidad a ingresar editable. La captura comprueba el UPC antes de pasar al siguiente producto. Se reutilizan los métodos del módulo instalado `stock_upc_validation`: en recepción, un UPC nuevo puede registrarse para el producto; uno asignado a otro producto se rechaza. La comprobación previa revierte cualquier registro provisional; el código se registra al confirmar.
+
+Configure los almacenes de recepción en `systore_upc_receipt_warehouse_ids` y active `systore_require_upc_on_receipt` en el tipo In. La asignación automática de lote desde el origen sigue `systore_auto_lot_from_origin`. Si el módulo instalado no exige UPC para esa recepción, se respetan sus reglas y se validan las cantidades mediante Odoo.
+
+La confirmación conserva los asistentes nativos de recepción parcial y los controles de trazabilidad. Para unidades distintas de la unidad de inventario, o si el asistente instalado aplica una cantidad diferente de la capturada entre varios movimientos del mismo producto, utilice **Abrir original**. El panel no incorpora una captura adicional de series; los requisitos nativos de lotes y series siguen vigentes.
+
 ## Operar Pack
 
 Cada orden conserva su propia guía. Si abre un batch de Pack, aparece la lista de sus operaciones con el botón **Operar**.
@@ -81,7 +96,7 @@ La sesión corresponde al operador que la creó y conserva sus escaneos mientras
 
 En In y Storage se usa la **Fecha esperada de la compra (`date_planned`)**, la referencia del proveedor (`partner_ref`) y los bultos informativos de la OC. Bultos y piezas se cuentan una sola vez por compra dentro de cada etapa. Piezas representa el total solicitado de productos físicos, no un saldo que disminuya con cada recepción parcial. En recepciones sin compra, se usa la demanda de la operación.
 
-En expediciones y transferencias se usan fecha programada y demanda de movimientos pendientes. Los totales de diferentes etapas no se suman: una misma mercancía puede estar en varias etapas del flujo. Transferencias muestra movimientos desde Existencias del almacén hacia cualquier ubicación, sujeto a los tipos seleccionados; puede coincidir con Pick.
+En expediciones y transferencias se usan fecha programada y demanda de movimientos pendientes. Los totales de diferentes etapas no se suman: una misma mercancía puede estar en varias etapas del flujo. Transferencias muestra movimientos internos desde Existencias del almacén hacia cualquier ubicación, sujeto a los tipos seleccionados. Excluye los tipos nativos In, Pick, Pack y Out, además de tipos con código de entrada o salida.
 
 Hoy y Mañana respetan la zona horaria del usuario. Atrasadas usa el día actual; Todas incluye pendientes sin fecha. Se excluyen registros hechos y cancelados. El detalle muestra hasta 60 filas, pero los contadores y la lista completa incluyen todas las operaciones accesibles.
 
@@ -95,8 +110,10 @@ Consultar el tablero no valida operaciones ni cambia reservas. Abrir una prepara
 
 ## Verificación
 
-Comprobaciones locales: 32 pruebas Python de fechas, contadores, paquetes, agrupación por producto/ubicación, captura UPC, filtro Completa, exclusión de borradores, pestañas de individuales/batches y alcance individual; compilación de tres plantillas con Owl de Odoo 18; navegación al tablero conservando filtros, cambio de pestaña y ruta de imagen, UPC incorrecto sin avanzar, cantidades acumuladas por producto y última comprobación, captura UPC compartida entre ubicaciones, validación sin series, errores y asistentes del cliente; registro de acciones con el conversor/cargador nativos; sintaxis Python/JavaScript, XML y manifiesto.
+Comprobaciones locales: 37 pruebas Python de fechas, contadores, paquetes, agrupación por producto/ubicación, captura UPC, filtro Completa, exclusión de borradores, pestañas de individuales/batches y alcance individual; compilación de cuatro plantillas con Owl de Odoo 18; navegación al tablero conservando filtros, cambio de pestaña y ruta de imagen, UPC incorrecto sin avanzar, cantidades acumuladas por producto y última comprobación, captura UPC compartida entre ubicaciones, validación sin series, errores y asistentes del cliente; registro de acciones con el conversor/cargador nativos; sintaxis Python/JavaScript, XML y manifiesto.
 
-Estas pruebas usan dobles de ORM y plantillas sin navegador. **No se ejecutó Odoo completo ni la app móvil real.** Las pruebas nativas incluidas en `tests/test_operations_dashboard.py` cubren un batch de dos ventas agrupado en tres piezas, apertura individual limitada, UPC incorrecto/correcto y comprobación UPC sin validar el picking, seguida de confirmación sin crear series en Pick. Ejecútelas en la rama SH con `--test-enable --test-tags /systore_operations_dashboard --stop-after-init`.
+También se verificaron localmente el inicio sin almacén seleccionado y el flujo móvil de Ingresos: selección de recepción, cantidades, UPC rechazado sin avanzar, confirmación y retorno desde asistentes nativos.
+
+Estas pruebas usan dobles de ORM y plantillas sin navegador. **No se ejecutó Odoo completo ni la app móvil real.** Las pruebas nativas incluidas en `tests/test_operations_dashboard.py` cubren un batch de dos ventas agrupado en tres piezas, apertura individual limitada, UPC incorrecto/correcto y comprobación UPC sin validar el picking, seguida de confirmación sin crear series en Pick. También incluyen la recepción con comprobación provisional de UPC sin registrarlo y confirmación con lote de origen; estas pruebas de integración quedan pendientes de ejecutar en Odoo. Ejecútelas en la rama SH con `--test-enable --test-tags /systore_operations_dashboard --stop-after-init`.
 
 En smartphone compruebe: flecha al tablero; solo completas; dos órdenes del mismo producto y ubicación sumadas en un batch; ubicaciones distintas separadas; operación individual limitada a sus piezas; validación UPC sin pedir IMEI; siguiente etapa nativa disponible después de validar Pick.

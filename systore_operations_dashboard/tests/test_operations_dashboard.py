@@ -120,7 +120,7 @@ class TestOperationsDashboard(TransactionCase):
         })
         transfer = self.service.open_operations(self.warehouse.id, 'transfers', '2026-10-01')
         transfer_ids = picking_model.search(transfer['domain']).ids
-        self.assertIn(dispatch_pick.id, transfer_ids)
+        self.assertNotIn(dispatch_pick.id, transfer_ids)
         self.assertNotIn(dispatch_out.id, transfer_ids)
         recoleccion = self.service.open_operations(self.warehouse.id, 'pick', '2026-10-01')
         self.assertNotIn(dispatch_pick.id, picking_model.search(recoleccion['domain']).ids)  # Borrador excluido de Pick
@@ -278,3 +278,31 @@ class TestOperationsDashboard(TransactionCase):
     def test_mobile_panel_denies_unassigned_operator(self):
         with self.assertRaises(AccessError):
             self.service.with_user(self.other_user).get_mobile_pick_panel(self.warehouse.id, scope='all')
+
+    def test_mobile_receipt_preview_rolls_back_and_confirmation_registers(self):
+        self.warehouse.company_id.systore_upc_receipt_warehouse_ids |= self.warehouse
+        self.warehouse.in_type_id.write({'systore_require_upc_on_receipt': True,
+                                        'systore_auto_lot_from_origin': True})
+        self.product.tracking = 'lot'
+        order = self.make_order()
+        picking = order.picking_ids.filtered(lambda p: p.picking_type_id == self.warehouse.in_type_id)
+        picking.action_assign()
+        detail = self.service.get_mobile_receipt_detail(self.warehouse.id, picking.id, order.id)
+        self.assertTrue(detail['can_validate'], detail['notice'])
+        self.env['product.product'].create({'name': 'Otro UPC', 'barcode': 'SOD-OTHER-UPC'})
+        with self.assertRaisesRegex(ValidationError, '^No coincide UPC/IMEI$'), self.cr.savepoint():
+            self.service.check_mobile_receipt_upc(self.warehouse.id, picking.id, order.id,
+                detail['token'], self.product.id, 'SOD-OTHER-UPC')
+        checked = self.service.check_mobile_receipt_upc(self.warehouse.id, picking.id, order.id,
+            detail['token'], self.product.id, 'SOD-NEW-RECEIPT-UPC')
+        self.assertTrue(checked['valid'])
+        codes = self.env['product.barcode.multi']
+        self.assertFalse(codes.search([('name', '=', 'SOD-NEW-RECEIPT-UPC')]))
+        self.assertNotEqual(picking.state, 'done')
+        result = self.service.validate_mobile_receipt(self.warehouse.id, picking.id, order.id,
+            detail['token'], [{'id': row['id'], 'quantity': row['qty'], 'upc': 'SOD-NEW-RECEIPT-UPC'}
+                              for row in detail['rows']])
+        self.assertTrue(result['complete'])
+        self.assertEqual(picking.state, 'done')
+        self.assertEqual(codes.search([('name', '=', 'SOD-NEW-RECEIPT-UPC')]).product_id, self.product)
+        self.assertEqual(picking.move_line_ids.lot_id.name, order.name)

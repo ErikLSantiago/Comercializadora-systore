@@ -1,0 +1,79 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<templates xml:space="preserve">
+<t t-name="systore_operations_dashboard.MobileReceipt">
+<div class="smp-shell">
+    <header class="smp-header">
+        <button class="smp-icon-button" t-on-click="back" t-att-disabled="state.busy" aria-label="Volver"><i class="fa fa-arrow-left"/></button>
+        <div><small>INGRESOS · <t t-esc="state.detail?.warehouse || state.panel?.warehouse || ''"/></small>
+            <h1 t-esc="state.detail &amp;&amp; ['detail','capture'].includes(state.page) ? state.detail.name : 'Órdenes por ingresar'"/></div>
+        <button t-if="state.page === 'panel'" class="smp-icon-button" t-on-click="() => this.loadPanel(state.pageNumber)" t-att-disabled="state.busy" aria-label="Actualizar"><i class="fa fa-refresh"/></button>
+    </header>
+    <main class="smp-main">
+        <div t-if="state.error" class="alert alert-danger" role="alert" t-esc="state.error"/>
+        <div t-if="state.message" class="alert alert-success" role="status" t-esc="state.message"/>
+        <p t-if="state.busy" role="status"><i class="fa fa-spinner fa-spin"/> Procesando…</p>
+        <t t-if="state.page === 'panel'">
+            <label class="smp-search"><span class="visually-hidden">Buscar compra</span><input type="search" t-model="state.query" placeholder="Buscar orden de compra"/></label>
+            <div class="smp-grid">
+                <button t-foreach="cards" t-as="card" t-key="card.key" class="smp-card smp-operation" t-on-click="() => this.openCard(card)" t-att-disabled="state.busy">
+                    <span class="smp-kind">ORDEN DE COMPRA / RECEPCIÓN</span><h2 t-esc="card.name"/>
+                    <span class="smp-label">Proveedor</span><p t-esc="card.supplier"/>
+                    <span class="smp-label">Referencia del proveedor</span><p t-esc="card.supplier_ref || '—'"/>
+                    <div class="smp-metrics"><span><strong t-esc="format(card.pieces)"/> piezas pendientes</span><span><strong t-esc="format(card.packages)"/> bultos OC</span></div>
+                    <small><t t-esc="card.receipts.length"/> recepciones</small><div class="smp-open">Ingresar <i class="fa fa-arrow-right"/></div>
+                </button>
+            </div>
+            <p t-if="state.panel &amp;&amp; !cards.length &amp;&amp; !state.busy" class="smp-empty">No hay compras pendientes para este filtro.</p>
+            <nav class="smp-pagination" t-if="state.panel" aria-label="Páginas">
+                <button t-att-disabled="state.busy || !state.pageNumber" t-on-click="() => this.loadPanel(state.pageNumber - 1)">Anterior</button>
+                <span>Página <t t-esc="state.pageNumber + 1"/></span>
+                <button t-att-disabled="state.busy || !state.panel.has_more" t-on-click="() => this.loadPanel(state.pageNumber + 1)">Siguiente</button>
+            </nav>
+        </t>
+        <t t-if="state.page === 'operations'">
+            <h2 t-esc="state.receiptCard.name"/>
+            <div class="smp-grid"><button t-foreach="state.receiptCard.receipts" t-as="receipt" t-key="receipt.picking_id"
+                class="smp-card smp-operation" t-on-click="() => this.openReceipt(receipt.picking_id)" t-att-disabled="state.busy">
+                <h3 t-esc="receipt.name"/><span class="smp-badge" t-esc="label(receipt.state)"/>
+                <p><t t-esc="format(receipt.pieces)"/> piezas</p><div class="smp-open">Abrir recepción <i class="fa fa-arrow-right"/></div>
+            </button></div>
+        </t>
+        <t t-if="state.page === 'detail' &amp;&amp; state.detail">
+            <div class="smp-detail-heading"><h2 t-esc="state.detail.purchase_names"/><button class="smp-link" t-on-click="original" t-att-disabled="state.busy">Abrir original</button></div>
+            <p class="smp-muted"><t t-esc="state.detail.supplier"/> · <t t-esc="state.detail.supplier_ref"/></p>
+            <p class="smp-muted"><t t-esc="state.detail.source"/> → <t t-esc="state.detail.destination"/></p>
+            <div t-if="state.detail.multi_purchase" class="alert alert-info">Esta recepción reúne varias compras; se validan todas las líneas que se muestran.</div>
+            <div t-if="state.detail.notice" class="alert alert-warning" t-esc="state.detail.notice"/>
+            <div class="smp-grid"><article t-foreach="state.detail.rows" t-as="row" t-key="row.id" class="smp-card">
+                <div class="smp-product-heading"><div class="smp-product-image"><i class="fa fa-cube" aria-hidden="true"/>
+                    <img t-att-src="imageURL(row.product_id)" t-att-alt="row.product" width="96" height="96" loading="lazy" t-on-error="imageError"/></div><h3 t-esc="row.product"/></div>
+                <p>Por recibir: <strong t-esc="format(row.qty)"/> <t t-esc="row.uom"/></p>
+                <label class="smp-field">Cantidad a ingresar<input type="number" min="0" t-att-max="row.qty" step="any"
+                    t-model.number="row.quantity" t-att-disabled="state.busy || !state.detail.can_validate"/></label>
+            </article></div>
+        </t>
+        <t t-if="state.page === 'capture' &amp;&amp; current">
+            <div class="smp-detail-heading"><h2>Validar UPC de ingreso</h2><span><t t-esc="state.index + 1"/> / <t t-esc="productsToScan.length"/></span></div>
+            <article class="smp-card">
+                <div class="smp-product-heading"><div class="smp-product-image"><i class="fa fa-cube" aria-hidden="true"/>
+                    <img t-att-src="imageURL(current.product_id)" t-att-alt="current.product" width="96" height="96" t-on-error="imageError"/></div><h3 t-esc="current.product"/></div>
+                <div class="smp-quantity"><span>Ingresar</span><strong t-esc="format(current.quantity)"/><span t-esc="current.uom"/></div>
+                <label class="smp-field">UPC / EAN<input t-ref="upcInput" t-att-value="current.upc" t-on-input="setUPC" placeholder="Escanear UPC" autocomplete="off" t-att-disabled="state.busy"/></label>
+                <p t-if="current.upc_checked" class="text-success" role="status">UPC aceptado</p>
+                <nav class="smp-pagination" aria-label="Productos">
+                    <button t-on-click="() => this.next(-1)" t-att-disabled="state.busy || !state.index">Anterior</button>
+                    <button t-on-click="() => this.next(1)" t-att-disabled="state.busy || !currentReady"
+                        t-esc="state.index + 1 &lt; productsToScan.length ? 'Siguiente producto' : 'Comprobar UPC'"/>
+                </nav>
+            </article>
+        </t>
+        <div t-if="state.page === 'pending'" class="smp-empty"><h2>Continuar validación</h2>
+            <p>Complete el asistente de Odoo para finalizar el ingreso.</p><button class="smp-secondary" t-on-click="() => this.loadPanel()">Volver a ingresos</button></div>
+    </main>
+    <footer t-if="state.page === 'detail' || state.page === 'capture'" class="smp-footer">
+        <button t-if="state.page === 'detail'" class="smp-primary" t-on-click="beginValidation" t-att-disabled="state.busy || !state.detail.can_validate">Validar ingreso <i class="fa fa-arrow-right"/></button>
+        <button t-else="" class="smp-primary" t-on-click="validate" t-att-disabled="state.busy || !ready"><t t-esc="state.busy ? 'Validando…' : 'Confirmar ingreso'"/> <i class="fa fa-check"/></button>
+    </footer>
+</div>
+</t>
+</templates>

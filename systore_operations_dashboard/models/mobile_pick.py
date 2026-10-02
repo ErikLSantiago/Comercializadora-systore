@@ -147,7 +147,7 @@ class MobilePickDashboard(models.AbstractModel):
             raise ValidationError(_('Capture un UPC válido.'))
         # A virtual line reuses the installed validator without creating a wizard,
         # changing stock quantities, or marking the picking as validated.
-        line = self.env['stock.picking.upc.wizard.line'].new({
+        line = self.env['stock.picking.upc.wizard.line'].with_context(systore_operations_mobile=True).new({
             'product_id': product_id, 'upc_ean': barcode.strip(), 'skip_upc_validation': False})
         line._validate_scanned_barcode()
         return {'product_id': product_id, 'upc': line.upc_ean, 'valid': True}
@@ -180,7 +180,7 @@ class MobilePickDashboard(models.AbstractModel):
         line_codes = {line_id: values[row['id']]['upc'] for row in detail['rows'] for line_id in row['line_ids']}
         if batch and batch.state == 'draft':
             batch.action_confirm()
-        Wizard = self.env['stock.picking.upc.wizard']
+        Wizard = self.env['stock.picking.upc.wizard'].with_context(systore_operations_mobile=True)
         all_upc = all(p._systore_needs_upc_picking_wizard() for p in pickings)
         batch_upc = batch and all_upc
         targets = [pickings] if batch_upc else [p for p in pickings.sorted('id')]

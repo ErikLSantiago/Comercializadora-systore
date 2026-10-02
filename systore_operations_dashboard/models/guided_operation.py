@@ -201,6 +201,14 @@ class GuidedBatch(models.Model):
 class GuidedUPCWizardLine(models.TransientModel):
     _inherit = 'stock.picking.upc.wizard.line'
 
+    def _validate_scanned_barcode(self):
+        try:
+            return super()._validate_scanned_barcode()
+        except ValidationError:
+            if self.env.context.get('systore_operations_mobile') or self.wizard_id.systore_guided_warehouse_id:
+                raise ValidationError(_('No coincide UPC/IMEI')) from None
+            raise
+
     systore_requested_qty = fields.Float(string='Piezas solicitadas', readonly=True)
     systore_order_names = fields.Char(string='Número de orden', compute='_compute_guided_order_names')
     systore_scanned_qty = fields.Float(string='Procesadas', compute='_compute_guided_scanned_qty')

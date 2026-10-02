@@ -8,7 +8,8 @@
                     <h1>Tablero de operaciones</h1>
                     <p>Planifica la jornada y abre cada operación para trabajarla.</p>
                 </div>
-                <div class="sod-warehouse">
+                <div t-if="state.warehouseId" class="sod-warehouse">
+                    <button class="btn btn-link" t-on-click="warehouseHome" t-att-disabled="state.loading"><i class="fa fa-arrow-left me-1"/> Almacenes</button>
                     <label for="sod-warehouse">Almacén</label>
                     <select id="sod-warehouse" class="form-select" t-on-change="changeWarehouse"
                             t-att-disabled="state.loading || !state.warehouses.length">
@@ -21,7 +22,7 @@
                 </div>
             </header>
 
-            <div class="sod-toolbar">
+            <div t-if="state.warehouseId" class="sod-toolbar">
                 <div class="sod-date-buttons" role="group" aria-label="Filtros de fecha">
                     <button class="btn" t-att-class="{'btn-primary': state.scope === 'date' &amp;&amp; state.date === state.today, 'btn-outline-secondary': !(state.scope === 'date' &amp;&amp; state.date === state.today)}"
                             t-on-click="() => this.filter('today')" t-att-disabled="state.loading">Hoy</button>
@@ -52,6 +53,17 @@
                 <i class="fa fa-building-o sod-empty-icon" aria-hidden="true"/>
                 <h2>No tienes almacenes asignados</h2>
                 <p>Un administrador debe habilitar el tablero y asignarte en Inventario → Configuración → Almacenes.</p>
+            </div>
+            <div t-elif="!state.warehouseId" class="sod-warehouse-home">
+                <h2>Selecciona un almacén</h2>
+                <div class="sod-warehouse-grid">
+                    <button t-foreach="state.warehouses" t-as="warehouse" t-key="warehouse.id"
+                            class="sod-warehouse-card" t-on-click="() => this.selectWarehouse(warehouse.id)">
+                        <i class="fa fa-building-o" aria-hidden="true"/>
+                        <strong t-esc="warehouse.name"/><span><t t-esc="warehouse.code"/> · <t t-esc="warehouse.company"/></span>
+                        <i class="fa fa-arrow-right" aria-hidden="true"/>
+                    </button>
+                </div>
             </div>
             <t t-elif="state.data">
                 <div class="sod-period">
@@ -103,6 +115,9 @@
                             </button>
                         </div>
                         <div class="sod-card-actions">
+                            <button t-if="section.key === 'in'" class="btn btn-primary btn-lg" t-on-click="() => this.openMobileReceipt()" t-att-disabled="state.opening">
+                                <i class="fa fa-mobile me-1"/> Operar
+                            </button>
                             <button t-if="section.key === 'pick'" class="btn btn-primary btn-lg" t-on-click="() => this.openMobilePick()" t-att-disabled="state.opening">
                                 <i class="fa fa-mobile me-1" aria-hidden="true"/> Operar
                             </button>
@@ -163,7 +178,7 @@
                                             <td><span class="sod-state" t-att-class="{'sod-state-ready': row.state === 'assigned'}" t-esc="stateLabel(row.state)"/></td>
                                         </t>
                                         <td class="text-end"><button class="btn btn-sm btn-outline-primary" t-att-disabled="state.opening"
-                                            t-on-click="() => activeSection.key === 'pick' ? this.openMobilePick(row) : this.openOperations(activeSection.key, row)">Operar</button></td>
+                                            t-on-click="() => activeSection.key === 'pick' ? this.openMobilePick(row) : activeSection.key === 'in' ? this.openMobileReceipt(row) : this.openOperations(activeSection.key, row)">Operar</button></td>
                                     </tr>
                                 </tbody>
                                 <tfoot t-if="isReceipt(activeSection.key)">

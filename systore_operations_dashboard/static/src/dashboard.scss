@@ -75,3 +75,11 @@
         .sod-refresh { margin-left: 0; }
     }
 }
+
+.sod-warehouse-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); gap: 18px; margin-top: 20px; }
+.sod-warehouse-card { min-height: 156px; display: flex; flex-direction: column; gap: 10px; align-items: flex-start; padding: 24px; background: white; border: 1px solid #dbe2eb; border-radius: 16px; text-align: left; color: #233043; }
+.sod-warehouse-card strong { font-size: 23px; }
+.sod-warehouse-card > .fa-building-o { font-size: 30px; color: #505be8; }
+.sod-warehouse-card > .fa-arrow-right { align-self: flex-end; color: #505be8; }
+.sod-warehouse-card:hover, .sod-warehouse-card:focus-visible { border-color: #505be8; outline: 2px solid #505be8; }
+@media (max-width: 600px) { .sod-warehouse-grid { grid-template-columns: 1fr; } }

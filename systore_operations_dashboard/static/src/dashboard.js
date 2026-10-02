@@ -74,7 +74,7 @@ export class OperationsDashboard extends Component {
             }
             if (!this.state.date) this.state.date = config.today;
             if (!config.warehouses.some(w => w.id === this.state.warehouseId)) {
-                this.state.warehouseId = config.warehouses[0]?.id || null;
+                this.state.warehouseId = null;
             }
             if (!this.state.warehouseId) return;
             const data = await this.orm.call('systore.operations.dashboard', 'get_dashboard', [
@@ -93,6 +93,27 @@ export class OperationsDashboard extends Component {
         } finally {
             if (!this.destroyed && requestId === this.requestId) this.state.loading = false;
         }
+    }
+
+    async selectWarehouse(id) {
+        if (this.state.loading) return;
+        this.state.warehouseId = id;
+        await this.reload();
+    }
+    async warehouseHome() {
+        if (this.state.loading) return;
+        this.state.warehouseId = null;
+        await this.reload();
+    }
+    async openMobileReceipt(row = null) {
+        if (this.state.opening || this.state.loading || !this.state.data) return;
+        this.state.opening = true;
+        try {
+            const action = await this.orm.call('systore.operations.dashboard', 'open_mobile_receipt', [
+                this.state.warehouseId, this.state.date, this.state.scope, row?.purchase_id || false]);
+            await this.action.doAction(action);
+        } catch (error) { this.notification.add(error.data?.message || error.message, {type:'danger'}); }
+        finally { if (!this.destroyed) this.state.opening = false; }
     }
 
     async changeWarehouse(event) {
