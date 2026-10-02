@@ -1,8 +1,18 @@
 # Tablero de operaciones · Odoo 18
 
-Versión **18.0.1.6.0** · Nombre técnico `systore_operations_dashboard`.
+Versión **18.0.1.6.1** · Nombre técnico `systore_operations_dashboard`.
 
 ## Cambios
+
+- Las tarjetas de Ingresos muestran el **Documento de origen** real (`stock.picking.origin`) de las recepciones vinculadas, y el buscador lo incluye. Si una compra tiene varios orígenes se muestran los distintos valores.
+- Las piezas registradas en el resumen de productos aparecen en azul y con mayor tamaño.
+
+## Pendientes para el lunes 5 de octubre de 2026
+
+1. Entrega en un paso: ampliar `stock_upc_validation` para exigir UPC y NS/IMEI por pieza en Out, integrado con Números de serie adicionales. Definir cómo se combina esa preparación con el registro y validación manual de paquetes.
+2. Entregas de mayoreo en dos pasos: decidir en qué etapa se capturan UPC y series, y qué adaptación requiere `stock_upc_validation`, preservando las rutas nativas.
+
+Estos puntos quedan para análisis y desarrollo posterior; esta versión no modifica el módulo UPC instalado.
 
 - Ingresos abre el resumen de productos y piezas. Puede registrar cualquier producto, confirmar su cantidad/UPC y regresar al resumen. Salir de la captura sin confirmar descarta esa edición. **Finalizar registro** permite revisar y confirmar únicamente lo registrado; los productos sin registrar se envían con cantidad cero para la recepción parcial nativa.
 - Salidas ya no valida al escanear: registra paquetes y espera **Validar completas**. Se retira la columna Operación y se añade una papelera para retirar capturas no entregadas. Un paquete retirado puede escanearse nuevamente. No se deshacen entregas ya validadas.

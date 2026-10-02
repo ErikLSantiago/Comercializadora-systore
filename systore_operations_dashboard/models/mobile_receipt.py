@@ -53,18 +53,20 @@ class MobileReceiptService(models.AbstractModel):
         entries = [entry for entry in self._receipt_entries(pickings)
                    if (not purchase_id or entry['purchase_id'] == purchase_id)
                    and matches_scope(entry['date'], scope, day, today, timezone)]
+        for entry in entries:
+            entry['origin'] = ', '.join(dict.fromkeys(filter(None, pickings.filtered(lambda p: p.id in entry['picking_ids']).mapped('origin'))))
         if not isinstance(query, str) or len(query) > 256:
             raise ValidationError(_('Búsqueda inválida.'))
         term = query.strip().casefold()
         if term:
-            entries = [entry for entry in entries if term in ' '.join(str(entry.get(key) or '') for key in ('label', 'partner', 'supplier_ref')).casefold() or term in self._operation_search_text(pickings.filtered(lambda p: p.id in entry['picking_ids'])).casefold()]
+            entries = [entry for entry in entries if term in ' '.join(str(entry.get(key) or '') for key in ('label', 'partner', 'supplier_ref', 'origin')).casefold() or term in self._operation_search_text(pickings.filtered(lambda p: p.id in entry['picking_ids'])).casefold()]
         by_id = {p.id: p for p in pickings}
         cards = []
         for entry in entries[page * 30:(page + 1) * 30]:
             receipts = [{'picking_id': pid, 'name': by_id[pid].name, 'state': by_id[pid].state,
                          'pieces': self._picking_pieces(by_id[pid])} for pid in entry['picking_ids']]
             cards.append({'key': entry['key'], 'purchase_id': entry['purchase_id'],
-                'name': entry['label'], 'origins': [entry['label']], 'operation_type': 'Ingresos',
+                'name': entry['label'], 'origin': entry['origin'], 'origins': [entry['origin']], 'operation_type': 'Ingresos',
                 'supplier': entry['partner'], 'supplier_ref': entry['supplier_ref'],
                 'packages': entry['packages'], 'pieces': sum(r['pieces'] for r in receipts),
                 'receipts': receipts})
