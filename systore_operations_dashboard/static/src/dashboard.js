@@ -80,6 +80,9 @@ export class OperationsDashboard extends Component {
             if (this.destroyed || requestId !== this.requestId) return;
             this.state.data = data;
             this.state.today = data.today;
+            if (!data.sections.some(section => section.key === this.state.activeSection)) {
+                this.state.activeSection = data.sections[0]?.key || 'receipts';
+            }
         } catch (error) {
             if (!this.destroyed && requestId === this.requestId) {
                 this.state.error = error.data?.message || error.message || 'No fue posible consultar las operaciones.';

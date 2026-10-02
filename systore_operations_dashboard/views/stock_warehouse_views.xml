@@ -12,8 +12,11 @@
                            invisible="not systore_operations_enabled"
                            domain="[('share', '=', False), ('company_ids', 'in', [company_id])]"
                            options="{'no_create': True, 'no_create_edit': True}"/>
+                    <field name="systore_operations_type_ids" widget="many2many_checkboxes"
+                           invisible="not systore_operations_enabled"
+                           domain="[('company_id', '=', company_id), ('active', '=', True)]"/>
                     <div class="text-muted" colspan="2" invisible="not systore_operations_enabled">
-                        Asigne los usuarios que podrán consultar este almacén. Deben tener acceso a Inventario.
+                        Asigne los usuarios y marque los tipos de operación incluidos. Deben tener acceso a Inventario.
                     </div>
                 </group>
             </xpath>

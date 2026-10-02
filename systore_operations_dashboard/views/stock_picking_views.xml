@@ -10,8 +10,11 @@
                 <field name="name"/>
                 <field name="picking_type_id"/>
                 <field name="systore_operations_purchase_names" optional="show"/>
+                <field name="systore_operations_supplier_refs" optional="show"/>
+                <field name="systore_operations_sale_names" optional="show"/>
                 <field name="systore_operations_expected_date" optional="show"/>
                 <field name="systore_operations_packages" optional="show"/>
+                <field name="systore_operations_pieces" optional="show"/>
                 <field name="scheduled_date"/>
                 <field name="partner_id" optional="show"/>
                 <field name="location_id" optional="show"/>

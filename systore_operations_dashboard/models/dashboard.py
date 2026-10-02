@@ -9,8 +9,9 @@ from odoo.osv.expression import AND
 from .date_policy import SCOPES, local_day_bounds, local_date, matches_scope
 
 
-SECTIONS = ('receipts', 'transfers', 'dispatches')
-TITLES = {'receipts': 'Recepciones', 'transfers': 'Transferencias', 'dispatches': 'Expediciones'}
+SECTIONS = ('receipts', 'transfers', 'pick', 'pack', 'out')
+TITLES = {'receipts': 'Recepciones', 'transfers': 'Transferencias',
+          'pick': 'Recolección (Pick)', 'pack': 'Empaquetado (Pack)', 'out': 'Salidas (Out)'}
 
 
 class OperationsDashboard(models.AbstractModel):
@@ -64,6 +65,7 @@ class OperationsDashboard(models.AbstractModel):
         common = [
             ('company_id', '=', warehouse.company_id.id),
             ('state', 'not in', ['done', 'cancel']),
+            ('picking_type_id', 'in', warehouse.systore_operations_type_ids.ids),
         ]
         if section == 'receipts':
             types = (warehouse.in_type_id | warehouse.store_type_id | warehouse.qc_type_id)
@@ -79,9 +81,20 @@ class OperationsDashboard(models.AbstractModel):
                 ('location_dest_id', '!=', False),
             ]
         else:
-            types = warehouse.out_type_id | warehouse.pick_type_id | warehouse.pack_type_id
+            types = {'pick': warehouse.pick_type_id, 'pack': warehouse.pack_type_id,
+                     'out': warehouse.out_type_id}[section]
             specific = [('picking_type_id', 'in', types.ids)]
         return AND([common, specific])
+
+    @api.model
+    def _visible_sections(self, warehouse):
+        sections = ['receipts', 'transfers']
+        for key, operation_type in [('pick', warehouse.pick_type_id),
+                                    ('pack', warehouse.pack_type_id), ('out', warehouse.out_type_id)]:
+            if (operation_type and operation_type.active
+                    and operation_type in warehouse.systore_operations_type_ids):
+                sections.append(key)
+        return sections
 
     @api.model
     def _datetime_domain(self, field, day, scope, today, timezone):
@@ -125,7 +138,8 @@ class OperationsDashboard(models.AbstractModel):
         # Inventory operators do not need access to purchase costs or the Purchase app.
         ids = pickings.sudo().mapped('systore_operations_purchase_ids').ids
         values = self.env['purchase.order'].sudo().browse(ids).read(
-            ['name', 'partner_id', 'date_planned', 'systore_expected_packages'],
+            ['name', 'partner_id', 'partner_ref', 'date_planned', 'systore_expected_packages',
+             'systore_operations_pieces'],
         )
         order_values = {item['id']: item for item in values}
         entries = {}
@@ -135,7 +149,9 @@ class OperationsDashboard(models.AbstractModel):
                 entries['p%s' % picking.id] = {
                     'key': 'p%s' % picking.id, 'purchase_id': False,
                     'label': picking.name, 'partner': picking.partner_id.display_name or '',
-                    'date': picking.scheduled_date, 'packages': 0, 'picking_ids': [picking.id],
+                    'date': picking.scheduled_date, 'packages': 0,
+                    'supplier_ref': '', 'pieces': self._picking_pieces(picking),
+                    'picking_ids': [picking.id],
                 }
             for po_id in po_ids:
                 key = 'o%s' % po_id
@@ -144,6 +160,8 @@ class OperationsDashboard(models.AbstractModel):
                     entries[key] = {
                         'key': key, 'purchase_id': po_id, 'label': item['name'],
                         'partner': item['partner_id'][1] if item['partner_id'] else '',
+                        'supplier_ref': item['partner_ref'] or '',
+                        'pieces': item['systore_operations_pieces'],
                         'date': fields.Datetime.to_datetime(item['date_planned']),
                         'packages': item['systore_expected_packages'], 'picking_ids': [],
                     }
@@ -151,10 +169,18 @@ class OperationsDashboard(models.AbstractModel):
         return list(entries.values())
 
     @api.model
+    def _picking_pieces(self, picking):
+        return sum(move.product_uom._compute_quantity(move.product_uom_qty,
+                                                      move.product_id.uom_id, round=False)
+                   for move in picking.move_ids
+                   if move.state != 'cancel' and move.product_id.type != 'service')
+
+    @api.model
     def _totals(self, entries):
         return {
             'orders': sum(bool(entry.get('purchase_id')) for entry in entries),
             'packages': sum(entry.get('packages', 0) for entry in entries),
+            'pieces': sum(entry.get('pieces', 0) for entry in entries),
             'operations': len({pid for entry in entries for pid in entry['picking_ids']}),
         }
 
@@ -163,11 +189,11 @@ class OperationsDashboard(models.AbstractModel):
         warehouse = self._warehouse(warehouse_id)
         day, today, timezone = self._parameters(selected_date, scope)
         sections = []
-        for section in SECTIONS:
+        for section in self._visible_sections(warehouse):
             pickings = self.env['stock.picking'].search(self._section_domain(warehouse, section),
                                                        order='scheduled_date, id')
             pickings.fetch(['name', 'scheduled_date', 'state', 'partner_id', 'picking_type_id',
-                            'location_id', 'location_dest_id'])
+                            'location_id', 'location_dest_id', 'systore_operations_sale_names'])
             if section == 'receipts':
                 entries = self._receipt_entries(pickings)
             else:
@@ -184,6 +210,7 @@ class OperationsDashboard(models.AbstractModel):
                     rows.append({
                         'key': entry['key'], 'purchase_id': entry['purchase_id'],
                         'label': entry['label'], 'partner': entry['partner'],
+                        'supplier_ref': entry['supplier_ref'], 'pieces': entry['pieces'],
                         'date': fields.Date.to_string(local_date(entry['date'], timezone)),
                         'packages': entry['packages'], 'operations': len(entry['picking_ids']),
                         'picking_id': entry['picking_ids'][0] if len(entry['picking_ids']) == 1 else False,
@@ -194,6 +221,7 @@ class OperationsDashboard(models.AbstractModel):
                     rows.append({
                         'key': 'p%s' % picking.id, 'label': picking.name, 'picking_id': picking.id,
                         'type': picking.picking_type_id.name, 'state': picking.state,
+                        'sale_order': picking.systore_operations_sale_names or '',
                         'date': fields.Date.to_string(local_date(picking.scheduled_date, timezone)),
                         'source': picking.location_id.display_name,
                         'destination': picking.location_dest_id.display_name,

@@ -57,6 +57,7 @@ class TestOperationsDashboard(TransactionCase):
         self.assertEqual(section['selected']['packages'], 7)
         self.assertEqual(len(section['rows']), 1)
         self.assertEqual(section['rows'][0]['operations'], len(pickings))
+        self.assertEqual(section['selected']['pieces'], 10)
 
     def test_expected_date_change_and_negative_packages(self):
         order = self.make_order()
@@ -118,10 +119,43 @@ class TestOperationsDashboard(TransactionCase):
         transfer_ids = picking_model.search(transfer['domain']).ids
         self.assertIn(dispatch_pick.id, transfer_ids)
         self.assertNotIn(dispatch_out.id, transfer_ids)
-        dispatch = self.service.open_operations(self.warehouse.id, 'dispatches', '2026-10-01')
-        dispatch_ids = picking_model.search(dispatch['domain']).ids
-        self.assertIn(dispatch_pick.id, dispatch_ids)
-        self.assertIn(dispatch_out.id, dispatch_ids)
+        recoleccion = self.service.open_operations(self.warehouse.id, 'pick', '2026-10-01')
+        self.assertIn(dispatch_pick.id, picking_model.search(recoleccion['domain']).ids)
+        salida = self.service.open_operations(self.warehouse.id, 'out', '2026-10-01')
+        self.assertIn(dispatch_out.id, picking_model.search(salida['domain']).ids)
+        self.assertNotIn(dispatch_pick.id, picking_model.search(salida['domain']).ids)
+
+    def test_supplier_reference_and_unique_pieces(self):
+        order = self.make_order()
+        order.partner_ref = 'FACT-PROV-123'
+        section = self.receipt_section()
+        self.assertEqual(section['rows'][0]['supplier_ref'], 'FACT-PROV-123')
+        self.assertEqual(section['rows'][0]['pieces'], 10)
+        self.assertEqual(section['selected']['pieces'], 10)
+
+    def test_checkboxes_exclude_operation_types(self):
+        order = self.make_order()
+        self.warehouse.systore_operations_type_ids = self.warehouse.store_type_id
+        self.assertEqual(self.receipt_section()['selected']['pieces'], 10)
+        action = self.service.open_operations(self.warehouse.id, 'receipts', '2026-10-01')
+        pickings = self.env['stock.picking'].search(action['domain'])
+        self.assertTrue(pickings)
+        self.assertEqual(pickings.picking_type_id, self.warehouse.store_type_id)
+        self.assertNotIn('pick', self.service._visible_sections(self.warehouse))
+        self.warehouse.systore_operations_type_ids = False
+        self.assertEqual(self.receipt_section()['selected']['orders'], 0)
+        self.assertEqual(self.service._visible_sections(self.warehouse), ['receipts', 'transfers'])
+
+    def test_sale_reference_on_all_shipping_steps(self):
+        sale = self.env['sale.order'].create({
+            'partner_id': self.vendor.id, 'warehouse_id': self.warehouse.id,
+            'order_line': [Command.create({'product_id': self.product.id,
+                                         'product_uom_qty': 2, 'price_unit': 50})],
+        })
+        sale.action_confirm()
+        self.assertGreaterEqual(len(sale.picking_ids), 3)
+        for picking in sale.picking_ids:
+            self.assertIn(sale.name, picking.systore_operations_sale_names)
 
     def test_date_bounds_timezone(self):
         start, end = local_day_bounds(fields.Date.to_date('2026-10-01'), 'America/Mexico_City')
