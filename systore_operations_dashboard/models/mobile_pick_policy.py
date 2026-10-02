@@ -1,44 +1,42 @@
-"""Input validation for the mobile adapter; no stock or UPC rules live here."""
-import math
+"""Presentation grouping and UPC input checks; stock rules remain in Odoo."""
 
 
-def serial_count(quantity):
-    if not math.isfinite(quantity) or quantity <= 0 or not math.isclose(quantity, round(quantity), rel_tol=0, abs_tol=0.00001):
-        raise ValueError('La captura móvil de series requiere cantidades enteras positivas.')
-    return int(round(quantity))
+def group_pick_rows(rows):
+    groups = {}
+    for row in rows:
+        key = '%s:%s:%s' % (row['product_id'], row['location_id'], row['uom_id'])
+        if key not in groups:
+            groups[key] = {**row, 'id': key, 'qty': 0, 'line_ids': [],
+                           'picking_ids': [], 'origins': [], 'lots': [], 'require_upc': False}
+        group = groups[key]
+        group['qty'] += row['qty']
+        group['line_ids'].append(row['id'])
+        for field, value in [('picking_ids', row['picking_id']), ('origins', row['origin']), ('lots', row['lot'])]:
+            if value and value not in group[field]:
+                group[field].append(value)
+        group['require_upc'] |= row['require_upc']
+    for group in groups.values():
+        group['origin'] = ', '.join(group['origins'])
+        group['lot'] = ', '.join(group['lots'])
+    return sorted(groups.values(), key=lambda r: (r['product'], r['location'], r['id']))
 
 
 def normalize_capture(rows, payload):
     if not isinstance(payload, list) or len(payload) != len(rows):
-        raise ValueError('Complete las series de todos los productos.')
+        raise ValueError('Confirme todos los productos de esta recolección.')
     expected = {r['id']: r for r in rows}
-    captured, used = {}, set()
+    captured = {}
     for item in payload:
-        if not isinstance(item, dict) or type(item.get('id')) is not int:
-            raise ValueError('Línea de recolección inválida.')
+        if not isinstance(item, dict) or not isinstance(item.get('id'), str):
+            raise ValueError('Grupo de recolección inválido.')
         row = expected.get(item['id'])
         if not row or row['id'] in captured:
-            raise ValueError('La línea no pertenece a esta recolección o está repetida.')
-        serials = item.get('serials')
-        if not isinstance(serials, list) or len(serials) != serial_count(row['qty']):
-            raise ValueError('Capture una serie por cada unidad que debe recoger.')
-        clean = []
-        for value in serials:
-            if not isinstance(value, str) or not value.strip() or len(value) > 256:
-                raise ValueError('Capture un número de serie válido por pieza.')
-            value = value.strip()
-            key = (row['picking_id'], value)
-            if key in used:
-                raise ValueError('Un número de serie está repetido en la misma operación.')
-            used.add(key)
-            clean.append(value)
-        existing = set(row['existing_serials'])
-        if not existing.issubset(set(clean)):
-            raise ValueError('Conserve las series ya registradas; corríjalas desde el formulario original.')
-        if row['tracking'] == 'serial' and (len(clean) != 1 or clean[0] != row['lot']):
-            raise ValueError('La serie escaneada no coincide con la serie nativa reservada.')
+            raise ValueError('El grupo no pertenece a esta recolección o está repetido.')
         barcode = item.get('upc', '')
         if not isinstance(barcode, str) or len(barcode) > 256:
             raise ValueError('UPC inválido.')
-        captured[row['id']] = {'serials': clean, 'upc': barcode.strip()}
+        barcode = barcode.strip()
+        if row['require_upc'] and not barcode:
+            raise ValueError('Capture el UPC del producto antes de validar.')
+        captured[row['id']] = {'upc': barcode}
     return captured

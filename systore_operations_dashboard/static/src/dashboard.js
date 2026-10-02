@@ -15,11 +15,12 @@ export class OperationsDashboard extends Component {
         this.orm = useService('orm');
         this.action = useService('action');
         this.notification = useService('notification');
+        const returnState = this.props?.action?.params || {};
         this.requestId = 0;
         this.destroyed = false;
         this.state = useState({
-            loading: true, opening: false, error: '', warehouses: [], warehouseId: null,
-            today: '', date: '', scope: 'date', activeSection: 'in', data: null,
+            loading: true, opening: false, error: '', warehouses: [], warehouseId: returnState.warehouse_id || null,
+            today: '', date: returnState.date || '', scope: returnState.scope || 'date', activeSection: returnState.section || 'in', data: null,
         });
         onWillStart(() => this.reload());
         onWillUnmount(() => { this.destroyed = true; this.requestId++; });

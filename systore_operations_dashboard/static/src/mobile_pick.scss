@@ -44,10 +44,6 @@
     .smp-link { color: #4954d4; background: transparent; border: 0; min-height: 48px; padding: 10px; }
     .smp-pagination { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin: 20px 0 0; }
     .smp-pagination button { min-height: 48px; padding: 10px 14px; color: #4753cb; border: 1px solid #c7d0e1; border-radius: 10px; background: white; }
-    .smp-serials { list-style: none; padding: 0; }
-    .smp-serials li { display: flex; gap: 12px; align-items: center; border-bottom: 1px solid #edf0f5; min-height: 48px; }
-    .smp-serials span { overflow-wrap: anywhere; flex: 1; min-width: 0; }
-    .smp-serials button { border: 0; background: transparent; color: #a03946; min-height: 48px; min-width: 48px; }
     .smp-empty { text-align: center; padding: 40px 12px; color: #647289; }
     @media (max-width: 600px) {
         .smp-grid { grid-template-columns: 1fr; }

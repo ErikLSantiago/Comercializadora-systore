@@ -11,9 +11,9 @@ export class MobilePick extends Component {
         this.action = useService('action');
         this.params = this.props.action.params;
         this.destroyed = false;
-        this.scanRef = useRef('serialInput');
+        this.scanRef = useRef('upcInput');
         this.state = useState({page:'panel', busy:false, error:'', message:'', panel:null,
-            detail:null, captures:[], guides:{}, index:0, code:'', query:'', pageNumber:0});
+            detail:null, captures:[], index:0, query:'', pageNumber:0});
         onWillUnmount(() => { this.destroyed = true; });
         useEffect(() => { this.scanRef.el?.focus(); }, () => [this.state.page, this.state.index]);
         onWillStart(async () => {
@@ -70,68 +70,60 @@ export class MobilePick extends Component {
             await this.action.doAction(action);
         });
     }
-    beginValidation() {
+    async back() {
+        if (this.state.busy) return;
+        if (this.state.page === 'capture') { this.state.page = 'detail'; return; }
+        if (this.state.page !== 'panel') { await this.loadPanel(this.state.pageNumber); return; }
+        await this.run(async () => this.action.doAction({
+            type:'ir.actions.client', name:'Tablero de operaciones', tag:'systore_operations_dashboard.dashboard',
+            params:{warehouse_id:this.params.warehouse_id, date:this.params.date || '',
+                    scope:this.params.scope || 'date', section:'pick'},
+        }, {clearBreadcrumbs:true}));
+    }
+    async beginValidation() {
         if (this.state.busy || !this.state.detail?.can_validate) return;
-        // Retain unsent scans when returning from the capture step.
         if (!this.state.captures.length) {
-            this.state.captures = this.state.detail.rows.map(row => ({...row,
-                serials:[...row.existing_serials], upc:''}));
-            this.state.guides = Object.fromEntries(this.state.detail.guides.map(g => [String(g.picking_id),g.value]));
+            this.state.captures = this.state.detail.rows.map(row => ({...row, upc:''}));
         }
         this.state.index = 0;
-        this.state.code = '';
         this.state.error = '';
-        this.state.page = 'capture';
+        if (this.productsToScan.length) this.state.page = 'capture';
+        else await this.validate();
     }
-    get current() { return this.state.captures[this.state.index]; }
-    get captureCount() { return this.state.captures.reduce((sum,row) => sum + row.serials.length,0); }
-    get requiredCount() { return this.state.detail?.rows.reduce((sum,row) => sum + row.qty,0) || 0; }
-    get currentReady() { return !!this.current && this.current.serials.length === this.current.qty &&
-        (!this.current.require_upc || !!this.current.upc.trim()); }
+    get productsToScan() {
+        const products = new Map();
+        for (const row of this.state.captures) {
+            if (row.require_upc && !products.has(row.product_id)) products.set(row.product_id,row);
+        }
+        return [...products.values()];
+    }
+    get current() { return this.productsToScan[this.state.index]; }
+    get currentReady() { return !!this.current?.upc.trim(); }
     get ready() {
-        return this.state.captures.length > 0 && this.state.captures.every(row => row.serials.length === row.qty &&
-            (!row.require_upc || !!row.upc.trim())) &&
-            this.state.detail.guides.every(g => !!this.state.guides[String(g.picking_id)]?.trim());
+        return this.state.captures.length > 0 && this.state.captures.every(row =>
+            !row.require_upc || !!row.upc.trim());
     }
-    scan(event) {
-        event?.preventDefault();
+    setUPC(event) {
         if (this.state.busy || !this.current) return;
-        const serial = this.state.code.trim();
-        if (!serial) return;
-        if (this.current.serials.length >= this.current.qty) {
-            this.state.error = 'Ya capturó todas las series de este producto.'; return;
+        for (const row of this.state.captures) {
+            if (row.product_id === this.current.product_id) row.upc = event.target.value;
         }
-        if (this.state.captures.some(row => row.picking_id === this.current.picking_id && row.serials.includes(serial))) {
-            this.state.error = 'Esta serie ya está capturada en la operación.'; return;
-        }
-        if (this.current.tracking === 'serial' && this.current.lot !== serial) {
-            this.state.error = 'La serie no coincide con la serie nativa reservada.'; return;
-        }
-        this.current.serials.push(serial);
-        this.state.code = '';
-        this.state.error = '';
-        this.scanRef.el?.focus();
-    }
-    removeSerial(serial) {
-        if (this.state.busy || this.current.existing_serials.includes(serial)) return;
-        this.current.serials = this.current.serials.filter(value => value !== serial);
     }
     next(delta) {
         if (this.state.busy) return;
         const next = this.state.index + delta;
-        if (next >= 0 && next < this.state.captures.length) {
-            this.state.index = next; this.state.code = ''; this.state.error = '';
+        if (next >= 0 && next < this.productsToScan.length) {
+            this.state.index = next; this.state.error = '';
         }
     }
     async validate() {
-        if (!this.ready) { this.state.error = 'Complete las series, UPC y guías requeridas.'; return; }
+        if (!this.ready) { this.state.error = 'Complete los UPC requeridos.'; return; }
         const detail = this.state.detail;
         let result;
         await this.run(async () => {
             result = await this.call('validate_mobile_pick', [this.params.warehouse_id,
                 detail.card.picking_id || false, detail.card.batch_id || false, detail.token,
-                this.state.captures.map(row => ({id:row.id,serials:[...row.serials],upc:row.upc})),
-                {...this.state.guides}]);
+                this.state.captures.map(row => ({id:row.id,upc:row.upc}))]);
         });
         if (!result || this.destroyed) return;
         if (result.action) {

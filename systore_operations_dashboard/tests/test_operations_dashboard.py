@@ -222,7 +222,7 @@ class TestOperationsDashboard(TransactionCase):
         self.assertIn('in', self.service._visible_sections(self.warehouse))
         self.assertNotIn('storage', self.service._visible_sections(self.warehouse))
 
-    def test_mobile_panel_series_and_delegated_batch_validation(self):
+    def test_mobile_grouped_batch_upc_and_no_serial_capture(self):
         self.warehouse.company_id.systore_upc_validation_warehouse_ids |= self.warehouse
         self.warehouse.pick_type_id.write({'systore_require_upc_on_picking': True,
                                           'systore_require_tracking_on_pack': False})
@@ -247,8 +247,14 @@ class TestOperationsDashboard(TransactionCase):
         self.assertEqual(set(card['origins']), set(picks.mapped('origin')))
         detail = self.service.get_mobile_pick_detail(self.warehouse.id, batch_id=batch.id)
         self.assertTrue(detail['can_validate'], detail['notice'])
-        captures = [{'id': r['id'], 'serials': ['MOBILE-%s-%s' % (r['id'], i) for i in range(int(r['qty']))],
-                     'upc': 'WRONG'} for r in detail['rows']]
+        self.assertEqual(len(detail['rows']), 1)
+        self.assertEqual(detail['rows'][0]['qty'], 3)
+        self.assertEqual(set(detail['rows'][0]['picking_ids']), set(picks.ids))
+        individual = self.service.get_mobile_pick_detail(self.warehouse.id, picking_id=picks[0].id)
+        self.assertFalse(individual['card']['is_batch'])
+        self.assertEqual(individual['card']['picking_id'], picks[0].id)
+        self.assertEqual(sum(row['qty'] for row in individual['rows']), picks[0].move_ids.product_uom_qty)
+        captures = [{'id': r['id'], 'upc': 'WRONG'} for r in detail['rows']]
         with self.assertRaises(ValidationError), self.cr.savepoint():
             self.service.validate_mobile_pick(self.warehouse.id, False, batch.id, detail['token'], captures)
         self.assertFalse(picks.move_line_ids.serial_captured_ids)
@@ -257,7 +263,7 @@ class TestOperationsDashboard(TransactionCase):
         result = self.service.validate_mobile_pick(self.warehouse.id, False, batch.id, detail['token'], captures)
         self.assertTrue(result['complete'])
         self.assertTrue(all(p.state == 'done' for p in picks))
-        self.assertEqual(len(picks.move_line_ids.serial_captured_ids), 3)
+        self.assertFalse(picks.move_line_ids.serial_captured_ids)
         self.assertEqual(self.service.open_mobile_pick(self.warehouse.id)['tag'],
                          'systore_operations_dashboard.mobile_pick')
 
