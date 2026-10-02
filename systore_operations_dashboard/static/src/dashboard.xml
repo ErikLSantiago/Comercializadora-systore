@@ -117,78 +117,11 @@
                             <button class="btn" t-att-class="section.key === 'pick' ? 'btn-outline-secondary' : 'btn-primary'" t-on-click="() => this.openOperations(section.key)" t-att-disabled="state.opening">
                                 Abrir operaciones <i class="fa fa-arrow-right ms-1" aria-hidden="true"/>
                             </button>
-                            <button class="btn btn-link" t-on-click="() => { this.state.activeSection = section.key; }">Ver detalle</button>
+                            
                             <button t-if="['pick', 'pack', 'out'].includes(section.key)" class="btn btn-link"
                                     t-on-click="() => this.openBatches(section.key)" t-att-disabled="state.opening">Batches</button>
                         </div>
                     </article>
-                </div>
-                <div class="sod-detail">
-                    <div class="sod-detail-header">
-                        <nav class="sod-tabs" aria-label="Detalle por sección">
-                            <button t-foreach="state.data.sections" t-as="section" t-key="section.key"
-                                    t-att-class="{'active': state.activeSection === section.key}"
-                                    t-on-click="() => { this.state.activeSection = section.key; }" t-esc="section.title"/>
-                        </nav>
-                        <span t-esc="!isReceipt(state.activeSection) ? 'Todas las pendientes' : dateLabel"/>
-                    </div>
-                    <t t-if="activeSection">
-                        <p class="sod-table-caption" t-if="isReceipt(activeSection.key)">
-                            Una fila por compra, con su referencia del proveedor, bultos y piezas solicitadas. La fecha corresponde a Fecha esperada de la compra.
-                        </p>
-                        <p class="sod-table-caption" t-else="">Una fila por batch o por operación sin batch. Un batch se prepara completo; sus órdenes pueden tener fechas distintas.</p>
-                        <div class="sod-table-scroll" t-if="activeSection.rows.length">
-                            <table class="table table-hover align-middle mb-0">
-                                <thead><tr>
-                                    <th t-esc="isReceipt(activeSection.key) ? 'Orden de compra / operación' : 'Operación'"/>
-                                    <th t-if="isReceipt(activeSection.key)">Proveedor</th>
-                                    <th t-else="">Etapa</th>
-                                    <th t-if="isReceipt(activeSection.key)">Referencia del proveedor</th>
-                                    <th t-elif="activeSection.key !== 'transfers'">Orden de venta</th>
-                                    <t t-if="!isReceipt(activeSection.key)"><th>Batch / lotes nativos</th><th class="text-end">Piezas</th></t>
-                                    <th>Fecha</th>
-                                    <t t-if="isReceipt(activeSection.key)">
-                                        <th class="text-end">Bultos</th><th class="text-end">Piezas</th>
-                                    </t>
-                                    <t t-else=""><th>Origen</th><th>Destino</th><th>Estado</th></t>
-                                    <th><span class="visually-hidden">Acción</span></th>
-                                </tr></thead>
-                                <tbody>
-                                    <tr t-foreach="activeSection.rows" t-as="row" t-key="row.key">
-                                        <td class="fw-bold"><t t-esc="row.label"/><small t-if="isReceipt(activeSection.key) &amp;&amp; !row.purchase_id" class="d-block text-muted">Sin compra vinculada</small></td>
-                                        <td t-esc="isReceipt(activeSection.key) ? row.partner : row.type"/>
-                                        <td t-if="isReceipt(activeSection.key)" t-esc="row.supplier_ref || '—'"/>
-                                        <td t-elif="activeSection.key !== 'transfers'" t-esc="row.sale_order || '—'"/>
-                                        <t t-if="!isReceipt(activeSection.key)">
-                                            <td><t t-esc="row.batch || 'Sin batch'"/><small t-if="row.native_lots" class="d-block text-muted" t-esc="row.native_lots"/></td>
-                                            <td class="text-end" t-esc="format(row.pieces)"/>
-                                        </t>
-                                        <td class="text-nowrap" t-esc="displayDate(row.date)"/>
-                                        <t t-if="isReceipt(activeSection.key)">
-                                            <td class="text-end" t-esc="format(row.packages)"/><td class="text-end" t-esc="format(row.pieces)"/>
-                                        </t>
-                                        <t t-else=""><td t-esc="row.source"/><td t-esc="row.destination"/>
-                                            <td><span class="sod-state" t-att-class="{'sod-state-ready': row.state === 'assigned'}" t-esc="stateLabel(row.state)"/></td>
-                                        </t>
-                                        <td class="text-end"><button class="btn btn-sm btn-outline-primary" t-att-disabled="state.opening"
-                                            t-on-click="() => activeSection.key === 'pick' ? this.openMobilePick(row) : activeSection.key === 'pack' ? this.openMobilePack(row) : activeSection.key === 'in' ? this.openMobileReceipt(row) : this.openOperations(activeSection.key, row)">Operar</button></td>
-                                    </tr>
-                                </tbody>
-                                <tfoot t-if="isReceipt(activeSection.key)">
-                                    <tr class="fw-bold">
-                                        <td colspan="4">Total del filtro</td>
-                                        <td class="text-end" t-esc="format(activeSection.selected.packages)"/>
-                                        <td class="text-end" t-esc="format(activeSection.selected.pieces)"/>
-                                        <td/>
-                                    </tr>
-                                </tfoot>
-                            </table>
-                        </div>
-                        <div t-else="" class="sod-no-rows">No hay operaciones pendientes para este filtro.</div>
-                        <div t-if="activeSection.truncated" class="sod-more">
-                            Se muestran las primeras 60 filas. <button class="btn btn-link" t-on-click="() => this.openOperations(activeSection.key)">Abrir lista completa</button>
-                        </div>
-                    </t>
                 </div>
                 <p class="sod-footnote">Transferencias excluye In, Pick, Pack y Out. Los totales de las etapas no son acumulables: una compra o pedido puede recorrer más de una etapa.</p>
             </t>

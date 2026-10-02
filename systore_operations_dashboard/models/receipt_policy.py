@@ -18,7 +18,7 @@ def receipt_captures(rows, payload):
         barcode = item.get('upc', '')
         if not isinstance(barcode, str) or len(barcode) > 256:
             raise ValueError('UPC inválido.')
-        if row['require_upc'] and not barcode.strip():
+        if row['require_upc'] and quantity > 0 and not barcode.strip():
             raise ValueError('Capture los UPC requeridos.')
         result[row['product_id']] = {'quantity': quantity, 'upc': barcode.strip()}
     if not any(value['quantity'] > 0 for value in result.values()):

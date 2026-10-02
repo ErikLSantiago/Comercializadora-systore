@@ -85,6 +85,7 @@ class OperationsDashboard(models.AbstractModel):
                 ('location_dest_id', '!=', False),
                 ('picking_type_id', 'not in', dedicated_types.ids),
                 ('picking_type_id.code', '=', 'internal'),
+                ('state', '=', 'assigned'),
             ]
         else:
             types = {'pick': warehouse.pick_type_id, 'pack': warehouse.pack_type_id,

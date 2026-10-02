@@ -34,6 +34,13 @@ class MobilePackService(models.AbstractModel):
                            'pieces': self._picking_pieces(p), 'batch': p.batch_id.name or ''}
                           for p in pickings[page * 30:(page + 1) * 30]]}
 
+    @api.model
+    def open_mobile_pack_native(self, warehouse_id, picking_id):
+        warehouse = self._warehouse(warehouse_id)
+        picking, _batch = self._guided_pickings(warehouse, 'pack', picking_id=picking_id)
+        return {'type': 'ir.actions.act_window', 'res_model': 'stock.picking', 'res_id': picking.id,
+                'views': [(False, 'form')], 'target': 'current'}
+
     def _pack_token(self, picking):
         payload = [(picking.id, picking.state, str(picking.write_date)),
                    [(m.id, m.quantity, m.product_uom_qty, str(m.write_date)) for m in picking.move_ids],
@@ -49,7 +56,7 @@ class MobilePackService(models.AbstractModel):
             raise UserError(_('Use la vista original para cantidades fraccionarias u otras unidades.'))
         action = self.open_guided_operation(warehouse_id, 'pack', scope='all', picking_id=picking_id)
         wizard = self.env['stock.picking.upc.wizard'].browse(action['res_id'])
-        return {'wizard_id': wizard.id, 'token': self._pack_token(picking), 'name': picking.name,
+        return {'picking_id': picking.id, 'state': picking.state, 'wizard_id': wizard.id, 'token': self._pack_token(picking), 'name': picking.name,
                 'orders': picking.systore_operations_sale_names or picking.origin or '',
                 'source': picking.location_id.complete_name, 'destination': picking.location_dest_id.complete_name,
                 'rows': [{'id': line.id, 'product_id': line.product_id.id, 'product': line.product_id.display_name,

@@ -1,8 +1,15 @@
 # Tablero de operaciones · Odoo 18
 
-Versión **18.0.1.4.0** · Nombre técnico `systore_operations_dashboard`.
+Versión **18.0.1.5.0** · Nombre técnico `systore_operations_dashboard`.
 
 ## Cambios
+
+- Empaquetado muestra una tarjeta por producto con sus piezas solicitadas alineadas a la derecha, como Recolección. La validación sigue siendo por pieza. Incluye **Abrir original**.
+- Transferencias solo incluye operaciones en estado **Listo** (`assigned`).
+- El buscador de Ingresos consulta compra, referencia del proveedor y proveedor antes de paginar; pulse **Buscar** o Enter.
+- Ingresos abre directamente una pantalla por producto: cantidad esperada, cantidad recibida manual, UPC y **Siguiente producto**. Al terminar muestra **Confirmar ingreso**.
+- Una cantidad cero deja el producto pendiente y no requiere UPC. Los ingresos parciales conservan el asistente nativo para crear la recepción restante. Se ajustan los excedentes que pudiera dejar el asistente instalado al repartir una captura parcial entre varios movimientos del mismo producto.
+- Se retira la tabla general de resumen y su botón **Ver detalle**. Las tarjetas y los accesos operativos permanecen.
 
 - Se retira el selector desplegable de almacén del tablero. El almacén se elige al inicio; la flecha **Almacenes** regresa a esa pantalla.
 - En Ingresos, **Comprobar UPC** ahora se llama **Registrar UPC**. La persistencia del código mantiene el comportamiento anterior: se registra al confirmar la recepción.
@@ -72,11 +79,11 @@ La interfaz funciona dentro de Odoo y de su app móvil con conexión. El ZIP con
 
 En **Ingresos**, pulse **Operar**. El panel respeta la fecha esperada y el filtro del tablero y muestra las compras, proveedor, referencia y bultos. Si una compra tiene varias recepciones, seleccione la operación. Una recepción que consolida varias compras valida todas sus líneas visibles y lo indica antes de confirmar.
 
-El detalle muestra imágenes, demanda y cantidad a ingresar editable. La captura comprueba el UPC antes de pasar al siguiente producto. Se reutilizan los métodos del módulo instalado `stock_upc_validation`: en recepción, un UPC nuevo puede registrarse para el producto; uno asignado a otro producto se rechaza. La comprobación previa revierte cualquier registro provisional; el código se registra al confirmar.
+Cada pantalla muestra un producto con imagen, demanda, cantidad recibida manual y UPC. La cantidad comienza vacía para que el operador la capture. La captura comprueba el UPC antes de pasar al siguiente producto; cero permite dejarlo pendiente. Al terminar se revisan las cantidades y se pulsa Confirmar ingreso. Se reutilizan los métodos del módulo instalado `stock_upc_validation`: en recepción, un UPC nuevo puede registrarse para el producto; uno asignado a otro producto se rechaza. La comprobación previa revierte cualquier registro provisional; el código se registra al confirmar.
 
 Configure los almacenes de recepción en `systore_upc_receipt_warehouse_ids` y active `systore_require_upc_on_receipt` en el tipo In. La asignación automática de lote desde el origen sigue `systore_auto_lot_from_origin`. Si el módulo instalado no exige UPC para esa recepción, se respetan sus reglas y se validan las cantidades mediante Odoo.
 
-La confirmación conserva los asistentes nativos de recepción parcial y los controles de trazabilidad. Para unidades distintas de la unidad de inventario, o si el asistente instalado aplica una cantidad diferente de la capturada entre varios movimientos del mismo producto, utilice **Abrir original**. El panel no incorpora una captura adicional de series; los requisitos nativos de lotes y series siguen vigentes.
+La confirmación conserva los asistentes nativos de recepción parcial y los controles de trazabilidad. Para unidades distintas de la unidad de inventario, utilice **Abrir original**. El panel no incorpora una captura adicional de series; los requisitos nativos de lotes y series siguen vigentes.
 
 ## Operar Pack
 
@@ -117,7 +124,7 @@ Consultar el tablero no valida operaciones ni cambia reservas. Abrir una prepara
 
 ## Verificación
 
-Comprobaciones locales: 37 pruebas Python de fechas, contadores, paquetes, agrupación por producto/ubicación, captura UPC, filtro Completa, exclusión de borradores, pestañas de individuales/batches y alcance individual; compilación de cinco plantillas con Owl de Odoo 18; navegación al tablero conservando filtros, cambio de pestaña y ruta de imagen, UPC incorrecto sin avanzar, cantidades acumuladas por producto y última comprobación, captura UPC compartida entre ubicaciones, validación sin series, errores y asistentes del cliente; registro de acciones con el conversor/cargador nativos; sintaxis Python/JavaScript, XML y manifiesto.
+Comprobaciones locales: 38 pruebas Python de fechas, contadores, paquetes, agrupación por producto/ubicación, captura UPC, filtro Completa, exclusión de borradores, pestañas de individuales/batches y alcance individual; compilación de cinco plantillas con Owl de Odoo 18; navegación al tablero conservando filtros, cambio de pestaña y ruta de imagen, UPC incorrecto sin avanzar, cantidades acumuladas por producto y última comprobación, captura UPC compartida entre ubicaciones, validación sin series, errores y asistentes del cliente; registro de acciones con el conversor/cargador nativos; sintaxis Python/JavaScript, XML y manifiesto.
 
 También se verificaron localmente el inicio sin almacén seleccionado y el flujo móvil de Ingresos: selección de recepción, cantidades, UPC rechazado sin avanzar, confirmación y retorno desde asistentes nativos.
 
@@ -126,3 +133,5 @@ También se comprobó el flujo cliente de Pack: UPC por pieza, rechazo sin avanz
 Estas pruebas usan dobles de ORM y plantillas sin navegador. **No se ejecutó Odoo completo ni la app móvil real.** Las pruebas nativas incluidas en `tests/test_operations_dashboard.py` cubren un batch de dos ventas agrupado en tres piezas, apertura individual limitada, UPC incorrecto/correcto y comprobación UPC sin validar el picking, seguida de confirmación sin crear series en Pick. También incluyen la recepción con comprobación provisional de UPC sin registrarlo y confirmación con lote de origen; estas pruebas de integración quedan pendientes de ejecutar en Odoo. Ejecútelas en la rama SH con `--test-enable --test-tags /systore_operations_dashboard --stop-after-init`.
 
 En smartphone compruebe: flecha al tablero; solo completas; dos órdenes del mismo producto y ubicación sumadas en un batch; ubicaciones distintas separadas; operación individual limitada a sus piezas; validación UPC sin pedir IMEI; siguiente etapa nativa disponible después de validar Pick.
+
+Verificación 18.0.1.5.0: 38 pruebas locales Python, compilación de cinco plantillas, carga de acciones y pruebas cliente de captura secuencial con producto en cero, parcialización, formato agrupado Pack y apertura original. Las pruebas de integración de búsqueda por proveedor y cantidades parciales se incluyen para ejecutar en Odoo.sh; no se ejecutó una instancia real de Odoo ni la app móvil.

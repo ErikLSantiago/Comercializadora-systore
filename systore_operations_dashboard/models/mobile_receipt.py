@@ -44,7 +44,7 @@ class MobileReceiptService(models.AbstractModel):
         return warehouse, picking
 
     @api.model
-    def get_mobile_receipt_panel(self, warehouse_id, selected_date=False, scope='date', purchase_id=False, page=0):
+    def get_mobile_receipt_panel(self, warehouse_id, selected_date=False, scope='date', purchase_id=False, page=0, query=''):
         warehouse = self._warehouse(warehouse_id)
         day, today, timezone = self._parameters(selected_date, scope)
         if type(page) is not int or page < 0 or (purchase_id and type(purchase_id) is not int):
@@ -53,6 +53,11 @@ class MobileReceiptService(models.AbstractModel):
         entries = [entry for entry in self._receipt_entries(pickings)
                    if (not purchase_id or entry['purchase_id'] == purchase_id)
                    and matches_scope(entry['date'], scope, day, today, timezone)]
+        if not isinstance(query, str) or len(query) > 256:
+            raise ValidationError(_('Búsqueda inválida.'))
+        term = query.strip().casefold()
+        if term:
+            entries = [entry for entry in entries if term in ' '.join(str(entry.get(key) or '') for key in ('label', 'partner', 'supplier_ref')).casefold()]
         by_id = {p.id: p for p in pickings}
         cards = []
         for entry in entries[page * 30:(page + 1) * 30]:
@@ -170,6 +175,8 @@ class MobileReceiptUPCLine(models.TransientModel):
     _inherit = 'stock.receipt.upc.wizard.line'
 
     def _validate_and_register_barcode(self):
+        if self.env.context.get('systore_operations_mobile') and self.wizard_id and self.quantity == 0:
+            return True
         try:
             return super()._validate_and_register_barcode()
         except ValidationError:
@@ -187,6 +194,16 @@ class MobileReceiptUPCWizard(models.TransientModel):
             for line in self.line_ids:
                 moves = self.picking_id.move_ids_without_package.filtered(
                     lambda m: m.state not in ('done', 'cancel') and m.product_id == line.product_id)
+                excess = sum(moves.mapped('quantity')) - line.quantity
+                for move in moves.sorted(key=lambda m: (getattr(m, 'sequence', 0) or 0, m.id), reverse=True):
+                    if float_compare(excess, 0, precision_rounding=line.product_id.uom_id.rounding) <= 0:
+                        break
+                    reduction = min(excess, move.quantity)
+                    if reduction > 0:
+                        quantity = move.quantity - reduction
+                        move.quantity = quantity
+                        self._set_move_line_quantity(move, quantity)
+                        excess -= reduction
                 quantity = sum(moves.mapped('quantity'))
                 if float_compare(quantity, line.quantity, precision_rounding=line.product_id.uom_id.rounding):
                     raise UserError(_('La cantidad aplicada por el asistente instalado no coincide con la capturada. Revise esta recepción desde la vista original.'))

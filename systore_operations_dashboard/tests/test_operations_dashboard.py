@@ -322,3 +322,33 @@ class TestOperationsDashboard(TransactionCase):
         self.assertEqual(picking.state, 'done')
         self.assertEqual(codes.search([('name', '=', 'SOD-NEW-RECEIPT-UPC')]).product_id, self.product)
         self.assertEqual(picking.move_line_ids.lot_id.name, order.name)
+
+    def test_receipt_supplier_search_before_pagination(self):
+        order = self.make_order()
+        order.partner_ref = 'REF-UNICA-PROVEEDOR'
+        for query in (order.partner_ref, self.vendor.name):
+            panel = self.service.get_mobile_receipt_panel(self.warehouse.id, scope='all', query=query)
+            self.assertIn(order.id, [card['purchase_id'] for card in panel['cards']])
+        self.assertFalse(self.service.get_mobile_receipt_panel(self.warehouse.id, scope='all', query='NO-EXISTE-987')['cards'])
+
+    def test_mobile_receipt_partial_quantities_multiple_moves(self):
+        order = self.make_order()
+        picking = order.picking_ids.filtered(lambda p: p.picking_type_id == self.warehouse.in_type_id)
+        move = picking.move_ids_without_package
+        duplicate = move.copy({'picking_id': picking.id, 'product_uom_qty': 5})
+        duplicate._action_confirm()
+        picking.action_assign()
+        picking.move_ids_without_package.write({'quantity': 5})
+        wizard = self.env['stock.receipt.upc.wizard'].with_context(systore_operations_mobile=True).create_from_picking(picking)
+        wizard.line_ids.quantity = 2
+        wizard._apply_received_quantities()
+        self.assertEqual(sum(picking.move_ids_without_package.mapped('quantity')), 2)
+        wizard.line_ids.quantity = 0
+        wizard._apply_received_quantities()
+        self.assertEqual(sum(picking.move_ids_without_package.mapped('quantity')), 0)
+        wizard.line_ids.upc_ean = False
+        self.assertTrue(wizard.line_ids._validate_and_register_barcode())
+
+    def test_transfers_require_assigned(self):
+        domain = self.service._section_domain(self.warehouse, 'transfers')
+        self.assertIn(('state', '=', 'assigned'), domain)

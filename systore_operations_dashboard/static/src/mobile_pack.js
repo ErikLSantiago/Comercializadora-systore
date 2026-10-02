@@ -20,6 +20,20 @@ export class MobilePack extends MobilePick {
             this.state.message = '';
         });
     }
+    get productRows() {
+        const grouped = new Map();
+        for (const row of this.state.detail?.rows || []) {
+            if (!grouped.has(row.product_id)) grouped.set(row.product_id,{...row,qty:0});
+            grouped.get(row.product_id).qty += row.qty;
+        }
+        return [...grouped.values()];
+    }
+    async original() {
+        await this.run(async () => {
+            const action = await this.call('open_mobile_pack_native',[this.params.warehouse_id,this.state.detail.picking_id]);
+            await this.action.doAction(action);
+        });
+    }
     get current() { return this.state.captures[this.state.index]; }
     beginValidation() { if (!this.state.busy) { this.state.page = 'upc'; this.state.error = ''; } }
     setUPC(event) { if (!this.state.busy) { this.current.upc = event.target.value; this.current.checked = false; } }
