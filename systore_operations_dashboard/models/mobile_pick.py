@@ -44,7 +44,7 @@ class MobilePickDashboard(models.AbstractModel):
                 'responsible': (batch.user_id.display_name or _('Sin asignar')) if batch else ''}
 
     @api.model
-    def get_mobile_pick_panel(self, warehouse_id, selected_date=False, scope='date', page=0, mode='pending'):
+    def get_mobile_pick_panel(self, warehouse_id, selected_date=False, scope='date', page=0, mode='pending', query=''):
         warehouse = self._warehouse(warehouse_id)
         day, today, timezone = self._parameters(selected_date, scope)
         if mode not in ('pending', 'batches'):
@@ -61,6 +61,7 @@ class MobilePickDashboard(models.AbstractModel):
             key = ('batch', picking.batch_id.id) if mode == 'batches' else ('picking', picking.id)
             groups.setdefault(key, self.env['stock.picking'])
             groups[key] |= picking
+        term = self._search_term(query)
         cards = []
         for (kind, record_id), matching in groups.items():
             batch = matching.batch_id if kind == 'batch' else self.env['stock.picking.batch']
@@ -74,7 +75,8 @@ class MobilePickDashboard(models.AbstractModel):
                     continue
             card = self._mobile_card(matching, batch)
             card['blocked'] = error
-            cards.append(card)
+            if not term or term in (' '.join([card['name'], *card['origins'], card['operation_type']]) + ' ' + self._operation_search_text(matching)).casefold():
+                cards.append(card)
         return {'warehouse': warehouse.name, 'cards': cards[page * 30:(page + 1) * 30], 'page': page,
                 'has_more': (page + 1) * 30 < len(cards), 'total': len(cards), 'mode': mode}
 

@@ -1,6 +1,6 @@
 {
     'name': 'Systore · Tablero de operaciones',
-    'version': '18.0.1.5.0',
+    'version': '18.0.1.6.0',
     'summary': 'Recepciones, salidas desde existencias y expediciones por almacén',
     'category': 'Inventory/Inventory',
     'author': 'Systore',

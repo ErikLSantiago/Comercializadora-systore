@@ -57,7 +57,7 @@ class MobileReceiptService(models.AbstractModel):
             raise ValidationError(_('Búsqueda inválida.'))
         term = query.strip().casefold()
         if term:
-            entries = [entry for entry in entries if term in ' '.join(str(entry.get(key) or '') for key in ('label', 'partner', 'supplier_ref')).casefold()]
+            entries = [entry for entry in entries if term in ' '.join(str(entry.get(key) or '') for key in ('label', 'partner', 'supplier_ref')).casefold() or term in self._operation_search_text(pickings.filtered(lambda p: p.id in entry['picking_ids'])).casefold()]
         by_id = {p.id: p for p in pickings}
         cards = []
         for entry in entries[page * 30:(page + 1) * 30]:

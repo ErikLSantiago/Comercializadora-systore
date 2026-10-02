@@ -17,16 +17,22 @@ export class MobileReceipt extends MobilePick {
     searchKey(event) { if (event.key === 'Enter') this.search(); }
     async search() { await this.loadPanel(0); }
     get productsToScan() { return this.state.captures; }
-    get current() { return this.state.captures[this.state.index]; }
+    get current() { return this.state.editRow; }
+    openProduct(index) {
+        if (this.state.busy) return;
+        this.state.index = index; this.state.editRow = {...this.state.captures[index]};
+        this.state.page = 'capture'; this.state.error = '';
+    }
+    review() { if (this.ready) this.state.page = 'confirm'; }
     get currentReady() {
         const row = this.current;
         return row && Number.isFinite(row.quantity) && row.quantity >= 0 && row.quantity <= row.qty &&
             (row.quantity === 0 || !row.require_upc || !!row.upc.trim());
     }
     get ready() {
-        return this.state.captures.some(row => row.quantity > 0) && this.state.captures.every(row =>
-            row.reviewed && Number.isFinite(row.quantity) && row.quantity >= 0 && row.quantity <= row.qty &&
-            (row.quantity === 0 || !row.require_upc || row.upc_checked));
+        return this.state.captures.some(row => row.reviewed && row.quantity > 0) && this.state.captures.every(row =>
+            !row.reviewed || (Number.isFinite(row.quantity) && row.quantity >= 0 && row.quantity <= row.qty &&
+            (row.quantity === 0 || !row.require_upc || row.upc_checked)));
     }
     setQuantity(event) {
         if (this.state.busy) return;
@@ -49,7 +55,7 @@ export class MobileReceipt extends MobilePick {
             const detail = await this.call('get_mobile_receipt_detail', [this.params.warehouse_id,
                 pickingId, this.state.purchaseId || false]);
             if (this.destroyed) return;
-            this.state.detail = detail; this.state.page = 'capture';
+            this.state.detail = detail; this.state.page = 'products';
             this.state.captures = detail.rows.map(row => ({...row,quantity:null,upc:'',upc_checked:false,reviewed:false}));
             this.state.index = 0;
             this.state.message = '';
@@ -57,9 +63,8 @@ export class MobileReceipt extends MobilePick {
     }
     async back() {
         if (this.state.busy) return;
-        if (this.state.page === 'confirm') { this.state.page = 'capture'; return; }
-        if (this.state.page === 'capture' && this.state.index > 0) { this.state.index--; return; }
-        if (this.state.page === 'capture' && this.state.receiptCard?.receipts?.length > 1) {
+        if (['capture','confirm'].includes(this.state.page)) { this.state.page = 'products'; return; }
+        if (this.state.page === 'products' && this.state.receiptCard?.receipts?.length > 1) {
             this.state.page = 'operations'; return;
         }
         if (this.state.page !== 'panel') { await this.loadPanel(this.state.pageNumber); return; }
@@ -89,9 +94,8 @@ export class MobileReceipt extends MobilePick {
             product.upc = result.upc; product.upc_checked = true;
             }
             product.reviewed = true;
-            if (this.state.index + 1 < this.productsToScan.length) this.state.index++;
-            else if (this.ready) this.state.page = 'confirm';
-            else this.state.error = 'Registre al menos una pieza recibida.';
+            this.state.captures[this.state.index] = {...product};
+            this.state.page = 'products';
         });
         if (!this.destroyed && this.state.error) { this.scanRef.el?.focus(); this.scanRef.el?.select?.(); }
     }
@@ -101,7 +105,7 @@ export class MobileReceipt extends MobilePick {
         await this.run(async () => {
             result = await this.call('validate_mobile_receipt', [this.params.warehouse_id,
                 this.state.detail.picking_id, this.state.purchaseId || false, this.state.detail.token,
-                this.state.captures.map(row => ({id:row.id,quantity:row.quantity,upc:row.upc}))]);
+                this.state.captures.map(row => ({id:row.id,quantity:row.reviewed ? row.quantity : 0,upc:row.reviewed ? row.upc : ''}))]);
         });
         if (!result || this.destroyed) return;
         if (result.action) {

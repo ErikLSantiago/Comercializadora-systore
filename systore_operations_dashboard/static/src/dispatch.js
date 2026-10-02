@@ -51,6 +51,8 @@ export class DispatchWorkstation extends Component {
         await this.process('scan_package', [code]);
     }
 
+    async remove(id) { await this.process('remove_scan', [id]); }
+
     async validate() { await this.process('validate_ready'); }
 }
 registry.category('actions').add('systore_operations_dashboard.dispatch', DispatchWorkstation);

@@ -227,6 +227,12 @@ class TestOperationsDashboard(TransactionCase):
             session.scan_package('FOREIGN-GUIDE')
         result = session.scan_package('SOD-GUIDE-TEST')
         self.assertEqual(result['snapshot']['scanned'], 1)
+        self.assertNotEqual(out.state, 'done')
+        scan_id = result['snapshot']['rows'][0]['id']
+        session.remove_scan(scan_id)
+        self.assertEqual(session.get_snapshot()['scanned'], 0)
+        session.scan_package('SOD-GUIDE-TEST')
+        result = session.validate_ready()
         self.assertEqual(out.state, 'done')
         self.assertEqual(result['snapshot']['validated'], 1)
         with self.assertRaises(UserError), self.cr.savepoint():

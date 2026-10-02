@@ -6,7 +6,7 @@ export class MobilePack extends MobilePick {
     static template = 'systore_operations_dashboard.MobilePack';
     async loadPanel(page = 0) {
         await this.run(async () => {
-            this.state.panel = await this.call('get_mobile_pack_panel', [this.params.warehouse_id,this.params.batch_id || false,page]);
+            this.state.panel = await this.call('get_mobile_pack_panel', [this.params.warehouse_id,this.params.batch_id || false,page,this.state.query]);
             this.state.pageNumber = page; this.state.page = 'panel'; this.state.detail = null;
             this.state.captures = []; this.state.tracking = '';
         });

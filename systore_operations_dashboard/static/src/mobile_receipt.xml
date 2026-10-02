@@ -13,7 +13,7 @@
         <div t-if="state.message" class="alert alert-success" role="status" t-esc="state.message"/>
         <p t-if="state.busy" role="status"><i class="fa fa-spinner fa-spin"/> Procesando…</p>
         <t t-if="state.page === 'panel'">
-            <label class="smp-search"><span class="visually-hidden">Buscar compra</span><input type="search" t-model="state.query" t-on-keydown="searchKey" placeholder="Buscar compra, referencia o proveedor"/><button class="smp-link" t-on-click="search" t-att-disabled="state.busy">Buscar</button></label>
+            <label class="smp-search"><span class="visually-hidden">Buscar compra</span><input type="search" t-model="state.query" t-on-keydown="searchKey" placeholder="Buscar compra, proveedor, producto o UPC"/><button class="smp-link" t-on-click="search" t-att-disabled="state.busy">Buscar</button></label>
             <div class="smp-grid">
                 <button t-foreach="cards" t-as="card" t-key="card.key" class="smp-card smp-operation" t-on-click="() => this.openCard(card)" t-att-disabled="state.busy">
                     <span class="smp-kind">ORDEN DE COMPRA / RECEPCIÓN</span><h2 t-esc="card.name"/>
@@ -38,6 +38,17 @@
                 <p><t t-esc="format(receipt.pieces)"/> piezas</p><div class="smp-open">Abrir recepción <i class="fa fa-arrow-right"/></div>
             </button></div>
         </t>
+        <t t-if="state.page === 'products' &amp;&amp; state.detail">
+            <div class="smp-detail-heading"><h2>Productos por ingresar</h2><button class="smp-link" t-on-click="original" t-att-disabled="state.busy">Abrir original</button></div>
+            <p t-esc="state.detail.purchase_names"/>
+            <div t-if="state.detail.notice" class="alert alert-warning" t-esc="state.detail.notice"/>
+            <div class="smp-grid"><button t-foreach="state.captures" t-as="row" t-key="row.id" class="smp-card smp-operation" t-on-click="() => this.openProduct(row_index)" t-att-disabled="state.busy || !state.detail.can_validate">
+                <div class="smp-product-heading"><div class="smp-product-image"><i class="fa fa-cube"/><img t-att-src="imageURL(row.product_id)" t-att-alt="row.product" width="96" height="96" t-on-error="imageError"/></div><h3 t-esc="row.product"/></div>
+                <div class="smp-quantity"><span>Solicitadas</span><strong t-esc="format(row.qty)"/><span t-esc="row.uom"/></div>
+                <p t-esc="row.reviewed ? 'Registradas: ' + format(row.quantity) : 'Sin registrar'"/>
+            </button></div>
+            <button class="smp-primary w-100 mt-3" t-on-click="review" t-att-disabled="state.busy || !ready">Finalizar registro</button>
+        </t>
         <t t-if="state.page === 'capture' &amp;&amp; current">
             <div class="smp-detail-heading"><h2>Producto por ingresar</h2><span><t t-esc="state.index + 1"/> / <t t-esc="state.captures.length"/></span></div>
             <div class="smp-detail-heading"><span t-esc="state.detail.purchase_names"/><button class="smp-link" t-on-click="original" t-att-disabled="state.busy">Abrir original</button></div>
@@ -50,16 +61,13 @@
                 <label class="smp-field">Productos recibidos<input type="number" min="0" t-att-max="current.qty" step="any" t-att-value="current.quantity === null ? '' : current.quantity" t-on-input="setQuantity" t-att-disabled="state.busy || !state.detail.can_validate" placeholder="Capturar cantidad"/></label>
                 <label class="smp-field">Escanear UPC<input t-ref="upcInput" t-att-value="current.upc" t-on-input="setUPC" autocomplete="off" placeholder="Escanear UPC" t-att-disabled="state.busy || current.quantity === 0 || !state.detail.can_validate"/></label>
                 <p t-if="current.quantity === 0" class="smp-muted">Este producto quedará pendiente.</p>
-                <nav class="smp-pagination" aria-label="Productos">
-                    <button t-on-click="() => this.next(-1)" t-att-disabled="state.busy || !state.index">Anterior</button>
-                    <button t-on-click="() => this.next(1)" t-att-disabled="state.busy || !state.detail.can_validate" t-esc="state.index + 1 &lt; state.captures.length ? 'Siguiente producto' : 'Revisar ingreso'"/>
-                </nav>
+                <button class="smp-primary w-100" t-on-click="() => this.next(1)" t-att-disabled="state.busy || !state.detail.can_validate">Confirmar producto</button>
             </article>
         </t>
         <t t-if="state.page === 'confirm'">
             <h2>Confirmar ingreso</h2><p t-esc="state.detail.purchase_names"/>
-            <div t-foreach="state.captures" t-as="row" t-key="row.id" class="smp-card mb-2"><strong t-esc="row.product"/><p>Recibidos: <t t-esc="format(row.quantity)"/> de <t t-esc="format(row.qty)"/></p></div>
-            <p t-if="state.captures.some(row => row.quantity &lt; row.qty)" class="alert alert-info">Ingreso parcial. Confirme la recepción pendiente en el asistente de Odoo.</p>
+            <div t-foreach="state.captures" t-as="row" t-key="row.id" class="smp-card mb-2"><strong t-esc="row.product"/><p>Recibidos: <t t-esc="format(row.reviewed ? row.quantity : 0)"/> de <t t-esc="format(row.qty)"/></p></div>
+            <p t-if="state.captures.some(row => !row.reviewed || row.quantity &lt; row.qty)" class="alert alert-info">Ingreso parcial. Confirme la recepción pendiente en el asistente de Odoo.</p>
             <button class="smp-primary w-100" t-on-click="validate" t-att-disabled="state.busy || !ready">Confirmar ingreso</button>
         </t>
         <div t-if="state.page === 'pending'" class="smp-empty"><p>Complete el asistente de Odoo para aceptar la parcialización.</p><button class="smp-link" t-on-click="() => this.loadPanel()">Volver al panel</button></div>

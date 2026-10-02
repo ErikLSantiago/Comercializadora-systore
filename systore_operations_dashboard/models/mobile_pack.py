@@ -18,7 +18,7 @@ class MobilePackService(models.AbstractModel):
                 'params': {'warehouse_id': warehouse_id, 'picking_id': picking_id, 'batch_id': batch_id}}
 
     @api.model
-    def get_mobile_pack_panel(self, warehouse_id, batch_id=False, page=0):
+    def get_mobile_pack_panel(self, warehouse_id, batch_id=False, page=0, query=''):
         warehouse = self._warehouse(warehouse_id)
         if type(page) is not int or page < 0:
             raise ValidationError(_('Página inválida.'))
@@ -26,7 +26,10 @@ class MobilePackService(models.AbstractModel):
             pickings, _batch = self._guided_pickings(warehouse, 'pack', batch_id=batch_id)
         else:
             pickings = self.env['stock.picking'].search(self._section_domain(warehouse, 'pack'), order='scheduled_date,id')
-        pickings = pickings.filtered(lambda p: p.state != 'draft')
+        term = self._search_term(query)
+        pickings = pickings.filtered(lambda p: p.state == 'assigned')
+        if term:
+            pickings = pickings.filtered(lambda p: term in ' '.join([p.name, p.systore_operations_sale_names or p.origin or '', self._operation_search_text(p)]).casefold())
         return {'warehouse': warehouse.name, 'total': len(pickings), 'has_more': len(pickings) > (page + 1) * 30,
                 'cards': [{'picking_id': p.id, 'key': str(p.id), 'name': p.name,
                            'origins': [p.systore_operations_sale_names or p.origin or ''],

@@ -83,6 +83,7 @@ class DispatchSession(models.TransientModel):
             rows.append({'id': scan.id, 'code': scan.scanned_code,
                          'orders': ', '.join(sorted(set(filter(None, scan.picking_ids.mapped('systore_operations_sale_names'))))),
                          'operations': ', '.join(scan.picking_ids.mapped('name')),
+                         'removable': not any(p.state == 'done' for p in scan.picking_ids),
                          'validated': bool(scan.picking_ids) and all(p.state == 'done' for p in scan.picking_ids)})
         return {'warehouse': self.warehouse_id.name, 'scanned': len(rows),
                 'validated': len(self.picking_ids.filtered(lambda p: p.state == 'done')),
@@ -126,8 +127,19 @@ class DispatchSession(models.TransientModel):
             'package_id': match['package'].id or False,
             'picking_ids': [(6, 0, match['pickings'].ids)],
         })
-        action = self._validate_complete()
-        return {'snapshot': self.get_snapshot(), 'action': action}
+        return {'snapshot': self.get_snapshot(), 'action': False}
+
+    def remove_scan(self, scan_id):
+        self._check_session(lock=True)
+        if type(scan_id) is not int:
+            raise ValidationError(_('Registro inválido.'))
+        scan = self.scan_ids.filtered(lambda row: row.id == scan_id)
+        if not scan:
+            raise AccessError(_('El registro no pertenece a esta sesión.'))
+        if any(p.state == 'done' for p in scan.picking_ids):
+            raise UserError(_('No se puede retirar un paquete ya entregado.'))
+        scan.unlink()
+        return {'snapshot': self.get_snapshot(), 'action': False}
 
     def validate_ready(self):
         self._check_session(lock=True)

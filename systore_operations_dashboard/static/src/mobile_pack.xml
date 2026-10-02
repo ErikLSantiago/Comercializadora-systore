@@ -12,7 +12,7 @@
     <div t-if="state.message" class="alert alert-success" role="status" t-esc="state.message"/>
     <p t-if="state.busy" role="status">Procesando…</p>
     <t t-if="state.page === 'panel'">
-        <label class="smp-search"><span class="visually-hidden">Buscar pedido</span><input type="search" t-model="state.query" placeholder="Buscar pedido u operación"/></label>
+        <label class="smp-search"><span class="visually-hidden">Buscar pedido</span><input type="search" t-model="state.query" t-on-keydown="searchKey" placeholder="Buscar pedido, producto o UPC"/><button class="smp-link" t-on-click="search" t-att-disabled="state.busy">Buscar</button></label>
         <div class="smp-grid">
             <button t-foreach="cards" t-as="card" t-key="card.key" class="smp-card smp-operation" t-on-click="() => this.openCard(card)" t-att-disabled="state.busy">
                 <span class="smp-kind" t-esc="card.operation_type"/><h2 t-esc="card.name"/><p t-esc="card.origins.join(', ')"/>

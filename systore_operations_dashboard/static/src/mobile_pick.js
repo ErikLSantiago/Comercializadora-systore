@@ -33,7 +33,7 @@ export class MobilePick extends Component {
     async loadPanel(page = 0, mode = this.state.mode) {
         await this.run(async () => {
             const panel = await this.call('get_mobile_pick_panel', [this.params.warehouse_id,
-                this.params.date || false, this.params.scope || 'date', page, mode]);
+                this.params.date || false, this.params.scope || 'date', page, mode, this.state.query]);
             if (this.destroyed) return;
             this.state.panel = panel;
             this.state.mode = mode;
@@ -50,11 +50,9 @@ export class MobilePick extends Component {
     }
     imageURL(productId) { return `/web/image/product.product/${productId}/image_128`; }
     imageError(event) { event.target.style.visibility = 'hidden'; }
-    get cards() {
-        const text = this.state.query.trim().toLocaleLowerCase();
-        return (this.state.panel?.cards || []).filter(card =>
-            [card.name, ...card.origins, card.operation_type].join(' ').toLocaleLowerCase().includes(text));
-    }
+    get cards() { return this.state.panel?.cards || []; }
+    searchKey(event) { if (event.key === 'Enter') this.search(); }
+    async search() { await this.loadPanel(0); }
     label(state) { return ({assigned:'Listo',confirmed:'Pendiente',waiting:'En espera',draft:'Borrador',
         mixed:'Parcialmente listo',done:'Hecho',cancel:'Cancelado'})[state] || state; }
     format(value) { return new Intl.NumberFormat('es-MX', {maximumFractionDigits:3}).format(value || 0); }

@@ -91,9 +91,21 @@ class OperationsDashboard(models.AbstractModel):
             types = {'pick': warehouse.pick_type_id, 'pack': warehouse.pack_type_id,
                      'out': warehouse.out_type_id}[section]
             specific = [('picking_type_id', 'in', types.ids)]
+        if section == 'pack':
+            specific.append(('state', '=', 'assigned'))
         if section == 'pick':
             specific.append(('state', '!=', 'draft'))
         return AND([common, specific])
+
+    def _operation_search_text(self, pickings):
+        products = pickings.move_ids_without_package.product_id
+        codes = self.env['product.barcode.multi'].sudo().search([('product_id', 'in', products.ids)]).mapped('name')
+        return ' '.join(filter(None, products.mapped('display_name') + products.mapped('default_code') + products.mapped('barcode') + codes))
+
+    def _search_term(self, query):
+        if not isinstance(query, str) or len(query) > 256:
+            raise ValidationError(_('Búsqueda inválida.'))
+        return query.strip().casefold()
 
     @api.model
     def _visible_sections(self, warehouse):

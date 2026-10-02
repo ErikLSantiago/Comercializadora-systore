@@ -21,7 +21,7 @@
                     <button t-on-click="() => this.switchMode('batches')" t-att-class="{'active':state.mode === 'batches'}"
                             t-att-aria-pressed="state.mode === 'batches'" t-att-disabled="state.busy">Baches</button>
                 </nav>
-                <label class="smp-search"><span class="visually-hidden">Buscar recolecciones</span><input type="search" t-model="state.query" placeholder="Buscar documento de origen o referencia"/></label>
+                <label class="smp-search"><span class="visually-hidden">Buscar recolecciones</span><input type="search" t-model="state.query" t-on-keydown="searchKey" placeholder="Buscar orden, producto o UPC"/><button class="smp-link" t-on-click="search" t-att-disabled="state.busy">Buscar</button></label>
                 <div class="smp-grid">
                     <button t-foreach="cards" t-as="card" t-key="card.key" class="smp-card smp-operation"
                             t-att-disabled="state.busy" t-on-click="() => this.openCard(card)">

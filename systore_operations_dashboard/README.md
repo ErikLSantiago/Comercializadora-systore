@@ -1,8 +1,13 @@
 # Tablero de operaciones · Odoo 18
 
-Versión **18.0.1.5.0** · Nombre técnico `systore_operations_dashboard`.
+Versión **18.0.1.6.0** · Nombre técnico `systore_operations_dashboard`.
 
 ## Cambios
+
+- Ingresos abre el resumen de productos y piezas. Puede registrar cualquier producto, confirmar su cantidad/UPC y regresar al resumen. Salir de la captura sin confirmar descarta esa edición. **Finalizar registro** permite revisar y confirmar únicamente lo registrado; los productos sin registrar se envían con cantidad cero para la recepción parcial nativa.
+- Salidas ya no valida al escanear: registra paquetes y espera **Validar completas**. Se retira la columna Operación y se añade una papelera para retirar capturas no entregadas. Un paquete retirado puede escanearse nuevamente. No se deshacen entregas ya validadas.
+- Empaquetado solo muestra operaciones listas; se excluyen pendientes y en espera.
+- Los buscadores de Recolección, Ingresos y Empaquetado incluyen nombre/SKU del producto y UPC principal o múltiple. Pulse Buscar o Enter; la búsqueda se realiza antes de paginar y conserva el alcance autorizado del almacén. El escáner de Salidas sigue identificando paquetes/guías, no productos.
 
 - Empaquetado muestra una tarjeta por producto con sus piezas solicitadas alineadas a la derecha, como Recolección. La validación sigue siendo por pieza. Incluye **Abrir original**.
 - Transferencias solo incluye operaciones en estado **Listo** (`assigned`).
@@ -34,7 +39,7 @@ Versión **18.0.1.5.0** · Nombre técnico `systore_operations_dashboard`.
 - Recepciones se divide en **Ingresos (In)** y **Almacenamiento (Storage)**. Solo aparecen los tipos nativos activos y seleccionados: una recepción de un paso muestra In; dos pasos muestran In y Storage.
 - Pick, Pack y Out muestran piezas solicitadas en su unidad de inventario, batches y órdenes de venta. El detalle agrupa las operaciones de cada batch y muestra también sus lotes nativos cuando existen.
 - **Pick móvil** muestra completas y agrupa las piezas por producto y ubicación. Ya no solicita ni registra NS/IMEI. La captura de series permanece en Pack.
-- Out comienza con una lista vacía para escanear paquetes y valida cada salida al completar sus paquetes, conservando los asistentes y controles nativos de Odoo.
+- Out comienza con una lista vacía para escanear paquetes y registra los paquetes y valida las salidas completas cuando el usuario pulsa Validar completas, conservando los asistentes y controles nativos de Odoo.
 - Se conserva la aplicación independiente Operaciones, la selección de almacén, permisos por usuario, checks de tipos, referencia del proveedor y filtros de fecha. También la corrección del registro de la acción del tablero que originaba el error KeyNotFoundError.
 
 ## Instalación y configuración
@@ -99,10 +104,10 @@ El panel no convierte los números de serie adicionales en lotes o series nativo
 
 Abra Salidas para comenzar una sesión vacía del filtro seleccionado, o abra una operación/batch concreto. Escanee un código y presione Enter:
 
-- Si existen paquetes nativos, use sus códigos. Una salida con varios paquetes se valida únicamente después de escanearlos todos; una guía que cubra varios paquetes no los sustituye.
+- Si existen paquetes nativos, use sus códigos. Una salida con varios paquetes solo queda habilitada para Validar completas después de escanearlos todos; una guía que cubra varios paquetes no los sustituye.
 - Si no existen paquetes nativos, la guía identifica **un paquete por operación de salida**. Para contar varios bultos de una orden, cree los paquetes nativos durante el empaque.
 - Se rechazan códigos desconocidos, guías ambiguas, duplicados, operaciones fuera de la sesión y salidas sin disponibilidad. Una salida que mezcla piezas empaquetadas y sueltas exige completar el empaque.
-- Cada escaneo actualiza paquetes escaneados y entregas validadas. Si Odoo solicita UPC, lotes, series, guía o un asistente adicional, se muestra ese flujo; no se omite. **Validar completas** permite retomar las operaciones ya escaneadas después de resolver un asistente.
+- Cada escaneo actualiza el listado sin validar entregas. La papelera permite retirar registros no entregados. Si Odoo solicita UPC, lotes, series, guía o un asistente adicional, se muestra ese flujo; no se omite. **Validar completas** permite retomar las operaciones ya escaneadas después de resolver un asistente.
 
 La sesión corresponde al operador que la creó y conserva sus escaneos mientras exista el registro transitorio. Al iniciar otra sesión, la lista comienza vacía. Las salidas ya hechas no se pueden entregar nuevamente. El escaneo de un batch abre todas sus operaciones pendientes autorizadas.
 
@@ -134,4 +139,6 @@ Estas pruebas usan dobles de ORM y plantillas sin navegador. **No se ejecutó Od
 
 En smartphone compruebe: flecha al tablero; solo completas; dos órdenes del mismo producto y ubicación sumadas en un batch; ubicaciones distintas separadas; operación individual limitada a sus piezas; validación UPC sin pedir IMEI; siguiente etapa nativa disponible después de validar Pick.
 
-Verificación 18.0.1.5.0: 38 pruebas locales Python, compilación de cinco plantillas, carga de acciones y pruebas cliente de captura secuencial con producto en cero, parcialización, formato agrupado Pack y apertura original. Las pruebas de integración de búsqueda por proveedor y cantidades parciales se incluyen para ejecutar en Odoo.sh; no se ejecutó una instancia real de Odoo ni la app móvil.
+Verificación 18.0.1.6.0: 38 pruebas locales Python, compilación de cinco plantillas, carga de acciones y pruebas cliente de captura secuencial con producto en cero, parcialización, formato agrupado Pack y apertura original. Las pruebas de integración de búsqueda por proveedor y cantidades parciales se incluyen para ejecutar en Odoo.sh; no se ejecutó una instancia real de Odoo ni la app móvil.
+
+Verificación 18.0.1.6.0: pruebas locales del orden libre de captura, descarte de edición, productos sin registrar en cero, asistente parcial, escaneo sin validación automática, compilación de plantillas y carga de acciones. Prueba integrada de entrega actualizada para retirar, volver a escanear y validar manualmente. Odoo.sh y app móvil pendientes de ejecución real.
