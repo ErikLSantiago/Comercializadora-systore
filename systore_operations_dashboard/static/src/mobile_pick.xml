@@ -34,6 +34,7 @@
                         <div class="smp-metrics"><span><strong t-esc="format(card.orders)"/> órdenes</span>
                             <span><strong t-esc="format(card.pieces)"/> piezas</span></div>
                         <small t-if="card.is_batch"><t t-esc="card.operations"/> transferencias incluidas</small>
+                        <p t-if="card.is_batch" class="smp-muted">Responsable: <strong t-esc="card.responsible || 'Sin asignar'"/></p>
                         <p t-if="card.blocked" class="smp-warning" t-esc="card.blocked"/>
                         <div class="smp-open">Ver recolección <i class="fa fa-arrow-right"/></div>
                     </button>
@@ -67,13 +68,20 @@
             <t t-if="state.page === 'capture' &amp;&amp; current">
                 <div class="smp-detail-heading"><h2>Validar UPC</h2><span><t t-esc="state.index + 1"/> / <t t-esc="productsToScan.length"/></span></div>
                 <article class="smp-card">
-                    <h3 t-esc="current.product"/>
+                    <div class="smp-product-heading">
+                        <div class="smp-product-image"><i class="fa fa-cube" aria-hidden="true"/>
+                            <img t-att-src="imageURL(current.product_id)" t-att-alt="current.product" width="96" height="96" t-on-error="imageError"/></div>
+                        <h3 t-esc="current.product"/>
+                    </div>
+                    <div class="smp-quantity"><span>Recoger</span><strong t-esc="format(currentQuantity)"/><span t-esc="current.uom"/></div>
                     <label class="smp-field">UPC / EAN del producto
                         <input t-ref="upcInput" t-att-value="current.upc" t-on-input="setUPC" autocomplete="off"
                                placeholder="Escanear UPC" t-att-disabled="state.busy"/></label>
+                    <p t-if="current.upc_checked" class="text-success" role="status">UPC correcto</p>
                     <nav class="smp-pagination" aria-label="Productos por escanear">
                         <button t-att-disabled="state.busy || state.index === 0" t-on-click="() => this.next(-1)">Anterior</button>
-                        <button t-att-disabled="state.busy || !currentReady || state.index + 1 >= productsToScan.length" t-on-click="() => this.next(1)">Siguiente producto</button>
+                        <button t-att-disabled="state.busy || !currentReady" t-on-click="() => this.next(1)"
+                                t-esc="state.index + 1 &lt; productsToScan.length ? 'Siguiente producto' : 'Comprobar UPC'"/>
                     </nav>
                 </article>
                 <button class="smp-link" t-att-disabled="state.busy" t-on-click="back">Volver a los productos</button>

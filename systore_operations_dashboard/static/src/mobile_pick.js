@@ -91,7 +91,7 @@ export class MobilePick extends Component {
     async beginValidation() {
         if (this.state.busy || !this.state.detail?.can_validate) return;
         if (!this.state.captures.length) {
-            this.state.captures = this.state.detail.rows.map(row => ({...row, upc:''}));
+            this.state.captures = this.state.detail.rows.map(row => ({...row, upc:'', upc_checked:false}));
         }
         this.state.index = 0;
         this.state.error = '';
@@ -106,6 +106,10 @@ export class MobilePick extends Component {
         return [...products.values()];
     }
     get current() { return this.productsToScan[this.state.index]; }
+    get currentQuantity() {
+        return this.state.captures.filter(row => row.product_id === this.current?.product_id)
+            .reduce((sum,row) => sum + row.qty,0);
+    }
     get currentReady() { return !!this.current?.upc.trim(); }
     get ready() {
         return this.state.captures.length > 0 && this.state.captures.every(row =>
@@ -114,15 +118,30 @@ export class MobilePick extends Component {
     setUPC(event) {
         if (this.state.busy || !this.current) return;
         for (const row of this.state.captures) {
-            if (row.product_id === this.current.product_id) row.upc = event.target.value;
+            if (row.product_id === this.current.product_id) { row.upc = event.target.value; row.upc_checked = false; }
         }
     }
-    next(delta) {
+    async next(delta) {
         if (this.state.busy) return;
-        const next = this.state.index + delta;
-        if (next >= 0 && next < this.productsToScan.length) {
-            this.state.index = next; this.state.error = '';
+        if (delta < 0) {
+            if (this.state.index > 0) this.state.index--;
+            this.state.error = '';
+            return;
         }
+        if (!this.currentReady) return;
+        const detail = this.state.detail;
+        const product = this.current;
+        await this.run(async () => {
+            const result = await this.call('check_mobile_pick_upc', [this.params.warehouse_id,
+                detail.card.picking_id || false, detail.card.batch_id || false, detail.token,
+                product.product_id, product.upc]);
+            if (this.destroyed) return;
+            for (const row of this.state.captures) {
+                if (row.product_id === product.product_id) { row.upc = result.upc; row.upc_checked = true; }
+            }
+            if (this.state.index + 1 < this.productsToScan.length) this.state.index++;
+        });
+        if (!this.destroyed && this.state.error) { this.scanRef.el?.focus(); this.scanRef.el?.select?.(); }
     }
     async validate() {
         if (!this.ready) { this.state.error = 'Complete los UPC requeridos.'; return; }

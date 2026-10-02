@@ -206,7 +206,7 @@ class OperationsDashboard(models.AbstractModel):
                 entries = [{'key': 'p%s' % p.id, 'purchase_id': False, 'label': p.name,
                             'date': p.scheduled_date, 'pieces': self._picking_pieces(p),
                             'batch_id': p.batch_id.id, 'picking_ids': [p.id]} for p in pickings]
-            selected = [e for e in entries if matches_scope(e['date'], scope, day, today, timezone)]
+            selected = [e for e in entries if section == 'pick' or matches_scope(e['date'], scope, day, today, timezone)]
             def count_for(count_day, count_scope='date'):
                 return self._totals([e for e in entries
                                      if matches_scope(e['date'], count_scope, count_day, today, timezone)])

@@ -254,6 +254,14 @@ class TestOperationsDashboard(TransactionCase):
         self.assertFalse(individual['card']['is_batch'])
         self.assertEqual(individual['card']['picking_id'], picks[0].id)
         self.assertEqual(sum(row['qty'] for row in individual['rows']), picks[0].move_ids.product_uom_qty)
+        with self.assertRaises(ValidationError), self.cr.savepoint():
+            self.service.check_mobile_pick_upc(self.warehouse.id, False, batch.id,
+                                               detail['token'], self.product.id, 'WRONG')
+        checked = self.service.check_mobile_pick_upc(self.warehouse.id, False, batch.id,
+                                                     detail['token'], self.product.id, self.product.barcode)
+        self.assertTrue(checked['valid'])
+        self.assertTrue(all(p.state == 'assigned' for p in picks))
+        self.assertFalse(any(p.systore_upc_picking_validated for p in picks))
         captures = [{'id': r['id'], 'upc': 'WRONG'} for r in detail['rows']]
         with self.assertRaises(ValidationError), self.cr.savepoint():
             self.service.validate_mobile_pick(self.warehouse.id, False, batch.id, detail['token'], captures)

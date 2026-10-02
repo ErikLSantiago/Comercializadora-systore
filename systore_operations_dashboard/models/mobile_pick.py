@@ -40,7 +40,8 @@ class MobilePickDashboard(models.AbstractModel):
                 'operation_type': ', '.join(pickings.picking_type_id.mapped('display_name')),
                 'state': state, 'orders': len(orders), 'operations': len(pickings),
                 'pieces': sum(self._picking_pieces(p) for p in pickings),
-                'blocked': '', 'is_batch': bool(batch)}
+                'blocked': '', 'is_batch': bool(batch),
+                'responsible': (batch.user_id.display_name or _('Sin asignar')) if batch else ''}
 
     @api.model
     def get_mobile_pick_panel(self, warehouse_id, selected_date=False, scope='date', page=0, mode='pending'):
@@ -132,6 +133,24 @@ class MobilePickDashboard(models.AbstractModel):
                     'res_id': batch.id, 'views': [(False, 'form')], 'target': 'current'}
         return {'type': 'ir.actions.act_window', 'res_model': 'stock.picking',
                 'res_id': pickings.id, 'views': [(False, 'form')], 'target': 'current'}
+
+    @api.model
+    def check_mobile_pick_upc(self, warehouse_id, picking_id, batch_id, token, product_id, barcode):
+        detail = self._mobile_detail(*self._mobile_target(warehouse_id, picking_id, batch_id))
+        if token != detail['token']:
+            raise UserError(_('La operación o su reserva cambió. Vuelva al panel y abra la recolección nuevamente.'))
+        if not detail['can_validate']:
+            raise UserError(detail['notice'])
+        if type(product_id) is not int or product_id not in {row['product_id'] for row in detail['rows']}:
+            raise AccessError(_('El producto no pertenece a esta recolección.'))
+        if not isinstance(barcode, str) or not barcode.strip() or len(barcode) > 256:
+            raise ValidationError(_('Capture un UPC válido.'))
+        # A virtual line reuses the installed validator without creating a wizard,
+        # changing stock quantities, or marking the picking as validated.
+        line = self.env['stock.picking.upc.wizard.line'].new({
+            'product_id': product_id, 'upc_ean': barcode.strip(), 'skip_upc_validation': False})
+        line._validate_scanned_barcode()
+        return {'product_id': product_id, 'upc': line.upc_ean, 'valid': True}
 
     @api.model
     def validate_mobile_pick(self, warehouse_id, picking_id, batch_id, token, captures):

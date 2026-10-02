@@ -78,11 +78,11 @@
                             <t t-esc="format(section.selected.batches)"/> batches
                             <br/>
                             <t t-if="section.key === 'transfers'">Salidas desde Existencias y sus sububicaciones</t>
-                            <t t-elif="section.key === 'pick'">Preparación y recolección de productos</t>
+                            <t t-elif="section.key === 'pick'">Todas las recolecciones pendientes</t>
                             <t t-elif="section.key === 'pack'">Empaquetado de pedidos</t>
                             <t t-else="">Salida y entrega de pedidos</t>
                         </div>
-                        <div class="sod-mini-counts">
+                        <div t-if="section.key !== 'pick'" class="sod-mini-counts">
                             <button t-on-click="() => this.filter('today')" class="sod-mini">
                                 <span>Hoy</span><strong t-esc="format(isReceipt(section.key) ? section.today.orders : section.today.operations)"/>
                                 <small t-if="isReceipt(section.key)"><t t-esc="format(section.today.packages)"/> bultos</small>
@@ -122,7 +122,7 @@
                                     t-att-class="{'active': state.activeSection === section.key}"
                                     t-on-click="() => { this.state.activeSection = section.key; }" t-esc="section.title"/>
                         </nav>
-                        <span t-esc="dateLabel"/>
+                        <span t-esc="state.activeSection === 'pick' ? 'Todas las pendientes' : dateLabel"/>
                     </div>
                     <t t-if="activeSection">
                         <p class="sod-table-caption" t-if="isReceipt(activeSection.key)">

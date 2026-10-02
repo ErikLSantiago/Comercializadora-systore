@@ -1,8 +1,13 @@
 # Tablero de operaciones · Odoo 18
 
-Versión **18.0.1.2.2** · Nombre técnico `systore_operations_dashboard`.
+Versión **18.0.1.2.3** · Nombre técnico `systore_operations_dashboard`.
 
 ## Cambios
+
+- **Siguiente producto** comprueba inmediatamente el UPC con el validador de `stock_upc_validation`. Un código incorrecto deja al usuario en el mismo producto y muestra el error. En el último producto aparece **Comprobar UPC**.
+- La pantalla de UPC incorpora imagen y cantidad **Recoger**, sumada para ese producto entre sus ubicaciones. Editar el código retira la marca UPC correcto.
+- Las tarjetas de **Baches** muestran el usuario del campo nativo `stock.picking.batch.user_id`, o **Sin asignar**.
+- Recolección tiene un único resumen de todas sus operaciones pendientes, piezas y batches. Se retiran de esa tarjeta los cuadros Hoy, Mañana y Atrasadas. Su detalle y la apertura nativa abarcan todas las fechas; las demás secciones conservan sus filtros.
 
 - Recolección excluye borradores en su tarjeta, listas y operación móvil.
 - **Operar** abre dos pestañas: **Por procesar** muestra cada recolección individual del almacén, incluida la que pertenece a un batch; **Baches** muestra únicamente los lotes con recolecciones asignadas. Cambiar de pestaña reinicia la paginación y la búsqueda.
@@ -47,7 +52,7 @@ La imagen se consulta mediante la ruta autenticada de Odoo para la variante del 
 
 ### Validación
 
-Recolección **no solicita ni crea números de serie/IMEI adicionales**. Si el módulo UPC instalado exige un código, se captura una vez por producto y se aplica a sus ubicaciones; el módulo original comprueba que el UPC pertenece al producto. Si no exige UPC, el botón valida directamente mediante Odoo.
+Recolección **no solicita ni crea números de serie/IMEI adicionales**. Si el módulo UPC instalado exige un código, se captura una vez por producto y se aplica a sus ubicaciones; el módulo original comprueba que el UPC pertenece al producto al pulsar Siguiente producto. Esa comprobación usa una línea virtual y no valida transferencias ni modifica inventario. La confirmación final vuelve a comprobar los códigos y las reservas. Si no exige UPC, el botón valida directamente mediante Odoo.
 
 Antes de validar se comprueban permisos, estado Completa, disponibilidad, cantidades y que las reservas no hayan cambiado. La confirmación delega en los asistentes/métodos originales de UPC y Odoo. Los controles nativos de lotes o series ya reservados siguen vigentes. El flujo de Pack conserva su captura de UPC, NS/IMEI y guía.
 
@@ -90,8 +95,8 @@ Consultar el tablero no valida operaciones ni cambia reservas. Abrir una prepara
 
 ## Verificación
 
-Comprobaciones locales: 32 pruebas Python de fechas, contadores, paquetes, agrupación por producto/ubicación, captura UPC, filtro Completa, exclusión de borradores, pestañas de individuales/batches y alcance individual; compilación de tres plantillas con Owl de Odoo 18; navegación al tablero conservando filtros, cambio de pestaña y ruta de imagen, captura UPC compartida entre ubicaciones, validación sin series, errores y asistentes del cliente; registro de acciones con el conversor/cargador nativos; sintaxis Python/JavaScript, XML y manifiesto.
+Comprobaciones locales: 32 pruebas Python de fechas, contadores, paquetes, agrupación por producto/ubicación, captura UPC, filtro Completa, exclusión de borradores, pestañas de individuales/batches y alcance individual; compilación de tres plantillas con Owl de Odoo 18; navegación al tablero conservando filtros, cambio de pestaña y ruta de imagen, UPC incorrecto sin avanzar, cantidades acumuladas por producto y última comprobación, captura UPC compartida entre ubicaciones, validación sin series, errores y asistentes del cliente; registro de acciones con el conversor/cargador nativos; sintaxis Python/JavaScript, XML y manifiesto.
 
-Estas pruebas usan dobles de ORM y plantillas sin navegador. **No se ejecutó Odoo completo ni la app móvil real.** Las pruebas nativas incluidas en `tests/test_operations_dashboard.py` cubren un batch de dos ventas agrupado en tres piezas, apertura individual limitada, UPC incorrecto/correcto y confirmación sin crear series en Pick. Ejecútelas en la rama SH con `--test-enable --test-tags /systore_operations_dashboard --stop-after-init`.
+Estas pruebas usan dobles de ORM y plantillas sin navegador. **No se ejecutó Odoo completo ni la app móvil real.** Las pruebas nativas incluidas en `tests/test_operations_dashboard.py` cubren un batch de dos ventas agrupado en tres piezas, apertura individual limitada, UPC incorrecto/correcto y comprobación UPC sin validar el picking, seguida de confirmación sin crear series en Pick. Ejecútelas en la rama SH con `--test-enable --test-tags /systore_operations_dashboard --stop-after-init`.
 
 En smartphone compruebe: flecha al tablero; solo completas; dos órdenes del mismo producto y ubicación sumadas en un batch; ubicaciones distintas separadas; operación individual limitada a sus piezas; validación UPC sin pedir IMEI; siguiente etapa nativa disponible después de validar Pick.
