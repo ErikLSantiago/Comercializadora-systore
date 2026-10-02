@@ -1,8 +1,13 @@
 # Tablero de operaciones · Odoo 18
 
-Versión **18.0.1.3.0** · Nombre técnico `systore_operations_dashboard`.
+Versión **18.0.1.4.0** · Nombre técnico `systore_operations_dashboard`.
 
 ## Cambios
+
+- Se retira el selector desplegable de almacén del tablero. El almacén se elige al inicio; la flecha **Almacenes** regresa a esa pantalla.
+- En Ingresos, **Comprobar UPC** ahora se llama **Registrar UPC**. La persistencia del código mantiene el comportamiento anterior: se registra al confirmar la recepción.
+- Transferencias, Empaquetado y Salidas reúnen todas las pendientes en una tarjeta, sin cuadros Hoy/Mañana/Atrasadas. Sus detalles, listas y batches abarcan todas las fechas. Los filtros de fecha se mantienen para Ingresos y Almacenamiento.
+- **Empaquetado → Operar** abre el nuevo panel móvil por pedido: UPC por pieza → NS/IMEI adicional → guía → validación nativa.
 
 - La aplicación abre una pantalla de botones con los almacenes autorizados. Seleccione uno para entrar al tablero; **Almacenes** permite volver.
 - Un UPC rechazado en las pantallas guiadas muestra únicamente **No coincide UPC/IMEI**. Los errores de permisos o cantidades conservan su explicación.
@@ -12,7 +17,7 @@ Versión **18.0.1.3.0** · Nombre técnico `systore_operations_dashboard`.
 - **Siguiente producto** comprueba inmediatamente el UPC con el validador de `stock_upc_validation`. Un código incorrecto deja al usuario en el mismo producto y muestra el error. En el último producto aparece **Comprobar UPC**.
 - La pantalla de UPC incorpora imagen y cantidad **Recoger**, sumada para ese producto entre sus ubicaciones. Editar el código retira la marca UPC correcto.
 - Las tarjetas de **Baches** muestran el usuario del campo nativo `stock.picking.batch.user_id`, o **Sin asignar**.
-- Recolección tiene un único resumen de todas sus operaciones pendientes, piezas y batches. Se retiran de esa tarjeta los cuadros Hoy, Mañana y Atrasadas. Su detalle y la apertura nativa abarcan todas las fechas; las demás secciones conservan sus filtros.
+- Recolección tiene un único resumen de todas sus operaciones pendientes, piezas y batches. Se retiran de esa tarjeta los cuadros Hoy, Mañana y Atrasadas. Su detalle y la apertura nativa abarcan todas las fechas; Ingresos y Almacenamiento conservan sus filtros de fecha.
 
 - Recolección excluye borradores en su tarjeta, listas y operación móvil.
 - **Operar** abre dos pestañas: **Por procesar** muestra cada recolección individual del almacén, incluida la que pertenece a un batch; **Baches** muestra únicamente los lotes con recolecciones asignadas. Cambiar de pestaña reinicia la paginación y la búsqueda.
@@ -75,11 +80,13 @@ La confirmación conserva los asistentes nativos de recepción parcial y los con
 
 ## Operar Pack
 
-Cada orden conserva su propia guía. Si abre un batch de Pack, aparece la lista de sus operaciones con el botón **Operar**.
+Pulse **Operar** en Empaquetado. El panel contiene las operaciones del tipo Pack nativo del almacén, de todas las fechas y sin borradores. Cada tarjeta muestra orden, operación, estado, piezas y batch. Si entra desde un batch, seleccione el pedido: cada operación conserva sus propias series y guía. Solo se pueden preparar operaciones completamente disponibles y con la configuración UPC/guía habilitada.
 
-La pantalla solicita UPC y NS/IMEI por pieza y número de guía de la orden. El botón de validación ejecuta las comprobaciones originales, registra las series en `stock.move.line.serial`, aplica cantidades y avanza la operación. La guía se propaga a Out mediante el módulo UPC suministrado. Los códigos se comprueban al pulsar Validar; el contador de capturas no sustituye esa comprobación.
+La pantalla muestra las piezas con su imagen. **Validar piezas** inicia la secuencia por unidad: primero comprueba UPC y después solicita NS/IMEI. Un UPC incorrecto muestra **No coincide UPC/IMEI** sin avanzar. Tras capturar todas las piezas solicita el número de guía; **Validar empaquetado** confirma la operación con el asistente original instalado.
 
-El registro de NS/IMEI adicionales conserva la lógica del módulo adjunto. Los lotes y series nativos de Odoo mantienen sus propios controles y reservas; no son el mismo concepto que un batch.
+Las comprobaciones previas no crean series ni validan inventario. La confirmación final vuelve a comprobar códigos, disponibilidad, permisos y cambios en la operación; delega la creación en `stock.move.line.serial`, las cantidades y la guía al módulo instalado. Los asistentes nativos adicionales se conservan. La pantalla evita repetir un NS/IMEI dentro del mismo empaque. La guía se propaga a Out mediante la lógica instalada.
+
+El panel no convierte los números de serie adicionales en lotes o series nativos: se mantienen los controles de trazabilidad de Odoo. Esta primera pantalla procesa todas las piezas del pedido; para parciales, unidades alternativas o cantidades fraccionarias se conserva el flujo original con **Abrir operaciones**.
 
 ## Escanear Out
 
@@ -110,9 +117,11 @@ Consultar el tablero no valida operaciones ni cambia reservas. Abrir una prepara
 
 ## Verificación
 
-Comprobaciones locales: 37 pruebas Python de fechas, contadores, paquetes, agrupación por producto/ubicación, captura UPC, filtro Completa, exclusión de borradores, pestañas de individuales/batches y alcance individual; compilación de cuatro plantillas con Owl de Odoo 18; navegación al tablero conservando filtros, cambio de pestaña y ruta de imagen, UPC incorrecto sin avanzar, cantidades acumuladas por producto y última comprobación, captura UPC compartida entre ubicaciones, validación sin series, errores y asistentes del cliente; registro de acciones con el conversor/cargador nativos; sintaxis Python/JavaScript, XML y manifiesto.
+Comprobaciones locales: 37 pruebas Python de fechas, contadores, paquetes, agrupación por producto/ubicación, captura UPC, filtro Completa, exclusión de borradores, pestañas de individuales/batches y alcance individual; compilación de cinco plantillas con Owl de Odoo 18; navegación al tablero conservando filtros, cambio de pestaña y ruta de imagen, UPC incorrecto sin avanzar, cantidades acumuladas por producto y última comprobación, captura UPC compartida entre ubicaciones, validación sin series, errores y asistentes del cliente; registro de acciones con el conversor/cargador nativos; sintaxis Python/JavaScript, XML y manifiesto.
 
 También se verificaron localmente el inicio sin almacén seleccionado y el flujo móvil de Ingresos: selección de recepción, cantidades, UPC rechazado sin avanzar, confirmación y retorno desde asistentes nativos.
+
+También se comprobó el flujo cliente de Pack: UPC por pieza, rechazo sin avanzar, serie, duplicados, guía al final y asistente nativo. La prueba integrada de tres pasos ahora utiliza esta pantalla de Pack a través de sus métodos de servidor.
 
 Estas pruebas usan dobles de ORM y plantillas sin navegador. **No se ejecutó Odoo completo ni la app móvil real.** Las pruebas nativas incluidas en `tests/test_operations_dashboard.py` cubren un batch de dos ventas agrupado en tres piezas, apertura individual limitada, UPC incorrecto/correcto y comprobación UPC sin validar el picking, seguida de confirmación sin crear series en Pick. También incluyen la recepción con comprobación provisional de UPC sin registrarlo y confirmación con lote de origen; estas pruebas de integración quedan pendientes de ejecutar en Odoo. Ejecútelas en la rama SH con `--test-enable --test-tags /systore_operations_dashboard --stop-after-init`.
 

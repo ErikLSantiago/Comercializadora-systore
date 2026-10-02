@@ -122,7 +122,7 @@ class OperationsDashboard(models.AbstractModel):
     def _filtered_domain(self, warehouse, section, day, scope, today, timezone):
         base = self._section_domain(warehouse, section)
         if section not in RECEIPT_SECTIONS:
-            return AND([base, self._datetime_domain('scheduled_date', day, scope, today, timezone)])
+            return base
         # Filter exact operational metadata from readable pickings. A relational
         # date domain would require Purchase ACLs and may combine date bounds
         # from different POs in a consolidated picking.
@@ -211,7 +211,7 @@ class OperationsDashboard(models.AbstractModel):
                 entries = [{'key': 'p%s' % p.id, 'purchase_id': False, 'label': p.name,
                             'date': p.scheduled_date, 'pieces': self._picking_pieces(p),
                             'batch_id': p.batch_id.id, 'picking_ids': [p.id]} for p in pickings]
-            selected = [e for e in entries if section == 'pick' or matches_scope(e['date'], scope, day, today, timezone)]
+            selected = [e for e in entries if section not in RECEIPT_SECTIONS or matches_scope(e['date'], scope, day, today, timezone)]
             def count_for(count_day, count_scope='date'):
                 return self._totals([e for e in entries
                                      if matches_scope(e['date'], count_scope, count_day, today, timezone)])

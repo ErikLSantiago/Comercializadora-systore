@@ -10,15 +10,7 @@
                 </div>
                 <div t-if="state.warehouseId" class="sod-warehouse">
                     <button class="btn btn-link" t-on-click="warehouseHome" t-att-disabled="state.loading"><i class="fa fa-arrow-left me-1"/> Almacenes</button>
-                    <label for="sod-warehouse">Almacén</label>
-                    <select id="sod-warehouse" class="form-select" t-on-change="changeWarehouse"
-                            t-att-disabled="state.loading || !state.warehouses.length">
-                        <option t-if="!state.warehouses.length" value="">Sin almacenes asignados</option>
-                        <option t-foreach="state.warehouses" t-as="warehouse" t-key="warehouse.id"
-                                t-att-value="warehouse.id" t-att-selected="warehouse.id === state.warehouseId">
-                            <t t-esc="warehouse.code"/> · <t t-esc="warehouse.name"/> — <t t-esc="warehouse.company"/>
-                        </option>
-                    </select>
+                    <strong t-esc="state.warehouses.find(w => w.id === state.warehouseId)?.name || ''"/>
                 </div>
             </header>
 
@@ -91,10 +83,10 @@
                             <br/>
                             <t t-if="section.key === 'transfers'">Salidas desde Existencias y sus sububicaciones</t>
                             <t t-elif="section.key === 'pick'">Todas las recolecciones pendientes</t>
-                            <t t-elif="section.key === 'pack'">Empaquetado de pedidos</t>
-                            <t t-else="">Salida y entrega de pedidos</t>
+                            <t t-elif="section.key === 'pack'">Todos los empaquetados pendientes</t>
+                            <t t-else="">Todas las salidas pendientes</t>
                         </div>
-                        <div t-if="section.key !== 'pick'" class="sod-mini-counts">
+                        <div t-if="isReceipt(section.key)" class="sod-mini-counts">
                             <button t-on-click="() => this.filter('today')" class="sod-mini">
                                 <span>Hoy</span><strong t-esc="format(isReceipt(section.key) ? section.today.orders : section.today.operations)"/>
                                 <small t-if="isReceipt(section.key)"><t t-esc="format(section.today.packages)"/> bultos</small>
@@ -118,6 +110,7 @@
                             <button t-if="section.key === 'in'" class="btn btn-primary btn-lg" t-on-click="() => this.openMobileReceipt()" t-att-disabled="state.opening">
                                 <i class="fa fa-mobile me-1"/> Operar
                             </button>
+                            <button t-if="section.key === 'pack'" class="btn btn-primary btn-lg" t-on-click="() => this.openMobilePack()" t-att-disabled="state.opening">Operar</button>
                             <button t-if="section.key === 'pick'" class="btn btn-primary btn-lg" t-on-click="() => this.openMobilePick()" t-att-disabled="state.opening">
                                 <i class="fa fa-mobile me-1" aria-hidden="true"/> Operar
                             </button>
@@ -137,7 +130,7 @@
                                     t-att-class="{'active': state.activeSection === section.key}"
                                     t-on-click="() => { this.state.activeSection = section.key; }" t-esc="section.title"/>
                         </nav>
-                        <span t-esc="state.activeSection === 'pick' ? 'Todas las pendientes' : dateLabel"/>
+                        <span t-esc="!isReceipt(state.activeSection) ? 'Todas las pendientes' : dateLabel"/>
                     </div>
                     <t t-if="activeSection">
                         <p class="sod-table-caption" t-if="isReceipt(activeSection.key)">
@@ -178,7 +171,7 @@
                                             <td><span class="sod-state" t-att-class="{'sod-state-ready': row.state === 'assigned'}" t-esc="stateLabel(row.state)"/></td>
                                         </t>
                                         <td class="text-end"><button class="btn btn-sm btn-outline-primary" t-att-disabled="state.opening"
-                                            t-on-click="() => activeSection.key === 'pick' ? this.openMobilePick(row) : activeSection.key === 'in' ? this.openMobileReceipt(row) : this.openOperations(activeSection.key, row)">Operar</button></td>
+                                            t-on-click="() => activeSection.key === 'pick' ? this.openMobilePick(row) : activeSection.key === 'pack' ? this.openMobilePack(row) : activeSection.key === 'in' ? this.openMobileReceipt(row) : this.openOperations(activeSection.key, row)">Operar</button></td>
                                     </tr>
                                 </tbody>
                                 <tfoot t-if="isReceipt(activeSection.key)">
@@ -197,7 +190,7 @@
                         </div>
                     </t>
                 </div>
-                <p class="sod-footnote">Transferencias puede incluir Pick o una entrega directa cuando salen de Existencias. Los totales de las etapas no son acumulables: una compra o pedido puede recorrer más de una etapa.</p>
+                <p class="sod-footnote">Transferencias excluye In, Pick, Pack y Out. Los totales de las etapas no son acumulables: una compra o pedido puede recorrer más de una etapa.</p>
             </t>
         </div>
     </t>

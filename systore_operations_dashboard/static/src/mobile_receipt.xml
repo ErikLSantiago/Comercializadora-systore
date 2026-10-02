@@ -63,7 +63,7 @@
                 <nav class="smp-pagination" aria-label="Productos">
                     <button t-on-click="() => this.next(-1)" t-att-disabled="state.busy || !state.index">Anterior</button>
                     <button t-on-click="() => this.next(1)" t-att-disabled="state.busy || !currentReady"
-                        t-esc="state.index + 1 &lt; productsToScan.length ? 'Siguiente producto' : 'Comprobar UPC'"/>
+                        t-esc="state.index + 1 &lt; productsToScan.length ? 'Siguiente producto' : 'Registrar UPC'"/>
                 </nav>
             </article>
         </t>

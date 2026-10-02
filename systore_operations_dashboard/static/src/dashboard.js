@@ -116,11 +116,6 @@ export class OperationsDashboard extends Component {
         finally { if (!this.destroyed) this.state.opening = false; }
     }
 
-    async changeWarehouse(event) {
-        this.state.warehouseId = Number(event.target.value);
-        await this.reload();
-    }
-
     async chooseDate(event) {
         if (!DateTime.fromISO(event.target.value).isValid) return;
         this.state.date = event.target.value;
@@ -143,7 +138,7 @@ export class OperationsDashboard extends Component {
         this.state.opening = true;
         try {
             const guided = ['pack', 'out'].includes(section);
-            const args = [this.state.warehouseId, section, this.state.date, section === 'pick' ? 'all' : this.state.scope];
+            const args = [this.state.warehouseId, section, this.state.date, !this.isReceipt(section) ? 'all' : this.state.scope];
             if (guided) { args.push(row?.picking_id || false, row?.batch_id || false); }
             else { args.push(row?.purchase_id || false, row?.picking_id || false); }
             const action = await this.orm.call('systore.operations.dashboard', guided ? 'open_guided_operation' : 'open_operations', args);
@@ -154,6 +149,17 @@ export class OperationsDashboard extends Component {
         } finally {
             if (!this.destroyed) this.state.opening = false;
         }
+    }
+
+    async openMobilePack(row = null) {
+        if (this.state.opening || this.state.loading || !this.state.data) return;
+        this.state.opening = true;
+        try {
+            const action = await this.orm.call('systore.operations.dashboard', 'open_mobile_pack', [
+                this.state.warehouseId, row?.picking_id || false, row?.batch_id || false]);
+            await this.action.doAction(action);
+        } catch (error) { this.notification.add(error.data?.message || error.message, {type:'danger'}); }
+        finally { if (!this.destroyed) this.state.opening = false; }
     }
 
     async openMobilePick(row = null) {
@@ -173,7 +179,7 @@ export class OperationsDashboard extends Component {
         this.state.opening = true;
         try {
             const action = await this.orm.call('systore.operations.dashboard', 'open_batches', [
-                this.state.warehouseId, section, this.state.date, section === 'pick' ? 'all' : this.state.scope]);
+                this.state.warehouseId, section, this.state.date, !this.isReceipt(section) ? 'all' : this.state.scope]);
             await this.action.doAction(action);
         } catch (error) { this.notification.add(error.data?.message || error.message, {type:'danger'}); }
         finally { if (!this.destroyed) this.state.opening = false; }

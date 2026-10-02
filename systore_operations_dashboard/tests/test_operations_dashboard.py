@@ -136,6 +136,12 @@ class TestOperationsDashboard(TransactionCase):
         self.assertEqual(section['rows'][0]['pieces'], 10)
         self.assertEqual(section['selected']['pieces'], 10)
 
+    def test_unified_sections_ignore_date_filter(self):
+        day, today, timezone = self.service._parameters('2000-01-01', 'date')
+        for section in ('transfers', 'pick', 'pack', 'out'):
+            self.assertEqual(self.service._filtered_domain(self.warehouse, section, day, 'date', today, timezone),
+                             self.service._section_domain(self.warehouse, section))
+
     def test_checkboxes_exclude_operation_types(self):
         self.make_order()
         self.warehouse.systore_operations_type_ids = self.warehouse.store_type_id
@@ -195,12 +201,22 @@ class TestOperationsDashboard(TransactionCase):
         wizard.action_confirm()
         self.assertEqual(pick.state, 'done')
         pack = sale.picking_ids.filtered(lambda p: p.picking_type_id == self.warehouse.pack_type_id)
-        action = self.service.open_guided_operation(self.warehouse.id, 'pack', scope='all', picking_id=pack.id)
-        wizard = self.env['stock.picking.upc.wizard'].with_user(self.user).browse(action['res_id'])
-        for number, line in enumerate(wizard.line_ids):
-            line.write({'upc_ean': self.product.barcode, 'serial_imei': 'SOD-SERIAL-%s' % number})
-        wizard.tracking_ref = 'SOD-GUIDE-TEST'
-        wizard.action_confirm()
+        detail = self.service.get_mobile_pack_detail(self.warehouse.id, pack.id)
+        with self.assertRaisesRegex(ValidationError, '^No coincide UPC/IMEI$'), self.cr.savepoint():
+            self.service.check_mobile_pack_piece(self.warehouse.id, detail['wizard_id'],
+                detail['token'], detail['rows'][0]['id'], 'WRONG')
+        captures = []
+        for number, row in enumerate(detail['rows']):
+            checked = self.service.check_mobile_pack_piece(self.warehouse.id, detail['wizard_id'],
+                detail['token'], row['id'], self.product.barcode, 'SOD-SERIAL-%s' % number)
+            captures.append({'id': row['id'], 'upc': checked['upc'], 'serial': checked['serial']})
+        self.assertFalse(pack.move_line_ids.serial_captured_ids)
+        with self.assertRaises(AccessError):
+            self.service.with_user(self.other_user).validate_mobile_pack(self.warehouse.id,
+                detail['wizard_id'], detail['token'], captures, 'SOD-GUIDE-TEST')
+        result = self.service.validate_mobile_pack(self.warehouse.id, detail['wizard_id'],
+            detail['token'], captures, 'SOD-GUIDE-TEST')
+        self.assertTrue(result['complete'])
         self.assertEqual(pack.state, 'done')
         self.assertEqual(len(pack.move_line_ids.serial_captured_ids), 2)
         out = sale.picking_ids.filtered(lambda p: p.picking_type_id == self.warehouse.out_type_id)

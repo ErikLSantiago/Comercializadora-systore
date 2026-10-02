@@ -1,6 +1,6 @@
 {
     'name': 'Systore · Tablero de operaciones',
-    'version': '18.0.1.3.0',
+    'version': '18.0.1.4.0',
     'summary': 'Recepciones, salidas desde existencias y expediciones por almacén',
     'category': 'Inventory/Inventory',
     'author': 'Systore',
@@ -27,6 +27,8 @@
             'systore_operations_dashboard/static/src/mobile_pick.scss',
             'systore_operations_dashboard/static/src/mobile_receipt.js',
             'systore_operations_dashboard/static/src/mobile_receipt.xml',
+            'systore_operations_dashboard/static/src/mobile_pack.js',
+            'systore_operations_dashboard/static/src/mobile_pack.xml',
         ],
     },
     'installable': True,
