@@ -1,0 +1,25 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <record id="view_warehouse_operations_configuration" model="ir.ui.view">
+        <field name="name">stock.warehouse.operations.configuration</field>
+        <field name="model">stock.warehouse</field>
+        <field name="inherit_id" ref="stock.view_warehouse"/>
+        <field name="arch" type="xml">
+            <xpath expr="//sheet" position="inside">
+                <group string="Tablero de operaciones" groups="stock.group_stock_manager">
+                    <field name="systore_operations_enabled"/>
+                    <field name="systore_operations_user_ids" widget="many2many_tags"
+                           invisible="not systore_operations_enabled"
+                           domain="[('share', '=', False), ('company_ids', 'in', [company_id])]"
+                           options="{'no_create': True, 'no_create_edit': True}"/>
+                    <field name="systore_operations_type_ids" widget="many2many_checkboxes"
+                           invisible="not systore_operations_enabled"
+                           domain="[('company_id', '=', company_id), ('active', '=', True)]"/>
+                    <div class="text-muted" colspan="2" invisible="not systore_operations_enabled">
+                        Asigne los usuarios y marque los tipos de operación incluidos. Deben tener acceso a Inventario.
+                    </div>
+                </group>
+            </xpath>
+        </field>
+    </record>
+</odoo>

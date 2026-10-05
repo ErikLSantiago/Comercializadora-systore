@@ -1,0 +1,130 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<templates xml:space="preserve">
+    <t t-name="systore_operations_dashboard.Dashboard">
+        <div class="systore-operations-dashboard">
+            <header class="sod-header">
+                <div>
+                    <div class="sod-eyebrow">INVENTARIO</div>
+                    <h1>Tablero de operaciones</h1>
+                    <p>Planifica la jornada y abre cada operación para trabajarla.</p>
+                </div>
+                <div t-if="state.warehouseId" class="sod-warehouse">
+                    <button class="btn btn-link" t-on-click="warehouseHome" t-att-disabled="state.loading"><i class="fa fa-arrow-left me-1"/> Almacenes</button>
+                    <strong t-esc="state.warehouses.find(w => w.id === state.warehouseId)?.name || ''"/>
+                </div>
+            </header>
+
+            <div t-if="state.warehouseId" class="sod-toolbar">
+                <div class="sod-date-buttons" role="group" aria-label="Filtros de fecha">
+                    <button class="btn" t-att-class="{'btn-primary': state.scope === 'date' &amp;&amp; state.date === state.today, 'btn-outline-secondary': !(state.scope === 'date' &amp;&amp; state.date === state.today)}"
+                            t-on-click="() => this.filter('today')" t-att-disabled="state.loading">Hoy</button>
+                    <button class="btn" t-att-class="{'btn-primary': state.scope === 'date' &amp;&amp; state.date === tomorrow, 'btn-outline-secondary': !(state.scope === 'date' &amp;&amp; state.date === tomorrow)}"
+                            t-on-click="() => this.filter('tomorrow')" t-att-disabled="state.loading">Mañana</button>
+                    <button class="btn" t-att-class="{'btn-primary': state.scope === 'overdue', 'btn-outline-secondary': state.scope !== 'overdue'}"
+                            t-on-click="() => this.filter('overdue')" t-att-disabled="state.loading">Atrasadas</button>
+                    <button class="btn" t-att-class="{'btn-primary': state.scope === 'all', 'btn-outline-secondary': state.scope !== 'all'}"
+                            t-on-click="() => this.filter('all')" t-att-disabled="state.loading">Todas</button>
+                    <button class="btn" t-att-class="{'btn-primary': state.scope === 'undated', 'btn-outline-secondary': state.scope !== 'undated'}"
+                            t-on-click="() => this.filter('undated')" t-att-disabled="state.loading">Sin fecha</button>
+                </div>
+                <div class="sod-date-input">
+                    <label for="sod-date">Consultar fecha</label>
+                    <input id="sod-date" type="date" class="form-control" t-att-value="state.date"
+                           t-on-change="chooseDate" t-att-disabled="state.loading"/>
+                </div>
+                <button class="btn btn-outline-secondary sod-refresh" t-on-click="reload" t-att-disabled="state.loading">
+                    <i class="fa fa-refresh me-2" aria-hidden="true"/>Actualizar
+                </button>
+            </div>
+
+            <div t-if="state.error" class="alert alert-danger" role="alert"><t t-esc="state.error"/></div>
+            <div t-elif="state.loading" class="sod-empty" role="status">
+                <i class="fa fa-spinner fa-spin me-2" aria-hidden="true"/>Consultando operaciones…
+            </div>
+            <div t-elif="!state.warehouses.length" class="sod-empty">
+                <i class="fa fa-building-o sod-empty-icon" aria-hidden="true"/>
+                <h2>No tienes almacenes asignados</h2>
+                <p>Un administrador debe habilitar el tablero y asignarte en Inventario → Configuración → Almacenes.</p>
+            </div>
+            <div t-elif="!state.warehouseId" class="sod-warehouse-home">
+                <h2>Selecciona un almacén</h2>
+                <div class="sod-warehouse-grid">
+                    <button t-foreach="state.warehouses" t-as="warehouse" t-key="warehouse.id"
+                            class="sod-warehouse-card" t-on-click="() => this.selectWarehouse(warehouse.id)">
+                        <i class="fa fa-building-o" aria-hidden="true"/>
+                        <strong t-esc="warehouse.name"/><span><t t-esc="warehouse.code"/> · <t t-esc="warehouse.company"/></span>
+                        <i class="fa fa-arrow-right" aria-hidden="true"/>
+                    </button>
+                </div>
+            </div>
+            <t t-elif="state.data">
+                <div class="sod-period">
+                    <strong t-esc="dateLabel"/>
+                    <span>Solo operaciones pendientes · Existencias: <t t-esc="state.data.stock_location"/></span>
+                </div>
+                <div class="sod-cards">
+                    <article t-foreach="state.data.sections" t-as="section" t-key="section.key"
+                             class="sod-card" t-att-class="'sod-card-' + section.key">
+                        <div class="sod-card-title">
+                            <h2 t-esc="section.title"/>
+                            <i class="fa" t-att-class="{'fa-arrow-down': isReceipt(section.key), 'fa-exchange': section.key === 'transfers', 'fa-hand-paper-o': section.key === 'pick', 'fa-archive': section.key === 'pack', 'fa-truck': section.key === 'out'}" aria-hidden="true"/>
+                        </div>
+                        <div class="sod-main-count">
+                            <strong t-esc="format(isReceipt(section.key) ? section.selected.orders : section.selected.operations)"/>
+                            <span t-esc="isReceipt(section.key) ? 'órdenes de compra' : 'operaciones'"/>
+                        </div>
+                        <div t-if="isReceipt(section.key)" class="sod-secondary-count">
+                            <strong t-esc="format(section.selected.packages)"/> bultos esperados
+                            <span>· <t t-esc="format(section.selected.pieces)"/> piezas</span>
+                        </div>
+                        <div t-else="" class="sod-secondary-count">
+                            <strong t-esc="format(section.selected.pieces)"/> piezas ·
+                            <t t-esc="format(section.selected.batches)"/> batches
+                            <br/>
+                            <t t-if="section.key === 'transfers'">Salidas desde Existencias y sus sububicaciones</t>
+                            <t t-elif="section.key === 'pick'">Todas las recolecciones pendientes</t>
+                            <t t-elif="section.key === 'pack'">Todos los empaquetados pendientes</t>
+                            <t t-else="">Todas las salidas pendientes</t>
+                        </div>
+                        <div t-if="isReceipt(section.key)" class="sod-mini-counts">
+                            <button t-on-click="() => this.filter('today')" class="sod-mini">
+                                <span>Hoy</span><strong t-esc="format(isReceipt(section.key) ? section.today.orders : section.today.operations)"/>
+                                <small t-if="isReceipt(section.key)"><t t-esc="format(section.today.packages)"/> bultos</small>
+                                <small t-if="isReceipt(section.key)"><t t-esc="format(section.today.pieces)"/> piezas</small>
+                                <small t-else=""><t t-esc="format(section.today.pieces)"/> piezas</small>
+                            </button>
+                            <button t-on-click="() => this.filter('tomorrow')" class="sod-mini">
+                                <span>Mañana</span><strong t-esc="format(isReceipt(section.key) ? section.tomorrow.orders : section.tomorrow.operations)"/>
+                                <small t-if="isReceipt(section.key)"><t t-esc="format(section.tomorrow.packages)"/> bultos</small>
+                                <small t-if="isReceipt(section.key)"><t t-esc="format(section.tomorrow.pieces)"/> piezas</small>
+                                <small t-else=""><t t-esc="format(section.tomorrow.pieces)"/> piezas</small>
+                            </button>
+                            <button t-on-click="() => this.filter('overdue')" class="sod-mini sod-overdue">
+                                <span>Atrasadas</span><strong t-esc="format(isReceipt(section.key) ? section.overdue.orders : section.overdue.operations)"/>
+                                <small t-if="isReceipt(section.key)"><t t-esc="format(section.overdue.packages)"/> bultos</small>
+                                <small t-if="isReceipt(section.key)"><t t-esc="format(section.overdue.pieces)"/> piezas</small>
+                                <small t-else=""><t t-esc="format(section.overdue.pieces)"/> piezas</small>
+                            </button>
+                        </div>
+                        <div class="sod-card-actions">
+                            <button t-if="section.key === 'in'" class="btn btn-primary btn-lg" t-on-click="() => this.openMobileReceipt()" t-att-disabled="state.opening">
+                                <i class="fa fa-mobile me-1"/> Operar
+                            </button>
+                            <button t-if="section.key === 'pack'" class="btn btn-primary btn-lg" t-on-click="() => this.openMobilePack()" t-att-disabled="state.opening">Operar</button>
+                            <button t-if="section.key === 'pick'" class="btn btn-primary btn-lg" t-on-click="() => this.openMobilePick()" t-att-disabled="state.opening">
+                                <i class="fa fa-mobile me-1" aria-hidden="true"/> Operar
+                            </button>
+                            <button class="btn" t-att-class="section.key === 'pick' ? 'btn-outline-secondary' : 'btn-primary'" t-on-click="() => this.openOperations(section.key)" t-att-disabled="state.opening">
+                                Abrir operaciones <i class="fa fa-arrow-right ms-1" aria-hidden="true"/>
+                            </button>
+                            
+                            <button t-if="['pick', 'pack', 'out'].includes(section.key)" class="btn btn-link"
+                                    t-on-click="() => this.openBatches(section.key)" t-att-disabled="state.opening">Batches</button>
+                        </div>
+                    </article>
+                </div>
+                <p class="sod-footnote">Transferencias excluye In, Pick, Pack y Out. Los totales de las etapas no son acumulables: una compra o pedido puede recorrer más de una etapa.</p>
+            </t>
+        </div>
+    </t>
+</templates>

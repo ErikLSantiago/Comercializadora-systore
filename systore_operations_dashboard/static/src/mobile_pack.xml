@@ -1,0 +1,65 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<templates xml:space="preserve">
+<t t-name="systore_operations_dashboard.MobilePack">
+<div class="smp-shell">
+<header class="smp-header">
+    <button class="smp-icon-button" t-on-click="back" t-att-disabled="state.busy" aria-label="Volver"><i class="fa fa-arrow-left"/></button>
+    <div><small>EMPAQUETADO · <t t-esc="state.panel?.warehouse || ''"/></small><h1 t-esc="state.detail?.name || 'Pedidos por empacar'"/></div>
+    <button t-if="state.page === 'panel'" class="smp-icon-button" t-on-click="() => this.loadPanel(state.pageNumber)" t-att-disabled="state.busy" aria-label="Actualizar"><i class="fa fa-refresh"/></button>
+</header>
+<main class="smp-main">
+    <div t-if="state.error" class="alert alert-danger" role="alert" t-esc="state.error"/>
+    <div t-if="state.message" class="alert alert-success" role="status" t-esc="state.message"/>
+    <p t-if="state.busy" role="status">Procesando…</p>
+    <t t-if="state.page === 'panel'">
+        <label class="smp-search"><span class="visually-hidden">Buscar pedido</span><input type="search" t-model="state.query" t-on-keydown="searchKey" placeholder="Buscar pedido, producto o UPC"/><button class="smp-link" t-on-click="search" t-att-disabled="state.busy">Buscar</button></label>
+        <div class="smp-grid">
+            <button t-foreach="cards" t-as="card" t-key="card.key" class="smp-card smp-operation" t-on-click="() => this.openCard(card)" t-att-disabled="state.busy">
+                <span class="smp-kind" t-esc="card.operation_type"/><h2 t-esc="card.name"/><p t-esc="card.origins.join(', ')"/>
+                <span class="smp-badge" t-esc="label(card.state)"/><p><strong t-esc="format(card.pieces)"/> piezas</p>
+                <small t-esc="card.batch || 'Sin batch'"/><div class="smp-open">Empacar <i class="fa fa-arrow-right"/></div>
+            </button>
+        </div>
+        <p t-if="state.panel &amp;&amp; !cards.length &amp;&amp; !state.busy" class="smp-empty">No hay empaquetados pendientes.</p>
+        <nav class="smp-pagination" t-if="state.panel" aria-label="Páginas">
+            <button t-att-disabled="state.busy || !state.pageNumber" t-on-click="() => this.loadPanel(state.pageNumber - 1)">Anterior</button>
+            <span>Página <t t-esc="state.pageNumber + 1"/></span>
+            <button t-att-disabled="state.busy || !state.panel.has_more" t-on-click="() => this.loadPanel(state.pageNumber + 1)">Siguiente</button>
+        </nav>
+    </t>
+    <t t-if="state.page === 'detail' &amp;&amp; state.detail">
+        <div class="smp-detail-heading"><span class="smp-badge smp-ready" t-esc="label(state.detail.state)"/><button class="smp-link" t-on-click="original" t-att-disabled="state.busy">Abrir original</button></div><h2>Piezas por empacar</h2><p t-esc="state.detail.orders"/><p class="smp-muted"><t t-esc="state.detail.source"/> → <t t-esc="state.detail.destination"/></p>
+        <p><strong t-esc="state.captures.length"/> piezas por empacar</p>
+        <div class="smp-grid"><article t-foreach="productRows" t-as="row" t-key="row.id" class="smp-card smp-product">
+            <div class="smp-location"><i class="fa fa-map-marker"/><div><span class="smp-label">Ubicación de origen</span><strong t-esc="state.detail.source"/></div></div>
+            <div class="smp-product-heading"><div class="smp-product-image"><i class="fa fa-cube"/>
+                <img t-att-src="imageURL(row.product_id)" t-att-alt="row.product" width="96" height="96" loading="lazy" t-on-error="imageError"/></div><h3 t-esc="row.product"/></div>
+            <div class="smp-quantity"><span>Piezas solicitadas</span><strong t-esc="format(row.qty)"/><span>Unidades</span></div>
+        </article></div>
+        <button class="btn btn-primary btn-lg w-100 mt-3" t-on-click="beginValidation" t-att-disabled="state.busy || !state.captures.length">Validar piezas</button>
+    </t>
+    <t t-if="['upc','serial'].includes(state.page) &amp;&amp; current">
+        <div class="smp-detail-heading"><h2 t-esc="state.page === 'upc' ? 'Validar UPC' : 'Número de serie adicional'"/><span>Pieza <t t-esc="state.index + 1"/> / <t t-esc="state.captures.length"/></span></div>
+        <article class="smp-card">
+            <div class="smp-product-heading"><div class="smp-product-image"><i class="fa fa-cube"/>
+                <img t-att-src="imageURL(current.product_id)" t-att-alt="current.product" width="96" height="96" t-on-error="imageError"/></div><h3 t-esc="current.product"/></div>
+            <t t-if="state.page === 'upc'">
+                <label class="smp-field">UPC / EAN<input t-ref="upcInput" t-att-value="current.upc" t-on-input="setUPC" autocomplete="off" t-att-disabled="state.busy"/></label>
+                <button class="btn btn-primary btn-lg w-100" t-on-click="acceptUPC" t-att-disabled="state.busy || !current.upc.trim()">Validar UPC</button>
+            </t>
+            <t t-else="">
+                <label class="smp-field">NS / IMEI<input t-ref="upcInput" t-model="current.serial" autocomplete="off" t-att-disabled="state.busy"/></label>
+                <button class="btn btn-primary btn-lg w-100" t-on-click="acceptSerial" t-att-disabled="state.busy || !current.serial.trim()">Registrar serie</button>
+            </t>
+        </article>
+    </t>
+    <t t-if="state.page === 'tracking'">
+        <h2>Número de guía</h2><p><t t-esc="state.captures.length"/> piezas comprobadas · <t t-esc="state.detail.orders"/></p>
+        <label class="smp-field">Guía del pedido<input t-ref="upcInput" t-model="state.tracking" autocomplete="off" t-att-disabled="state.busy"/></label>
+        <button class="btn btn-primary btn-lg w-100" t-on-click="validate" t-att-disabled="state.busy || !state.tracking.trim()">Validar empaquetado</button>
+    </t>
+    <p t-if="state.page === 'pending'">Complete el asistente de Odoo para continuar.</p>
+</main>
+</div>
+</t>
+</templates>

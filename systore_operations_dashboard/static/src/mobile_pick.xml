@@ -1,0 +1,101 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<templates xml:space="preserve">
+<t t-name="systore_operations_dashboard.MobilePick">
+    <div class="smp-shell">
+        <header class="smp-header">
+            <button class="smp-icon-button" t-att-disabled="state.busy"
+                    t-on-click="back" t-att-aria-label="state.page === 'panel' ? 'Volver al tablero' : 'Volver'"><i class="fa fa-arrow-left"/></button>
+            <div><small>OPERACIONES · <t t-esc="state.detail?.warehouse || state.panel?.warehouse || ''"/></small>
+                <h1 t-esc="state.page === 'panel' ? 'Recolecciones' : state.detail?.card.name || 'Recolección'"/></div>
+            <button t-if="state.page === 'panel'" class="smp-icon-button" t-on-click="() => this.loadPanel(state.pageNumber)"
+                    t-att-disabled="state.busy" aria-label="Actualizar"><i class="fa fa-refresh"/></button>
+        </header>
+        <main class="smp-main">
+            <div t-if="state.error" class="alert alert-danger" role="alert" t-esc="state.error"/>
+            <div t-if="state.message" class="alert alert-success" role="status" t-esc="state.message"/>
+            <p t-if="state.busy" class="smp-status" role="status"><i class="fa fa-spinner fa-spin"/> Procesando…</p>
+            <t t-if="state.page === 'panel'">
+                <nav class="smp-mode-tabs" aria-label="Tipo de recolección">
+                    <button t-on-click="() => this.switchMode('pending')" t-att-class="{'active':state.mode === 'pending'}"
+                            t-att-aria-pressed="state.mode === 'pending'" t-att-disabled="state.busy">Por procesar</button>
+                    <button t-on-click="() => this.switchMode('batches')" t-att-class="{'active':state.mode === 'batches'}"
+                            t-att-aria-pressed="state.mode === 'batches'" t-att-disabled="state.busy">Baches</button>
+                </nav>
+                <label class="smp-search"><span class="visually-hidden">Buscar recolecciones</span><input type="search" t-model="state.query" t-on-keydown="searchKey" placeholder="Buscar orden, producto o UPC"/><button class="smp-link" t-on-click="search" t-att-disabled="state.busy">Buscar</button></label>
+                <div class="smp-grid">
+                    <button t-foreach="cards" t-as="card" t-key="card.key" class="smp-card smp-operation"
+                            t-att-disabled="state.busy" t-on-click="() => this.openCard(card)">
+                        <div class="smp-card-top"><span class="smp-kind" t-esc="card.is_batch ? 'LOTE / BATCH' : 'RECOLECCIÓN'"/>
+                            <span class="smp-badge" t-att-class="{'smp-ready':card.state === 'assigned'}" t-esc="label(card.state)"/></div>
+                        <h2 t-esc="card.name"/><span class="smp-label">Documento de origen</span>
+                        <div class="smp-origin" t-foreach="card.origins" t-as="origin" t-key="origin" t-esc="origin"/>
+                        <p t-if="!card.origins.length">Sin documento de origen</p>
+                        <span class="smp-label">Tipo de operación</span><p t-esc="card.operation_type"/>
+                        <div class="smp-metrics"><span><strong t-esc="format(card.orders)"/> órdenes</span>
+                            <span><strong t-esc="format(card.pieces)"/> piezas</span></div>
+                        <small t-if="card.is_batch"><t t-esc="card.operations"/> transferencias incluidas</small>
+                        <p t-if="card.is_batch" class="smp-muted">Responsable: <strong t-esc="card.responsible || 'Sin asignar'"/></p>
+                        <p t-if="card.blocked" class="smp-warning" t-esc="card.blocked"/>
+                        <div class="smp-open">Ver recolección <i class="fa fa-arrow-right"/></div>
+                    </button>
+                </div>
+                <div class="smp-empty" t-if="state.panel &amp;&amp; !cards.length &amp;&amp; !state.busy">No hay recolecciones para este filtro o búsqueda.</div>
+                <nav class="smp-pagination" t-if="state.panel" aria-label="Páginas de recolección">
+                    <button t-att-disabled="state.busy || !state.pageNumber" t-on-click="() => this.loadPanel(state.pageNumber - 1)">Anterior</button>
+                    <span>Página <t t-esc="state.pageNumber + 1"/></span>
+                    <button t-att-disabled="state.busy || !state.panel.has_more" t-on-click="() => this.loadPanel(state.pageNumber + 1)">Siguiente</button>
+                </nav>
+            </t>
+            <t t-if="state.page === 'detail' &amp;&amp; state.detail">
+                <div class="smp-detail-heading"><span class="smp-badge" t-att-class="{'smp-ready':state.detail.card.state === 'assigned'}" t-esc="label(state.detail.card.state)"/>
+                    <button class="smp-link" t-on-click="original" t-att-disabled="state.busy">Abrir original</button></div>
+                <h2>Productos por recoger</h2>
+                <div class="alert alert-warning" t-if="state.detail.notice" t-esc="state.detail.notice"/>
+                <div class="smp-grid">
+                    <article t-foreach="state.detail.rows" t-as="row" t-key="row.id" class="smp-card smp-product">
+                        <div class="smp-location"><i class="fa fa-map-marker"/><div><span class="smp-label">Ubicación de origen</span><strong t-esc="row.location"/></div></div>
+                        <div class="smp-product-heading">
+                            <div class="smp-product-image"><i class="fa fa-cube" aria-hidden="true"/>
+                                <img t-att-src="imageURL(row.product_id)" t-att-alt="row.product" loading="lazy"
+                                     width="96" height="96" t-on-error="imageError"/></div>
+                            <div><span class="smp-label">Producto</span><h3 t-esc="row.product"/></div>
+                        </div>
+                        <p class="smp-muted"><t t-esc="row.origin || row.operation"/></p>
+                        <div class="smp-quantity"><span>Recoger</span><strong t-esc="format(row.qty)"/><span t-esc="row.uom"/></div>
+                    </article>
+                </div>
+            </t>
+            <t t-if="state.page === 'capture' &amp;&amp; current">
+                <div class="smp-detail-heading"><h2>Validar UPC</h2><span><t t-esc="state.index + 1"/> / <t t-esc="productsToScan.length"/></span></div>
+                <article class="smp-card">
+                    <div class="smp-product-heading">
+                        <div class="smp-product-image"><i class="fa fa-cube" aria-hidden="true"/>
+                            <img t-att-src="imageURL(current.product_id)" t-att-alt="current.product" width="96" height="96" t-on-error="imageError"/></div>
+                        <h3 t-esc="current.product"/>
+                    </div>
+                    <div class="smp-quantity"><span>Recoger</span><strong t-esc="format(currentQuantity)"/><span t-esc="current.uom"/></div>
+                    <label class="smp-field">UPC / EAN del producto
+                        <input t-ref="upcInput" t-att-value="current.upc" t-on-input="setUPC" autocomplete="off"
+                               placeholder="Escanear UPC" t-att-disabled="state.busy"/></label>
+                    <p t-if="current.upc_checked" class="text-success" role="status">UPC correcto</p>
+                    <nav class="smp-pagination" aria-label="Productos por escanear">
+                        <button t-att-disabled="state.busy || state.index === 0" t-on-click="() => this.next(-1)">Anterior</button>
+                        <button t-att-disabled="state.busy || !currentReady" t-on-click="() => this.next(1)"
+                                t-esc="state.index + 1 &lt; productsToScan.length ? 'Siguiente producto' : 'Comprobar UPC'"/>
+                    </nav>
+                </article>
+                <button class="smp-link" t-att-disabled="state.busy" t-on-click="back">Volver a los productos</button>
+            </t>
+            <div t-if="state.page === 'pending'" class="smp-empty"><h2>Continuar validación</h2>
+                <p>Complete el asistente solicitado por Odoo. Las operaciones pendientes seguirán en el panel.</p>
+                <button class="smp-secondary" t-on-click="() => this.loadPanel()">Volver al panel</button></div>
+        </main>
+        <footer class="smp-footer" t-if="state.page === 'detail' || state.page === 'capture'">
+            <button t-if="state.page === 'detail'" class="smp-primary" t-on-click="beginValidation" t-att-disabled="state.busy || !state.detail.can_validate">
+                Validar recolección <i class="fa fa-arrow-right"/></button>
+            <button t-else="" class="smp-primary" t-on-click="validate" t-att-disabled="state.busy || !ready">
+                <t t-esc="state.busy ? 'Validando…' : 'Confirmar y validar'"/> <i class="fa fa-check"/></button>
+        </footer>
+    </div>
+</t>
+</templates>

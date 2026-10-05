@@ -1,0 +1,14 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <record id="action_operations_dashboard" model="ir.actions.client">
+        <field name="name">Tablero de operaciones</field>
+        <field name="tag">systore_operations_dashboard.dashboard</field>
+    </record>
+    <menuitem id="menu_operations_dashboard_app" name="Operaciones"
+              action="action_operations_dashboard" sequence="25"
+              web_icon="systore_operations_dashboard,static/description/icon.png"
+              groups="stock.group_stock_user"/>
+    <menuitem id="menu_operations_dashboard" name="Tablero de operaciones"
+              parent="menu_operations_dashboard_app" action="action_operations_dashboard"
+              sequence="5" groups="stock.group_stock_user"/>
+</odoo>
