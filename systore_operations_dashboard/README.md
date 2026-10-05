@@ -1,6 +1,13 @@
 # Tablero de operaciones · Odoo 18
 
-Versión **18.0.1.7.0** · Nombre técnico `systore_operations_dashboard`.
+Versión **18.0.1.7.1** · Nombre técnico `systore_operations_dashboard`.
+
+## Cambios de 18.0.1.7.1
+
+- Corregida la regla de columnas de las tarjetas Out: se retira `min(100%, 320px)`, que el compilador Sass interpreta como una operación entre unidades incompatibles. En móvil se utiliza una columna mediante media query.
+- En la tarjeta Ingresos, **Próximos días** reemplaza Mañana e incluye todas las fechas posteriores a hoy, según la zona horaria del usuario. Hoy y Atrasadas permanecen separados. Almacenamiento conserva su intervalo de hoy y mañana.
+- Referencia del proveedor aparece inmediatamente después de Orden de compra/Recepción, con la misma etiqueta y tipografía del valor.
+- Encabezado de Ingresos: **Nombre del almacén · Órdenes por ingresar**, en un renglón.
 
 ## Cambios de 18.0.1.7.0
 
@@ -162,3 +169,5 @@ Verificación 18.0.1.6.0: 38 pruebas locales Python, compilación de cinco plant
 Verificación 18.0.1.6.0: pruebas locales del orden libre de captura, descarte de edición, productos sin registrar en cero, asistente parcial, escaneo sin validación automática, compilación de plantillas y carga de acciones. Prueba integrada de entrega actualizada para retirar, volver a escanear y validar manualmente. Odoo.sh y app móvil pendientes de ejecución real.
 
 Verificación 18.0.1.7.0: 40 pruebas Python locales, seis plantillas compiladas con Owl, registro de acciones con el cargador Odoo y pruebas de navegación, cantidades y asistentes de las dos nuevas pantallas. Incluye prueba de integración nativa de Almacenamiento para ejecutar en Odoo.sh. No se ejecutó una instancia real de Odoo ni la app móvil.
+
+Verificación 18.0.1.7.1: fallo de Sass reproducido en 18.0.1.7.0 (unidades px y % incompatibles), ambos SCSS corregidos compilados con LibSass; 41 pruebas Python y comprobaciones cliente del tablero e Ingresos correctas. Falta prueba en Odoo.sh y móvil.

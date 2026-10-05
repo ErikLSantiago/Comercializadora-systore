@@ -266,6 +266,7 @@ class OperationsDashboard(models.AbstractModel):
             sections.append({
                 'key': section, 'title': TITLES[section], 'selected': self._totals(selected),
                 'next_days': count_for(today, 'next_days'),
+                'upcoming': count_for(today, 'upcoming'),
                 'today': count_for(today), 'tomorrow': count_for(today + timedelta(days=1)),
                 'overdue': count_for(today, 'overdue'), 'undated': count_for(today, 'undated'),
                 'rows': rows, 'truncated': (len(selected) if section in RECEIPT_SECTIONS else len(groups)) > 60,

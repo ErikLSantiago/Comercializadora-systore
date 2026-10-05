@@ -94,11 +94,11 @@
                                 <small t-if="isReceipt(section.key)"><t t-esc="format(section.today.pieces)"/> piezas</small>
                                 <small t-else=""><t t-esc="format(section.today.pieces)"/> piezas</small>
                             </button>
-                            <button t-if="section.key !== 'storage'" t-on-click="() => this.filter('tomorrow')" class="sod-mini">
-                                <span>Mañana</span><strong t-esc="format(isReceipt(section.key) ? section.tomorrow.orders : section.tomorrow.operations)"/>
-                                <small t-if="isReceipt(section.key)"><t t-esc="format(section.tomorrow.packages)"/> cajas</small>
-                                <small t-if="isReceipt(section.key)"><t t-esc="format(section.tomorrow.pieces)"/> piezas</small>
-                                <small t-else=""><t t-esc="format(section.tomorrow.pieces)"/> piezas</small>
+                            <button t-if="section.key !== 'storage'" t-on-click="() => this.filter('upcoming')" class="sod-mini">
+                                <span>Próximos días</span><strong t-esc="format(isReceipt(section.key) ? section.upcoming.orders : section.upcoming.operations)"/>
+                                <small t-if="isReceipt(section.key)"><t t-esc="format(section.upcoming.packages)"/> cajas</small>
+                                <small t-if="isReceipt(section.key)"><t t-esc="format(section.upcoming.pieces)"/> piezas</small>
+                                <small t-else=""><t t-esc="format(section.upcoming.pieces)"/> piezas</small>
                             </button>
                             <button t-on-click="() => this.filter('overdue')" class="sod-mini sod-overdue">
                                 <span>Atrasadas</span><strong t-esc="format(isReceipt(section.key) ? section.overdue.orders : section.overdue.operations)"/>

@@ -31,6 +31,7 @@ export class OperationsDashboard extends Component {
     }
 
     get dateLabel() {
+        if (this.state.scope === 'upcoming') return 'Próximos días';
         if (this.state.scope === 'next_days') return 'Próximos días';
         if (this.state.scope === 'all') return 'Todas las pendientes';
         if (this.state.scope === 'overdue') return 'Atrasadas';

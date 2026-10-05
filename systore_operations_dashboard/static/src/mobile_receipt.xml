@@ -4,8 +4,7 @@
 <div class="smp-shell">
     <header class="smp-header">
         <button class="smp-icon-button" t-on-click="back" t-att-disabled="state.busy" aria-label="Volver"><i class="fa fa-arrow-left"/></button>
-        <div><small>INGRESOS · <t t-esc="state.detail?.warehouse || state.panel?.warehouse || ''"/></small>
-            <h1 t-esc="state.detail &amp;&amp; ['capture','confirm'].includes(state.page) ? state.detail.name : 'Órdenes por ingresar'"/></div>
+        <div><h1 t-att-title="(state.detail?.warehouse || state.panel?.warehouse || '') + ' · Órdenes por ingresar'" t-esc="(state.detail?.warehouse || state.panel?.warehouse || '') + ' · ' + (state.detail &amp;&amp; ['capture','confirm'].includes(state.page) ? state.detail.name : 'Órdenes por ingresar')"/></div>
         <button t-if="state.page === 'panel'" class="smp-icon-button" t-on-click="() => this.loadPanel(state.pageNumber)" t-att-disabled="state.busy" aria-label="Actualizar"><i class="fa fa-refresh"/></button>
     </header>
     <main class="smp-main">
@@ -17,9 +16,9 @@
             <div class="smp-grid">
                 <button t-foreach="cards" t-as="card" t-key="card.key" class="smp-card smp-operation" t-on-click="() => this.openCard(card)" t-att-disabled="state.busy">
                     <span class="smp-kind">ORDEN DE COMPRA / RECEPCIÓN</span><h2 t-esc="card.name"/>
+                    <span class="smp-kind">Referencia del proveedor</span><h2 t-esc="card.supplier_ref || '—'"/>
                     <span class="smp-label">Documento de origen</span><p t-esc="card.origin || '—'"/>
                     <span class="smp-label">Proveedor</span><p t-esc="card.supplier"/>
-                    <span class="smp-label">Referencia del proveedor</span><p t-esc="card.supplier_ref || '—'"/>
                     <div class="smp-metrics"><span><strong t-esc="format(card.pieces)"/> piezas pendientes</span><span><strong t-esc="format(card.packages)"/> cajas OC</span></div>
                     <small><t t-esc="card.receipts.length"/> recepciones</small><div class="smp-open">Ingresar <i class="fa fa-arrow-right"/></div>
                 </button>
