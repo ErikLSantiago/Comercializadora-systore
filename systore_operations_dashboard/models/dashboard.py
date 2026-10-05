@@ -91,7 +91,7 @@ class OperationsDashboard(models.AbstractModel):
             types = {'pick': warehouse.pick_type_id, 'pack': warehouse.pack_type_id,
                      'out': warehouse.out_type_id}[section]
             specific = [('picking_type_id', 'in', types.ids)]
-        if section == 'pack':
+        if section in ('pack', 'storage'):
             specific.append(('state', '=', 'assigned'))
         if section == 'pick':
             specific.append(('state', '!=', 'draft'))
@@ -265,6 +265,7 @@ class OperationsDashboard(models.AbstractModel):
                     })
             sections.append({
                 'key': section, 'title': TITLES[section], 'selected': self._totals(selected),
+                'next_days': count_for(today, 'next_days'),
                 'today': count_for(today), 'tomorrow': count_for(today + timedelta(days=1)),
                 'overdue': count_for(today, 'overdue'), 'undated': count_for(today, 'undated'),
                 'rows': rows, 'truncated': (len(selected) if section in RECEIPT_SECTIONS else len(groups)) > 60,

@@ -18,7 +18,7 @@ class StockPicking(models.Model):
         store=True, compute_sudo=True,
     )
     systore_operations_packages = fields.Integer(
-        string='Bultos OC', compute='_compute_systore_operations_purchase_info',
+        string='Cajas OC', compute='_compute_systore_operations_purchase_info',
         store=True, compute_sudo=True,
         help='Total informado en las compras vinculadas. Puede repetirse en operaciones de la misma compra.',
     )

@@ -1,8 +1,16 @@
 # Tablero de operaciones · Odoo 18
 
-Versión **18.0.1.6.1** · Nombre técnico `systore_operations_dashboard`.
+Versión **18.0.1.7.0** · Nombre técnico `systore_operations_dashboard`.
 
-## Cambios
+## Cambios de 18.0.1.7.0
+
+- Etiquetas **Cajas** y **Lotes**. Se conserva el nombre técnico de los campos para mantener los datos existentes.
+- Almacenamiento solo muestra operaciones Listo. **Próximos días** reúne hoy y mañana en la zona horaria del usuario, sumando operaciones únicas; Atrasadas permanece separado. Al pulsarlo se aplica ese intervalo a la consulta.
+- **Operar** en Almacenamiento y Transferencias abre un panel móvil con buscador, productos, ubicaciones, cantidades editables y validación mediante `stock.picking.button_validate`. Mantiene permisos, lotes/series, rutas y asistentes de parcialización de Odoo. **Abrir original** conserva el formulario nativo para los detalles de trazabilidad.
+- Encabezados móviles en un solo renglón, con texto abreviado visualmente cuando la pantalla es estrecha.
+- Salidas muestra tarjetas de paquetes/guías, con el escaneo más reciente primero. Conserva la papelera y **Validar completas**, sin validación automática.
+
+## Cambios anteriores
 
 - Las tarjetas de Ingresos muestran el **Documento de origen** real (`stock.picking.origin`) de las recepciones vinculadas, y el buscador lo incluye. Si una compra tiene varios orígenes se muestran los distintos valores.
 - Las piezas registradas en el resumen de productos aparecen en azul y con mayor tamaño.
@@ -38,11 +46,11 @@ Estos puntos quedan para análisis y desarrollo posterior; esta versión no modi
 
 - **Siguiente producto** comprueba inmediatamente el UPC con el validador de `stock_upc_validation`. Un código incorrecto deja al usuario en el mismo producto y muestra el error. En el último producto aparece **Comprobar UPC**.
 - La pantalla de UPC incorpora imagen y cantidad **Recoger**, sumada para ese producto entre sus ubicaciones. Editar el código retira la marca UPC correcto.
-- Las tarjetas de **Baches** muestran el usuario del campo nativo `stock.picking.batch.user_id`, o **Sin asignar**.
+- Las tarjetas de **Lotes** muestran el usuario del campo nativo `stock.picking.batch.user_id`, o **Sin asignar**.
 - Recolección tiene un único resumen de todas sus operaciones pendientes, piezas y batches. Se retiran de esa tarjeta los cuadros Hoy, Mañana y Atrasadas. Su detalle y la apertura nativa abarcan todas las fechas; Ingresos y Almacenamiento conservan sus filtros de fecha.
 
 - Recolección excluye borradores en su tarjeta, listas y operación móvil.
-- **Operar** abre dos pestañas: **Por procesar** muestra cada recolección individual del almacén, incluida la que pertenece a un batch; **Baches** muestra únicamente los lotes con recolecciones asignadas. Cambiar de pestaña reinicia la paginación y la búsqueda.
+- **Operar** abre dos pestañas: **Por procesar** muestra cada recolección individual del almacén, incluida la que pertenece a un batch; **Lotes** muestra únicamente los lotes con recolecciones asignadas. Cambiar de pestaña reinicia la paginación y la búsqueda.
 - Las dos pestañas consultan todas las fechas del almacén seleccionado y mantienen el filtro **Completa**. El tablero conserva sus propios filtros de fecha.
 - El detalle incorpora la imagen nativa del producto y retira de la pantalla «Lote / serie nativa». Los lotes y su trazabilidad se conservan en Odoo.
 
@@ -69,7 +77,7 @@ En la tarjeta **Recolección**, pulse **Operar**. **Abrir operaciones** conserva
 
 ### Panel
 
-Se retiraron los textos introductorios: sobre las tarjetas queda únicamente el buscador. Las tarjetas conservan documento de origen, tipo, estado, órdenes y piezas. Por procesar muestra una tarjeta por operación; Baches muestra una tarjeta por lote.
+Se retiraron los textos introductorios: sobre las tarjetas queda únicamente el buscador. Las tarjetas conservan documento de origen, tipo, estado, órdenes y piezas. Por procesar muestra una tarjeta por operación; Lotes muestra una tarjeta por lote.
 
 El filtro utiliza el campo nativo de su módulo UPC **`systore_batch_readiness_state = 'complete'` (Completa)**. Este es el nombre técnico existente, sin la letra «l» adicional de `readliness`. Solo se muestran operaciones pendientes completas del almacén, de cualquier fecha, excluyendo borradores. Para un batch se comprueban todas sus operaciones pendientes: si alguna está parcial, el batch completo queda fuera de este panel. No se valida un subconjunto ocultando sus miembros parciales.
 
@@ -92,7 +100,7 @@ La interfaz funciona dentro de Odoo y de su app móvil con conexión. El ZIP con
 
 ## Ingresos móvil
 
-En **Ingresos**, pulse **Operar**. El panel respeta la fecha esperada y el filtro del tablero y muestra las compras, proveedor, referencia y bultos. Si una compra tiene varias recepciones, seleccione la operación. Una recepción que consolida varias compras valida todas sus líneas visibles y lo indica antes de confirmar.
+En **Ingresos**, pulse **Operar**. El panel respeta la fecha esperada y el filtro del tablero y muestra las compras, proveedor, referencia y cajas. Si una compra tiene varias recepciones, seleccione la operación. Una recepción que consolida varias compras valida todas sus líneas visibles y lo indica antes de confirmar.
 
 Cada pantalla muestra un producto con imagen, demanda, cantidad recibida manual y UPC. La cantidad comienza vacía para que el operador la capture. La captura comprueba el UPC antes de pasar al siguiente producto; cero permite dejarlo pendiente. Al terminar se revisan las cantidades y se pulsa Confirmar ingreso. Se reutilizan los métodos del módulo instalado `stock_upc_validation`: en recepción, un UPC nuevo puede registrarse para el producto; uno asignado a otro producto se rechaza. La comprobación previa revierte cualquier registro provisional; el código se registra al confirmar.
 
@@ -115,7 +123,7 @@ El panel no convierte los números de serie adicionales en lotes o series nativo
 Abra Salidas para comenzar una sesión vacía del filtro seleccionado, o abra una operación/batch concreto. Escanee un código y presione Enter:
 
 - Si existen paquetes nativos, use sus códigos. Una salida con varios paquetes solo queda habilitada para Validar completas después de escanearlos todos; una guía que cubra varios paquetes no los sustituye.
-- Si no existen paquetes nativos, la guía identifica **un paquete por operación de salida**. Para contar varios bultos de una orden, cree los paquetes nativos durante el empaque.
+- Si no existen paquetes nativos, la guía identifica **un paquete por operación de salida**. Para contar varios cajas de una orden, cree los paquetes nativos durante el empaque.
 - Se rechazan códigos desconocidos, guías ambiguas, duplicados, operaciones fuera de la sesión y salidas sin disponibilidad. Una salida que mezcla piezas empaquetadas y sueltas exige completar el empaque.
 - Cada escaneo actualiza el listado sin validar entregas. La papelera permite retirar registros no entregados. Si Odoo solicita UPC, lotes, series, guía o un asistente adicional, se muestra ese flujo; no se omite. **Validar completas** permite retomar las operaciones ya escaneadas después de resolver un asistente.
 
@@ -123,7 +131,7 @@ La sesión corresponde al operador que la creó y conserva sus escaneos mientras
 
 ## Contadores y fechas
 
-En In y Storage se usa la **Fecha esperada de la compra (`date_planned`)**, la referencia del proveedor (`partner_ref`) y los bultos informativos de la OC. Bultos y piezas se cuentan una sola vez por compra dentro de cada etapa. Piezas representa el total solicitado de productos físicos, no un saldo que disminuya con cada recepción parcial. En recepciones sin compra, se usa la demanda de la operación.
+En In y Storage se usa la **Fecha esperada de la compra (`date_planned`)**, la referencia del proveedor (`partner_ref`) y los cajas informativos de la OC. Cajas y piezas se cuentan una sola vez por compra dentro de cada etapa. Piezas representa el total solicitado de productos físicos, no un saldo que disminuya con cada recepción parcial. En recepciones sin compra, se usa la demanda de la operación.
 
 En expediciones y transferencias se usan fecha programada y demanda de movimientos pendientes. Los totales de diferentes etapas no se suman: una misma mercancía puede estar en varias etapas del flujo. Transferencias muestra movimientos internos desde Existencias del almacén hacia cualquier ubicación, sujeto a los tipos seleccionados. Excluye los tipos nativos In, Pick, Pack y Out, además de tipos con código de entrada o salida.
 
@@ -152,3 +160,5 @@ En smartphone compruebe: flecha al tablero; solo completas; dos órdenes del mis
 Verificación 18.0.1.6.0: 38 pruebas locales Python, compilación de cinco plantillas, carga de acciones y pruebas cliente de captura secuencial con producto en cero, parcialización, formato agrupado Pack y apertura original. Las pruebas de integración de búsqueda por proveedor y cantidades parciales se incluyen para ejecutar en Odoo.sh; no se ejecutó una instancia real de Odoo ni la app móvil.
 
 Verificación 18.0.1.6.0: pruebas locales del orden libre de captura, descarte de edición, productos sin registrar en cero, asistente parcial, escaneo sin validación automática, compilación de plantillas y carga de acciones. Prueba integrada de entrega actualizada para retirar, volver a escanear y validar manualmente. Odoo.sh y app móvil pendientes de ejecución real.
+
+Verificación 18.0.1.7.0: 40 pruebas Python locales, seis plantillas compiladas con Owl, registro de acciones con el cargador Odoo y pruebas de navegación, cantidades y asistentes de las dos nuevas pantallas. Incluye prueba de integración nativa de Almacenamiento para ejecutar en Odoo.sh. No se ejecutó una instancia real de Odoo ni la app móvil.

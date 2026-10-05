@@ -31,6 +31,7 @@ export class OperationsDashboard extends Component {
     }
 
     get dateLabel() {
+        if (this.state.scope === 'next_days') return 'Próximos días';
         if (this.state.scope === 'all') return 'Todas las pendientes';
         if (this.state.scope === 'overdue') return 'Atrasadas';
         if (this.state.scope === 'undated') return 'Sin fecha';
@@ -151,6 +152,16 @@ export class OperationsDashboard extends Component {
         }
     }
 
+    async openMobileInternal(section) {
+        if (this.state.opening || this.state.loading) return;
+        this.state.opening = true;
+        try {
+            const action = await this.orm.call('systore.operations.dashboard','open_mobile_internal',[
+                this.state.warehouseId,section,this.state.date,section === 'storage' ? this.state.scope : 'all']);
+            await this.action.doAction(action);
+        } catch (error) { this.notification.add(error.data?.message || error.message,{type:'danger'}); }
+        finally { this.state.opening = false; }
+    }
     async openMobilePack(row = null) {
         if (this.state.opening || this.state.loading || !this.state.data) return;
         this.state.opening = true;

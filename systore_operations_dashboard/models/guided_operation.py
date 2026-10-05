@@ -104,7 +104,7 @@ class GuidedOperationsService(models.AbstractModel):
         if section not in ('pick', 'pack', 'out'):
             raise ValidationError(_('Etapa inválida.'))
         pickings = self.env['stock.picking'].search(self._filtered_domain(warehouse, section, day, scope, today, timezone))
-        return {'type': 'ir.actions.act_window', 'name': _('Batches de expedición'),
+        return {'type': 'ir.actions.act_window', 'name': _('Lotes de expedición'),
                 'res_model': 'stock.picking.batch', 'view_mode': 'list,form',
                 'domain': [('id', 'in', pickings.batch_id.ids)],
                 'context': dict(self.env.context, default_company_id=warehouse.company_id.id,

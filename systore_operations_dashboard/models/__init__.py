@@ -10,3 +10,5 @@ from . import mobile_pick
 from . import mobile_receipt
 
 from . import mobile_pack
+
+from . import mobile_internal

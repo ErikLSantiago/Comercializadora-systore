@@ -19,7 +19,7 @@
                     <button t-on-click="() => this.switchMode('pending')" t-att-class="{'active':state.mode === 'pending'}"
                             t-att-aria-pressed="state.mode === 'pending'" t-att-disabled="state.busy">Por procesar</button>
                     <button t-on-click="() => this.switchMode('batches')" t-att-class="{'active':state.mode === 'batches'}"
-                            t-att-aria-pressed="state.mode === 'batches'" t-att-disabled="state.busy">Baches</button>
+                            t-att-aria-pressed="state.mode === 'batches'" t-att-disabled="state.busy">Lotes</button>
                 </nav>
                 <label class="smp-search"><span class="visually-hidden">Buscar recolecciones</span><input type="search" t-model="state.query" t-on-keydown="searchKey" placeholder="Buscar orden, producto o UPC"/><button class="smp-link" t-on-click="search" t-att-disabled="state.busy">Buscar</button></label>
                 <div class="smp-grid">

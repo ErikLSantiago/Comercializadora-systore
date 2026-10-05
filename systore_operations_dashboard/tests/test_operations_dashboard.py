@@ -58,8 +58,8 @@ class TestOperationsDashboard(TransactionCase):
         self.assertEqual(len(section['rows']), 1)
         self.assertEqual(section['rows'][0]['operations'], len(pickings.filtered(lambda p: p.picking_type_id == self.warehouse.in_type_id)))
         storage = next(s for s in self.service.get_dashboard(self.warehouse.id, '2026-10-01')['sections'] if s['key'] == 'storage')
-        self.assertEqual(storage['selected']['packages'], 7)
-        self.assertEqual(storage['selected']['pieces'], 10)
+        self.assertEqual(storage['selected']['packages'], 0)  # Storage is waiting until In is validated
+        self.assertEqual(storage['selected']['pieces'], 0)
         self.assertEqual(section['selected']['pieces'], 10)
 
     def test_expected_date_change_and_negative_packages(self):
@@ -147,9 +147,9 @@ class TestOperationsDashboard(TransactionCase):
         self.warehouse.systore_operations_type_ids = self.warehouse.store_type_id
         data = self.service.get_dashboard(self.warehouse.id, '2026-10-01')
         self.assertEqual([s['key'] for s in data['sections']], ['storage', 'transfers'])
-        self.assertEqual(data['sections'][0]['selected']['pieces'], 10)
+        self.assertEqual(data['sections'][0]['selected']['pieces'], 0)
         action = self.service.open_operations(self.warehouse.id, 'storage', '2026-10-01')
-        self.assertEqual(self.env['stock.picking'].search(action['domain']).picking_type_id, self.warehouse.store_type_id)
+        self.assertFalse(self.env['stock.picking'].search(action['domain']))
         self.warehouse.systore_operations_type_ids = False
         self.assertEqual(self.service._visible_sections(self.warehouse), ['transfers'])
 
@@ -358,3 +358,22 @@ class TestOperationsDashboard(TransactionCase):
     def test_transfers_require_assigned(self):
         domain = self.service._section_domain(self.warehouse, 'transfers')
         self.assertIn(('state', '=', 'assigned'), domain)
+
+    def test_mobile_storage_native_validation(self):
+        source = self.warehouse.wh_input_stock_loc_id
+        self.env['stock.quant']._update_available_quantity(self.product, source, 3)
+        picking = self.env['stock.picking'].create({
+            'picking_type_id': self.warehouse.store_type_id.id,
+            'location_id': source.id, 'location_dest_id': self.warehouse.lot_stock_id.id,
+            'move_ids': [Command.create({'name': self.product.name, 'product_id': self.product.id,
+                'product_uom_qty': 3, 'product_uom': self.product.uom_id.id,
+                'location_id': source.id, 'location_dest_id': self.warehouse.lot_stock_id.id})]})
+        picking.action_confirm()
+        picking.action_assign()
+        detail = self.service.get_mobile_internal_detail(self.warehouse.id, 'storage', picking.id)
+        with self.assertRaises(AccessError):
+            self.service.with_user(self.other_user).get_mobile_internal_detail(self.warehouse.id, 'storage', picking.id)
+        values = [{'id': row['id'], 'quantity': row['qty']} for row in detail['rows']]
+        result = self.service.validate_mobile_internal(self.warehouse.id, 'storage', picking.id, detail['token'], values)
+        self.assertTrue(result['complete'])
+        self.assertEqual(picking.state, 'done')

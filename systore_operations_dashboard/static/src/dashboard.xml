@@ -74,7 +74,7 @@
                             <span t-esc="isReceipt(section.key) ? 'órdenes de compra' : 'operaciones'"/>
                         </div>
                         <div t-if="isReceipt(section.key)" class="sod-secondary-count">
-                            <strong t-esc="format(section.selected.packages)"/> bultos esperados
+                            <strong t-esc="format(section.selected.packages)"/> cajas esperadas
                             <span>· <t t-esc="format(section.selected.pieces)"/> piezas</span>
                         </div>
                         <div t-else="" class="sod-secondary-count">
@@ -87,26 +87,27 @@
                             <t t-else="">Todas las salidas pendientes</t>
                         </div>
                         <div t-if="isReceipt(section.key)" class="sod-mini-counts">
-                            <button t-on-click="() => this.filter('today')" class="sod-mini">
+                            <button t-if="section.key === 'storage'" class="sod-mini" t-on-click="() => this.filter('next_days')"><span>Próximos días</span><strong t-esc="format(section.next_days.operations)"/><small>operaciones · <t t-esc="format(section.next_days.pieces)"/> piezas</small></button>
+                            <button t-if="section.key !== 'storage'" t-on-click="() => this.filter('today')" class="sod-mini">
                                 <span>Hoy</span><strong t-esc="format(isReceipt(section.key) ? section.today.orders : section.today.operations)"/>
-                                <small t-if="isReceipt(section.key)"><t t-esc="format(section.today.packages)"/> bultos</small>
+                                <small t-if="isReceipt(section.key)"><t t-esc="format(section.today.packages)"/> cajas</small>
                                 <small t-if="isReceipt(section.key)"><t t-esc="format(section.today.pieces)"/> piezas</small>
                                 <small t-else=""><t t-esc="format(section.today.pieces)"/> piezas</small>
                             </button>
-                            <button t-on-click="() => this.filter('tomorrow')" class="sod-mini">
+                            <button t-if="section.key !== 'storage'" t-on-click="() => this.filter('tomorrow')" class="sod-mini">
                                 <span>Mañana</span><strong t-esc="format(isReceipt(section.key) ? section.tomorrow.orders : section.tomorrow.operations)"/>
-                                <small t-if="isReceipt(section.key)"><t t-esc="format(section.tomorrow.packages)"/> bultos</small>
+                                <small t-if="isReceipt(section.key)"><t t-esc="format(section.tomorrow.packages)"/> cajas</small>
                                 <small t-if="isReceipt(section.key)"><t t-esc="format(section.tomorrow.pieces)"/> piezas</small>
                                 <small t-else=""><t t-esc="format(section.tomorrow.pieces)"/> piezas</small>
                             </button>
                             <button t-on-click="() => this.filter('overdue')" class="sod-mini sod-overdue">
                                 <span>Atrasadas</span><strong t-esc="format(isReceipt(section.key) ? section.overdue.orders : section.overdue.operations)"/>
-                                <small t-if="isReceipt(section.key)"><t t-esc="format(section.overdue.packages)"/> bultos</small>
+                                <small t-if="isReceipt(section.key)"><t t-esc="format(section.overdue.packages)"/> cajas</small>
                                 <small t-if="isReceipt(section.key)"><t t-esc="format(section.overdue.pieces)"/> piezas</small>
                                 <small t-else=""><t t-esc="format(section.overdue.pieces)"/> piezas</small>
                             </button>
                         </div>
-                        <div class="sod-card-actions">
+                        <div class="sod-card-actions"><button t-if="['storage','transfers'].includes(section.key)" class="btn btn-primary btn-lg" t-on-click="() => this.openMobileInternal(section.key)" t-att-disabled="state.opening">Operar</button>
                             <button t-if="section.key === 'in'" class="btn btn-primary btn-lg" t-on-click="() => this.openMobileReceipt()" t-att-disabled="state.opening">
                                 <i class="fa fa-mobile me-1"/> Operar
                             </button>
@@ -119,7 +120,7 @@
                             </button>
                             
                             <button t-if="['pick', 'pack', 'out'].includes(section.key)" class="btn btn-link"
-                                    t-on-click="() => this.openBatches(section.key)" t-att-disabled="state.opening">Batches</button>
+                                    t-on-click="() => this.openBatches(section.key)" t-att-disabled="state.opening">Lotes</button>
                         </div>
                     </article>
                 </div>

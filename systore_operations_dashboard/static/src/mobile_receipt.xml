@@ -20,7 +20,7 @@
                     <span class="smp-label">Documento de origen</span><p t-esc="card.origin || '—'"/>
                     <span class="smp-label">Proveedor</span><p t-esc="card.supplier"/>
                     <span class="smp-label">Referencia del proveedor</span><p t-esc="card.supplier_ref || '—'"/>
-                    <div class="smp-metrics"><span><strong t-esc="format(card.pieces)"/> piezas pendientes</span><span><strong t-esc="format(card.packages)"/> bultos OC</span></div>
+                    <div class="smp-metrics"><span><strong t-esc="format(card.pieces)"/> piezas pendientes</span><span><strong t-esc="format(card.packages)"/> cajas OC</span></div>
                     <small><t t-esc="card.receipts.length"/> recepciones</small><div class="smp-open">Ingresar <i class="fa fa-arrow-right"/></div>
                 </button>
             </div>

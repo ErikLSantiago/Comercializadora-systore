@@ -4,7 +4,7 @@ from datetime import datetime, time, timedelta
 import pytz
 
 
-SCOPES = {'date', 'overdue', 'all', 'undated'}
+SCOPES = {'date', 'overdue', 'all', 'undated', 'next_days'}
 
 
 def local_day_bounds(day, timezone):
@@ -30,6 +30,8 @@ def matches_scope(value, scope, selected_day, today, timezone):
         return day is None
     if day is None:
         return False
+    if scope == 'next_days':
+        return today <= day <= today + timedelta(days=1)
     if scope == 'overdue':
         return day < today
     return day == selected_day

@@ -83,3 +83,7 @@
 .sod-warehouse-card > .fa-arrow-right { align-self: flex-end; color: #505be8; }
 .sod-warehouse-card:hover, .sod-warehouse-card:focus-visible { border-color: #505be8; outline: 2px solid #505be8; }
 @media (max-width: 600px) { .sod-warehouse-grid { grid-template-columns: 1fr; } }
+
+.sod-dispatch-cards { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 320px), 1fr)); gap: 14px; }
+.sod-dispatch-card { background: white; padding: 18px; border: 1px solid #dce3ef; border-radius: 14px; overflow-wrap: anywhere; }
+.sod-dispatch-card h2 { font-size: 22px; margin: 6px 0 14px; }

@@ -23,13 +23,12 @@
                     <i class="fa fa-barcode sod-empty-icon" aria-hidden="true"/>
                     <h2>Lista para comenzar</h2><p>La lista se llenará conforme escanee los paquetes. Pulse Validar completas cuando termine de revisar los paquetes.</p>
                 </div>
-                <div t-else="" class="sod-detail sod-table-scroll">
-                    <table class="table table-hover"><thead><tr><th>Paquete / guía</th><th>Número de orden</th><th>Estado</th><th><span class="visually-hidden">Retirar</span></th></tr></thead>
-                        <tbody><tr t-foreach="state.snapshot.rows" t-as="row" t-key="row.id">
-                            <td t-esc="row.code"/><td t-esc="row.orders"/>
-                            <td><span class="sod-state" t-att-class="{'sod-state-ready':row.validated}" t-esc="row.validated ? 'Entregada' : 'Escaneada · pendiente de validación'"/></td>
-                        <td><button t-if="row.removable" class="btn btn-link text-danger" t-on-click="() => this.remove(row.id)" t-att-disabled="state.busy" aria-label="Retirar paquete" title="Retirar paquete"><i class="fa fa-trash"/></button></td></tr></tbody>
-                    </table>
+                <div t-else="" class="sod-dispatch-cards">
+                    <article t-foreach="state.snapshot.rows.slice().reverse()" t-as="row" t-key="row.id" class="sod-dispatch-card">
+                        <div class="d-flex justify-content-between align-items-start"><div><small>Paquete / guía</small><h2 t-esc="row.code"/></div><button t-if="row.removable" class="btn btn-link text-danger" t-on-click="() => this.remove(row.id)" t-att-disabled="state.busy" aria-label="Retirar paquete"><i class="fa fa-trash"/></button></div>
+                        <p>Número de orden: <strong t-esc="row.orders || '—'"/></p>
+                        <span class="sod-state" t-att-class="{'sod-state-ready':row.validated}" t-esc="row.validated ? 'Entregada' : 'Escaneada · pendiente de validación'"/>
+                    </article>
                 </div>
             </t>
         </div>
