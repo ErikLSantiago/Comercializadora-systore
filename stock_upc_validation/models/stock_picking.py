@@ -89,7 +89,11 @@ class StockPicking(models.Model):
                 picking = pickings_to_validate[0]
                 wizard = self.env['stock.picking.upc.wizard'].create_from_picking(picking)
                 return {
-                    'name': _('Validar UPC/EAN de recolección'),
+                    'name': (
+                        _('Validar UPC/EAN y NS/IMEI')
+                        if picking._systore_requires_full_pack_validation()
+                        else _('Validar UPC/EAN de recolección')
+                    ),
                     'type': 'ir.actions.act_window',
                     'res_model': 'stock.picking.upc.wizard',
                     'view_mode': 'form',
@@ -181,6 +185,37 @@ class StockPicking(models.Model):
 
         return [groups[key] for key in order]
 
+    def _systore_is_effective_pack_step(self):
+        """Return whether this transfer is the operational PACK-equivalent step.
+
+        Native Odoo delivery routing:
+        * 3 steps (pick_pack_ship): PACK
+        * 2 steps (pick_ship): PICK
+        * 1 step (ship_only): DELIVERY
+        """
+        self.ensure_one()
+        warehouse = self.picking_type_id.warehouse_id
+        if not warehouse:
+            return bool(self.picking_type_id.systore_require_tracking_on_pack)
+
+        delivery_steps = getattr(warehouse, 'delivery_steps', False)
+        if delivery_steps == 'pick_pack_ship':
+            return bool(warehouse.pack_type_id and self.picking_type_id == warehouse.pack_type_id)
+        if delivery_steps == 'pick_ship':
+            return bool(warehouse.pick_type_id and self.picking_type_id == warehouse.pick_type_id)
+        if delivery_steps == 'ship_only':
+            return bool(warehouse.out_type_id and self.picking_type_id == warehouse.out_type_id)
+        return bool(self.picking_type_id.systore_require_tracking_on_pack)
+
+    def _systore_requires_full_pack_validation(self):
+        self.ensure_one()
+        return self._systore_is_effective_pack_step()
+
+    def _systore_requires_tracking_capture(self):
+        self.ensure_one()
+        # The effective PACK step captures the guide in 1/2/3-step warehouses.
+        return self._systore_is_effective_pack_step()
+
     def _systore_needs_upc_picking_wizard(self):
         self.ensure_one()
         if self.picking_type_id.code == 'incoming':
@@ -188,12 +223,11 @@ class StockPicking(models.Model):
         if not self._systore_upc_validation_enabled_for_warehouse():
             return False
 
-        # Recolección/salida usan el check general de UPC/EAN.
-        # Empaque con guía debe abrir el wizard completo porque ahí también se captura
-        # UPC/EAN por pieza y NS/IMEI; si no, caería al wizard simple de sólo guía.
+        # PICK clásico usa la validación general. El paso equivalente a PACK
+        # se detecta por delivery_steps y abre siempre el flujo completo por pieza.
         if not (
             self.picking_type_id.systore_require_upc_on_picking
-            or self.picking_type_id.systore_require_tracking_on_pack
+            or self._systore_requires_full_pack_validation()
         ):
             return False
 
@@ -348,14 +382,14 @@ class StockPicking(models.Model):
             return False
         if not self._systore_upc_validation_enabled_for_warehouse():
             return False
-        if not self.picking_type_id.systore_require_tracking_on_pack:
+        if not self._systore_requires_tracking_capture():
             return False
         return not bool((self.carrier_tracking_ref or '').strip())
 
     def _systore_propagate_pack_tracking_to_outgoing(self):
         for picking in self:
             tracking = (picking.carrier_tracking_ref or '').strip()
-            if not tracking or not picking.picking_type_id.systore_require_tracking_on_pack:
+            if not tracking or not picking._systore_requires_tracking_capture():
                 continue
 
             next_pickings = picking.move_ids.move_dest_ids.mapped('picking_id').filtered(

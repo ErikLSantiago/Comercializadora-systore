@@ -7,7 +7,8 @@
             <form string="Capturar número de guía">
                 <group>
                     <field name="picking_id"/>
-                    <field name="tracking_ref" placeholder="Escanee o capture la guía"/>
+                    <field name="tracking_ref" placeholder="Escanee o capture la guía" readonly="skip_tracking_ref"/>
+                    <field name="skip_tracking_ref" string="No asignar número de guía"/>
                 </group>
                 <footer>
                     <button name="action_confirm" type="object" string="Confirmar y validar" class="btn-primary"/>

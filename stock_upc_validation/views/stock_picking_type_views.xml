@@ -7,6 +7,9 @@
         <field name="arch" type="xml">
             <xpath expr="//group" position="inside">
                 <group string="Validaciones Systore">
+                    <field name="systore_delivery_steps_info" readonly="1"/>
+                    <field name="systore_effective_pack_step" readonly="1"/>
+                    <field name="systore_pack_flow_info" readonly="1"/>
                     <field name="systore_require_upc_on_receipt"/>
                     <field name="systore_auto_lot_from_origin" invisible="not systore_require_upc_on_receipt"/>
                     <field name="systore_require_upc_on_picking"/>

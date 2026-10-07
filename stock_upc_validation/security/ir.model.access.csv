@@ -3,4 +3,6 @@ access_stock_receipt_upc_wizard,stock.receipt.upc.wizard,model_stock_receipt_upc
 access_stock_receipt_upc_wizard_line,stock.receipt.upc.wizard.line,model_stock_receipt_upc_wizard_line,stock.group_stock_user,1,1,1,1
 access_stock_picking_upc_wizard,stock.picking.upc.wizard,model_stock_picking_upc_wizard,stock.group_stock_user,1,1,1,1
 access_stock_picking_upc_wizard_line,stock.picking.upc.wizard.line,model_stock_picking_upc_wizard_line,stock.group_stock_user,1,1,1,1
+access_stock_picking_mass_serial_wizard,stock.picking.mass.serial.wizard,model_stock_picking_mass_serial_wizard,stock.group_stock_user,1,1,1,1
+access_stock_picking_mass_serial_wizard_line,stock.picking.mass.serial.wizard.line,model_stock_picking_mass_serial_wizard_line,stock.group_stock_user,1,1,1,1
 access_stock_pack_tracking_wizard,stock.pack.tracking.wizard,model_stock_pack_tracking_wizard,stock.group_stock_user,1,1,1,1

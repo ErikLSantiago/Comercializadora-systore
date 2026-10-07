@@ -1,5 +1,8 @@
-from odoo import _, api, fields, models
+from collections import Counter
+
+from odoo import _, Command, api, fields, models
 from odoo.exceptions import ValidationError, UserError
+from odoo.tools.float_utils import float_compare, float_is_zero
 
 
 class StockPickingUPCWizard(models.TransientModel):
@@ -9,18 +12,35 @@ class StockPickingUPCWizard(models.TransientModel):
     picking_id = fields.Many2one('stock.picking', string='Traslado', readonly=True)
     batch_id = fields.Many2one('stock.picking.batch', string='Batch', readonly=True)
     picking_type_id = fields.Many2one(related='picking_id.picking_type_id', string='Tipo de operación', readonly=True)
-    require_tracking_on_pack = fields.Boolean(related='picking_id.systore_require_tracking_on_pack', readonly=True)
-    require_serial_imei = fields.Boolean(related='picking_id.systore_require_tracking_on_pack', readonly=True)
+    require_tracking_on_pack = fields.Boolean(compute='_compute_pack_requirements', readonly=True)
+    require_serial_imei = fields.Boolean(compute='_compute_pack_requirements', readonly=True)
+    mass_capture_available = fields.Boolean(compute='_compute_pack_requirements', readonly=True)
+    capture_massive = fields.Boolean(string='Captura masiva')
     tracking_ref = fields.Char(string='Número de guía')
+    skip_tracking_ref = fields.Boolean(string='No asignar número de guía')
     line_ids = fields.One2many('stock.picking.upc.wizard.line', 'wizard_id', string='Productos a validar')
 
-    @api.model
-    def create_from_picking(self, picking):
-        picking.ensure_one()
-        values = []
+    @api.depends('picking_id', 'picking_id.picking_type_id')
+    def _compute_pack_requirements(self):
+        for wizard in self:
+            full_pack = bool(wizard.picking_id and wizard.picking_id._systore_requires_full_pack_validation())
+            wizard.require_tracking_on_pack = full_pack
+            wizard.require_serial_imei = full_pack
+            wizard.mass_capture_available = full_pack
 
-        # PACK: validar pieza por pieza para capturar NS/IMEI individual.
-        if picking.systore_require_tracking_on_pack:
+    @api.onchange('capture_massive')
+    def _onchange_capture_massive(self):
+        for wizard in self:
+            if not wizard.picking_id or not wizard.mass_capture_available:
+                wizard.capture_massive = False
+                continue
+            values = wizard._prepare_picking_line_values(wizard.picking_id, wizard.capture_massive)
+            wizard.line_ids = [Command.clear()] + [Command.create(value) for value in values]
+
+    @api.model
+    def _prepare_picking_line_values(self, picking, capture_massive=False):
+        values = []
+        if picking._systore_requires_full_pack_validation() and not capture_massive:
             scan_count_by_product = {}
             moves = picking.move_ids_without_package.filtered(
                 lambda m: m.state not in ('done', 'cancel')
@@ -33,34 +53,41 @@ class StockPickingUPCWizard(models.TransientModel):
                     qty = int(round(move.product_uom_qty or 0.0))
                 for _idx in range(max(qty, 1)):
                     scan_count_by_product[move.product_id.id] = scan_count_by_product.get(move.product_id.id, 0) + 1
-                    values.append((0, 0, {
+                    values.append({
                         'product_id': move.product_id.id,
                         'lot_id': False,
                         'scan_no': scan_count_by_product[move.product_id.id],
                         'demand_qty': 1.0,
+                        'processed_qty': 1.0,
                         'upc_ean': False,
                         'serial_imei': False,
                         'skip_upc_validation': False,
-                    }))
-        else:
-            # PICK / recolección: validar de forma masiva por producto.
-            # Una línea escaneada representa toda la demanda del producto, aunque venga de varios lotes nativos.
-            grouped = picking._systore_pick_validation_groups()
-            seq = 0
-            for group in grouped:
-                seq += 1
-                values.append((0, 0, {
-                    'product_id': group['product_id'],
-                    'lot_id': group.get('lot_id') or False,
-                    'scan_no': seq,
-                    'demand_qty': group.get('demand_qty') or 0.0,
-                    'upc_ean': False,
-                    'serial_imei': False,
-                    'skip_upc_validation': False,
-                }))
+                    })
+            return values
+
+        # La captura masiva y la recolección normal usan una línea por producto.
+        for seq, group in enumerate(picking._systore_pick_validation_groups(), start=1):
+            demand_qty = group.get('demand_qty') or 0.0
+            values.append({
+                'product_id': group['product_id'],
+                'lot_id': group.get('lot_id') or False,
+                'scan_no': seq,
+                'demand_qty': demand_qty,
+                'processed_qty': demand_qty,
+                'upc_ean': False,
+                'serial_imei': False,
+                'skip_upc_validation': False,
+            })
+        return values
+
+    @api.model
+    def create_from_picking(self, picking):
+        picking.ensure_one()
+        values = [Command.create(value) for value in self._prepare_picking_line_values(picking)]
 
         return self.create({
             'picking_id': picking.id,
+            'capture_massive': False,
             'line_ids': values,
         })
 
@@ -93,6 +120,7 @@ class StockPickingUPCWizard(models.TransientModel):
                 'lot_id': False,
                 'scan_no': seq,
                 'demand_qty': group.get('demand_qty') or 0.0,
+                'processed_qty': group.get('demand_qty') or 0.0,
                 'upc_ean': False,
                 'serial_imei': False,
                 'skip_upc_validation': False,
@@ -111,22 +139,53 @@ class StockPickingUPCWizard(models.TransientModel):
 
     def action_confirm(self):
         self.ensure_one()
+        self._validate_header_inputs()
+
+        if self.capture_massive and self.require_serial_imei:
+            serial_wizard = self.env['stock.picking.mass.serial.wizard'].create_from_upc_wizard(self)
+            if serial_wizard.line_ids:
+                return {
+                    'name': _('Capturar múltiples NS/IMEI'),
+                    'type': 'ir.actions.act_window',
+                    'res_model': 'stock.picking.mass.serial.wizard',
+                    'view_mode': 'form',
+                    'target': 'new',
+                    'res_id': serial_wizard.id,
+                }
+            # Todos los productos fueron marcados sin UPC/EAN; tampoco requieren NS/IMEI.
+            return self._finalize_validation()
+
+        return self._finalize_validation()
+
+    def _validate_header_inputs(self):
+        self.ensure_one()
         if not self.line_ids:
             raise UserError(_('No hay productos para validar.'))
-        vals = {'systore_upc_picking_validated': True}
+
         if self.require_tracking_on_pack:
             tracking = (self.tracking_ref or '').strip()
-            if not tracking:
+            if not tracking and not self.skip_tracking_ref:
                 raise ValidationError(_('Debe capturar el número de guía antes de validar el empaque %s.') % self.picking_id.display_name)
-            vals['carrier_tracking_ref'] = tracking
+            self.tracking_ref = tracking or False
 
         for line in self.line_ids:
+            line._validate_processed_qty(self.capture_massive)
             line._validate_scanned_barcode()
-            if self.require_serial_imei:
+            if self.require_serial_imei and not self.capture_massive:
                 line._validate_serial_imei()
+        return True
+
+    def _finalize_validation(self, mass_serial_lines=None):
+        self.ensure_one()
+        self._validate_header_inputs()
+        vals = {'systore_upc_picking_validated': True}
+        if self.require_tracking_on_pack and not self.skip_tracking_ref:
+            vals['carrier_tracking_ref'] = (self.tracking_ref or '').strip()
+
         self._post_skip_upc_message()
+        self._post_skip_tracking_message()
         if self.require_serial_imei:
-            self._create_additional_serials()
+            self._create_additional_serials(mass_serial_lines=mass_serial_lines)
 
         # Permite procesos parciales desde el wizard: las líneas eliminadas no se procesan.
         # Se ajustan las cantidades del traslado antes de llamar button_validate para que
@@ -147,7 +206,20 @@ class StockPickingUPCWizard(models.TransientModel):
             return batch.action_done()
 
         self.picking_id.sudo().write(vals)
-        return self.picking_id.with_context(systore_skip_upc_picking_wizard=True).button_validate()
+        return self.picking_id.with_context(
+            systore_skip_upc_picking_wizard=True,
+            systore_skip_pack_tracking_wizard=bool(self.skip_tracking_ref),
+        ).button_validate()
+
+    def _post_skip_tracking_message(self):
+        self.ensure_one()
+        if not self.require_tracking_on_pack or not self.skip_tracking_ref:
+            return
+        body = _(
+            '<b>Número de guía omitido</b><br/>'
+            'El usuario <b>%s</b> validó la operación sin asignar número de guía.'
+        ) % self.env.user.display_name
+        self.picking_id.sudo().message_post(body=body)
 
     def _post_skip_upc_message(self):
         self.ensure_one()
@@ -195,7 +267,8 @@ class StockPickingUPCWizard(models.TransientModel):
         def _qty_by_product(lines):
             result = {}
             for line in lines:
-                result[line.product_id.id] = result.get(line.product_id.id, 0.0) + (line.demand_qty or 0.0)
+                qty = line.processed_qty if self.capture_massive else line.demand_qty
+                result[line.product_id.id] = result.get(line.product_id.id, 0.0) + (qty or 0.0)
             return result
 
         if self.batch_id:
@@ -250,19 +323,40 @@ class StockPickingUPCWizard(models.TransientModel):
                 ml.qty_done = line_qty
             remaining = max(remaining - line_qty, 0.0)
 
-    def _create_additional_serials(self):
+    def _create_additional_serials(self, mass_serial_lines=None):
         self.ensure_one()
         Serial = self.env['stock.move.line.serial'].sudo()
         to_create = []
         assigned_count_by_ml = {}
+        entries = []
+
+        if mass_serial_lines is not None:
+            for serial_line in mass_serial_lines.sorted(key=lambda l: (l.product_id.display_name or '', l.scan_no, l.id)):
+                source_line = self.line_ids.filtered(lambda l: l.product_id == serial_line.product_id)[:1]
+                entries.append((source_line, (serial_line.serial_imei or '').strip()))
+        else:
+            for line in self.line_ids.sorted(key=lambda l: (l.product_id.display_name or '', l.scan_no, l.id)):
+                if line.skip_upc_validation:
+                    continue
+                entries.append((line, (line.serial_imei or '').strip()))
+
+        serial_values = [serial for _line, serial in entries if serial]
+        duplicates = sorted(name for name, count in Counter(serial_values).items() if count > 1)
+        if duplicates:
+            raise ValidationError(_(
+                'Los siguientes NS/IMEI están duplicados en la captura: %s'
+            ) % ', '.join(duplicates))
+
+        existing = Serial.search([('name', 'in', serial_values)]) if serial_values else Serial.browse()
+        if existing:
+            raise ValidationError(_(
+                'Los siguientes NS/IMEI ya están registrados: %s'
+            ) % ', '.join(sorted(set(existing.mapped('name')))))
 
         # Keep assignment deterministic: each NS/IMEI is linked to a move line
         # of the expected product in the same picking. Multiple serials can be
         # registered on the same move line when quantities are grouped.
-        for line in self.line_ids.sorted(key=lambda l: (l.product_id.display_name or '', l.scan_no, l.id)):
-            if line.skip_upc_validation:
-                continue
-            serial = (line.serial_imei or '').strip()
+        for line, serial in entries:
             if not serial:
                 continue
 
@@ -271,13 +365,6 @@ class StockPickingUPCWizard(models.TransientModel):
                 raise UserError(_(
                     'No se encontró una línea de movimiento para registrar el NS/IMEI %s del producto %s.'
                 ) % (serial, line.product_id.display_name))
-
-            existing_same_picking = Serial.search([
-                ('picking_id', '=', self.picking_id.id),
-                ('name', '=', serial),
-            ], limit=1)
-            if existing_same_picking:
-                raise ValidationError(_('El NS/IMEI %s ya está registrado en esta operación.') % serial)
 
             to_create.append({
                 'name': serial,
@@ -298,9 +385,35 @@ class StockPickingUPCWizardLine(models.TransientModel):
     lot_id = fields.Many2one('stock.lot', string='Lote', readonly=True)
     scan_no = fields.Integer(string='#', readonly=True)
     demand_qty = fields.Float(string='Demanda', readonly=True)
+    processed_qty = fields.Float(string='Piezas a procesar')
     upc_ean = fields.Char(string='UPC/EAN escaneado')
     serial_imei = fields.Char(string='NS/IMEI')
     skip_upc_validation = fields.Boolean(string='El producto no cuenta con UPC/EAN')
+
+    def _validate_processed_qty(self, capture_massive=False):
+        self.ensure_one()
+        if not capture_massive:
+            return True
+        qty = self.processed_qty or 0.0
+        rounding = self.product_id.uom_id.rounding or 0.00001
+        if float_compare(qty, 0.0, precision_rounding=rounding) <= 0:
+            raise ValidationError(_(
+                'Las piezas a procesar de %s deben ser mayores que cero.'
+            ) % self.product_id.display_name)
+        if float_compare(qty, self.demand_qty, precision_rounding=rounding) > 0:
+            raise ValidationError(_(
+                'No puede procesar %(qty)s piezas de %(product)s; sólo hay %(available)s disponibles.'
+            ) % {
+                'qty': qty,
+                'product': self.product_id.display_name,
+                'available': self.demand_qty,
+            })
+        if not float_is_zero(qty - round(qty), precision_rounding=0.00001):
+            raise ValidationError(_(
+                'La captura de NS/IMEI requiere una cantidad entera de piezas para %s.'
+            ) % self.product_id.display_name)
+        self.processed_qty = round(qty)
+        return True
 
     def _validate_scanned_barcode(self):
         self.ensure_one()
@@ -391,3 +504,99 @@ class StockPickingUPCWizardLine(models.TransientModel):
 
         # If all lines are already at target, still attach to the first matching line instead of losing the capture.
         return lines[:1]
+
+
+class StockPickingMassSerialWizard(models.TransientModel):
+    _name = 'stock.picking.mass.serial.wizard'
+    _description = 'Captura masiva de NS/IMEI'
+
+    upc_wizard_id = fields.Many2one(
+        'stock.picking.upc.wizard',
+        string='Validación UPC/EAN',
+        required=True,
+        readonly=True,
+        ondelete='cascade',
+    )
+    picking_id = fields.Many2one(
+        related='upc_wizard_id.picking_id',
+        string='Traslado',
+        readonly=True,
+    )
+    line_ids = fields.One2many(
+        'stock.picking.mass.serial.wizard.line',
+        'wizard_id',
+        string='NS/IMEI',
+    )
+
+    @api.model
+    def create_from_upc_wizard(self, upc_wizard):
+        upc_wizard.ensure_one()
+        values = []
+        for upc_line in upc_wizard.line_ids.sorted(key=lambda l: (l.scan_no, l.id)):
+            if upc_line.skip_upc_validation:
+                continue
+            qty = int(round(upc_line.processed_qty or 0.0))
+            for scan_no in range(1, qty + 1):
+                values.append(Command.create({
+                    'product_id': upc_line.product_id.id,
+                    'scan_no': scan_no,
+                    'serial_imei': False,
+                }))
+        return self.create({
+            'upc_wizard_id': upc_wizard.id,
+            'line_ids': values,
+        })
+
+    def action_confirm(self):
+        self.ensure_one()
+        expected_by_product = {
+            line.product_id.id: int(round(line.processed_qty or 0.0))
+            for line in self.upc_wizard_id.line_ids
+            if not line.skip_upc_validation
+        }
+        actual_by_product = Counter(self.line_ids.mapped('product_id').ids)
+        if actual_by_product != Counter(expected_by_product):
+            raise ValidationError(_(
+                'La cantidad de NS/IMEI debe coincidir exactamente con las piezas a procesar de cada producto.'
+            ))
+
+        serials = []
+        for line in self.line_ids:
+            serial = (line.serial_imei or '').strip()
+            if not serial:
+                raise ValidationError(_(
+                    'Debe capturar todos los NS/IMEI. Falta el número %(number)s de %(product)s.'
+                ) % {
+                    'number': line.scan_no,
+                    'product': line.product_id.display_name,
+                })
+            line.serial_imei = serial
+            serials.append(serial)
+
+        duplicates = sorted(name for name, count in Counter(serials).items() if count > 1)
+        if duplicates:
+            raise ValidationError(_(
+                'Los siguientes NS/IMEI están duplicados en la captura: %s'
+            ) % ', '.join(duplicates))
+
+        return self.upc_wizard_id._finalize_validation(mass_serial_lines=self.line_ids)
+
+
+class StockPickingMassSerialWizardLine(models.TransientModel):
+    _name = 'stock.picking.mass.serial.wizard.line'
+    _description = 'Línea de captura masiva de NS/IMEI'
+    _order = 'product_id, scan_no, id'
+
+    wizard_id = fields.Many2one(
+        'stock.picking.mass.serial.wizard',
+        required=True,
+        ondelete='cascade',
+    )
+    product_id = fields.Many2one(
+        'product.product',
+        string='Producto',
+        required=True,
+        readonly=True,
+    )
+    scan_no = fields.Integer(string='#', readonly=True)
+    serial_imei = fields.Char(string='NS/IMEI')
