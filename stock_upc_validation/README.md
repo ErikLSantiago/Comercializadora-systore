@@ -2,10 +2,12 @@
 
 Módulo para validar y registrar UPC/EAN en flujos de almacén, con soporte para recepción, recolección, empaque y salida.
 
-## Versión 18.0.1.14.1
+## Versión 18.0.1.14.2
 
 ### Cambios incluidos
 
+- Corrección del conteo de NS/IMEI en captura masiva cuando existen varias piezas del mismo producto.
+- El mensaje de cantidades diferentes ahora muestra el detalle esperado y capturado por producto.
 - Corrección para conservar `product_id` al reconstruir las líneas del wizard al cambiar entre captura individual y masiva.
 - Validación preventiva con mensaje claro si un movimiento de inventario no tiene un producto válido asociado.
 

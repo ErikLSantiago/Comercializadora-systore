@@ -598,16 +598,33 @@ class StockPickingMassSerialWizard(models.TransientModel):
 
     def action_confirm(self):
         self.ensure_one()
-        expected_by_product = {
-            line.product_id.id: int(round(line.processed_qty or 0.0))
-            for line in self.upc_wizard_id.line_ids
-            if not line.skip_upc_validation
-        }
-        actual_by_product = Counter(self.line_ids.mapped('product_id').ids)
-        if actual_by_product != Counter(expected_by_product):
+        expected_by_product = Counter()
+        for line in self.upc_wizard_id.line_ids:
+            if line.skip_upc_validation:
+                continue
+            expected_by_product[line.product_id.id] += int(round(line.processed_qty or 0.0))
+
+        # mapped('product_id') returns a product recordset and therefore removes
+        # duplicates. Count the wizard rows directly so every captured NS/IMEI is
+        # represented, including several pieces of the same product.
+        actual_by_product = Counter(
+            line.product_id.id for line in self.line_ids if line.product_id
+        )
+        if actual_by_product != expected_by_product:
+            product_ids = sorted(set(expected_by_product) | set(actual_by_product))
+            products = {product.id: product for product in self.env['product.product'].browse(product_ids)}
+            details = '; '.join(
+                _('%(product)s: esperados %(expected)s, capturados %(actual)s') % {
+                    'product': products[product_id].display_name,
+                    'expected': expected_by_product.get(product_id, 0),
+                    'actual': actual_by_product.get(product_id, 0),
+                }
+                for product_id in product_ids
+            )
             raise ValidationError(_(
-                'La cantidad de NS/IMEI debe coincidir exactamente con las piezas a procesar de cada producto.'
-            ))
+                'La cantidad de NS/IMEI debe coincidir exactamente con las piezas a procesar '
+                'de cada producto. Detalle: %s'
+            ) % details)
 
         serials = []
         for line in self.line_ids:

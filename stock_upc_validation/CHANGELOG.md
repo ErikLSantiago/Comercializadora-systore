@@ -1,5 +1,11 @@
 # Changelog
 
+## 18.0.1.14.2
+
+- Corrige el conteo de NS/IMEI en captura masiva para contar cada renglón, incluso cuando varias piezas pertenecen al mismo producto.
+- Acumula correctamente las piezas esperadas si el mismo producto aparece en más de una línea de origen.
+- Cuando existe una diferencia real, muestra el detalle de cantidades esperadas y capturadas por producto.
+
 ## 18.0.1.14.1
 
 - Corrige la reconstrucción de líneas al alternar captura individual/masiva para conservar siempre el producto esperado.
