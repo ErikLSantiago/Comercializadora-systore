@@ -35,7 +35,41 @@ class StockPickingUPCWizard(models.TransientModel):
                 wizard.capture_massive = False
                 continue
             values = wizard._prepare_picking_line_values(wizard.picking_id, wizard.capture_massive)
+            wizard._validate_prepared_line_values(wizard.picking_id, values)
             wizard.line_ids = [Command.clear()] + [Command.create(value) for value in values]
+
+    @api.model
+    def _validate_prepared_line_values(self, picking, values):
+        """Fail early if a generated wizard row is not tied to a stock product."""
+        picking.ensure_one()
+        active_moves = picking.move_ids_without_package.filtered(
+            lambda move: move.state not in ('done', 'cancel')
+        )
+        inconsistent_moves = active_moves.filtered(lambda move: not move.product_id)
+        if inconsistent_moves:
+            move_names = ', '.join(inconsistent_moves.mapped('display_name')) or _('sin referencia')
+            raise UserError(_(
+                'No se puede abrir la validación UPC/EAN del traslado %(picking)s porque '
+                'los siguientes movimientos no tienen producto: %(moves)s. '
+                'Corrija los movimientos de inventario e intente nuevamente.'
+            ) % {
+                'picking': picking.display_name,
+                'moves': move_names,
+            })
+
+        valid_product_ids = set(active_moves.mapped('product_id').ids)
+        for index, value in enumerate(values, start=1):
+            product_id = value.get('product_id')
+            if not product_id or product_id not in valid_product_ids:
+                raise UserError(_(
+                    'No se pudo construir la línea %(line)s de validación UPC/EAN para '
+                    'el traslado %(picking)s porque no tiene un producto válido asociado. '
+                    'Revise los movimientos de inventario e intente nuevamente.'
+                ) % {
+                    'line': index,
+                    'picking': picking.display_name,
+                })
+        return True
 
     @api.model
     def _prepare_picking_line_values(self, picking, capture_massive=False):
@@ -83,7 +117,9 @@ class StockPickingUPCWizard(models.TransientModel):
     @api.model
     def create_from_picking(self, picking):
         picking.ensure_one()
-        values = [Command.create(value) for value in self._prepare_picking_line_values(picking)]
+        line_values = self._prepare_picking_line_values(picking)
+        self._validate_prepared_line_values(picking, line_values)
+        values = [Command.create(value) for value in line_values]
 
         return self.create({
             'picking_id': picking.id,
@@ -100,7 +136,9 @@ class StockPickingUPCWizard(models.TransientModel):
 
         pickings = batch.picking_ids.filtered(lambda p: p._systore_needs_upc_picking_wizard())
         for picking in pickings.sorted(key=lambda p: (p.name or '', p.id)):
-            for group in picking._systore_pick_validation_groups():
+            picking_groups = picking._systore_pick_validation_groups()
+            self._validate_prepared_line_values(picking, picking_groups)
+            for group in picking_groups:
                 product_id = group['product_id']
                 if product_id not in groups:
                     groups[product_id] = {
@@ -389,6 +427,17 @@ class StockPickingUPCWizardLine(models.TransientModel):
     upc_ean = fields.Char(string='UPC/EAN escaneado')
     serial_imei = fields.Char(string='NS/IMEI')
     skip_upc_validation = fields.Boolean(string='El producto no cuenta con UPC/EAN')
+
+    @api.model_create_multi
+    def create(self, vals_list):
+        """Avoid the database-level required-field error and explain the bad row."""
+        for values in vals_list:
+            if not values.get('product_id'):
+                raise ValidationError(_(
+                    'No se puede crear una línea de validación UPC/EAN sin producto. '
+                    'Cierre el asistente, revise los movimientos del traslado y vuelva a intentarlo.'
+                ))
+        return super().create(vals_list)
 
     def _validate_processed_qty(self, capture_massive=False):
         self.ensure_one()

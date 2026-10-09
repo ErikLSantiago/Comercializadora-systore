@@ -1,5 +1,12 @@
 # Changelog
 
+## 18.0.1.14.1
+
+- Corrige la reconstrucción de líneas al alternar captura individual/masiva para conservar siempre el producto esperado.
+- Valida que toda línea del wizard provenga de un movimiento de inventario con producto válido.
+- Sustituye el error técnico de campo obligatorio por un mensaje claro cuando exista un movimiento inconsistente.
+- Mantiene sin cambios el flujo de entregas de 1, 2 y 3 pasos, los parciales/backorders y la omisión por producto sin UPC/EAN.
+
 ## 18.0.1.14.0
 
 - Agrega captura masiva opcional en el paso equivalente a Empaque de almacenes de 1, 2 y 3 pasos.
