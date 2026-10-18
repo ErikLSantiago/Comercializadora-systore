@@ -1,0 +1,3 @@
+id,name,model_id:id,group_id:id,perm_read,perm_write,perm_create,perm_unlink
+access_systore_dispatch_session,systore.dispatch.session,model_systore_operations_dispatch_session,stock.group_stock_user,1,1,1,1
+access_systore_dispatch_scan,systore.dispatch.scan,model_systore_operations_dispatch_scan,stock.group_stock_user,1,1,1,1
