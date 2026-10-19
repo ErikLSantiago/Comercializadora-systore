@@ -4,9 +4,11 @@ import { MobilePick } from './mobile_pick';
 
 export class MobilePack extends MobilePick {
     static template = 'operations_dashboard.MobilePack';
+    get section() { return this.params.section || 'pack'; }
+    get isDelivery() { return this.section === 'out'; }
     async loadPanel(page = 0) {
         await this.run(async () => {
-            this.state.panel = await this.call('get_mobile_pack_panel', [this.params.warehouse_id,this.params.batch_id || false,page,this.state.query]);
+            this.state.panel = await this.call('get_mobile_pack_panel', [this.params.warehouse_id,this.params.batch_id || false,page,this.state.query,this.section]);
             this.state.pageNumber = page; this.state.page = 'panel'; this.state.detail = null;
             this.state.captures = []; this.state.tracking = '';
         });
@@ -14,7 +16,7 @@ export class MobilePack extends MobilePick {
     async openCard(card) {
         if (!card.picking_id) return;
         await this.run(async () => {
-            this.state.detail = await this.call('get_mobile_pack_detail',[this.params.warehouse_id,card.picking_id]);
+            this.state.detail = await this.call('get_mobile_pack_detail',[this.params.warehouse_id,card.picking_id,this.section]);
             this.state.captures = this.state.detail.rows.map(row => ({...row,upc:'',serial:'',checked:false}));
             this.state.page = 'detail'; this.state.index = 0; this.state.tracking = '';
             this.state.message = '';
@@ -30,7 +32,7 @@ export class MobilePack extends MobilePick {
     }
     async original() {
         await this.run(async () => {
-            const action = await this.call('open_mobile_pack_native',[this.params.warehouse_id,this.state.detail.picking_id]);
+            const action = await this.call('open_mobile_pack_native',[this.params.warehouse_id,this.state.detail.picking_id,this.section]);
             await this.action.doAction(action);
         });
     }
@@ -47,7 +49,7 @@ export class MobilePack extends MobilePick {
     async acceptSerial() {
         await this.run(async () => {
             if (this.state.captures.some(row => row.id !== this.current.id && row.serial.trim() && row.serial.trim() === this.current.serial.trim())) {
-                throw Error('El NS/IMEI ya fue capturado en este empaque.');
+                throw Error('El NS/IMEI ya fue capturado en esta operación.');
             }
             const result = await this.call('check_mobile_pack_piece',[this.params.warehouse_id,this.state.detail.wizard_id,
                 this.state.detail.token,this.current.id,this.current.upc,this.current.serial]);
@@ -64,7 +66,7 @@ export class MobilePack extends MobilePick {
         if (this.state.page === 'upc') { this.state.page = 'detail'; return; }
         if (this.state.page !== 'panel') { await this.loadPanel(); return; }
         await this.action.doAction({type:'ir.actions.client',tag:'operations_dashboard.dashboard',
-            params:{warehouse_id:this.params.warehouse_id,section:'pack'}},{clearBreadcrumbs:true});
+            params:{warehouse_id:this.params.warehouse_id,section:this.section}},{clearBreadcrumbs:true});
     }
     async validate() {
         if (!this.state.captures.length || this.state.captures.some(row => !row.checked)) return;
@@ -76,7 +78,7 @@ export class MobilePack extends MobilePick {
             this.state.page = 'pending';
             try { await this.action.doAction({...result.action,target:'new'},{onClose:() => this.loadPanel()}); }
             catch (error) { this.state.error = error.data?.message || error.message; }
-        } else { await this.loadPanel(); this.state.message = result.complete ? 'Empaquetado validado.' : 'Revise las operaciones pendientes.'; }
+        } else { await this.loadPanel(); this.state.message = result.complete ? (this.isDelivery ? 'Salida validada.' : 'Empaquetado validado.') : 'Revise las operaciones pendientes.'; }
     }
 }
 registry.category('actions').add('operations_dashboard.mobile_pack', MobilePack);

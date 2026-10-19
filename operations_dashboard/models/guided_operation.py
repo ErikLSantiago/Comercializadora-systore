@@ -47,7 +47,9 @@ class GuidedOperationsService(models.AbstractModel):
             pickings = self.env['stock.picking'].search(
                 self._filtered_domain(warehouse, section, day, scope, today, timezone))
             batch = self.env['stock.picking.batch']
-        if section == 'out':
+        if section == 'out' and warehouse.delivery_steps == 'ship_only':
+            return self.open_mobile_pack(warehouse.id, picking_id=picking_id, batch_id=batch_id, section='out')
+        if section == 'out' and warehouse.delivery_steps != 'ship_only':
             if not pickings:
                 raise UserError(_('No hay salidas pendientes para este filtro.'))
             session = self.env['systore.operations.dispatch.session'].create({
@@ -69,13 +71,16 @@ class GuidedOperationsService(models.AbstractModel):
             pickings, batch = self._guided_pickings(warehouse, section, batch_id=pickings.batch_id.id)
         if section == 'pick' and not batch and not pickings.batch_id:
             raise UserError(_('Agregue esta recolección a un batch antes de operarla. Use el botón Batches o la acción nativa «Añadir a lote».'))
+        return self._prepare_guided_capture(warehouse, section, pickings, batch)
+
+    def _prepare_guided_capture(self, warehouse, section, pickings, batch):
         if warehouse not in warehouse.company_id.systore_upc_validation_warehouse_ids:
             raise UserError(_('Habilite este almacén en los ajustes de Stock UPC Validation para validar UPC/NS/IMEI.'))
         for picking in pickings:
             if (section == 'pick' and warehouse.delivery_steps == 'pick_ship'
                     and not picking.picking_type_id.systore_require_tracking_on_pack):
                 raise UserError(_('En entrega de dos pasos, active «Exigir guía en empaque» en el tipo Pick. La preparación capturará UPC, NS/IMEI y guía por orden antes de avanzar a Salidas.'))
-            if section == 'pack' and not picking.picking_type_id.systore_require_tracking_on_pack:
+            if section in ('pack', 'out') and not self._requires_full_capture(picking):
                 raise UserError(_('Active «Exigir guía en empaque» en este tipo de operación para capturar UPC, NS/IMEI y guía.'))
             if not picking._systore_needs_upc_picking_wizard():
                 raise UserError(_('La operación %s no requiere una nueva validación UPC. Revise los checks del tipo de operación o continúe su asistente pendiente desde el formulario nativo.') % picking.name)
@@ -135,7 +140,7 @@ class GuidedUPCWizard(models.TransientModel):
     _inherit = 'stock.picking.upc.wizard'
 
     systore_guided_warehouse_id = fields.Many2one('stock.warehouse', readonly=True)
-    systore_guided_section = fields.Selection([('pick', 'Recolección'), ('pack', 'Empaquetado')], readonly=True)
+    systore_guided_section = fields.Selection([('pick', 'Recolección'), ('pack', 'Empaquetado'), ('out', 'Salida')], readonly=True)
     systore_order_names = fields.Char(compute='_compute_guided_names')
 
     @api.depends('picking_id.systore_operations_sale_names', 'batch_id.picking_ids.systore_operations_sale_names')

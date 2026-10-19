@@ -377,3 +377,54 @@ class TestOperationsDashboard(TransactionCase):
         result = self.service.validate_mobile_internal(self.warehouse.id, 'storage', picking.id, detail['token'], values)
         self.assertTrue(result['complete'])
         self.assertEqual(picking.state, 'done')
+
+    def test_one_step_delivery_mobile_capture(self):
+        """Requires stock_upc_validation 18.0.1.13.0; run on Odoo.sh."""
+        self.warehouse.delivery_steps = 'ship_only'
+        self.warehouse.company_id.systore_upc_validation_warehouse_ids |= self.warehouse
+        # The new native policy must work without the legacy PACK checkbox.
+        self.warehouse.out_type_id.write({'systore_require_tracking_on_pack': False,
+                                         'systore_require_upc_on_picking': False})
+        self.product.barcode = 'SOD-ONE-UPC'
+        self.env['stock.quant']._update_available_quantity(self.product, self.warehouse.lot_stock_id, 5)
+        sale = self.env['sale.order'].create({
+            'partner_id': self.vendor.id, 'warehouse_id': self.warehouse.id,
+            'order_line': [Command.create({'product_id': self.product.id,
+                                          'product_uom_qty': 2, 'price_unit': 50})],
+        })
+        sale.action_confirm()
+        out = sale.picking_ids
+        self.assertEqual(len(out), 1)
+        out.action_assign()
+        action = self.service.open_guided_operation(self.warehouse.id, 'out', scope='all')
+        self.assertEqual(action['tag'], 'operations_dashboard.mobile_pack')
+        self.assertEqual(action['params']['section'], 'out')
+        detail = self.service.get_mobile_pack_detail(self.warehouse.id, out.id, section='out')
+        self.assertEqual(len(detail['rows']), 2)
+        self.assertNotEqual(out.state, 'done')
+        self.assertFalse(out.move_line_ids.serial_captured_ids)
+        with self.assertRaisesRegex(ValidationError, '^No coincide UPC/IMEI$'), self.cr.savepoint():
+            self.service.check_mobile_pack_piece(self.warehouse.id, detail['wizard_id'],
+                detail['token'], detail['rows'][0]['id'], 'WRONG')
+        captures = [{'id': row['id'], 'upc': self.product.barcode, 'serial': 'SOD-ONE-%s' % i}
+                    for i, row in enumerate(detail['rows'])]
+        with self.assertRaises(ValidationError), self.cr.savepoint():
+            self.service.validate_mobile_pack(self.warehouse.id, detail['wizard_id'],
+                detail['token'], captures, '')
+        with self.assertRaises(AccessError):
+            self.service.with_user(self.other_user).get_mobile_pack_detail(
+                self.warehouse.id, out.id, section='out')
+        result = self.service.validate_mobile_pack(self.warehouse.id, detail['wizard_id'],
+            detail['token'], captures, 'SOD-ONE-GUIDE')
+        self.assertTrue(result['complete'])
+        self.assertEqual(out.state, 'done')
+        self.assertEqual(out.carrier_tracking_ref, 'SOD-ONE-GUIDE')
+        self.assertEqual(set(out.move_line_ids.serial_captured_ids.mapped('name')),
+                         {'SOD-ONE-0', 'SOD-ONE-1'})
+        with self.assertRaises((AccessError, UserError)), self.cr.savepoint():
+            self.service.validate_mobile_pack(self.warehouse.id, detail['wizard_id'],
+                detail['token'], captures, 'SOD-ONE-GUIDE')
+
+    def test_mobile_out_rejects_multistep_warehouse(self):
+        with self.assertRaises(ValidationError):
+            self.service.open_mobile_pack(self.warehouse.id, section='out')

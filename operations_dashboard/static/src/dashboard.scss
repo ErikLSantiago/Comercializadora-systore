@@ -89,3 +89,9 @@
 .sod-dispatch-card h2 { font-size: 22px; margin: 6px 0 14px; }
 
 @media (max-width: 600px) { .sod-dispatch-cards { grid-template-columns: 1fr; } }
+
+.systore-operations-dashboard .sod-card-operable {
+    cursor: pointer;
+    &:hover { box-shadow: 0 4px 18px rgba(30, 50, 70, 0.12); }
+    &:focus-visible { outline: 3px solid #714b67; outline-offset: 3px; }
+}

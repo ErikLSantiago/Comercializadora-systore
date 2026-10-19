@@ -153,6 +153,22 @@ export class OperationsDashboard extends Component {
         }
     }
 
+    async operateCard(section, event) {
+        // Controls inside a card retain their own action/date filter.
+        if (event && event.target !== event.currentTarget &&
+            event.target.closest('button, a, input, select, textarea')) return;
+        if (event?.type === 'keydown') {
+            if (event.target !== event.currentTarget || !['Enter', ' '].includes(event.key)) return;
+            event.preventDefault();
+        }
+        if (this.state.opening || this.state.loading || !this.state.data) return;
+        if (section === 'in') return this.openMobileReceipt();
+        if (section === 'pick') return this.openMobilePick();
+        if (section === 'pack') return this.openMobilePack();
+        if (['storage', 'transfers'].includes(section)) return this.openMobileInternal(section);
+        if (section === 'out') return this.openOperations(section);
+    }
+
     async openMobileInternal(section) {
         if (this.state.opening || this.state.loading) return;
         this.state.opening = true;

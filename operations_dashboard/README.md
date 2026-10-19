@@ -1,6 +1,19 @@
 # Tablero de operaciones · Odoo 18
 
-Versión **18.0.1.7.2** · Nombre técnico `operations_dashboard`.
+Versión **18.0.1.8.0** · Nombre técnico `operations_dashboard`.
+
+## Salidas de un paso y tarjetas operables · 18.0.1.8.0
+
+- Revisado contra `stock_upc_validation` **18.0.1.13.0**. Se consume su política `_systore_requires_full_pack_validation()` y su asistente nativo; no se incluye código de ese addon ni de `adicional_serial_number`.
+- En almacenes con entrega `ship_only`, Salidas abre el panel móvil de pedidos listos. Al elegir uno: resumen con imágenes y cantidades → UPC por pieza (rechazo inmediato si no coincide) → NS/IMEI por pieza → guía → **Validar salida**. La captura previa no valida el traslado ni crea series adicionales: lo hace la confirmación final a través del módulo instalado.
+- Los pedidos de un lote se preparan individualmente para mantener su guía y series separadas. **Abrir original** conserva el acceso nativo, incluidas excepciones sin UPC y parciales. La pantalla móvil mantiene captura completa de todas las piezas.
+- En almacenes de dos o tres pasos, Salidas conserva el escaneo de paquetes/guías y el botón **Validar completas**.
+- Pulsar el área de una tarjeta del tablero abre la pantalla móvil de su etapa. Los filtros de fecha y botones interiores conservan su propia acción; Enter o Espacio sobre la tarjeta también abre el flujo.
+- Se conservan permisos por usuario/almacén/tipo, validación del propietario del asistente y comprobación de cambios concurrentes antes de confirmar.
+
+Actualizar `operations_dashboard` sobre la instalación existente. El almacén debe estar habilitado en Stock UPC Validation. El flujo de un paso utiliza la estrategia nativa del almacén y no depende de activar el antiguo check de guía de Pack.
+
+Verificación local: 45 pruebas Python de políticas/adaptadores; pruebas JS de navegación y captura; compilación Owl, registro de acciones con el cargador de Odoo 18 y compilación SCSS. Se incluye una prueba de integración de salida de un paso para Odoo.sh. Las pruebas de integración con inventario real y teléfono no se ejecutaron en este entorno.
 
 ## Cambio de nombre técnico · 18.0.1.7.2
 
@@ -28,9 +41,9 @@ El addon se llama ahora `operations_dashboard`. Se actualizaron la carpeta, ruta
 - Las tarjetas de Ingresos muestran el **Documento de origen** real (`stock.picking.origin`) de las recepciones vinculadas, y el buscador lo incluye. Si una compra tiene varios orígenes se muestran los distintos valores.
 - Las piezas registradas en el resumen de productos aparecen en azul y con mayor tamaño.
 
-## Pendientes para el lunes 5 de octubre de 2026
+## Seguimiento de pendientes anteriores
 
-1. Entrega en un paso: ampliar `stock_upc_validation` para exigir UPC y NS/IMEI por pieza en Out, integrado con Números de serie adicionales. Definir cómo se combina esa preparación con el registro y validación manual de paquetes.
+1. Entrega en un paso: integrada en la pantalla móvil de Salidas en 18.0.1.8.0; pendiente validar el circuito completo en la base Odoo.sh.
 2. Entregas de mayoreo en dos pasos: decidir en qué etapa se capturan UPC y series, y qué adaptación requiere `stock_upc_validation`, preservando las rutas nativas.
 
 Estos puntos quedan para análisis y desarrollo posterior; esta versión no modifica el módulo UPC instalado.

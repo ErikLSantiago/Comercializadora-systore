@@ -64,7 +64,10 @@
                 </div>
                 <div class="sod-cards">
                     <article t-foreach="state.data.sections" t-as="section" t-key="section.key"
-                             class="sod-card" t-att-class="'sod-card-' + section.key">
+                             class="sod-card sod-card-operable" t-att-class="'sod-card-' + section.key"
+                             tabindex="0" t-att-aria-label="'Operar ' + section.title"
+                             t-on-click="(event) => this.operateCard(section.key, event)"
+                             t-on-keydown="(event) => this.operateCard(section.key, event)">
                         <div class="sod-card-title">
                             <h2 t-esc="section.title"/>
                             <i class="fa" t-att-class="{'fa-arrow-down': isReceipt(section.key), 'fa-exchange': section.key === 'transfers', 'fa-hand-paper-o': section.key === 'pick', 'fa-archive': section.key === 'pack', 'fa-truck': section.key === 'out'}" aria-hidden="true"/>

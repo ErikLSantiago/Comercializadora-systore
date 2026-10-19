@@ -4,7 +4,7 @@
 <div class="smp-shell">
 <header class="smp-header">
     <button class="smp-icon-button" t-on-click="back" t-att-disabled="state.busy" aria-label="Volver"><i class="fa fa-arrow-left"/></button>
-    <div><small>EMPAQUETADO · <t t-esc="state.panel?.warehouse || ''"/></small><h1 t-esc="state.detail?.name || 'Pedidos por empacar'"/></div>
+    <div><small><t t-esc="isDelivery ? 'SALIDAS' : 'EMPAQUETADO'"/> · <t t-esc="state.panel?.warehouse || ''"/></small><h1 t-esc="state.detail?.name || (isDelivery ? 'Pedidos por entregar' : 'Pedidos por empacar')"/></div>
     <button t-if="state.page === 'panel'" class="smp-icon-button" t-on-click="() => this.loadPanel(state.pageNumber)" t-att-disabled="state.busy" aria-label="Actualizar"><i class="fa fa-refresh"/></button>
 </header>
 <main class="smp-main">
@@ -17,10 +17,10 @@
             <button t-foreach="cards" t-as="card" t-key="card.key" class="smp-card smp-operation" t-on-click="() => this.openCard(card)" t-att-disabled="state.busy">
                 <span class="smp-kind" t-esc="card.operation_type"/><h2 t-esc="card.name"/><p t-esc="card.origins.join(', ')"/>
                 <span class="smp-badge" t-esc="label(card.state)"/><p><strong t-esc="format(card.pieces)"/> piezas</p>
-                <small t-esc="card.batch || 'Sin batch'"/><div class="smp-open">Empacar <i class="fa fa-arrow-right"/></div>
+                <small t-esc="card.batch || 'Sin batch'"/><div class="smp-open"><t t-esc="isDelivery ? 'Preparar salida' : 'Empacar'"/> <i class="fa fa-arrow-right"/></div>
             </button>
         </div>
-        <p t-if="state.panel &amp;&amp; !cards.length &amp;&amp; !state.busy" class="smp-empty">No hay empaquetados pendientes.</p>
+        <p t-if="state.panel &amp;&amp; !cards.length &amp;&amp; !state.busy" class="smp-empty"><t t-esc="isDelivery ? 'No hay salidas listas pendientes.' : 'No hay empaquetados pendientes.'"/></p>
         <nav class="smp-pagination" t-if="state.panel" aria-label="Páginas">
             <button t-att-disabled="state.busy || !state.pageNumber" t-on-click="() => this.loadPanel(state.pageNumber - 1)">Anterior</button>
             <span>Página <t t-esc="state.pageNumber + 1"/></span>
@@ -28,8 +28,8 @@
         </nav>
     </t>
     <t t-if="state.page === 'detail' &amp;&amp; state.detail">
-        <div class="smp-detail-heading"><span class="smp-badge smp-ready" t-esc="label(state.detail.state)"/><button class="smp-link" t-on-click="original" t-att-disabled="state.busy">Abrir original</button></div><h2>Piezas por empacar</h2><p t-esc="state.detail.orders"/><p class="smp-muted"><t t-esc="state.detail.source"/> → <t t-esc="state.detail.destination"/></p>
-        <p><strong t-esc="state.captures.length"/> piezas por empacar</p>
+        <div class="smp-detail-heading"><span class="smp-badge smp-ready" t-esc="label(state.detail.state)"/><button class="smp-link" t-on-click="original" t-att-disabled="state.busy">Abrir original</button></div><h2 t-esc="isDelivery ? 'Piezas por entregar' : 'Piezas por empacar'"/><p t-esc="state.detail.orders"/><p class="smp-muted"><t t-esc="state.detail.source"/> → <t t-esc="state.detail.destination"/></p>
+        <p><strong t-esc="state.captures.length"/> <t t-esc="isDelivery ? 'piezas por entregar' : 'piezas por empacar'"/></p>
         <div class="smp-grid"><article t-foreach="productRows" t-as="row" t-key="row.id" class="smp-card smp-product">
             <div class="smp-location"><i class="fa fa-map-marker"/><div><span class="smp-label">Ubicación de origen</span><strong t-esc="state.detail.source"/></div></div>
             <div class="smp-product-heading"><div class="smp-product-image"><i class="fa fa-cube"/>
@@ -56,7 +56,7 @@
     <t t-if="state.page === 'tracking'">
         <h2>Número de guía</h2><p><t t-esc="state.captures.length"/> piezas comprobadas · <t t-esc="state.detail.orders"/></p>
         <label class="smp-field">Guía del pedido<input t-ref="upcInput" t-model="state.tracking" autocomplete="off" t-att-disabled="state.busy"/></label>
-        <button class="btn btn-primary btn-lg w-100" t-on-click="validate" t-att-disabled="state.busy || !state.tracking.trim()">Validar empaquetado</button>
+        <button class="btn btn-primary btn-lg w-100" t-on-click="validate" t-att-disabled="state.busy || !state.tracking.trim()"><t t-esc="isDelivery ? 'Validar salida' : 'Validar empaquetado'"/></button>
     </t>
     <p t-if="state.page === 'pending'">Complete el asistente de Odoo para continuar.</p>
 </main>
