@@ -36,10 +36,11 @@
                 <img t-att-src="imageURL(row.product_id)" t-att-alt="row.product" width="96" height="96" loading="lazy" t-on-error="imageError"/></div><h3 t-esc="row.product"/></div>
             <div class="smp-quantity"><span>Piezas solicitadas</span><strong t-esc="format(row.qty)"/><span>Unidades</span></div>
         </article></div>
+        <label t-if="state.detail.mass_capture_available" class="smp-field"><span><input type="checkbox" t-att-checked="state.massive" t-on-change="setMassive" t-att-disabled="state.busy"/> Captura masiva de NS/IMEI</span></label>
         <button class="btn btn-primary btn-lg w-100 mt-3" t-on-click="beginValidation" t-att-disabled="state.busy || !state.captures.length">Validar piezas</button>
     </t>
     <t t-if="['upc','serial'].includes(state.page) &amp;&amp; current">
-        <div class="smp-detail-heading"><h2 t-esc="state.page === 'upc' ? 'Validar UPC' : 'Número de serie adicional'"/><span>Pieza <t t-esc="state.index + 1"/> / <t t-esc="state.captures.length"/></span></div>
+        <div class="smp-detail-heading"><h2 t-esc="state.page === 'upc' ? 'Validar UPC' : 'Número de serie adicional'"/><span t-if="state.massive"><t t-esc="massRows.length"/> piezas del producto</span><span t-else="">Pieza <t t-esc="state.index + 1"/> / <t t-esc="state.captures.length"/></span></div>
         <article class="smp-card">
             <div class="smp-product-heading"><div class="smp-product-image"><i class="fa fa-cube"/>
                 <img t-att-src="imageURL(current.product_id)" t-att-alt="current.product" width="96" height="96" t-on-error="imageError"/></div><h3 t-esc="current.product"/></div>
@@ -53,10 +54,24 @@
             </t>
         </article>
     </t>
+    <t t-if="state.page === 'mass_serial' &amp;&amp; current">
+        <h2>Números de serie adicionales</h2>
+        <article class="smp-card">
+            <div class="smp-product-heading"><div class="smp-product-image"><i class="fa fa-cube"/>
+                <img t-att-src="imageURL(current.product_id)" t-att-alt="current.product" width="96" height="96" t-on-error="imageError"/></div><h3 t-esc="current.product"/></div>
+            <p>UPC validado: <strong t-esc="current.upc"/></p>
+            <p><strong t-esc="massSerialCount"/> / <strong t-esc="massRows.length"/> series capturadas</p>
+            <label class="smp-field">Escanear NS / IMEI (uno por renglón)
+                <textarea class="form-control" rows="8" t-ref="upcInput" t-model="state.massText" autocomplete="off" autocapitalize="off" spellcheck="false" t-att-disabled="state.busy"/>
+            </label>
+            <button class="btn btn-primary btn-lg w-100" t-on-click="acceptMassSerials" t-att-disabled="state.busy">Registrar series</button>
+        </article>
+    </t>
     <t t-if="state.page === 'tracking'">
         <h2>Número de guía</h2><p><t t-esc="state.captures.length"/> piezas comprobadas · <t t-esc="state.detail.orders"/></p>
-        <label class="smp-field">Guía del pedido<input t-ref="upcInput" t-model="state.tracking" autocomplete="off" t-att-disabled="state.busy"/></label>
-        <button class="btn btn-primary btn-lg w-100" t-on-click="validate" t-att-disabled="state.busy || !state.tracking.trim()"><t t-esc="isDelivery ? 'Validar salida' : 'Validar empaquetado'"/></button>
+        <label t-if="state.detail.skip_tracking_available" class="smp-field"><span><input type="checkbox" t-model="state.skipTracking" t-att-disabled="state.busy"/> No asignar número de guía</span></label>
+        <label t-if="!state.skipTracking" class="smp-field">Guía del pedido<input t-ref="upcInput" t-model="state.tracking" autocomplete="off" t-att-disabled="state.busy"/></label>
+        <button class="btn btn-primary btn-lg w-100" t-on-click="validate" t-att-disabled="state.busy || (!state.skipTracking &amp;&amp; !state.tracking.trim())"><t t-esc="isDelivery ? 'Validar salida' : 'Validar empaquetado'"/></button>
     </t>
     <p t-if="state.page === 'pending'">Complete el asistente de Odoo para continuar.</p>
 </main>

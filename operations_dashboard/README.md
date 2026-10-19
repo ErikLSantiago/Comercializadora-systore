@@ -1,6 +1,16 @@
 # Tablero de operaciones · Odoo 18
 
-Versión **18.0.1.8.0** · Nombre técnico `operations_dashboard`.
+Versión **18.0.1.8.1** · Nombre técnico `operations_dashboard`.
+
+## Captura masiva · 18.0.1.8.1
+
+Revisado con `stock_upc_validation` **18.0.1.14.2** proporcionado por el usuario. En Empaquetado y Salidas de un paso, el resumen ofrece **Captura masiva de NS/IMEI** cuando el asistente instalado indica disponibilidad. El operador valida un UPC por producto y captura sus series, una por renglón. El contador exige exactamente las piezas del producto y rechaza series repetidas dentro del pedido. Después continúa con el siguiente producto y finalmente la guía.
+
+La confirmación transforma la captura mediante los métodos del módulo instalado y utiliza su asistente `stock.picking.mass.serial.wizard`: conserva sus comprobaciones de cantidades y duplicados, creación de números de serie adicionales y validación de inventario. No se copia ni distribuye el código del módulo UPC.
+
+Se incorpora **No asignar número de guía** usando `skip_tracking_ref`, incluido el registro nativo de la omisión. El modo individual sigue disponible. Estas opciones se muestran solo si la versión instalada las soporta. El modo móvil procesa todas las piezas de la operación; excepciones sin UPC y parciales permanecen disponibles en **Abrir original**. La adaptación móvil de Pick para la estrategia de dos pasos queda fuera de este ajuste.
+
+Pruebas locales de pantalla masiva, conteos y duplicados correctas; prueba de integración para Odoo.sh incluida, pendiente de ejecución en esa plataforma.
 
 ## Salidas de un paso y tarjetas operables · 18.0.1.8.0
 

@@ -379,6 +379,12 @@ class TestOperationsDashboard(TransactionCase):
         self.assertEqual(picking.state, 'done')
 
     def test_one_step_delivery_mobile_capture(self):
+        self._run_one_step_delivery()
+
+    def test_one_step_massive_delivery_without_guide(self):
+        self._run_one_step_delivery(massive=True, skip_tracking=True)
+
+    def _run_one_step_delivery(self, massive=False, skip_tracking=False):
         """Requires stock_upc_validation 18.0.1.13.0; run on Odoo.sh."""
         self.warehouse.delivery_steps = 'ship_only'
         self.warehouse.company_id.systore_upc_validation_warehouse_ids |= self.warehouse
@@ -415,15 +421,17 @@ class TestOperationsDashboard(TransactionCase):
             self.service.with_user(self.other_user).get_mobile_pack_detail(
                 self.warehouse.id, out.id, section='out')
         result = self.service.validate_mobile_pack(self.warehouse.id, detail['wizard_id'],
-            detail['token'], captures, 'SOD-ONE-GUIDE')
+            detail['token'], captures, '' if skip_tracking else 'SOD-ONE-GUIDE',
+            capture_massive=massive, skip_tracking=skip_tracking)
         self.assertTrue(result['complete'])
         self.assertEqual(out.state, 'done')
-        self.assertEqual(out.carrier_tracking_ref, 'SOD-ONE-GUIDE')
+        self.assertEqual(out.carrier_tracking_ref or '', '' if skip_tracking else 'SOD-ONE-GUIDE')
         self.assertEqual(set(out.move_line_ids.serial_captured_ids.mapped('name')),
                          {'SOD-ONE-0', 'SOD-ONE-1'})
         with self.assertRaises((AccessError, UserError)), self.cr.savepoint():
             self.service.validate_mobile_pack(self.warehouse.id, detail['wizard_id'],
-                detail['token'], captures, 'SOD-ONE-GUIDE')
+                detail['token'], captures, '' if skip_tracking else 'SOD-ONE-GUIDE',
+            capture_massive=massive, skip_tracking=skip_tracking)
 
     def test_mobile_out_rejects_multistep_warehouse(self):
         with self.assertRaises(ValidationError):

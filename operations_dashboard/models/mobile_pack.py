@@ -1,7 +1,7 @@
 import hashlib
 import json
 
-from odoo import api, models, _
+from odoo import api, models, Command, _
 from odoo.exceptions import AccessError, UserError, ValidationError
 
 
@@ -77,6 +77,8 @@ class MobilePackService(models.AbstractModel):
         return {'picking_id': picking.id, 'state': picking.state, 'wizard_id': wizard.id, 'token': self._pack_token(picking), 'name': picking.name,
                 'orders': picking.systore_operations_sale_names or picking.origin or '',
                 'source': picking.location_id.complete_name, 'destination': picking.location_dest_id.complete_name,
+                'mass_capture_available': bool(getattr(wizard, 'mass_capture_available', False)),
+                'skip_tracking_available': 'skip_tracking_ref' in wizard._fields,
                 'rows': [{'id': line.id, 'product_id': line.product_id.id, 'product': line.product_id.display_name,
                           'scan_no': line.scan_no, 'qty': line.demand_qty} for line in wizard.line_ids]}
 
@@ -116,7 +118,7 @@ class MobilePackService(models.AbstractModel):
         return {'upc': virtual.upc_ean, 'serial': virtual.serial_imei or ''}
 
     @api.model
-    def validate_mobile_pack(self, warehouse_id, wizard_id, token, captures, tracking):
+    def validate_mobile_pack(self, warehouse_id, wizard_id, token, captures, tracking, capture_massive=False, skip_tracking=False):
         wizard = self._pack_wizard(warehouse_id, wizard_id, token)
         picking = wizard.picking_id
         self.env.flush_all()
@@ -139,7 +141,51 @@ class MobilePackService(models.AbstractModel):
             line = wizard.line_ids.filtered(lambda line: line.id == capture['id'])
             line.write({'upc_ean': self._pack_text(capture.get('upc'), 'UPC'), 'serial_imei': serial,
                         'skip_upc_validation': False, 'demand_qty': 1})
-        wizard.tracking_ref = self._pack_text(tracking, 'número de guía')
-        result = wizard.action_confirm()
+        if type(capture_massive) is not bool or type(skip_tracking) is not bool:
+            raise ValidationError(_('Opciones de captura inválidas.'))
+        if skip_tracking:
+            if 'skip_tracking_ref' not in wizard._fields:
+                raise UserError(_('Actualice Stock UPC Validation para omitir la guía.'))
+            wizard.skip_tracking_ref = True
+            wizard.tracking_ref = False
+        else:
+            if 'skip_tracking_ref' in wizard._fields:
+                wizard.skip_tracking_ref = False
+            wizard.tracking_ref = self._pack_text(tracking, 'número de guía')
+        if capture_massive:
+            if not getattr(wizard, 'mass_capture_available', False):
+                raise UserError(_('Esta versión de Stock UPC Validation no admite captura masiva.'))
+            by_product = {}
+            for line in wizard.line_ids:
+                group = by_product.setdefault(line.product_id.id, {'upc': line.upc_ean, 'serials': []})
+                if group['upc'] != line.upc_ean:
+                    raise ValidationError(_('La captura masiva requiere un UPC por producto.'))
+                group['serials'].append(line.serial_imei)
+            # The installed addon owns grouping, quantity checks and serial creation.
+            values = wizard._prepare_picking_line_values(picking, capture_massive=True)
+            wizard._validate_prepared_line_values(picking, values)
+            if set(by_product) != {value['product_id'] for value in values}:
+                raise UserError(_('Los productos cambiaron. Vuelva a abrir la operación.'))
+            for value in values:
+                group = by_product[value['product_id']]
+                value.update(upc_ean=group['upc'], processed_qty=len(group['serials']),
+                             systore_requested_qty=value['demand_qty'])
+            wizard.write({'capture_massive': True,
+                          'line_ids': [Command.clear()] + [Command.create(value) for value in values]})
+            action = wizard.action_confirm()
+            if not isinstance(action, dict) or action.get('res_model') != 'stock.picking.mass.serial.wizard':
+                raise UserError(_('Stock UPC Validation no devolvió el asistente masivo esperado.'))
+            serial_wizard = self.env['stock.picking.mass.serial.wizard'].browse(action['res_id']).exists()
+            if not serial_wizard or serial_wizard.upc_wizard_id != wizard:
+                raise AccessError(_('Asistente de series inválido.'))
+            for product_id, group in by_product.items():
+                lines = serial_wizard.line_ids.filtered(lambda line: line.product_id.id == product_id).sorted('id')
+                if len(lines) != len(group['serials']):
+                    raise ValidationError(_('La cantidad de series no coincide con las piezas.'))
+                for line, serial in zip(lines, group['serials']):
+                    line.serial_imei = serial
+            result = serial_wizard.action_confirm()
+        else:
+            result = wizard.action_confirm()
         return {'complete': picking.state == 'done',
                 'action': result if isinstance(result, dict) and result.get('type') != 'ir.actions.act_window_close' else False}
