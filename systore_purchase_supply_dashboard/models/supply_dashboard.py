@@ -25,6 +25,58 @@ class SystoreSupplyDashboard(models.AbstractModel):
             ))
 
     @api.model
+    def _debt_order_date_info(self, order):
+        """Date and source on which a purchase starts contributing to debt.
+
+        Once Odoo has an effective receipt date, that operational arrival date
+        replaces the order/approval date.  Keeping this rule in one helper
+        makes the dashboard and its detailed report use the same cutoff.
+        """
+        effective_date = (
+            order.effective_date
+            if "effective_date" in order._fields
+            else False
+        )
+        if effective_date:
+            return fields.Date.to_date(effective_date), "receipt"
+
+        receipt_moves = order.order_line.move_ids.filtered(lambda move: (
+            move.state == "done"
+            and move.location_id.usage == "supplier"
+            and move.location_dest_id.usage == "internal"
+        ))
+        if not receipt_moves:
+            receipt_moves = self.env["stock.move"].sudo().search([
+                ("picking_id.origin", "=", order.name),
+                ("company_id", "=", order.company_id.id),
+                ("state", "=", "done"),
+                ("location_id.usage", "=", "supplier"),
+                ("location_dest_id.usage", "=", "internal"),
+            ])
+        receipt_dates = []
+        for move in receipt_moves:
+            picking_effective_date = (
+                move.picking_id.effective_date
+                if "effective_date" in move.picking_id._fields
+                else False
+            )
+            receipt_date = picking_effective_date or move.picking_id.date_done or move.date
+            if receipt_date:
+                receipt_dates.append(fields.Date.to_date(receipt_date))
+        if receipt_dates:
+            return min(receipt_dates), "receipt"
+
+        reference = order.date_approve or order.date_order
+        return (
+            fields.Date.to_date(reference) if reference else False,
+            "order",
+        )
+
+    @api.model
+    def _debt_order_date(self, order):
+        return self._debt_order_date_info(order)[0]
+
+    @api.model
     def _historical_purchase_orders(
         self, company, warehouse_id=None, channel=None, supplier_type=None,
         date_to=None,
@@ -50,10 +102,79 @@ class SystoreSupplyDashboard(models.AbstractModel):
             )
             and (
                 not date_to
-                or not (order.date_approve or order.date_order)
-                or fields.Date.to_date(order.date_approve or order.date_order) <= date_to
+                or not self._debt_order_date(order)
+                or self._debt_order_date(order) <= date_to
             )
         ))
+
+    @api.model
+    def _debt_line_quantities(self, line, cutoff_date):
+        """Ordered, net received and pending quantities at the debt cutoff."""
+        StockMove = self.env["stock.move"].sudo()
+        moves = line.move_ids.sudo().filtered(lambda move: move.state == "done")
+        if "purchase_line_id" in StockMove._fields:
+            moves |= StockMove.search([
+                ("purchase_line_id", "=", line.id),
+                ("state", "=", "done"),
+            ])
+
+        def happened_by_cutoff(move):
+            move_date = move.picking_id.date_done or move.date
+            return bool(
+                move_date
+                and fields.Date.to_date(move_date) <= cutoff_date
+            )
+
+        receipts = moves.filtered(lambda move: (
+            happened_by_cutoff(move)
+            and move.location_id.usage == "supplier"
+            and move.location_dest_id.usage == "internal"
+        ))
+        returns = moves.filtered(lambda move: (
+            happened_by_cutoff(move)
+            and move.location_id.usage == "internal"
+            and move.location_dest_id.usage == "supplier"
+        ))
+        if receipts and "origin_returned_move_id" in StockMove._fields:
+            returns |= StockMove.search([
+                ("state", "=", "done"),
+                ("origin_returned_move_id", "in", receipts.ids),
+            ]).filtered(happened_by_cutoff)
+
+        quantity_helper = self.env["systore.supply.purchase.line"]
+
+        def quantity_in_purchase_uom(move):
+            quantity = quantity_helper._move_done_qty(move)
+            if move.product_uom and line.product_uom and move.product_uom != line.product_uom:
+                quantity = move.product_uom._compute_quantity(
+                    quantity, line.product_uom
+                )
+            return quantity
+
+        ordered = line.product_qty or 0.0
+        received = max(
+            sum(quantity_in_purchase_uom(move) for move in receipts)
+            - sum(quantity_in_purchase_uom(move) for move in returns),
+            0.0,
+        )
+        return ordered, received, max(ordered - received, 0.0)
+
+    @api.model
+    def _debt_line_weights(self, order, lines):
+        """Allocate an order-level debt without duplicating it per product."""
+        international = order._systore_resolved_purchase_origin() == "international"
+        weights = []
+        for line in lines:
+            if international:
+                weight = (line.product_qty or 0.0) * (line.x_gross_usd or 0.0)
+            else:
+                weight = line.price_total or 0.0
+            weights.append(max(weight, 0.0))
+        if not sum(weights):
+            weights = [max(line.product_qty or 0.0, 0.0) for line in lines]
+        if not sum(weights):
+            weights = [1.0 for line in lines]
+        return weights
 
     @api.model
     def _historical_debt_positions(
@@ -103,7 +224,7 @@ class SystoreSupplyDashboard(models.AbstractModel):
 
     @api.model
     def action_open_debt_report(self, sector, filters=None, supplier_id=None):
-        """Create an isolated historical debt report for the current user."""
+        """Create an order/product-level historical debt report."""
         self._check_systore_supply_access()
         if sector not in ("national", "international"):
             raise UserError(_("Selecciona un tipo de proveedor válido."))
@@ -121,14 +242,19 @@ class SystoreSupplyDashboard(models.AbstractModel):
         if selected_supplier_id:
             selected_supplier_id = int(selected_supplier_id)
 
-        grouped = self._historical_debt_positions(
+        debt_orders = self._historical_purchase_orders(
             self.env.company,
-            cutoff_date,
             warehouse_id=warehouse_id,
             channel=channel,
-            supplier_id=selected_supplier_id,
             supplier_type=supplier_type,
-        )[sector]
+            date_to=cutoff_date,
+        ).filtered(lambda order: (
+            order._systore_resolved_purchase_origin() == sector
+            and (
+                not selected_supplier_id
+                or order.partner_id.id == selected_supplier_id
+            )
+        ))
         usd_currency = self.env.ref("base.USD", raise_if_not_found=False)
         if not usd_currency:
             usd_currency = self.env["res.currency"].search(
@@ -138,28 +264,74 @@ class SystoreSupplyDashboard(models.AbstractModel):
             raise UserError(_("No se encontró la moneda USD en Odoo."))
 
         rows = []
-        for partner_id, values in grouped.items():
-            if values["mxn"] <= 0 and values["usd"] <= 0:
+        amount_fields = (
+            "total_usd", "paid_usd", "pending_usd",
+            "total_mxn", "paid_mxn", "pending_mxn",
+        )
+        for order in debt_orders:
+            components = order._systore_debt_components(as_of_date=cutoff_date)
+            if not components:
                 continue
-            total_usd = values["total_usd"]
-            rows.append({
-                "company_id": self.env.company.id,
-                "usd_currency_id": usd_currency.id,
-                "cutoff_date": cutoff_date,
-                "sector": sector,
-                "supplier_id": partner_id,
-                "purchase_order_ids": [(6, 0, list(values["order_ids"]))],
-                "order_count": len(values["order_ids"]),
-                "effective_exchange_rate": (
-                    values["total_mxn"] / total_usd if total_usd else 0.0
-                ),
-                "total_usd": total_usd,
-                "paid_usd": values["paid_usd"],
-                "balance_usd": values["usd"],
-                "total_mxn": values["total_mxn"],
-                "paid_mxn": values["paid_mxn"],
-                "balance_mxn": values["mxn"],
-            })
+            lines = order.order_line.filtered(
+                lambda line: not line.display_type and line.product_id
+            )
+            if not lines:
+                continue
+            weights = self._debt_line_weights(order, lines)
+            weight_total = sum(weights)
+            for component in components:
+                if (
+                    selected_supplier_id
+                    and component["partner"].id != selected_supplier_id
+                ):
+                    continue
+                remaining = {
+                    field_name: component.get(field_name, 0.0)
+                    for field_name in amount_fields
+                }
+                for index, (line, weight) in enumerate(zip(lines, weights)):
+                    is_last = index == len(lines) - 1
+                    allocated = {}
+                    for field_name in amount_fields:
+                        value = (
+                            remaining[field_name]
+                            if is_last
+                            else component.get(field_name, 0.0)
+                            * weight / weight_total
+                        )
+                        allocated[field_name] = value
+                        remaining[field_name] -= value
+                    ordered, received, pending = self._debt_line_quantities(
+                        line, cutoff_date
+                    )
+                    debt_date, debt_date_source = self._debt_order_date_info(order)
+                    rows.append({
+                        "company_id": self.env.company.id,
+                        "usd_currency_id": usd_currency.id,
+                        "cutoff_date": cutoff_date,
+                        "debt_date": debt_date,
+                        "debt_date_source": debt_date_source,
+                        "sector": sector,
+                        "supplier_id": component["partner"].id,
+                        "purchase_order_id": order.id,
+                        "purchase_line_id": line.id,
+                        "product_id": line.product_id.id,
+                        "internal_reference": line.product_id.default_code or "",
+                        "ordered_qty": ordered,
+                        "received_qty": received,
+                        "pending_qty": pending,
+                        "effective_exchange_rate": (
+                            component.get("total_mxn", 0.0)
+                            / component.get("total_usd", 0.0)
+                            if component.get("total_usd", 0.0) else 0.0
+                        ),
+                        "total_usd": allocated["total_usd"],
+                        "paid_usd": allocated["paid_usd"],
+                        "balance_usd": allocated["pending_usd"],
+                        "total_mxn": allocated["total_mxn"],
+                        "paid_mxn": allocated["paid_mxn"],
+                        "balance_mxn": allocated["pending_mxn"],
+                    })
         report_lines = (
             self.env["systore.supply.debt.report"].create(rows)
             if rows else self.env["systore.supply.debt.report"].browse()
