@@ -110,6 +110,10 @@
                                 <small t-else=""><t t-esc="format(section.overdue.pieces)"/> piezas</small>
                             </button>
                         </div>
+                        <div t-if="section.key === 'out'" class="sod-mini-counts sod-readiness-counts">
+                            <button class="sod-mini" t-on-click="() => this.openOperations('out', {readiness:'complete'})" t-att-disabled="state.opening"><span>Completa</span><strong t-esc="format(section.complete?.operations)"/><small><t t-esc="format(section.complete?.pieces)"/> piezas</small></button>
+                            <button class="sod-mini sod-overdue" t-on-click="() => this.openOperations('out', {readiness:'partial'})" t-att-disabled="state.opening"><span>Parcial</span><strong t-esc="format(section.partial?.operations)"/><small><t t-esc="format(section.partial?.pieces)"/> piezas</small></button>
+                        </div>
                         <div class="sod-card-actions"><button t-if="['storage','transfers'].includes(section.key)" class="btn btn-primary btn-lg" t-on-click="() => this.openMobileInternal(section.key)" t-att-disabled="state.opening">Operar</button>
                             <button t-if="section.key === 'in'" class="btn btn-primary btn-lg" t-on-click="() => this.openMobileReceipt()" t-att-disabled="state.opening">
                                 <i class="fa fa-mobile me-1"/> Operar

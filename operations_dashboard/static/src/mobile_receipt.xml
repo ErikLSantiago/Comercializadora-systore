@@ -15,7 +15,7 @@
             <label class="smp-search"><span class="visually-hidden">Buscar compra</span><input type="search" t-model="state.query" t-on-keydown="searchKey" placeholder="Buscar compra, origen, proveedor, producto o UPC"/><button class="smp-link" t-on-click="search" t-att-disabled="state.busy">Buscar</button></label>
             <div class="smp-grid">
                 <button t-foreach="cards" t-as="card" t-key="card.key" class="smp-card smp-operation" t-on-click="() => this.openCard(card)" t-att-disabled="state.busy">
-                    <span class="smp-kind">ORDEN DE COMPRA / RECEPCIÓN</span><h2 t-esc="card.name"/>
+                    <span class="smp-badge" t-esc="label(card.state)"/><span class="smp-kind">ORDEN DE COMPRA / RECEPCIÓN</span><h2 t-esc="card.name"/>
                     <span class="smp-kind">Referencia del proveedor</span><h2 t-esc="card.supplier_ref || '—'"/>
                     <span class="smp-label">Documento de origen</span><p t-esc="card.origin || '—'"/>
                     <span class="smp-label">Proveedor</span><p t-esc="card.supplier"/>

@@ -53,6 +53,8 @@ export class DispatchWorkstation extends Component {
 
     async remove(id) { await this.process('remove_scan', [id]); }
 
+    async chooseReadiness(value) { await this.process('choose_readiness', [value]); }
+
     async validate() { await this.process('validate_ready'); }
 }
 registry.category('actions').add('operations_dashboard.dispatch', DispatchWorkstation);

@@ -1,6 +1,19 @@
 # Tablero de operaciones · Odoo 18
 
-Versión **18.0.1.8.1** · Nombre técnico `operations_dashboard`.
+Versión **18.0.1.9.0** · Nombre técnico `operations_dashboard`.
+
+## Estados oficiales y cantidades parciales · 18.0.1.9.0
+
+- Salidas muestra **Completa** y **Parcial**, con operaciones y piezas separadas en el tablero. Cada botón abre su grupo: en un paso, el panel móvil de preparación; en dos o tres pasos, el escáner de paquetes. Ambos paneles permiten cambiar de grupo.
+- El estado presentado en tarjetas y listas procede de `stock.picking.systore_batch_readiness_state`. En un lote, se presenta Parcial si alguna de sus operaciones pendientes es Parcial. El campo `state` de Odoo conserva su función interna de controlar reservas, etapas previas y validación; no se modifica su definición.
+- Recolección de **tres pasos** permite indicar las piezas por producto y ubicación, de cero a la cantidad disponible. Un producto con cantidad cero no requiere UPC. En lotes, la cantidad se asigna por ID de línea original dentro de cada grupo producto/ubicación, sin trasladar cantidades a otras ubicaciones ni validar órdenes sin piezas seleccionadas. Se utiliza el validador UPC instalado y luego la validación nativa de los traslados seleccionados en conjunto.
+- Recolección de **dos pasos** abre la preparación móvil por pedido con UPC, series y guía, usando la política del módulo UPC instalado. En **un paso**, esa preparación se realiza en Salidas. Las cantidades son editables por producto y solo se piden las series de las piezas elegidas, tanto en captura individual como masiva.
+- Las piezas no seleccionadas quedan fuera de la validación y conservan el asistente de **pedido pendiente/backorder** de Odoo. El operador debe aceptar ese asistente para crear el pendiente; no se cancela automáticamente lo restante.
+- En Salidas de dos o tres pasos, **Validar registradas** procesa las operaciones del grupo seleccionado cuyos paquetes disponibles se hayan escaneado completamente. En el grupo Parcial puede abrir el asistente nativo de pendiente. Escanear continúa sin validar automáticamente.
+
+Actualizar `operations_dashboard` y conservar `stock_upc_validation` 18.0.1.14.2 instalado. La actualización incorpora un campo de filtro en la sesión temporal de escaneo.
+
+Verificación local: 50 pruebas Python, pruebas JS de cantidades parciales, filtros, captura individual/masiva, recepción, transferencias y navegación; compilación Owl y SCSS. Se incluyen pruebas Odoo de parciales para las estrategias de uno, dos y tres pasos y su backorder. Estas pruebas de inventario real deben ejecutarse en Odoo.sh; no se ejecutaron aquí.
 
 ## Captura masiva · 18.0.1.8.1
 

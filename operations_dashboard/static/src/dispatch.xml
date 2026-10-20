@@ -6,6 +6,7 @@
                 <h1>Escanear paquetes para entrega</h1>
                 <p t-if="state.snapshot"><t t-esc="state.snapshot.warehouse"/> · Escanee el código del paquete o su guía.</p>
             </div></header>
+            <div class="sod-toolbar" role="group" aria-label="Estado de salidas"><button class="btn btn-outline-secondary" t-on-click="() => this.chooseReadiness('complete')" t-att-disabled="state.busy" t-att-aria-pressed="state.snapshot?.readiness === 'complete'">Completa</button><button class="btn btn-outline-secondary" t-on-click="() => this.chooseReadiness('partial')" t-att-disabled="state.busy" t-att-aria-pressed="state.snapshot?.readiness === 'partial'">Parcial</button></div>
             <div class="sod-toolbar">
                 <div class="flex-grow-1"><label for="sod-scan-package">Paquete / número de guía</label>
                     <input id="sod-scan-package" t-ref="scan" t-model="state.code" t-on-keydown="keydown"
@@ -13,7 +14,7 @@
                            placeholder="Escanee aquí y presione Enter"/>
                 </div>
                 <button class="btn btn-primary" t-on-click="scan" t-att-disabled="state.busy">Registrar paquete</button>
-                <button class="btn btn-outline-secondary" t-on-click="validate" t-att-disabled="state.busy">Validar completas</button>
+                <button class="btn btn-outline-secondary" t-on-click="validate" t-att-disabled="state.busy">Validar registradas</button>
             </div>
             <div t-if="state.error" class="alert alert-danger" role="alert" t-esc="state.error"/>
             <t t-if="state.snapshot">
@@ -21,11 +22,12 @@
                     <span><t t-esc="state.snapshot.validated"/> operaciones de entrega validadas</span></div>
                 <div t-if="!state.snapshot.rows.length" class="sod-empty">
                     <i class="fa fa-barcode sod-empty-icon" aria-hidden="true"/>
-                    <h2>Lista para comenzar</h2><p>La lista se llenará conforme escanee los paquetes. Pulse Validar completas cuando termine de revisar los paquetes.</p>
+                    <h2>Lista para comenzar</h2><p>La lista se llenará conforme escanee los paquetes. Pulse Validar registradas cuando termine de revisar los paquetes.</p>
                 </div>
                 <div t-else="" class="sod-dispatch-cards">
                     <article t-foreach="state.snapshot.rows.slice().reverse()" t-as="row" t-key="row.id" class="sod-dispatch-card">
                         <div class="d-flex justify-content-between align-items-start"><div><small>Paquete / guía</small><h2 t-esc="row.code"/></div><button t-if="row.removable" class="btn btn-link text-danger" t-on-click="() => this.remove(row.id)" t-att-disabled="state.busy" aria-label="Retirar paquete"><i class="fa fa-trash"/></button></div>
+                        <span class="sod-state" t-esc="row.readiness === 'partial' ? 'Parcial' : 'Completa'"/>
                         <p>Número de orden: <strong t-esc="row.orders || '—'"/></p>
                         <span class="sod-state" t-att-class="{'sod-state-ready':row.validated}" t-esc="row.validated ? 'Entregada' : 'Escaneada · pendiente de validación'"/>
                     </article>

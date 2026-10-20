@@ -11,6 +11,8 @@ class DispatchSession(models.TransientModel):
     warehouse_id = fields.Many2one('stock.warehouse', required=True, readonly=True)
     picking_ids = fields.Many2many('stock.picking', 'systore_dispatch_session_picking_rel',
                                    'session_id', 'picking_id', readonly=True)
+    readiness_filter = fields.Selection([('complete', 'Completa'), ('partial', 'Parcial')], default='complete', readonly=True)
+
     scan_ids = fields.One2many('systore.operations.dispatch.scan', 'session_id', readonly=True)
 
     def _check_session(self, lock=False):
@@ -24,10 +26,12 @@ class DispatchSession(models.TransientModel):
             self.invalidate_recordset(['scan_ids'])
 
     def _pending_pickings(self):
-        return self.env['stock.picking'].search(AND([
+        pickings = self.env['stock.picking'].search(AND([
             self.env['systore.operations.dashboard']._section_domain(self.warehouse_id, 'out'),
             [('id', 'in', self.picking_ids.ids)],
         ]))
+        readiness = getattr(self, 'readiness_filter', False)
+        return pickings.filtered(lambda p: p.systore_batch_readiness_state == readiness) if readiness else pickings
 
     def _packages(self, picking):
         packages = self.env['stock.quant.package']
@@ -64,12 +68,19 @@ class DispatchSession(models.TransientModel):
         if not pickings:
             return False
         pickings.check_access('write')
+        self.env.flush_all()
         self.env.cr.execute('SELECT id FROM stock_picking WHERE id IN %s ORDER BY id FOR UPDATE', (tuple(pickings.ids),))
-        pickings.invalidate_recordset(['state'])
-        pickings = pickings.filtered(lambda picking: picking.state not in ('done', 'cancel'))
+        for table, records in [('stock_move', pickings.move_ids), ('stock_move_line', pickings.move_line_ids)]:
+            if records:
+                self.env.cr.execute('SELECT id FROM ' + table + ' WHERE id IN %s ORDER BY id FOR UPDATE', (tuple(records.ids),))
+                records.invalidate_recordset()
+        pickings.invalidate_recordset()
+        current = self._complete_pickings()
+        if set(current.ids) != set(pickings.ids):
+            raise UserError(_('Las salidas o sus paquetes cambiaron. Actualice la pantalla antes de validar.'))
         for picking in pickings:
             demand, ready = picking._systore_batch_demand_ready_qty()
-            if picking.state != 'assigned' or float_compare(ready, demand, precision_rounding=0.00001) < 0:
+            if picking.state not in ('assigned', 'confirmed') or ready <= 0:
                 raise UserError(_('La salida %s no está completamente lista. Valide las etapas anteriores y revise la reserva.') % picking.name)
         # Never bypass UPC, tracking, serial/lot or backorder hooks.
         result = pickings.button_validate() if pickings else False
@@ -80,12 +91,15 @@ class DispatchSession(models.TransientModel):
         self.picking_ids.check_access('read')
         rows = []
         for scan in self.scan_ids.sorted('id'):
+            if getattr(self, 'readiness_filter', False) and not any(p.systore_batch_readiness_state == self.readiness_filter for p in scan.picking_ids):
+                continue
             rows.append({'id': scan.id, 'code': scan.scanned_code,
                          'orders': ', '.join(sorted(set(filter(None, scan.picking_ids.mapped('systore_operations_sale_names'))))),
                          'operations': ', '.join(scan.picking_ids.mapped('name')),
+                         'readiness': 'partial' if any(p.systore_batch_readiness_state == 'partial' for p in scan.picking_ids) else 'complete',
                          'removable': not any(p.state == 'done' for p in scan.picking_ids),
                          'validated': bool(scan.picking_ids) and all(p.state == 'done' for p in scan.picking_ids)})
-        return {'warehouse': self.warehouse_id.name, 'scanned': len(rows),
+        return {'warehouse': self.warehouse_id.name, 'readiness': getattr(self, 'readiness_filter', False) or 'complete', 'scanned': len(rows),
                 'validated': len(self.picking_ids.filtered(lambda p: p.state == 'done')),
                 'rows': rows}
 
@@ -120,7 +134,7 @@ class DispatchSession(models.TransientModel):
         key, match = next(iter(matches.items()))
         if self.scan_ids.filtered(lambda scan: scan.canonical_key == key):
             raise UserError(_('Este paquete ya fue escaneado en la sesión.'))
-        if any(p.state != 'assigned' for p in match['pickings']):
+        if any(p.state not in ('assigned', 'confirmed') or not any(line.quantity > 0 for line in p.move_line_ids) for p in match['pickings']):
             raise UserError(_('Complete la preparación y reserva de las salidas antes de escanear sus paquetes.'))
         self.env['systore.operations.dispatch.scan'].create({
             'session_id': self.id, 'canonical_key': key, 'scanned_code': code,
@@ -139,6 +153,13 @@ class DispatchSession(models.TransientModel):
         if any(p.state == 'done' for p in scan.picking_ids):
             raise UserError(_('No se puede retirar un paquete ya entregado.'))
         scan.unlink()
+        return {'snapshot': self.get_snapshot(), 'action': False}
+
+    def choose_readiness(self, readiness):
+        self._check_session(lock=True)
+        if readiness not in ('complete', 'partial'):
+            raise ValidationError(_('Estado inválido.'))
+        self.readiness_filter = readiness
         return {'snapshot': self.get_snapshot(), 'action': False}
 
     def validate_ready(self):

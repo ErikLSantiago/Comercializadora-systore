@@ -5,10 +5,11 @@ import { MobilePick } from './mobile_pick';
 export class MobilePack extends MobilePick {
     static template = 'operations_dashboard.MobilePack';
     get section() { return this.params.section || 'pack'; }
+    get isPicking() { return this.section === 'pick'; }
     get isDelivery() { return this.section === 'out'; }
     async loadPanel(page = 0) {
         await this.run(async () => {
-            this.state.panel = await this.call('get_mobile_pack_panel', [this.params.warehouse_id,this.params.batch_id || false,page,this.state.query,this.section]);
+            this.state.panel = await this.call('get_mobile_pack_panel', [this.params.warehouse_id,this.params.batch_id || false,page,this.state.query,this.section,this.state.readiness || this.params.readiness || 'complete']);
             this.state.pageNumber = page; this.state.page = 'panel'; this.state.detail = null;
             this.state.captures = []; this.state.tracking = ''; this.state.massive = false; this.state.skipTracking = false; this.state.massText = '';
         });
@@ -17,6 +18,8 @@ export class MobilePack extends MobilePick {
         if (!card.picking_id) return;
         await this.run(async () => {
             this.state.detail = await this.call('get_mobile_pack_detail',[this.params.warehouse_id,card.picking_id,this.section]);
+            this.state.quantities = {};
+            for (const row of this.state.detail.rows) this.state.quantities[row.product_id] = (this.state.quantities[row.product_id] || 0) + row.qty;
             this.state.captures = this.state.detail.rows.map(row => ({...row,upc:'',serial:'',checked:false}));
             this.state.page = 'detail'; this.state.index = 0; this.state.tracking = '';
             this.state.message = ''; this.state.massive = false; this.state.skipTracking = false; this.state.massText = '';
@@ -37,7 +40,30 @@ export class MobilePack extends MobilePick {
         });
     }
     get current() { return this.state.captures[this.state.index]; }
-    beginValidation() { if (!this.state.busy) { this.state.page = 'upc'; this.state.error = ''; } }
+    beginValidation() {
+        if (this.state.busy) return;
+        const counts = {};
+        this.state.captures = this.state.detail.rows.filter(row => {
+            counts[row.product_id] = (counts[row.product_id] || 0) + 1;
+            return counts[row.product_id] <= this.state.quantities[row.product_id];
+        }).map(row => ({...row,upc:'',serial:'',checked:false}));
+        if (!this.state.captures.length) { this.state.error = 'Registre al menos una pieza para validar.'; return; }
+        this.state.index = 0; this.state.massText = ''; this.state.page = 'upc'; this.state.error = '';
+    }
+    setPackQuantity(row, event) {
+        if (this.state.busy) return;
+        const quantity = event.target.value === '' ? NaN : Number(event.target.value);
+        this.state.error = '';
+        if (!Number.isInteger(quantity) || quantity < 0 || quantity > row.qty) {
+            this.state.error = 'Capture piezas enteras entre cero y la cantidad disponible.'; event.target.value = this.state.quantities[row.product_id]; return;
+        }
+        this.state.quantities[row.product_id] = quantity;
+    }
+    async switchReadiness(value) {
+        if (this.state.busy) return;
+        this.state.readiness = value;
+        await this.loadPanel(0);
+    }
     setUPC(event) { if (!this.state.busy) { this.current.upc = event.target.value; this.current.checked = false; } }
     async acceptUPC() {
         await this.run(async () => {
@@ -108,7 +134,7 @@ export class MobilePack extends MobilePick {
             this.state.page = 'pending';
             try { await this.action.doAction({...result.action,target:'new'},{onClose:() => this.loadPanel()}); }
             catch (error) { this.state.error = error.data?.message || error.message; }
-        } else { await this.loadPanel(); this.state.message = result.complete ? (this.isDelivery ? 'Salida validada.' : 'Empaquetado validado.') : 'Revise las operaciones pendientes.'; }
+        } else { await this.loadPanel(); this.state.message = result.complete ? (this.isDelivery ? 'Salida validada.' : this.isPicking ? 'Recolección validada.' : 'Empaquetado validado.') : 'Revise las operaciones pendientes.'; }
     }
 }
 registry.category('actions').add('operations_dashboard.mobile_pack', MobilePack);

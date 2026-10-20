@@ -436,3 +436,78 @@ class TestOperationsDashboard(TransactionCase):
     def test_mobile_out_rejects_multistep_warehouse(self):
         with self.assertRaises(ValidationError):
             self.service.open_mobile_pack(self.warehouse.id, section='out')
+
+    def _partial_sale(self, steps):
+        self.warehouse.delivery_steps = steps
+        self.warehouse.company_id.systore_upc_validation_warehouse_ids |= self.warehouse
+        self.warehouse.pick_type_id.systore_require_upc_on_picking = True
+        self.product.barcode = 'SOD-PARTIAL-UPC'
+        self.env['stock.quant']._update_available_quantity(self.product, self.warehouse.lot_stock_id, 8)
+        sale = self.env['sale.order'].create({
+            'partner_id': self.vendor.id, 'warehouse_id': self.warehouse.id,
+            'order_line': [Command.create({'product_id': self.product.id, 'product_uom_qty': 5, 'price_unit': 1})],
+        })
+        sale.action_confirm()
+        stage = self.warehouse.out_type_id if steps == 'ship_only' else self.warehouse.pick_type_id
+        picking = sale.picking_ids.filtered(lambda p: p.picking_type_id == stage)
+        picking.action_assign()
+        return sale, picking
+
+    def _accept_mobile_backorder(self, action):
+        self.assertEqual(action['res_model'], 'stock.backorder.confirmation')
+        Wizard = self.env[action['res_model']].with_user(self.user).with_context(action.get('context', {}))
+        wizard = Wizard.browse(action['res_id']) if action.get('res_id') else Wizard.create({})
+        wizard.process()
+
+    def test_three_step_pick_partial_keeps_backorder(self):
+        sale, picking = self._partial_sale('pick_pack_ship')
+        detail = self.service.get_mobile_pick_detail(self.warehouse.id, picking.id)
+        captures = [{'id': row['id'], 'quantity': 2 if index == 0 else 0,
+                     'upc': self.product.barcode if index == 0 else ''}
+                    for index, row in enumerate(detail['rows'])]
+        result = self.service.validate_mobile_pick(self.warehouse.id, picking.id, False, detail['token'], captures)
+        self._accept_mobile_backorder(result['action'])
+        self.assertEqual(picking.state, 'done')
+        self.assertEqual(sum(picking.move_ids.mapped('quantity')), 2)
+        backorder = self.env['stock.picking'].search([('backorder_id', '=', picking.id)])
+        self.assertEqual(sum(backorder.move_ids.mapped('product_uom_qty')), 3)
+        self.assertFalse(picking.move_line_ids.serial_captured_ids)
+
+    def test_two_step_pick_partial_with_serials(self):
+        self._partial_full_capture('pick_ship', 'pick')
+
+    def test_one_step_out_partial_with_serials(self):
+        self._partial_full_capture('ship_only', 'out')
+
+    def _partial_full_capture(self, steps, section):
+        sale, picking = self._partial_sale(steps)
+        if section == 'pick':
+            action = self.service.open_mobile_pick(self.warehouse.id, picking_id=picking.id)
+            self.assertEqual(action['tag'], 'operations_dashboard.mobile_pack')
+            self.assertEqual(action['params']['section'], 'pick')
+        detail = self.service.get_mobile_pack_detail(self.warehouse.id, picking.id, section=section)
+        captures = [{'id': row['id'], 'upc': self.product.barcode, 'serial': 'SOD-PARTIAL-%s' % index}
+                    for index, row in enumerate(detail['rows'][:2])]
+        result = self.service.validate_mobile_pack(self.warehouse.id, detail['wizard_id'], detail['token'],
+                                                  captures, 'SOD-PARTIAL-GUIDE', capture_massive=True)
+        self._accept_mobile_backorder(result['action'])
+        self.assertEqual(picking.state, 'done')
+        self.assertEqual(sum(picking.move_ids.mapped('quantity')), 2)
+        self.assertEqual(set(picking.move_line_ids.serial_captured_ids.mapped('name')),
+                         {'SOD-PARTIAL-0', 'SOD-PARTIAL-1'})
+        backorder = self.env['stock.picking'].search([('backorder_id', '=', picking.id)])
+        self.assertEqual(sum(backorder.move_ids.mapped('product_uom_qty')), 3)
+
+    def test_out_dashboard_uses_official_readiness(self):
+        _sale, picking = self._partial_sale('ship_only')
+        picking.move_line_ids[0].quantity = 2
+        self.assertEqual(picking.systore_batch_readiness_state, 'partial')
+        section = next(section for section in self.service.get_dashboard(self.warehouse.id)['sections'] if section['key'] == 'out')
+        self.assertEqual(section['partial']['operations'], 1)
+        self.assertEqual(section['complete']['operations'], 0)
+        action = self.service.open_guided_operation(self.warehouse.id, 'out', readiness='partial')
+        self.assertEqual(action['params']['readiness'], 'partial')
+        panel = self.service.get_mobile_pack_panel(self.warehouse.id, section='out', readiness='partial')
+        self.assertEqual(panel['cards'][0]['state'], 'partial')
+        complete = self.service.get_mobile_pack_panel(self.warehouse.id, section='out', readiness='complete')
+        self.assertFalse(complete['cards'])

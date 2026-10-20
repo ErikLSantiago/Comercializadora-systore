@@ -13,7 +13,7 @@ export class MobilePick extends Component {
         this.destroyed = false;
         this.scanRef = useRef('upcInput');
         this.state = useState({page:'panel', busy:false, error:'', message:'', panel:null,
-            detail:null, captures:[], index:0, query:'', pageNumber:0, mode:this.params.batch_id ? 'batches' : 'pending'});
+            detail:null, captures:[], index:0, query:'', pageNumber:0, readiness:this.params.readiness || 'complete', mode:this.params.batch_id ? 'batches' : 'pending'});
         onWillUnmount(() => { this.destroyed = true; });
         useEffect(() => { this.scanRef.el?.focus(); }, () => [this.state.page, this.state.index]);
         onWillStart(async () => {
@@ -33,7 +33,7 @@ export class MobilePick extends Component {
     async loadPanel(page = 0, mode = this.state.mode) {
         await this.run(async () => {
             const panel = await this.call('get_mobile_pick_panel', [this.params.warehouse_id,
-                this.params.date || false, this.params.scope || 'date', page, mode, this.state.query]);
+                this.params.date || false, this.params.scope || 'date', page, mode, this.state.query, this.state.readiness]);
             if (this.destroyed) return;
             this.state.panel = panel;
             this.state.mode = mode;
@@ -53,7 +53,7 @@ export class MobilePick extends Component {
     get cards() { return this.state.panel?.cards || []; }
     searchKey(event) { if (event.key === 'Enter') this.search(); }
     async search() { await this.loadPanel(0); }
-    label(state) { return ({assigned:'Listo',confirmed:'Pendiente',waiting:'En espera',draft:'Borrador',
+    label(state) { return ({complete:'Completa',partial:'Parcial',assigned:'Listo',confirmed:'Pendiente',waiting:'En espera',draft:'Borrador',
         mixed:'Parcialmente listo',done:'Hecho',cancel:'Cancelado'})[state] || state; }
     format(value) { return new Intl.NumberFormat('es-MX', {maximumFractionDigits:3}).format(value || 0); }
     async openCard(card) {
@@ -63,6 +63,7 @@ export class MobilePick extends Component {
                 card.picking_id || false, card.batch_id || false]);
             if (this.destroyed) return;
             this.state.detail = detail;
+            this.state.captures = detail.rows.map(row => ({...row,quantity:row.qty,upc:'',upc_checked:false}));
             this.state.page = 'detail';
             this.state.message = '';
         });
@@ -89,7 +90,7 @@ export class MobilePick extends Component {
     async beginValidation() {
         if (this.state.busy || !this.state.detail?.can_validate) return;
         if (!this.state.captures.length) {
-            this.state.captures = this.state.detail.rows.map(row => ({...row, upc:'', upc_checked:false}));
+            this.state.captures = this.state.detail.rows.map(row => ({...row, quantity:row.qty, upc:'', upc_checked:false}));
         }
         this.state.index = 0;
         this.state.error = '';
@@ -99,19 +100,33 @@ export class MobilePick extends Component {
     get productsToScan() {
         const products = new Map();
         for (const row of this.state.captures) {
-            if (row.require_upc && !products.has(row.product_id)) products.set(row.product_id,row);
+            if (row.require_upc && row.quantity > 0 && !products.has(row.product_id)) products.set(row.product_id,row);
         }
         return [...products.values()];
     }
     get current() { return this.productsToScan[this.state.index]; }
     get currentQuantity() {
         return this.state.captures.filter(row => row.product_id === this.current?.product_id)
-            .reduce((sum,row) => sum + row.qty,0);
+            .reduce((sum,row) => sum + row.quantity,0);
     }
     get currentReady() { return !!this.current?.upc.trim(); }
     get ready() {
         return this.state.captures.length > 0 && this.state.captures.every(row =>
-            !row.require_upc || !!row.upc.trim());
+            row.quantity === 0 || !row.require_upc || !!row.upc.trim()) && this.state.captures.some(row => row.quantity > 0);
+    }
+    async chooseReadiness(event) {
+        if (this.state.busy) return;
+        this.state.readiness = event.target.value;
+        await this.loadPanel(0);
+    }
+    setQuantity(row, event) {
+        if (this.state.busy) return;
+        const quantity = event.target.value === '' ? NaN : Number(event.target.value);
+        this.state.error = '';
+        if (!Number.isFinite(quantity) || quantity < 0 || quantity > row.qty) {
+            this.state.error = 'Las piezas deben estar entre cero y la cantidad disponible.'; event.target.value = row.quantity; return;
+        }
+        row.quantity = quantity; row.upc_checked = false;
     }
     setUPC(event) {
         if (this.state.busy || !this.current) return;
@@ -148,7 +163,7 @@ export class MobilePick extends Component {
         await this.run(async () => {
             result = await this.call('validate_mobile_pick', [this.params.warehouse_id,
                 detail.card.picking_id || false, detail.card.batch_id || false, detail.token,
-                this.state.captures.map(row => ({id:row.id,upc:row.upc}))]);
+                this.state.captures.map(row => ({id:row.id,upc:row.upc,quantity:row.quantity}))]);
         });
         if (!result || this.destroyed) return;
         if (result.action) {

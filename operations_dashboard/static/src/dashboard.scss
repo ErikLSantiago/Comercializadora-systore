@@ -95,3 +95,5 @@
     &:hover { box-shadow: 0 4px 18px rgba(30, 50, 70, 0.12); }
     &:focus-visible { outline: 3px solid #714b67; outline-offset: 3px; }
 }
+
+.systore-operations-dashboard .sod-readiness-counts { grid-template-columns: repeat(2, 1fr); }

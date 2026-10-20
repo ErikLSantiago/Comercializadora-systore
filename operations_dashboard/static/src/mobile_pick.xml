@@ -21,12 +21,13 @@
                     <button t-on-click="() => this.switchMode('batches')" t-att-class="{'active':state.mode === 'batches'}"
                             t-att-aria-pressed="state.mode === 'batches'" t-att-disabled="state.busy">Lotes</button>
                 </nav>
+                <label class="smp-field">Estado<select class="form-select" t-att-value="state.readiness" t-on-change="chooseReadiness" t-att-disabled="state.busy"><option value="complete">Completa</option><option value="partial">Parcial</option><option value="all">Todas</option></select></label>
                 <label class="smp-search"><span class="visually-hidden">Buscar recolecciones</span><input type="search" t-model="state.query" t-on-keydown="searchKey" placeholder="Buscar orden, producto o UPC"/><button class="smp-link" t-on-click="search" t-att-disabled="state.busy">Buscar</button></label>
                 <div class="smp-grid">
                     <button t-foreach="cards" t-as="card" t-key="card.key" class="smp-card smp-operation"
                             t-att-disabled="state.busy" t-on-click="() => this.openCard(card)">
                         <div class="smp-card-top"><span class="smp-kind" t-esc="card.is_batch ? 'LOTE / BATCH' : 'RECOLECCIÓN'"/>
-                            <span class="smp-badge" t-att-class="{'smp-ready':card.state === 'assigned'}" t-esc="label(card.state)"/></div>
+                            <span class="smp-badge" t-att-class="{'smp-ready':card.state === 'complete'}" t-esc="label(card.state)"/></div>
                         <h2 t-esc="card.name"/><span class="smp-label">Documento de origen</span>
                         <div class="smp-origin" t-foreach="card.origins" t-as="origin" t-key="origin" t-esc="origin"/>
                         <p t-if="!card.origins.length">Sin documento de origen</p>
@@ -47,12 +48,12 @@
                 </nav>
             </t>
             <t t-if="state.page === 'detail' &amp;&amp; state.detail">
-                <div class="smp-detail-heading"><span class="smp-badge" t-att-class="{'smp-ready':state.detail.card.state === 'assigned'}" t-esc="label(state.detail.card.state)"/>
+                <div class="smp-detail-heading"><span class="smp-badge" t-att-class="{'smp-ready':state.detail.card.state === 'complete'}" t-esc="label(state.detail.card.state)"/>
                     <button class="smp-link" t-on-click="original" t-att-disabled="state.busy">Abrir original</button></div>
                 <h2>Productos por recoger</h2>
                 <div class="alert alert-warning" t-if="state.detail.notice" t-esc="state.detail.notice"/>
                 <div class="smp-grid">
-                    <article t-foreach="state.detail.rows" t-as="row" t-key="row.id" class="smp-card smp-product">
+                    <article t-foreach="state.captures" t-as="row" t-key="row.id" class="smp-card smp-product">
                         <div class="smp-location"><i class="fa fa-map-marker"/><div><span class="smp-label">Ubicación de origen</span><strong t-esc="row.location"/></div></div>
                         <div class="smp-product-heading">
                             <div class="smp-product-image"><i class="fa fa-cube" aria-hidden="true"/>
@@ -61,7 +62,8 @@
                             <div><span class="smp-label">Producto</span><h3 t-esc="row.product"/></div>
                         </div>
                         <p class="smp-muted"><t t-esc="row.origin || row.operation"/></p>
-                        <div class="smp-quantity"><span>Recoger</span><strong t-esc="format(row.qty)"/><span t-esc="row.uom"/></div>
+                        <div class="smp-quantity"><span>Disponibles</span><strong t-esc="format(row.qty)"/><span t-esc="row.uom"/></div>
+                        <label class="smp-field">Piezas a recolectar<input type="number" min="0" t-att-step="row.rounding || 'any'" t-att-max="row.qty" t-att-value="row.quantity" t-on-change="(event) => this.setQuantity(row, event)" t-att-disabled="state.busy"/></label>
                     </article>
                 </div>
             </t>

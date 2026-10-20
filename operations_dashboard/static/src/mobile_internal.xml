@@ -7,7 +7,7 @@
 <p t-if="state.busy" role="status">Procesando…</p>
 <t t-if="state.page === 'panel'">
 <label class="smp-search"><span class="visually-hidden">Buscar</span><input type="search" t-model="state.query" t-on-keydown="searchKey" placeholder="Buscar operación, origen, producto o UPC"/><button class="smp-link" t-on-click="search" t-att-disabled="state.busy">Buscar</button></label>
-<div class="smp-grid"><button t-foreach="cards" t-as="card" t-key="card.key" class="smp-card smp-operation" t-on-click="() => this.openCard(card)" t-att-disabled="state.busy"><span class="smp-badge smp-ready">Listo</span><h2 t-esc="card.name"/><p t-esc="card.origins.join(', ')"/><p t-esc="card.operation_type"/><div class="smp-quantity"><span>Piezas</span><strong t-esc="format(card.pieces)"/></div></button></div>
+<div class="smp-grid"><button t-foreach="cards" t-as="card" t-key="card.key" class="smp-card smp-operation" t-on-click="() => this.openCard(card)" t-att-disabled="state.busy"><span class="smp-badge" t-att-class="{'smp-ready':card.state === 'complete'}" t-esc="label(card.state)"/><h2 t-esc="card.name"/><p t-esc="card.origins.join(', ')"/><p t-esc="card.operation_type"/><div class="smp-quantity"><span>Piezas</span><strong t-esc="format(card.pieces)"/></div></button></div>
 <p t-if="state.panel &amp;&amp; !cards.length">No hay operaciones listas para este filtro.</p>
 <nav class="smp-pagination" t-if="state.panel"><button t-on-click="() => this.loadPanel(state.pageNumber - 1)" t-att-disabled="state.busy || !state.pageNumber">Anterior</button><span>Página <t t-esc="state.pageNumber + 1"/></span><button t-on-click="() => this.loadPanel(state.pageNumber + 1)" t-att-disabled="state.busy || !state.panel.has_more">Siguiente</button></nav>
 </t>

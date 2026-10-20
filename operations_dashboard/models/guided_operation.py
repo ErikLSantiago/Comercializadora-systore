@@ -36,9 +36,11 @@ class GuidedOperationsService(models.AbstractModel):
 
     @api.model
     def open_guided_operation(self, warehouse_id, section, selected_date=False, scope='date',
-                              picking_id=False, batch_id=False):
+                              picking_id=False, batch_id=False, readiness='complete'):
         warehouse = self._warehouse(warehouse_id)
         day, today, timezone = self._parameters(selected_date, scope)
+        if readiness not in ('complete', 'partial'):
+            raise ValidationError(_('Estado inválido.'))
         if section not in ('pick', 'pack', 'out'):
             raise ValidationError(_('Etapa de expedición inválida.'))
         if picking_id or batch_id:
@@ -48,12 +50,10 @@ class GuidedOperationsService(models.AbstractModel):
                 self._filtered_domain(warehouse, section, day, scope, today, timezone))
             batch = self.env['stock.picking.batch']
         if section == 'out' and warehouse.delivery_steps == 'ship_only':
-            return self.open_mobile_pack(warehouse.id, picking_id=picking_id, batch_id=batch_id, section='out')
+            return self.open_mobile_pack(warehouse.id, picking_id=picking_id, batch_id=batch_id, section='out', readiness=readiness)
         if section == 'out' and warehouse.delivery_steps != 'ship_only':
-            if not pickings:
-                raise UserError(_('No hay salidas pendientes para este filtro.'))
             session = self.env['systore.operations.dispatch.session'].create({
-                'warehouse_id': warehouse.id, 'picking_ids': [(6, 0, pickings.ids)],
+                'warehouse_id': warehouse.id, 'picking_ids': [(6, 0, pickings.ids)], 'readiness_filter': readiness,
             })
             return {'type': 'ir.actions.client', 'name': _('Escanear salidas'),
                     'tag': 'operations_dashboard.dispatch', 'params': {'session_id': session.id}}
@@ -78,15 +78,15 @@ class GuidedOperationsService(models.AbstractModel):
             raise UserError(_('Habilite este almacén en los ajustes de Stock UPC Validation para validar UPC/NS/IMEI.'))
         for picking in pickings:
             if (section == 'pick' and warehouse.delivery_steps == 'pick_ship'
-                    and not picking.picking_type_id.systore_require_tracking_on_pack):
+                    and not self._requires_full_capture(picking)):
                 raise UserError(_('En entrega de dos pasos, active «Exigir guía en empaque» en el tipo Pick. La preparación capturará UPC, NS/IMEI y guía por orden antes de avanzar a Salidas.'))
             if section in ('pack', 'out') and not self._requires_full_capture(picking):
                 raise UserError(_('Active «Exigir guía en empaque» en este tipo de operación para capturar UPC, NS/IMEI y guía.'))
             if not picking._systore_needs_upc_picking_wizard():
                 raise UserError(_('La operación %s no requiere una nueva validación UPC. Revise los checks del tipo de operación o continúe su asistente pendiente desde el formulario nativo.') % picking.name)
         pickings.action_assign()
-        if any(p.state != 'assigned' for p in pickings):
-            raise UserError(_('Primero complete la etapa anterior y reserve los productos. Solo se pueden preparar operaciones completamente disponibles.'))
+        if any(p.state not in ('assigned', 'confirmed') or not any(line.quantity > 0 for line in p.move_line_ids) for p in pickings):
+            raise UserError(_('Primero complete la etapa anterior y reserve los productos. Solo se pueden preparar operaciones con piezas disponibles.'))
         if batch and batch.state == 'draft':
             batch.action_confirm()
         Wizard = self.env['stock.picking.upc.wizard']
@@ -157,7 +157,7 @@ class GuidedUPCWizard(models.TransientModel):
         warehouse = service._warehouse(self.systore_guided_warehouse_id.id)
         pickings, _batch = service._guided_pickings(warehouse, self.systore_guided_section,
                                                   self.picking_id.id, self.batch_id.id)
-        if any(p.state != 'assigned' for p in pickings):
+        if any(p.state not in ('assigned', 'confirmed') for p in pickings):
             raise UserError(_('La disponibilidad de la operación cambió. Revise sus reservas antes de validar.'))
         if any(line.skip_upc_validation for line in self.line_ids):
             raise UserError(_('La pantalla guiada exige el UPC. Use el flujo nativo para registrar una excepción autorizada.'))

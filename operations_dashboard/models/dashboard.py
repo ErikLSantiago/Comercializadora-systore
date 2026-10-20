@@ -217,13 +217,13 @@ class OperationsDashboard(models.AbstractModel):
             pickings = self.env['stock.picking'].search(self._section_domain(warehouse, section),
                                                        order='scheduled_date, id')
             pickings.fetch(['name', 'scheduled_date', 'state', 'partner_id', 'picking_type_id',
-                            'location_id', 'location_dest_id', 'systore_operations_sale_names', 'batch_id'])
+                            'location_id', 'location_dest_id', 'systore_operations_sale_names', 'batch_id', 'systore_batch_readiness_state'])
             if section in RECEIPT_SECTIONS:
                 entries = self._receipt_entries(pickings)
             else:
                 entries = [{'key': 'p%s' % p.id, 'purchase_id': False, 'label': p.name,
                             'date': p.scheduled_date, 'pieces': self._picking_pieces(p),
-                            'batch_id': p.batch_id.id, 'picking_ids': [p.id]} for p in pickings]
+                            'batch_id': p.batch_id.id, 'picking_ids': [p.id], 'readiness': p.systore_batch_readiness_state} for p in pickings]
             selected = [e for e in entries if section not in RECEIPT_SECTIONS or matches_scope(e['date'], scope, day, today, timezone)]
             def count_for(count_day, count_scope='date'):
                 return self._totals([e for e in entries
@@ -257,7 +257,7 @@ class OperationsDashboard(models.AbstractModel):
                         'batch': batch.name if batch else '', 'operations': len(grouped_pickings),
                         'pieces': sum(self._picking_pieces(p) for p in grouped_pickings),
                         'native_lots': ', '.join(sorted(set(grouped_pickings.move_line_ids.lot_id.mapped('name')))),
-                        'type': picking.picking_type_id.name, 'state': picking.state,
+                        'type': picking.picking_type_id.name, 'state': 'partial' if any(p.systore_batch_readiness_state == 'partial' for p in grouped_pickings) else 'complete',
                         'sale_order': ', '.join(sorted(set(filter(None, grouped_pickings.mapped('systore_operations_sale_names'))))),
                         'date': fields.Date.to_string(local_date(picking.scheduled_date, timezone)),
                         'source': picking.location_id.display_name,
@@ -265,6 +265,8 @@ class OperationsDashboard(models.AbstractModel):
                     })
             sections.append({
                 'key': section, 'title': TITLES[section], 'selected': self._totals(selected),
+                'complete': self._totals([e for e in entries if e.get('readiness') == 'complete']),
+                'partial': self._totals([e for e in entries if e.get('readiness') == 'partial']),
                 'next_days': count_for(today, 'next_days'),
                 'upcoming': count_for(today, 'upcoming'),
                 'today': count_for(today), 'tomorrow': count_for(today + timedelta(days=1)),

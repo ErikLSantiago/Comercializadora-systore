@@ -56,7 +56,7 @@ export class OperationsDashboard extends Component {
     }
 
     stateLabel(value) {
-        return ({ draft: 'Borrador', waiting: 'En espera', confirmed: 'Por preparar',
+        return ({ complete:'Completa', partial:'Parcial', draft: 'Borrador', waiting: 'En espera', confirmed: 'Por preparar',
             assigned: 'Lista', done: 'Hecha', cancel: 'Cancelada' })[value] || value;
     }
 
@@ -141,7 +141,7 @@ export class OperationsDashboard extends Component {
         try {
             const guided = ['pack', 'out'].includes(section);
             const args = [this.state.warehouseId, section, this.state.date, !this.isReceipt(section) ? 'all' : this.state.scope];
-            if (guided) { args.push(row?.picking_id || false, row?.batch_id || false); }
+            if (guided) { args.push(row?.picking_id || false, row?.batch_id || false, row?.readiness || 'complete'); }
             else { args.push(row?.purchase_id || false, row?.picking_id || false); }
             const action = await this.orm.call('systore.operations.dashboard', guided ? 'open_guided_operation' : 'open_operations', args);
             await this.action.doAction(action);

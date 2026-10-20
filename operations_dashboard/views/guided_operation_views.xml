@@ -64,7 +64,8 @@
                 <field name="batch_id" optional="show"/>
                 <field name="picking_type_id"/>
                 <field name="scheduled_date"/>
-                <field name="state" widget="badge"/>
+                <field name="systore_batch_readiness_state" string="Estado" widget="badge"/>
+                <field name="state" string="Estado Odoo" optional="hide"/>
                 <button name="action_systore_guided_operation" type="object" string="Operar" class="btn-primary"/>
             </list>
         </field>

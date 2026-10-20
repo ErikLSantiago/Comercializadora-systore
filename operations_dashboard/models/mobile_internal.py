@@ -45,7 +45,7 @@ class MobileInternal(models.AbstractModel):
         return {'warehouse': warehouse.name, 'has_more': len(picks) > (page + 1) * 30,
                 'cards': [{'key': str(p.id), 'picking_id': p.id, 'name': p.name, 'origins': [p.origin or ''],
                            'operation_type': p.picking_type_id.name, 'pieces': self._picking_pieces(p),
-                           'state': p.state} for p in picks[page * 30:(page + 1) * 30]]}
+                           'state': p.systore_batch_readiness_state} for p in picks[page * 30:(page + 1) * 30]]}
 
     def _internal_detail(self, picking):
         moves = picking.move_ids_without_package.filtered(lambda m: m.state not in ('done', 'cancel'))

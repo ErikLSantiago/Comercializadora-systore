@@ -63,13 +63,13 @@ class MobileReceiptService(models.AbstractModel):
         by_id = {p.id: p for p in pickings}
         cards = []
         for entry in entries[page * 30:(page + 1) * 30]:
-            receipts = [{'picking_id': pid, 'name': by_id[pid].name, 'state': by_id[pid].state,
+            receipts = [{'picking_id': pid, 'name': by_id[pid].name, 'state': by_id[pid].systore_batch_readiness_state,
                          'pieces': self._picking_pieces(by_id[pid])} for pid in entry['picking_ids']]
             cards.append({'key': entry['key'], 'purchase_id': entry['purchase_id'],
                 'name': entry['label'], 'origin': entry['origin'], 'origins': [entry['origin']], 'operation_type': 'Ingresos',
                 'supplier': entry['partner'], 'supplier_ref': entry['supplier_ref'],
                 'packages': entry['packages'], 'pieces': sum(r['pieces'] for r in receipts),
-                'receipts': receipts})
+                'receipts': receipts, 'state': 'partial' if any(receipt['state'] == 'partial' for receipt in receipts) else 'complete'})
         return {'warehouse': warehouse.name, 'cards': cards, 'page': page,
                 'has_more': (page + 1) * 30 < len(entries), 'total': len(entries)}
 

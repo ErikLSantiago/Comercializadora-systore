@@ -1,3 +1,6 @@
+import math
+
+
 """Presentation grouping and UPC input checks; stock rules remain in Odoo."""
 
 
@@ -36,7 +39,30 @@ def normalize_capture(rows, payload):
         if not isinstance(barcode, str) or len(barcode) > 256:
             raise ValueError('UPC inválido.')
         barcode = barcode.strip()
-        if row['require_upc'] and not barcode:
+        quantity = item.get('quantity', row['qty'])
+        if isinstance(quantity, bool) or not isinstance(quantity, (int, float)) or not math.isfinite(quantity) or quantity < 0 or quantity > row['qty']:
+            raise ValueError('Las piezas deben estar entre cero y la cantidad disponible.')
+        rounding = row.get('rounding', 0.00001)
+        if not math.isclose(quantity, round(quantity / rounding) * rounding, rel_tol=0, abs_tol=1e-8):
+            raise ValueError('La cantidad no respeta la unidad de medida del producto.')
+        if row['require_upc'] and quantity > 0 and not barcode:
             raise ValueError('Capture el UPC del producto antes de validar.')
-        captured[row['id']] = {'upc': barcode}
+        captured[row['id']] = {'upc': barcode, 'quantity': quantity}
+    if not any(value['quantity'] > 0 for value in captured.values()):
+        raise ValueError('Registre al menos una pieza para validar.')
     return captured
+
+
+def allocate_pick_quantities(rows, captured, capacities):
+    """Allocate group quantities only to their original move lines, in ID order."""
+    result = {}
+    for row in rows:
+        remaining = captured[row['id']]['quantity']
+        for line_id in sorted(row['line_ids']):
+            capacity = capacities[line_id]
+            amount = min(remaining, capacity)
+            result[line_id] = amount
+            remaining = max(remaining - amount, 0)
+        if remaining > 0.00001:
+            raise ValueError('La cantidad supera la reserva de esta ubicación.')
+    return result

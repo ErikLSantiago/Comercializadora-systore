@@ -9,8 +9,8 @@ class MobilePackService(models.AbstractModel):
     _inherit = 'systore.operations.dashboard'
 
     def _mobile_pack_section(self, warehouse, section):
-        if section not in ('pack', 'out') or (section == 'out' and warehouse.delivery_steps != 'ship_only'):
-            raise ValidationError(_('Esta captura corresponde a Empaquetado o a Salidas de un paso.'))
+        if section not in ('pack', 'pick', 'out') or (section == 'out' and warehouse.delivery_steps != 'ship_only') or (section == 'pick' and warehouse.delivery_steps != 'pick_ship'):
+            raise ValidationError(_('Esta captura corresponde a Empaquetado, Recolección de dos pasos o Salidas de un paso.'))
         # Validate the section; subsequent picking reads apply the enabled-type domain.
         self._section_domain(warehouse, section)
         return section
@@ -20,17 +20,19 @@ class MobilePackService(models.AbstractModel):
         return native_policy() if native_policy else bool(picking.systore_require_tracking_on_pack)
 
     @api.model
-    def open_mobile_pack(self, warehouse_id, picking_id=False, batch_id=False, section='pack'):
+    def open_mobile_pack(self, warehouse_id, picking_id=False, batch_id=False, section='pack', readiness='complete'):
         warehouse = self._warehouse(warehouse_id)
         self._mobile_pack_section(warehouse, section)
         if picking_id or batch_id:
             self._guided_pickings(warehouse, section, picking_id, batch_id)
-        return {'type': 'ir.actions.client', 'name': _('Salidas') if section == 'out' else _('Empaquetado'),
+        if readiness not in ('complete', 'partial', 'all'):
+            raise ValidationError(_('Estado inválido.'))
+        return {'type': 'ir.actions.client', 'name': {'out': _('Salidas'), 'pick': _('Recolección'), 'pack': _('Empaquetado')}[section],
                 'tag': 'operations_dashboard.mobile_pack',
-                'params': {'warehouse_id': warehouse_id, 'picking_id': picking_id, 'batch_id': batch_id, 'section': section}}
+                'params': {'warehouse_id': warehouse_id, 'picking_id': picking_id, 'batch_id': batch_id, 'section': section, 'readiness': readiness}}
 
     @api.model
-    def get_mobile_pack_panel(self, warehouse_id, batch_id=False, page=0, query='', section='pack'):
+    def get_mobile_pack_panel(self, warehouse_id, batch_id=False, page=0, query='', section='pack', readiness='complete'):
         warehouse = self._warehouse(warehouse_id)
         self._mobile_pack_section(warehouse, section)
         if type(page) is not int or page < 0:
@@ -39,14 +41,19 @@ class MobilePackService(models.AbstractModel):
             pickings, _batch = self._guided_pickings(warehouse, section, batch_id=batch_id)
         else:
             pickings = self.env['stock.picking'].search(self._section_domain(warehouse, section), order='scheduled_date,id')
+        if readiness not in ('complete', 'partial', 'all'):
+            raise ValidationError(_('Estado inválido.'))
         term = self._search_term(query)
-        pickings = pickings.filtered(lambda p: p.state == 'assigned')
+        pickings = pickings.filtered(lambda p: p.state != 'draft')
+        counts = {key: len(pickings.filtered(lambda p: p.systore_batch_readiness_state == key)) for key in ('complete', 'partial')}
+        if section == 'out' and readiness != 'all':
+            pickings = pickings.filtered(lambda p: p.systore_batch_readiness_state == readiness)
         if term:
             pickings = pickings.filtered(lambda p: term in ' '.join([p.name, p.systore_operations_sale_names or p.origin or '', self._operation_search_text(p)]).casefold())
-        return {'warehouse': warehouse.name, 'total': len(pickings), 'has_more': len(pickings) > (page + 1) * 30,
+        return {'warehouse': warehouse.name, 'counts': counts, 'total': len(pickings), 'has_more': len(pickings) > (page + 1) * 30,
                 'cards': [{'picking_id': p.id, 'key': str(p.id), 'name': p.name,
                            'origins': [p.systore_operations_sale_names or p.origin or ''],
-                           'operation_type': p.picking_type_id.name, 'state': p.state,
+                           'operation_type': p.picking_type_id.name, 'state': p.systore_batch_readiness_state,
                            'pieces': self._picking_pieces(p), 'batch': p.batch_id.name or ''}
                           for p in pickings[page * 30:(page + 1) * 30]]}
 
@@ -74,7 +81,19 @@ class MobilePackService(models.AbstractModel):
             raise UserError(_('Use la vista original para cantidades fraccionarias u otras unidades.'))
         action = self._prepare_guided_capture(warehouse, section, picking, _batch)
         wizard = self.env['stock.picking.upc.wizard'].browse(action['res_id'])
-        return {'picking_id': picking.id, 'state': picking.state, 'wizard_id': wizard.id, 'token': self._pack_token(picking), 'name': picking.name,
+        available = {}
+        for line in picking.move_line_ids.filtered(lambda line: line.state not in ('done', 'cancel')):
+            available[line.product_id.id] = available.get(line.product_id.id, 0) + line.product_uom_id._compute_quantity(line.quantity, line.product_id.uom_id)
+        drop = self.env['stock.picking.upc.wizard.line']
+        for line in wizard.line_ids.sorted('id'):
+            if available.get(line.product_id.id, 0) < 1:
+                drop |= line
+            else:
+                available[line.product_id.id] -= 1
+        drop.unlink()
+        if not wizard.line_ids:
+            raise UserError(_('No hay piezas disponibles para preparar.'))
+        return {'picking_id': picking.id, 'state': picking.systore_batch_readiness_state, 'wizard_id': wizard.id, 'token': self._pack_token(picking), 'name': picking.name,
                 'orders': picking.systore_operations_sale_names or picking.origin or '',
                 'source': picking.location_id.complete_name, 'destination': picking.location_dest_id.complete_name,
                 'mass_capture_available': bool(getattr(wizard, 'mass_capture_available', False)),
@@ -87,12 +106,12 @@ class MobilePackService(models.AbstractModel):
         if type(wizard_id) is not int:
             raise ValidationError(_('Preparación inválida.'))
         wizard = self.env['stock.picking.upc.wizard'].browse(wizard_id).exists()
-        if not wizard or wizard.create_uid != self.env.user or wizard.systore_guided_warehouse_id != warehouse or wizard.systore_guided_section not in ('pack', 'out') or wizard.batch_id:
+        if not wizard or wizard.create_uid != self.env.user or wizard.systore_guided_warehouse_id != warehouse or wizard.systore_guided_section not in ('pack', 'pick', 'out') or wizard.batch_id:
             raise AccessError(_('Esta preparación no está disponible para este usuario y almacén.'))
         wizard.check_access('write')
         section = self._mobile_pack_section(warehouse, wizard.systore_guided_section)
         picking, _batch = self._guided_pickings(warehouse, section, picking_id=wizard.picking_id.id)
-        if picking.state != 'assigned' or token != self._pack_token(picking):
+        if picking.state not in ('assigned', 'confirmed') or token != self._pack_token(picking):
             raise UserError(_('La operación cambió. Vuelva a abrirla antes de continuar.'))
         if not self._requires_full_capture(picking) or not picking._systore_needs_upc_picking_wizard():
             raise UserError(_('Revise la configuración o el asistente pendiente desde la vista original.'))
@@ -127,7 +146,7 @@ class MobilePackService(models.AbstractModel):
                 self.env.cr.execute('SELECT id FROM ' + table + ' WHERE id IN %s ORDER BY id FOR UPDATE', (tuple(records.ids),))
                 records.invalidate_recordset()
         wizard = self._pack_wizard(warehouse_id, wizard_id, token)
-        if not isinstance(captures, list) or len(captures) != len(wizard.line_ids):
+        if not isinstance(captures, list) or not captures or len(captures) > len(wizard.line_ids):
             raise ValidationError(_('Complete todas las piezas.'))
         seen, serials = set(), set()
         for capture in captures:
@@ -141,6 +160,7 @@ class MobilePackService(models.AbstractModel):
             line = wizard.line_ids.filtered(lambda line: line.id == capture['id'])
             line.write({'upc_ean': self._pack_text(capture.get('upc'), 'UPC'), 'serial_imei': serial,
                         'skip_upc_validation': False, 'demand_qty': 1})
+        wizard.line_ids.filtered(lambda line: line.id not in seen).unlink()
         if type(capture_massive) is not bool or type(skip_tracking) is not bool:
             raise ValidationError(_('Opciones de captura inválidas.'))
         if skip_tracking:
@@ -162,7 +182,7 @@ class MobilePackService(models.AbstractModel):
                     raise ValidationError(_('La captura masiva requiere un UPC por producto.'))
                 group['serials'].append(line.serial_imei)
             # The installed addon owns grouping, quantity checks and serial creation.
-            values = wizard._prepare_picking_line_values(picking, capture_massive=True)
+            values = [value for value in wizard._prepare_picking_line_values(picking, capture_massive=True) if value['product_id'] in by_product]
             wizard._validate_prepared_line_values(picking, values)
             if set(by_product) != {value['product_id'] for value in values}:
                 raise UserError(_('Los productos cambiaron. Vuelva a abrir la operación.'))
