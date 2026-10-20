@@ -1,6 +1,15 @@
 # Tablero de operaciones · Odoo 18
 
-Versión **18.0.1.9.1** · Nombre técnico `operations_dashboard`.
+Versión **18.0.1.9.2** · Nombre técnico `operations_dashboard`.
+
+## Confirmación de ingresos y captura libre de Salidas · 18.0.1.9.2
+
+- La confirmación final de Ingresos muestra imagen, producto, Demanda, Cantidad a ingresar y ubicaciones de destino por producto. Se muestran las ubicaciones de las líneas nativas de movimiento; si aún no hay líneas, el destino del movimiento. En dos pasos corresponde al destino de la recepción que se está operando, que puede ser la zona de recepción, y no una ubicación final futura supuesta.
+- En Salidas de un paso, el operador elige el producto desde su tarjeta. Tras registrar una pieza con UPC y serie o un grupo de series en modo masivo, vuelve al resumen. Se conserva lo registrado para elegir otro producto o continuar con el mismo, sin reiniciar las capturas.
+- El resumen muestra las piezas registradas por producto. **Continuar con guía** se habilita cuando se completan las cantidades seleccionadas; después se conserva la confirmación final de la entrega. Volver desde la guía conserva las capturas. La cantidad seleccionada no puede reducirse por debajo de las piezas ya registradas.
+- Las tarjetas de productos de la preparación compartida (Pack, Pick de dos pasos y Out de un paso) muestran **Demanda** desde los movimientos nativos y **Cantidad** desde sus líneas disponibles. Los productos sin piezas listas también aparecen con Cantidad cero, sin habilitar su captura. El campo editable de piezas a procesar permanece separado de estos valores informativos.
+
+Pruebas locales de captura individual y masiva en orden libre, conservación de series, rechazo de duplicados, confirmación de ingresos y compilación de plantillas correctas. Se incluyen verificaciones de destinos y Demanda/Cantidad para ejecutar en Odoo.sh. No se ejecutaron aquí las pruebas con inventario real ni la revisión visual en móvil.
 
 ## Controles móviles y apertura por periodo · 18.0.1.9.1
 

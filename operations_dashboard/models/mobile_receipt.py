@@ -84,9 +84,14 @@ class MobileReceiptService(models.AbstractModel):
         required = picking._systore_needs_upc_receipt_wizard()
         for group in picking._systore_receipt_validation_groups():
             product = self.env['product.product'].browse(group['product_id'])
+            product_moves = moves.filtered(lambda move: move.product_id == product)
+            destinations = product_moves.move_line_ids.filtered(lambda line: line.state not in ('done', 'cancel')).location_dest_id
+            if not destinations:
+                destinations = product_moves.location_dest_id
             rows.append({'id': str(product.id), 'product_id': product.id, 'product': product.display_name,
                          'qty': group['demand_qty'], 'quantity': min(group['quantity'], group['demand_qty']),
-                         'uom': product.uom_id.name, 'require_upc': required})
+                         'uom': product.uom_id.name, 'require_upc': required,
+                         'destinations': sorted(set(destinations.mapped('complete_name')))})
         if not rows:
             reasons.append(_('No hay productos pendientes de ingresar.'))
         snapshot = {'rows': rows, 'picking': (picking.id, picking.state, str(picking.write_date)),

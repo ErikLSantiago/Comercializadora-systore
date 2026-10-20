@@ -93,9 +93,20 @@ class MobilePackService(models.AbstractModel):
         drop.unlink()
         if not wizard.line_ids:
             raise UserError(_('No hay piezas disponibles para preparar.'))
+        products = {}
+        for move in moves:
+            item = products.setdefault(move.product_id.id, {'id': 'product-%s' % move.product_id.id,
+                'product_id': move.product_id.id, 'product': move.product_id.display_name,
+                'uom': move.product_id.uom_id.name, 'demand': 0, 'quantity': 0, 'qty': 0})
+            item['demand'] += move.product_uom._compute_quantity(move.product_uom_qty, move.product_id.uom_id)
+            item['quantity'] += sum(line.product_uom_id._compute_quantity(line.quantity, move.product_id.uom_id)
+                                    for line in move.move_line_ids if line.state not in ('done', 'cancel'))
+        for line in wizard.line_ids:
+            products[line.product_id.id]['qty'] += line.demand_qty
         return {'picking_id': picking.id, 'state': picking.systore_batch_readiness_state, 'wizard_id': wizard.id, 'token': self._pack_token(picking), 'name': picking.name,
                 'orders': picking.systore_operations_sale_names or picking.origin or '',
                 'source': picking.location_id.complete_name, 'destination': picking.location_dest_id.complete_name,
+                'products': list(products.values()),
                 'mass_capture_available': bool(getattr(wizard, 'mass_capture_available', False)),
                 'skip_tracking_available': 'skip_tracking_ref' in wizard._fields,
                 'rows': [{'id': line.id, 'product_id': line.product_id.id, 'product': line.product_id.display_name,

@@ -249,7 +249,7 @@ class TestOperationsDashboard(TransactionCase):
         self.warehouse.pick_type_id.write({'systore_require_upc_on_picking': True,
                                           'systore_require_tracking_on_pack': False})
         self.product.barcode = 'SOD-MOBILE-UPC'
-        self.env['stock.quant']._update_available_quantity(self.product, self.warehouse.lot_stock_id, 8)
+        self.env['stock.quant']._update_available_quantity(self.product, self.warehouse.lot_stock_id, available)
         picks = self.env['stock.picking']
         for quantity in (1, 2):
             sale = self.env['sale.order'].create({
@@ -437,12 +437,12 @@ class TestOperationsDashboard(TransactionCase):
         with self.assertRaises(ValidationError):
             self.service.open_mobile_pack(self.warehouse.id, section='out')
 
-    def _partial_sale(self, steps):
+    def _partial_sale(self, steps, available=8):
         self.warehouse.delivery_steps = steps
         self.warehouse.company_id.systore_upc_validation_warehouse_ids |= self.warehouse
         self.warehouse.pick_type_id.systore_require_upc_on_picking = True
         self.product.barcode = 'SOD-PARTIAL-UPC'
-        self.env['stock.quant']._update_available_quantity(self.product, self.warehouse.lot_stock_id, 8)
+        self.env['stock.quant']._update_available_quantity(self.product, self.warehouse.lot_stock_id, available)
         sale = self.env['sale.order'].create({
             'partner_id': self.vendor.id, 'warehouse_id': self.warehouse.id,
             'order_line': [Command.create({'product_id': self.product.id, 'product_uom_qty': 5, 'price_unit': 1})],
@@ -511,3 +511,19 @@ class TestOperationsDashboard(TransactionCase):
         self.assertEqual(panel['cards'][0]['state'], 'partial')
         complete = self.service.get_mobile_pack_panel(self.warehouse.id, section='out', readiness='complete')
         self.assertFalse(complete['cards'])
+
+    def test_delivery_detail_distinguishes_demand_and_ready_quantity(self):
+        _sale, picking = self._partial_sale('ship_only', available=2)
+        detail = self.service.get_mobile_pack_detail(self.warehouse.id, picking.id, section='out')
+        product = next(row for row in detail['products'] if row['product_id'] == self.product.id)
+        self.assertEqual(product['demand'], 5)
+        self.assertEqual(product['quantity'], 2)
+        self.assertEqual(product['qty'], 2)
+        self.assertEqual(len(detail['rows']), 2)
+
+    def test_receipt_confirmation_includes_native_product_destination(self):
+        order = self.make_order()
+        picking = order.picking_ids.filtered(lambda p: p.picking_type_id == self.warehouse.in_type_id)
+        detail = self.service.get_mobile_receipt_detail(self.warehouse.id, picking.id, order.id)
+        self.assertEqual(detail['rows'][0]['product_id'], self.product.id)
+        self.assertEqual(detail['rows'][0]['destinations'], [picking.location_dest_id.complete_name])

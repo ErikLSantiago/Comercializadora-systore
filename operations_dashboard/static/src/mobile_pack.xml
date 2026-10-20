@@ -38,11 +38,17 @@
             <div class="smp-location"><i class="fa fa-map-marker"/><div><span class="smp-label">Ubicación de origen</span><strong t-esc="state.detail.source"/></div></div>
             <div class="smp-product-heading"><div class="smp-product-image"><i class="fa fa-cube"/>
                 <img t-att-src="imageURL(row.product_id)" t-att-alt="row.product" width="96" height="96" loading="lazy" t-on-error="imageError"/></div><h3 t-esc="row.product"/></div>
-            <div class="smp-quantity"><span>Piezas disponibles</span><strong t-esc="format(row.qty)"/><span>Unidades</span></div>
+            <div class="smp-metrics"><span>Demanda<strong t-esc="format(row.demand)"/></span><span>Cantidad<strong t-esc="format(row.quantity)"/></span></div>
+            <small class="smp-muted">Cantidad disponible para procesar · <t t-esc="row.uom || 'Unidades'"/></small>
             <label class="smp-field">Piezas a procesar<input type="number" min="0" step="1" t-att-max="row.qty" t-att-value="state.quantities[row.product_id]" t-on-change="(event) => this.setPackQuantity(row, event)" t-att-disabled="state.busy"/></label>
+            <t t-if="isDelivery">
+                <p class="smp-delivery-progress">Registradas: <strong t-esc="deliveryRegistered(row)"/> / <t t-esc="state.quantities[row.product_id] || 0"/></p>
+                <button class="smp-secondary" t-on-click="() => this.openDeliveryProduct(row)" t-att-disabled="state.busy || !deliveryPending(row)" t-esc="deliveryPending(row) ? (state.massive ? 'Registrar series' : 'Registrar pieza') : 'Sin piezas pendientes'"/>
+            </t>
         </article></div>
         <label t-if="state.detail.mass_capture_available" class="smp-check"><input type="checkbox" t-att-checked="state.massive" t-on-change="setMassive" t-att-disabled="state.busy"/> <span>Captura masiva de NS/IMEI</span></label>
-        <button class="smp-primary mt-3" t-on-click="beginValidation" t-att-disabled="state.busy || !state.detail.rows.length">Validar piezas</button>
+        <button t-if="!isDelivery" class="smp-primary mt-3" t-on-click="beginValidation" t-att-disabled="state.busy || !state.detail.rows.length">Validar piezas</button>
+        <button t-if="isDelivery" class="smp-primary mt-3" t-on-click="continueDelivery" t-att-disabled="state.busy || !deliveryReady">Continuar con guía</button>
     </t>
     <t t-if="['upc','serial'].includes(state.page) &amp;&amp; current">
         <div class="smp-detail-heading"><h2 t-esc="state.page === 'upc' ? 'Validar UPC' : 'Número de serie adicional'"/><span t-if="state.massive"><t t-esc="massRows.length"/> piezas del producto</span><span t-else="">Pieza <t t-esc="state.index + 1"/> / <t t-esc="state.captures.length"/></span></div>

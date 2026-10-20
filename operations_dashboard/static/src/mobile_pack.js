@@ -20,18 +20,20 @@ export class MobilePack extends MobilePick {
             this.state.detail = await this.call('get_mobile_pack_detail',[this.params.warehouse_id,card.picking_id,this.section]);
             this.state.quantities = {};
             for (const row of this.state.detail.rows) this.state.quantities[row.product_id] = (this.state.quantities[row.product_id] || 0) + row.qty;
+            for (const row of this.state.detail.products || []) this.state.quantities[row.product_id] ??= 0;
             this.state.captures = this.state.detail.rows.map(row => ({...row,upc:'',serial:'',checked:false}));
             this.state.page = 'detail'; this.state.index = 0; this.state.tracking = '';
             this.state.message = ''; this.state.massive = false; this.state.skipTracking = false; this.state.massText = '';
         });
     }
     get productRows() {
+        if (this.state.detail?.products) return this.state.detail.products;
         const grouped = new Map();
         for (const row of this.state.detail?.rows || []) {
             if (!grouped.has(row.product_id)) grouped.set(row.product_id,{...row,qty:0});
             grouped.get(row.product_id).qty += row.qty;
         }
-        return [...grouped.values()];
+        return [...grouped.values()].map(row => ({...row,demand:row.qty,quantity:row.qty}));
     }
     async original() {
         await this.run(async () => {
@@ -42,6 +44,12 @@ export class MobilePack extends MobilePick {
     get current() { return this.state.captures[this.state.index]; }
     beginValidation() {
         if (this.state.busy) return;
+        if (this.isDelivery) {
+            const pending = this.productRows.find(row => this.deliveryPending(row) > 0);
+            if (pending) this.openDeliveryProduct(pending);
+            else this.continueDelivery();
+            return;
+        }
         const counts = {};
         this.state.captures = this.state.detail.rows.filter(row => {
             counts[row.product_id] = (counts[row.product_id] || 0) + 1;
@@ -57,7 +65,42 @@ export class MobilePack extends MobilePick {
         if (!Number.isInteger(quantity) || quantity < 0 || quantity > row.qty) {
             this.state.error = 'Capture piezas enteras entre cero y la cantidad disponible.'; event.target.value = this.state.quantities[row.product_id]; return;
         }
+        if (this.isDelivery && quantity < this.deliveryRegistered(row)) {
+            this.state.error = 'La cantidad no puede ser menor que las piezas ya registradas.';
+            event.target.value = this.state.quantities[row.product_id]; return;
+        }
         this.state.quantities[row.product_id] = quantity;
+        if (this.isDelivery) this.syncDeliveryCaptures();
+    }
+    syncDeliveryCaptures() {
+        const previous = new Map(this.state.captures.map(row => [row.id,row]));
+        const counts = {};
+        this.state.captures = this.state.detail.rows.filter(row => {
+            counts[row.product_id] = (counts[row.product_id] || 0) + 1;
+            return counts[row.product_id] <= (this.state.quantities[row.product_id] || 0);
+        }).map(row => previous.get(row.id) || {...row,upc:'',serial:'',checked:false});
+    }
+    deliveryRegistered(row) {
+        return this.state.captures.filter(piece => piece.product_id === row.product_id && piece.checked).length;
+    }
+    deliveryPending(row) {
+        return Math.max((this.state.quantities?.[row.product_id] || 0) - this.deliveryRegistered(row),0);
+    }
+    get deliveryReady() {
+        return this.state.captures.length > 0 && this.state.captures.every(row => row.checked);
+    }
+    openDeliveryProduct(row) {
+        if (this.state.busy || !this.isDelivery) return;
+        this.syncDeliveryCaptures();
+        const index = this.state.captures.findIndex(piece => piece.product_id === row.product_id && !piece.checked);
+        if (index < 0) return;
+        this.state.index = index; this.state.massText = ''; this.state.error = ''; this.state.page = 'upc';
+    }
+    continueDelivery() {
+        if (this.state.busy) return;
+        this.syncDeliveryCaptures();
+        if (!this.deliveryReady) { this.state.error = 'Complete las piezas seleccionadas antes de continuar.'; return; }
+        this.state.error = ''; this.state.page = 'tracking';
     }
     async switchReadiness(value) {
         if (this.state.busy) return;
@@ -81,6 +124,10 @@ export class MobilePack extends MobilePick {
     get massSerialCount() { return (this.state.massText || '').split(/\r?\n/).filter(line => line.trim()).length; }
     setMassive(event) {
         if (this.state.busy) return;
+        if (this.isDelivery && this.state.captures.some(row => row.checked)) {
+            event.target.checked = !!this.state.massive;
+            this.state.error = 'Conserve el modo de captura mientras haya piezas registradas.'; return;
+        }
         this.state.massive = !!event.target.checked;
         for (const row of this.state.captures) { row.upc = ''; row.serial = ''; row.checked = false; }
         this.state.index = 0; this.state.massText = ''; this.state.error = '';
@@ -92,24 +139,26 @@ export class MobilePack extends MobilePick {
         if (serials.length !== this.massRows.length) {
             this.state.error = `Capture exactamente ${this.massRows.length} números de serie.`; return;
         }
-        const other = this.state.captures.filter(row => row.product_id !== this.current.product_id).map(row => row.serial.trim()).filter(Boolean);
+        const other = this.state.captures.filter(row => row.product_id !== this.current.product_id && row.checked).map(row => row.serial.trim()).filter(Boolean);
         if (new Set([...other, ...serials]).size !== other.length + serials.length) {
             this.state.error = 'El NS/IMEI ya fue capturado en esta operación.'; return;
         }
         if (serials.some(serial => serial.length > 256)) { this.state.error = 'NS/IMEI inválido.'; return; }
         this.massRows.forEach((row, index) => { row.serial = serials[index]; row.checked = true; });
+        if (this.isDelivery) { this.state.page = 'detail'; return; }
         const next = this.state.captures.findIndex(row => !row.checked);
         if (next >= 0) { this.state.index = next; this.state.page = 'upc'; }
         else this.state.page = 'tracking';
     }
     async acceptSerial() {
         await this.run(async () => {
-            if (this.state.captures.some(row => row.id !== this.current.id && row.serial.trim() && row.serial.trim() === this.current.serial.trim())) {
+            if (this.state.captures.some(row => row.id !== this.current.id && row.checked && row.serial.trim() && row.serial.trim() === this.current.serial.trim())) {
                 throw Error('El NS/IMEI ya fue capturado en esta operación.');
             }
             const result = await this.call('check_mobile_pack_piece',[this.params.warehouse_id,this.state.detail.wizard_id,
                 this.state.detail.token,this.current.id,this.current.upc,this.current.serial]);
             this.current.serial = result.serial; this.current.checked = true;
+            if (this.isDelivery) { this.state.page = 'detail'; return; }
             if (this.state.index + 1 < this.state.captures.length) { this.state.index++; this.state.page = 'upc'; }
             else this.state.page = 'tracking';
         });
@@ -118,7 +167,7 @@ export class MobilePack extends MobilePick {
         if (this.state.busy) return;
         this.state.error = '';
         if (['serial','mass_serial'].includes(this.state.page)) { this.state.page = 'upc'; return; }
-        if (this.state.page === 'tracking') { this.state.page = this.state.massive ? 'mass_serial' : 'serial'; return; }
+        if (this.state.page === 'tracking') { this.state.page = this.isDelivery ? 'detail' : this.state.massive ? 'mass_serial' : 'serial'; return; }
         if (this.state.page === 'upc') { this.state.page = 'detail'; return; }
         if (this.state.page !== 'panel') { await this.loadPanel(); return; }
         await this.action.doAction({type:'ir.actions.client',tag:'operations_dashboard.dashboard',

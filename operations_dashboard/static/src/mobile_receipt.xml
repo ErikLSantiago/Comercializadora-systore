@@ -66,7 +66,12 @@
         </t>
         <t t-if="state.page === 'confirm'">
             <h2>Confirmar ingreso</h2><p t-esc="state.detail.purchase_names"/>
-            <div t-foreach="state.captures" t-as="row" t-key="row.id" class="smp-card mb-2"><strong t-esc="row.product"/><p>Recibidos: <t t-esc="format(row.reviewed ? row.quantity : 0)"/> de <t t-esc="format(row.qty)"/></p></div>
+            <div t-foreach="state.captures" t-as="row" t-key="row.id" class="smp-card mb-2">
+                <div class="smp-product-heading"><div class="smp-product-image"><i class="fa fa-cube"/>
+                    <img t-att-src="imageURL(row.product_id)" t-att-alt="row.product" width="96" height="96" loading="lazy" t-on-error="imageError"/></div><h3 t-esc="row.product"/></div>
+                <div class="smp-location"><i class="fa fa-map-marker"/><div><span class="smp-label">Ubicación de destino</span><strong t-esc="row.destinations?.join(', ') || state.detail.destination"/></div></div>
+                <div class="smp-metrics"><span>Demanda<strong t-esc="format(row.qty)"/></span><span>Cantidad a ingresar<strong t-esc="format(row.reviewed ? row.quantity : 0)"/></span></div>
+            </div>
             <p t-if="state.captures.some(row => !row.reviewed || row.quantity &lt; row.qty)" class="alert alert-info">Ingreso parcial. Confirme la recepción pendiente en el asistente de Odoo.</p>
             <button class="smp-primary w-100" t-on-click="validate" t-att-disabled="state.busy || !ready">Confirmar ingreso</button>
         </t>
