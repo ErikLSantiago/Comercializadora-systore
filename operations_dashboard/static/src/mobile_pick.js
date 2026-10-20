@@ -114,9 +114,9 @@ export class MobilePick extends Component {
         return this.state.captures.length > 0 && this.state.captures.every(row =>
             row.quantity === 0 || !row.require_upc || !!row.upc.trim()) && this.state.captures.some(row => row.quantity > 0);
     }
-    async chooseReadiness(event) {
+    async switchReadiness(value) {
         if (this.state.busy) return;
-        this.state.readiness = event.target.value;
+        this.state.readiness = value;
         await this.loadPanel(0);
     }
     setQuantity(row, event) {

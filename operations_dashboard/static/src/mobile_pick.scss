@@ -70,3 +70,13 @@
 .smp-shell .smp-header h1 { margin: 0; font-size: 18px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .smp-shell .smp-header .smp-icon-button { width: 40px; height: 40px; min-height: 40px; flex-shrink: 0; }
 @media (max-width: 600px) { .smp-shell .smp-header small { max-width: 32%; font-size: 10px; } .smp-shell .smp-header h1 { font-size: 15px; } }
+
+.smp-shell .smp-check {
+    display: flex; align-items: center; gap: 10px; min-height: 36px;
+    margin: 12px 0; font-size: 14px; font-weight: 600; cursor: pointer;
+    input[type="checkbox"] {
+        display: inline-block; flex: 0 0 18px; width: 18px; height: 18px;
+        min-height: 18px; padding: 0; margin: 0; border-radius: 4px;
+        accent-color: var(--smp-brand);
+    }
+}

@@ -46,7 +46,7 @@ class MobilePackService(models.AbstractModel):
         term = self._search_term(query)
         pickings = pickings.filtered(lambda p: p.state != 'draft')
         counts = {key: len(pickings.filtered(lambda p: p.systore_batch_readiness_state == key)) for key in ('complete', 'partial')}
-        if section == 'out' and readiness != 'all':
+        if section in ('out', 'pick') and readiness != 'all':
             pickings = pickings.filtered(lambda p: p.systore_batch_readiness_state == readiness)
         if term:
             pickings = pickings.filtered(lambda p: term in ' '.join([p.name, p.systore_operations_sale_names or p.origin or '', self._operation_search_text(p)]).casefold())

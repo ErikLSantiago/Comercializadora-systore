@@ -1,6 +1,15 @@
 # Tablero de operaciones · Odoo 18
 
-Versión **18.0.1.9.0** · Nombre técnico `operations_dashboard`.
+Versión **18.0.1.9.1** · Nombre técnico `operations_dashboard`.
+
+## Controles móviles y apertura por periodo · 18.0.1.9.1
+
+- El check **Captura masiva de NS/IMEI** utiliza una casilla de 18 px y una etiqueta compacta. El check de omisión de guía comparte este ajuste para evitar que herede las dimensiones de los campos de texto.
+- **Validar piezas** utiliza el botón azul de las pantallas móviles (`smp-primary`), con el mismo alto, bordes y tipografía.
+- La tarjeta de Recolección en el tablero muestra **Completa** y **Parcial**, igual que Salidas, y abre directamente el grupo elegido. En la pantalla operativa se reemplaza el selector de estado por dos botones con contadores. En tres pasos se conservan **Por procesar** y **Lotes**; en dos pasos se utiliza el mismo par de botones en la preparación por pedido.
+- En Ingresos, **Hoy**, **Próximos días** y **Atrasadas** abren directamente la lista móvil de operaciones de ese periodo. Se mantienen los permisos por almacén y el flujo de registro de productos.
+
+Verificación local: pruebas de navegación por periodo y grupo, filtros, plantillas Owl y compilación SCSS correctas. La revisión visual dentro de la aplicación móvil de Odoo queda pendiente.
 
 ## Estados oficiales y cantidades parciales · 18.0.1.9.0
 

@@ -107,12 +107,14 @@ export class OperationsDashboard extends Component {
         this.state.warehouseId = null;
         await this.reload();
     }
-    async openMobileReceipt(row = null) {
+    async openMobileReceipt(row = null, period = null) {
         if (this.state.opening || this.state.loading || !this.state.data) return;
         this.state.opening = true;
         try {
+            const date = period === 'today' ? this.state.today : this.state.date;
+            const scope = period === 'today' ? 'date' : period || this.state.scope;
             const action = await this.orm.call('systore.operations.dashboard', 'open_mobile_receipt', [
-                this.state.warehouseId, this.state.date, this.state.scope, row?.purchase_id || false]);
+                this.state.warehouseId, date, scope, row?.purchase_id || false]);
             await this.action.doAction(action);
         } catch (error) { this.notification.add(error.data?.message || error.message, {type:'danger'}); }
         finally { if (!this.destroyed) this.state.opening = false; }
@@ -196,7 +198,7 @@ export class OperationsDashboard extends Component {
         try {
             const action = await this.orm.call('systore.operations.dashboard', 'open_mobile_pick', [
                 this.state.warehouseId, this.state.date, this.state.scope,
-                row?.picking_id || false, row?.batch_id || false]);
+                row?.picking_id || false, row?.batch_id || false, row?.readiness || 'complete']);
             await this.action.doAction(action);
         } catch (error) { this.notification.add(error.data?.message || error.message, {type:'danger'}); }
         finally { if (!this.destroyed) this.state.opening = false; }

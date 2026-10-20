@@ -21,7 +21,10 @@
                     <button t-on-click="() => this.switchMode('batches')" t-att-class="{'active':state.mode === 'batches'}"
                             t-att-aria-pressed="state.mode === 'batches'" t-att-disabled="state.busy">Lotes</button>
                 </nav>
-                <label class="smp-field">Estado<select class="form-select" t-att-value="state.readiness" t-on-change="chooseReadiness" t-att-disabled="state.busy"><option value="complete">Completa</option><option value="partial">Parcial</option><option value="all">Todas</option></select></label>
+                <nav class="smp-mode-tabs" aria-label="Estado de recolecciones">
+                    <button t-on-click="() => this.switchReadiness('complete')" t-att-disabled="state.busy" t-att-class="{'active':state.readiness === 'complete'}" t-att-aria-pressed="state.readiness === 'complete'">Completa (<t t-esc="state.panel?.counts?.complete || 0"/>)</button>
+                    <button t-on-click="() => this.switchReadiness('partial')" t-att-disabled="state.busy" t-att-class="{'active':state.readiness === 'partial'}" t-att-aria-pressed="state.readiness === 'partial'">Parcial (<t t-esc="state.panel?.counts?.partial || 0"/>)</button>
+                </nav>
                 <label class="smp-search"><span class="visually-hidden">Buscar recolecciones</span><input type="search" t-model="state.query" t-on-keydown="searchKey" placeholder="Buscar orden, producto o UPC"/><button class="smp-link" t-on-click="search" t-att-disabled="state.busy">Buscar</button></label>
                 <div class="smp-grid">
                     <button t-foreach="cards" t-as="card" t-key="card.key" class="smp-card smp-operation"

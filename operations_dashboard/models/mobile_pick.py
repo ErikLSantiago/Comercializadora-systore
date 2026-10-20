@@ -13,17 +13,19 @@ class MobilePickDashboard(models.AbstractModel):
     _inherit = 'systore.operations.dashboard'
 
     @api.model
-    def open_mobile_pick(self, warehouse_id, selected_date=False, scope='date', picking_id=False, batch_id=False):
+    def open_mobile_pick(self, warehouse_id, selected_date=False, scope='date', picking_id=False, batch_id=False, readiness='complete'):
         warehouse = self._warehouse(warehouse_id)
+        if readiness not in ('complete', 'partial'):
+            raise ValidationError(_('Estado inválido.'))
         if warehouse.delivery_steps == 'pick_ship':
-            return self.open_mobile_pack(warehouse_id, picking_id, batch_id, section='pick')
+            return self.open_mobile_pack(warehouse_id, picking_id, batch_id, section='pick', readiness=readiness)
         self._parameters(selected_date, scope)
         if picking_id or batch_id:
             self._mobile_target(warehouse_id, picking_id, batch_id)
         return {'type': 'ir.actions.client', 'name': _('Recolección'),
                 'tag': 'operations_dashboard.mobile_pick',
                 'params': {'warehouse_id': warehouse_id, 'date': selected_date, 'scope': scope,
-                           'picking_id': picking_id, 'batch_id': batch_id}}
+                           'picking_id': picking_id, 'batch_id': batch_id, 'readiness': readiness}}
 
     def _mobile_target(self, warehouse_id, picking_id=False, batch_id=False):
         warehouse = self._warehouse(warehouse_id)
@@ -56,7 +58,7 @@ class MobilePickDashboard(models.AbstractModel):
             raise ValidationError(_('Página inválida.'))
         pickings = self.env['stock.picking'].search(
             AND([self._section_domain(warehouse, 'pick'),
-                 [('state', '!=', 'draft')] + ([] if readiness == 'all' else [('systore_batch_readiness_state', '=', readiness)])]), order='scheduled_date, id')
+                 [('state', '!=', 'draft')]]), order='scheduled_date, id')
         groups = {}
         for picking in pickings:
             if mode == 'batches' and not picking.batch_id:
@@ -66,6 +68,7 @@ class MobilePickDashboard(models.AbstractModel):
             groups[key] |= picking
         term = self._search_term(query)
         cards = []
+        counts = {'complete': 0, 'partial': 0}
         for (kind, record_id), matching in groups.items():
             batch = matching.batch_id if kind == 'batch' else self.env['stock.picking.batch']
             error = ''
@@ -74,14 +77,16 @@ class MobilePickDashboard(models.AbstractModel):
                     matching, batch = self._guided_pickings(warehouse, 'pick', batch_id=record_id)
                 except (AccessError, UserError):
                     continue
-                official = 'partial' if any(p.systore_batch_readiness_state == 'partial' for p in matching) else 'complete'
-                if readiness != 'all' and official != readiness:
-                    continue
+
+            official = 'partial' if any(p.systore_batch_readiness_state == 'partial' for p in matching) else 'complete'
+            counts[official] += 1
+            if readiness != 'all' and official != readiness:
+                continue
             card = self._mobile_card(matching, batch)
             card['blocked'] = error
             if not term or term in (' '.join([card['name'], *card['origins'], card['operation_type']]) + ' ' + self._operation_search_text(matching)).casefold():
                 cards.append(card)
-        return {'warehouse': warehouse.name, 'cards': cards[page * 30:(page + 1) * 30], 'page': page,
+        return {'warehouse': warehouse.name, 'counts': counts, 'cards': cards[page * 30:(page + 1) * 30], 'page': page,
                 'has_more': (page + 1) * 30 < len(cards), 'total': len(cards), 'mode': mode}
 
     def _mobile_detail(self, warehouse, pickings, batch):

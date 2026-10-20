@@ -12,7 +12,7 @@
     <div t-if="state.message" class="alert alert-success" role="status" t-esc="state.message"/>
     <p t-if="state.busy" role="status">Procesando…</p>
     <t t-if="state.page === 'panel'">
-        <nav t-if="isDelivery" class="smp-mode-tabs" aria-label="Estado de salidas">
+        <nav t-if="isDelivery || isPicking" class="smp-mode-tabs" aria-label="Estado de operaciones">
             <button t-on-click="() => this.switchReadiness('complete')" t-att-disabled="state.busy" t-att-class="{'active': (state.readiness || params.readiness || 'complete') === 'complete'}">Completa (<t t-esc="state.panel?.counts?.complete || 0"/>)</button>
             <button t-on-click="() => this.switchReadiness('partial')" t-att-disabled="state.busy" t-att-class="{'active': (state.readiness || params.readiness || 'complete') === 'partial'}">Parcial (<t t-esc="state.panel?.counts?.partial || 0"/>)</button>
         </nav>
@@ -41,8 +41,8 @@
             <div class="smp-quantity"><span>Piezas disponibles</span><strong t-esc="format(row.qty)"/><span>Unidades</span></div>
             <label class="smp-field">Piezas a procesar<input type="number" min="0" step="1" t-att-max="row.qty" t-att-value="state.quantities[row.product_id]" t-on-change="(event) => this.setPackQuantity(row, event)" t-att-disabled="state.busy"/></label>
         </article></div>
-        <label t-if="state.detail.mass_capture_available" class="smp-field"><span><input type="checkbox" t-att-checked="state.massive" t-on-change="setMassive" t-att-disabled="state.busy"/> Captura masiva de NS/IMEI</span></label>
-        <button class="btn btn-primary btn-lg w-100 mt-3" t-on-click="beginValidation" t-att-disabled="state.busy || !state.detail.rows.length">Validar piezas</button>
+        <label t-if="state.detail.mass_capture_available" class="smp-check"><input type="checkbox" t-att-checked="state.massive" t-on-change="setMassive" t-att-disabled="state.busy"/> <span>Captura masiva de NS/IMEI</span></label>
+        <button class="smp-primary mt-3" t-on-click="beginValidation" t-att-disabled="state.busy || !state.detail.rows.length">Validar piezas</button>
     </t>
     <t t-if="['upc','serial'].includes(state.page) &amp;&amp; current">
         <div class="smp-detail-heading"><h2 t-esc="state.page === 'upc' ? 'Validar UPC' : 'Número de serie adicional'"/><span t-if="state.massive"><t t-esc="massRows.length"/> piezas del producto</span><span t-else="">Pieza <t t-esc="state.index + 1"/> / <t t-esc="state.captures.length"/></span></div>
@@ -74,7 +74,7 @@
     </t>
     <t t-if="state.page === 'tracking'">
         <h2>Número de guía</h2><p><t t-esc="state.captures.length"/> piezas comprobadas · <t t-esc="state.detail.orders"/></p>
-        <label t-if="state.detail.skip_tracking_available" class="smp-field"><span><input type="checkbox" t-model="state.skipTracking" t-att-disabled="state.busy"/> No asignar número de guía</span></label>
+        <label t-if="state.detail.skip_tracking_available" class="smp-check"><input type="checkbox" t-model="state.skipTracking" t-att-disabled="state.busy"/> <span>No asignar número de guía</span></label>
         <label t-if="!state.skipTracking" class="smp-field">Guía del pedido<input t-ref="upcInput" t-model="state.tracking" autocomplete="off" t-att-disabled="state.busy"/></label>
         <button class="btn btn-primary btn-lg w-100" t-on-click="validate" t-att-disabled="state.busy || (!state.skipTracking &amp;&amp; !state.tracking.trim())"><t t-esc="isDelivery ? 'Validar salida' : isPicking ? 'Validar recolección' : 'Validar empaquetado'"/></button>
     </t>
