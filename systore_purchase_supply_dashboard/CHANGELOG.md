@@ -1,5 +1,13 @@
 # Historial de cambios
 
+## 18.0.1.9.11
+
+- La deuda usa la fecha efectiva de llegada de la OC cuando ya existe una recepción; mientras no exista, conserva la fecha de aprobación u orden.
+- El tablero y el reporte detallado aplican la misma fecha de deuda al corte del mes operativo.
+- El reporte de deuda muestra una línea independiente por producto y orden de compra.
+- Se añadieron orden de compra, producto, referencia interna, piezas ordenadas, recibidas y faltantes al corte consultado.
+- Los importes de deuda, pagos y saldo se distribuyen proporcionalmente entre las líneas de producto para evitar duplicar los totales de la OC.
+
 ## 18.0.1.9.10
 
 - **Sin definir** vuelve a ser una condición válida al confirmar o aprobar una orden de compra.
