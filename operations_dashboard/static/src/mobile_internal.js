@@ -7,7 +7,7 @@ export class MobileInternal extends MobilePick {
     args() { return [this.params.warehouse_id,this.params.section]; }
     async loadPanel(page = 0) {
         await this.run(async () => {
-            this.state.panel = await this.call('get_mobile_internal_panel',[...this.args(),this.params.date || false,this.params.scope || 'all',page,this.state.query]);
+            this.state.panel = await this.call('get_mobile_internal_panel',[...this.args(),this.params.date || false,this.params.scope || 'all',page,this.state.query,this.state.readiness || 'complete']);
             this.state.page = 'panel'; this.state.pageNumber = page; this.state.detail = null;
         });
     }

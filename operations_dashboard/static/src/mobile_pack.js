@@ -102,6 +102,16 @@ export class MobilePack extends MobilePick {
         if (!this.deliveryReady) { this.state.error = 'Complete las piezas seleccionadas antes de continuar.'; return; }
         this.state.error = ''; this.state.page = 'tracking';
     }
+    get processedProducts() {
+        return this.productRows.map(row => ({...row, processed:this.deliveryRegistered(row)}));
+    }
+    reviewDelivery() {
+        if (this.state.busy || !this.isDelivery) return;
+        this.state.error = '';
+        if (!this.deliveryReady) { this.state.error = 'Complete las piezas seleccionadas antes de continuar.'; return; }
+        if (!this.state.skipTracking && !this.state.tracking.trim()) { this.state.error = 'Capture el número de guía.'; return; }
+        this.state.page = 'confirm_delivery';
+    }
     async switchReadiness(value) {
         if (this.state.busy) return;
         this.state.readiness = value;
@@ -166,6 +176,7 @@ export class MobilePack extends MobilePick {
     async back() {
         if (this.state.busy) return;
         this.state.error = '';
+        if (this.state.page === 'confirm_delivery') { this.state.page = 'tracking'; return; }
         if (['serial','mass_serial'].includes(this.state.page)) { this.state.page = 'upc'; return; }
         if (this.state.page === 'tracking') { this.state.page = this.isDelivery ? 'detail' : this.state.massive ? 'mass_serial' : 'serial'; return; }
         if (this.state.page === 'upc') { this.state.page = 'detail'; return; }

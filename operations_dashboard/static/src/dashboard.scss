@@ -97,3 +97,10 @@
 }
 
 .systore-operations-dashboard .sod-readiness-counts { grid-template-columns: repeat(2, 1fr); }
+
+.systore-operations-dashboard {
+    .sod-complete { background: #dcf4de; color: #246c32; }
+    .sod-complete span, .sod-complete small, .sod-complete strong { color: #246c32; }
+    .sod-partial { background: #fff0cd; color: #795400; }
+    .sod-partial span, .sod-partial small, .sod-partial strong { color: #795400; }
+}

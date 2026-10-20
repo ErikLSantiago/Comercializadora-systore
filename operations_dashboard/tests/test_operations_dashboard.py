@@ -355,9 +355,9 @@ class TestOperationsDashboard(TransactionCase):
         wizard.line_ids.upc_ean = False
         self.assertTrue(wizard.line_ids._validate_and_register_barcode())
 
-    def test_transfers_require_assigned(self):
+    def test_transfers_allow_ready_and_confirmed_for_partial_view(self):
         domain = self.service._section_domain(self.warehouse, 'transfers')
-        self.assertIn(('state', '=', 'assigned'), domain)
+        self.assertIn(('state', 'in', ['assigned', 'confirmed']), domain)
 
     def test_mobile_storage_native_validation(self):
         source = self.warehouse.wh_input_stock_loc_id

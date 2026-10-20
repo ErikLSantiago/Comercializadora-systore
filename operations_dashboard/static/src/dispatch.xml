@@ -27,7 +27,7 @@
                 <div t-else="" class="sod-dispatch-cards">
                     <article t-foreach="state.snapshot.rows.slice().reverse()" t-as="row" t-key="row.id" class="sod-dispatch-card">
                         <div class="d-flex justify-content-between align-items-start"><div><small>Paquete / guía</small><h2 t-esc="row.code"/></div><button t-if="row.removable" class="btn btn-link text-danger" t-on-click="() => this.remove(row.id)" t-att-disabled="state.busy" aria-label="Retirar paquete"><i class="fa fa-trash"/></button></div>
-                        <span class="sod-state" t-esc="row.readiness === 'partial' ? 'Parcial' : 'Completa'"/>
+                        <span class="sod-state" t-att-class="{'sod-complete':row.readiness === 'complete','sod-partial':row.readiness === 'partial'}" t-esc="row.readiness === 'partial' ? 'Parcial' : 'Completa'"/>
                         <p>Número de orden: <strong t-esc="row.orders || '—'"/></p>
                         <span class="sod-state" t-att-class="{'sod-state-ready':row.validated}" t-esc="row.validated ? 'Entregada' : 'Escaneada · pendiente de validación'"/>
                     </article>

@@ -85,14 +85,16 @@ class OperationsDashboard(models.AbstractModel):
                 ('location_dest_id', '!=', False),
                 ('picking_type_id', 'not in', dedicated_types.ids),
                 ('picking_type_id.code', '=', 'internal'),
-                ('state', '=', 'assigned'),
+                ('state', 'in', ['assigned', 'confirmed']),
             ]
         else:
             types = {'pick': warehouse.pick_type_id, 'pack': warehouse.pack_type_id,
                      'out': warehouse.out_type_id}[section]
             specific = [('picking_type_id', 'in', types.ids)]
-        if section in ('pack', 'storage'):
+        if section == 'pack':
             specific.append(('state', '=', 'assigned'))
+        if section == 'storage':
+            specific.append(('state', 'in', ['assigned', 'confirmed']))
         if section == 'pick':
             specific.append(('state', '!=', 'draft'))
         return AND([common, specific])
@@ -263,10 +265,14 @@ class OperationsDashboard(models.AbstractModel):
                         'source': picking.location_id.display_name,
                         'destination': picking.location_dest_id.display_name,
                     })
+            selected_picking_ids = {pid for entry in selected for pid in entry['picking_ids']}
+            readiness_counts = {key: self._totals([{'picking_ids': [p.id], 'pieces': self._picking_pieces(p)}
+                               for p in pickings if p.id in selected_picking_ids and p.systore_batch_readiness_state == key])
+                               for key in ('complete', 'partial')}
             sections.append({
                 'key': section, 'title': TITLES[section], 'selected': self._totals(selected),
-                'complete': self._totals([e for e in entries if e.get('readiness') == 'complete']),
-                'partial': self._totals([e for e in entries if e.get('readiness') == 'partial']),
+                'complete': readiness_counts['complete'],
+                'partial': readiness_counts['partial'],
                 'next_days': count_for(today, 'next_days'),
                 'upcoming': count_for(today, 'upcoming'),
                 'today': count_for(today), 'tomorrow': count_for(today + timedelta(days=1)),

@@ -25,24 +25,30 @@ class MobileInternal(models.AbstractModel):
         return picking
 
     @api.model
-    def open_mobile_internal(self, warehouse_id, section, selected_date=False, scope='all'):
+    def open_mobile_internal(self, warehouse_id, section, selected_date=False, scope='all', readiness='complete'):
         self._internal_warehouse(warehouse_id, section)
         self._parameters(selected_date, scope)
+        if readiness not in ('complete', 'partial'):
+            raise ValidationError(_('Estado inválido.'))
         return {'type': 'ir.actions.client', 'tag': 'operations_dashboard.mobile_internal',
                 'name': _('Almacenamiento') if section == 'storage' else _('Transferencias'),
-                'params': {'warehouse_id': warehouse_id, 'section': section, 'date': selected_date, 'scope': scope}}
+                'params': {'warehouse_id': warehouse_id, 'section': section, 'date': selected_date, 'scope': scope, 'readiness': readiness}}
 
     @api.model
-    def get_mobile_internal_panel(self, warehouse_id, section, selected_date=False, scope='all', page=0, query=''):
+    def get_mobile_internal_panel(self, warehouse_id, section, selected_date=False, scope='all', page=0, query='', readiness='complete'):
         warehouse = self._internal_warehouse(warehouse_id, section)
         day, today, timezone = self._parameters(selected_date, scope)
         if type(page) is not int or page < 0:
             raise ValidationError(_('Página inválida.'))
         picks = self.env['stock.picking'].search(self._filtered_domain(warehouse, section, day, scope, today, timezone), order='scheduled_date,id')
+        if readiness not in ('complete', 'partial'):
+            raise ValidationError(_('Estado inválido.'))
+        counts = {key: len(picks.filtered(lambda p: p.systore_batch_readiness_state == key)) for key in ('complete', 'partial')}
+        picks = picks.filtered(lambda p: p.systore_batch_readiness_state == readiness)
         term = self._search_term(query)
         if term:
             picks = picks.filtered(lambda p: term in ' '.join([p.name, p.origin or '', self._operation_search_text(p)]).casefold())
-        return {'warehouse': warehouse.name, 'has_more': len(picks) > (page + 1) * 30,
+        return {'warehouse': warehouse.name, 'counts': counts, 'has_more': len(picks) > (page + 1) * 30,
                 'cards': [{'key': str(p.id), 'picking_id': p.id, 'name': p.name, 'origins': [p.origin or ''],
                            'operation_type': p.picking_type_id.name, 'pieces': self._picking_pieces(p),
                            'state': p.systore_batch_readiness_state} for p in picks[page * 30:(page + 1) * 30]]}

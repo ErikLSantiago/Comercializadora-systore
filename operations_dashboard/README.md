@@ -1,6 +1,16 @@
 # Tablero de operaciones · Odoo 18
 
-Versión **18.0.1.9.2** · Nombre técnico `operations_dashboard`.
+Versión **18.0.1.9.3** · Nombre técnico `operations_dashboard`.
+
+## Confirmación de Out y clasificación de internas · 18.0.1.9.3
+
+- En Salidas de un paso, tras capturar la guía se pulsa **Revisar salida**. Aparece una confirmación con imagen, Demanda y Cantidad procesada por producto, incluida cantidad cero para los no seleccionados. **Confirmar y validar salida** realiza la validación nativa; abrir la revisión no modifica inventario. Volver permite revisar la guía conservando las capturas.
+- Las etiquetas de operaciones **Completa** se muestran verdes y **Parcial** amarillas en las tarjetas. Los cuadros del tablero comparten esos colores y utilizan el campo oficial `systore_batch_readiness_state`.
+- Se retira **Operar** de la tarjeta Ingresos. Se accede mediante la tarjeta o los cuadros de periodo.
+- Transferencias y Almacenamiento incorporan Completa/Parcial en el tablero y en el panel móvil, con contadores y apertura directa del grupo elegido. Almacenamiento conserva el filtro de fecha seleccionado; los contadores de estado respetan ese intervalo.
+- Para incluir las internas parciales se admiten estados nativos `assigned` y `confirmed`. Se excluyen borradores, operaciones que esperan una etapa anterior, realizadas y canceladas. Las restricciones de almacén, tipo, origen de Transferencias y permisos se conservan, así como la validación nativa y sus asistentes de pendiente.
+
+Verificación local: 51 pruebas Python, pruebas JS de confirmación sin validación prematura, navegación y filtros de internas; plantillas Owl y SCSS compilados. La revisión visual en móvil y la validación con inventario real siguen pendientes en Odoo.sh.
 
 ## Confirmación de ingresos y captura libre de Salidas · 18.0.1.9.2
 

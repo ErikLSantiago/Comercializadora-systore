@@ -171,12 +171,18 @@ export class OperationsDashboard extends Component {
         if (section === 'out') return this.openOperations(section);
     }
 
-    async openMobileInternal(section) {
+    openReadiness(section, readiness) {
+        if (['storage','transfers'].includes(section)) return this.openMobileInternal(section, readiness);
+        if (section === 'pick') return this.openMobilePick({readiness});
+        return this.openOperations('out', {readiness});
+    }
+
+    async openMobileInternal(section, readiness = 'complete') {
         if (this.state.opening || this.state.loading) return;
         this.state.opening = true;
         try {
             const action = await this.orm.call('systore.operations.dashboard','open_mobile_internal',[
-                this.state.warehouseId,section,this.state.date,section === 'storage' ? this.state.scope : 'all']);
+                this.state.warehouseId,section,this.state.date,section === 'storage' ? this.state.scope : 'all',readiness]);
             await this.action.doAction(action);
         } catch (error) { this.notification.add(error.data?.message || error.message,{type:'danger'}); }
         finally { this.state.opening = false; }
