@@ -1,6 +1,13 @@
 # Tablero de operaciones · Odoo 18
 
-Versión **18.0.1.9.3** · Nombre técnico `operations_dashboard`.
+Versión **18.0.1.9.4** · Nombre técnico `operations_dashboard`.
+
+## Botones azules y confirmación en lista · 18.0.1.9.4
+
+- **Validar UPC** y **Revisar salida** utilizan el mismo botón azul de las otras pantallas móviles.
+- **Confirmar salida** presenta una lista con una fila por producto. Conserva imagen, nombre, Demanda y Cantidad procesada; en móvil los datos se acomodan debajo del producto. Se mantienen la guía, el aviso de parcial y la confirmación final.
+
+Plantillas Owl, estilos SCSS y pruebas locales de la pantalla de salida verificados. Pendiente la revisión visual dentro de Odoo.
 
 ## Confirmación de Out y clasificación de internas · 18.0.1.9.3
 

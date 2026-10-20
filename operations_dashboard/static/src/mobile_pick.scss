@@ -84,3 +84,20 @@
 .smp-shell .smp-delivery-progress strong { color: var(--smp-brand); font-size: 22px; }
 
 .smp-shell .smp-badge.smp-partial { background: #fff0cd; color: #795400; }
+
+.smp-shell {
+    .smp-confirm-list { display: flex; flex-direction: column; gap: 10px; margin: 16px 0; }
+    .smp-confirm-row {
+        display: grid; grid-template-columns: minmax(0, 1fr) minmax(240px, 340px);
+        align-items: center; gap: 24px; padding: 16px; background: white;
+        border: 1px solid #dce2eb; border-radius: 10px;
+    }
+    .smp-confirm-row .smp-product-heading { margin: 0; min-width: 0; }
+    .smp-confirm-row .smp-product-image { width: 64px; height: 64px; flex-basis: 64px; }
+    .smp-confirm-row h3 { font-size: 17px; margin: 0; }
+    .smp-confirm-row .smp-metrics { margin: 0; padding: 0; border: 0; gap: 20px; }
+    .smp-confirm-row .smp-metrics > span { flex: 1; min-width: 0; font-size: 13px; }
+    @media (max-width: 600px) {
+        .smp-confirm-row { grid-template-columns: minmax(0, 1fr); gap: 12px; padding: 14px; }
+    }
+}
