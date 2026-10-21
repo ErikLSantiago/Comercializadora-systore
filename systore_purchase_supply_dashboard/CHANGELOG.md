@@ -1,5 +1,13 @@
 # Historial de cambios
 
+## 18.0.1.9.14
+
+- Los anticipos se reconocen por su fecha de pago aunque la orden de compra se haya creado o aprobado en un mes posterior.
+- Antes de la recepción, el corte histórico incorpora únicamente el monto anticipado y no el valor total de la orden.
+- El reporte completo muestra el anticipo íntegro como saldo a favor, incluso cuando excede otras deudas reconocidas del proveedor al corte.
+- Los saldos netos a favor permanecen visibles en el tablero y permiten abrir su detalle de anticipos.
+- Al llegar la mercancía, el anticipo se integra al pago de la OC y deja de presentarse por separado para evitar duplicidades.
+
 ## 18.0.1.9.13
 
 - Productos recibidos conserva Pendientes al cierre y agrega Recibidas pendientes para las piezas que llegaron después de la fecha consultada.

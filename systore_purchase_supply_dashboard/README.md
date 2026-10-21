@@ -33,7 +33,7 @@ Versión preparada para producción en Odoo 18.
 - El filtro Tipo de proveedor permite consultar únicamente compras Nacionales o Internacionales.
 - Productos recibidos incluye un total general de cantidades y valores para los filtros aplicados.
 - Recepciones brutas, devoluciones a proveedor y recepciones netas por línea de compra.
-- Deuda histórica de mercancía separada entre proveedores nacionales y extranjeros, con selector MXN/USD, anticipos previos a la recepción, expansión de proveedores y reporte completo por OC y producto con deuda original, pagos, saldo y cantidades al corte.
+- Deuda histórica de mercancía separada entre proveedores nacionales y extranjeros, con selector MXN/USD, anticipos reconocidos por la fecha de pago aunque la OC pertenezca a un mes posterior, expansión de proveedores y reporte completo por OC y producto con deuda original, pagos, saldo y cantidades al corte.
 - Control de líneas de crédito de proveedor con límite, moneda, crédito ocupado y disponible.
 - Condición Contado/Crédito independiente por orden, aunque el proveedor tenga una línea autorizada.
 - Inicio y vencimiento de crédito capturados directamente por orden; los días naturales se calculan entre ambas fechas.

@@ -222,7 +222,12 @@ class SystoreSupplyDashboard(models.AbstractModel):
         self, company, cutoff_date, warehouse_id=None, channel=None,
         supplier_id=None, supplier_type=None,
     ):
-        """Payments made before purchase debt recognition by receipt."""
+        """Payments made before purchase debt recognition by receipt.
+
+        The payment date controls the historical recognition of an advance.
+        The purchase order may have been created or approved after the cutoff;
+        until its receipt date, only the amount already paid is recognized.
+        """
         scoped_orders = self._historical_purchase_orders(
             company,
             warehouse_id=warehouse_id,
@@ -231,14 +236,9 @@ class SystoreSupplyDashboard(models.AbstractModel):
         )
         advances = []
         for order in scoped_orders:
-            order_date = fields.Date.to_date(
-                order.date_approve or order.date_order
-            )
             debt_date, debt_date_source = self._debt_order_date_info(order)
             if (
-                not order_date
-                or order_date > cutoff_date
-                or debt_date_source != "receipt"
+                debt_date_source != "receipt"
                 or not debt_date
                 or debt_date <= cutoff_date
                 or (supplier_id and order.partner_id.id != supplier_id)
@@ -326,12 +326,10 @@ class SystoreSupplyDashboard(models.AbstractModel):
             partner = advance["partner"]
             debt = grouped[advance["sector"]][partner.id]
             debt["name"] = partner.display_name
-            applied_mxn = min(debt["mxn"], advance["amount_mxn"])
-            applied_usd = min(debt["usd"], advance["amount_usd"])
-            debt["paid_mxn"] += applied_mxn
-            debt["paid_usd"] += applied_usd
-            debt["mxn"] -= applied_mxn
-            debt["usd"] -= applied_usd
+            debt["paid_mxn"] += advance["amount_mxn"]
+            debt["paid_usd"] += advance["amount_usd"]
+            debt["mxn"] -= advance["amount_mxn"]
+            debt["usd"] -= advance["amount_usd"]
             debt["order_ids"].add(advance["order"].id)
         return grouped
 
@@ -381,7 +379,6 @@ class SystoreSupplyDashboard(models.AbstractModel):
             "total_usd", "paid_usd", "pending_usd",
             "total_mxn", "paid_mxn", "pending_mxn",
         )
-        recognized_balances = defaultdict(lambda: {"mxn": 0.0, "usd": 0.0})
         for order in debt_orders:
             components = order._systore_debt_components(as_of_date=cutoff_date)
             if not components:
@@ -399,12 +396,6 @@ class SystoreSupplyDashboard(models.AbstractModel):
                     and component["partner"].id != selected_supplier_id
                 ):
                     continue
-                recognized_balances[component["partner"].id]["mxn"] += component.get(
-                    "pending_mxn", 0.0
-                )
-                recognized_balances[component["partner"].id]["usd"] += component.get(
-                    "pending_usd", 0.0
-                )
                 remaining = {
                     field_name: component.get(field_name, 0.0)
                     for field_name in amount_fields
@@ -462,10 +453,6 @@ class SystoreSupplyDashboard(models.AbstractModel):
             supplier_id=selected_supplier_id,
             supplier_type=supplier_type,
         )
-        remaining_advance_application = {
-            partner_id: dict(values)
-            for partner_id, values in recognized_balances.items()
-        }
         for advance in sorted(
             advance_entries,
             key=lambda entry: (entry["payment_date"], entry["order"].id),
@@ -473,16 +460,8 @@ class SystoreSupplyDashboard(models.AbstractModel):
             if advance["sector"] != sector:
                 continue
             partner_id = advance["partner"].id
-            available = remaining_advance_application.get(
-                partner_id, {"mxn": 0.0, "usd": 0.0}
-            )
-            applied_mxn = min(available["mxn"], advance["amount_mxn"])
-            applied_usd = min(available["usd"], advance["amount_usd"])
-            if applied_mxn <= 0 and applied_usd <= 0:
-                continue
-            available["mxn"] -= applied_mxn
-            available["usd"] -= applied_usd
-            remaining_advance_application[partner_id] = available
+            applied_mxn = advance["amount_mxn"]
+            applied_usd = advance["amount_usd"]
             order = advance["order"]
             lines = order.order_line.filtered(
                 lambda line: not line.display_type and line.product_id
@@ -1620,17 +1599,22 @@ class SystoreSupplyDashboard(models.AbstractModel):
                 "paid_usd": values["paid_usd"],
                 "debt_order_ids": list(values["order_ids"]),
             } for partner_id, values in debt_by_sector[sector].items()
-                if values["mxn"] > 0 or values["usd"] > 0]
-            rows.sort(key=lambda row: (row["debt"], row["debt_usd"]), reverse=True)
-            max_debt_mxn = max((row["debt"] for row in rows), default=0.0)
-            max_debt_usd = max((row["debt_usd"] for row in rows), default=0.0)
+                if abs(values["mxn"]) > 0.000001 or abs(values["usd"]) > 0.000001]
+            rows.sort(
+                key=lambda row: (abs(row["debt"]), abs(row["debt_usd"])),
+                reverse=True,
+            )
+            max_debt_mxn = max((abs(row["debt"]) for row in rows), default=0.0)
+            max_debt_usd = max((abs(row["debt_usd"]) for row in rows), default=0.0)
             for row in rows:
                 row["debt_percent"] = (
-                    row["debt"] / max_debt_mxn * 100.0 if max_debt_mxn else 0.0
+                    abs(row["debt"]) / max_debt_mxn * 100.0
+                    if max_debt_mxn else 0.0
                 )
                 row["debt_percent_mxn"] = row["debt_percent"]
                 row["debt_percent_usd"] = (
-                    row["debt_usd"] / max_debt_usd * 100.0 if max_debt_usd else 0.0
+                    abs(row["debt_usd"]) / max_debt_usd * 100.0
+                    if max_debt_usd else 0.0
                 )
             return rows
 
