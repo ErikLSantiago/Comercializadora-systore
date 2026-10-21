@@ -379,10 +379,95 @@ class SystoreSupplyDashboard(models.AbstractModel):
             "total_usd", "paid_usd", "pending_usd",
             "total_mxn", "paid_mxn", "pending_mxn",
         )
+
+        def merchandise_payments(order):
+            payments = order.systore_payment_line_ids.filtered(lambda payment: (
+                payment.concept == "merchandise"
+                and payment.payment_date <= cutoff_date
+            ))
+            if sector == "international":
+                payments = payments.filtered(
+                    lambda payment: payment.payment_currency == "usd"
+                )
+            return payments.sorted(lambda payment: (payment.payment_date, payment.id))
+
+        def append_payment_rows(order, payments, line_type):
+            lines = order.order_line.filtered(
+                lambda line: not line.display_type and line.product_id
+            )
+            if not lines:
+                return
+            weights = self._debt_line_weights(order, lines)
+            weight_total = sum(weights)
+            for payment in payments:
+                payment_usd = (
+                    payment.amount_usd
+                    if payment.payment_currency == "usd" else 0.0
+                )
+                payment_mxn = payment.amount_mxn or 0.0
+                remaining_usd = payment_usd
+                remaining_mxn = payment_mxn
+                for index, (line, weight) in enumerate(zip(lines, weights)):
+                    is_last = index == len(lines) - 1
+                    line_usd = (
+                        remaining_usd
+                        if is_last else payment_usd * weight / weight_total
+                    )
+                    line_mxn = (
+                        remaining_mxn
+                        if is_last else payment_mxn * weight / weight_total
+                    )
+                    remaining_usd -= line_usd
+                    remaining_mxn -= line_mxn
+                    rows.append({
+                        "company_id": self.env.company.id,
+                        "usd_currency_id": usd_currency.id,
+                        "cutoff_date": cutoff_date,
+                        "debt_date": payment.payment_date,
+                        "debt_date_source": "payment",
+                        "line_type": line_type,
+                        "sector": sector,
+                        "supplier_id": order.partner_id.id,
+                        "purchase_order_id": order.id,
+                        "purchase_line_id": line.id,
+                        "product_id": line.product_id.id,
+                        "internal_reference": line.product_id.default_code or "",
+                        "payment_reference": payment.reference or "",
+                        "ordered_qty": 0.0,
+                        "received_qty": 0.0,
+                        "pending_qty": 0.0,
+                        "effective_exchange_rate": (
+                            payment_mxn / payment_usd if payment_usd else 0.0
+                        ),
+                        "total_usd": 0.0,
+                        "paid_usd": line_usd,
+                        "balance_usd": -line_usd,
+                        "total_mxn": 0.0,
+                        "paid_mxn": line_mxn,
+                        "balance_mxn": -line_mxn,
+                    })
+
+        included_debt_orders = self.env["purchase.order"]
         for order in debt_orders:
-            components = order._systore_debt_components(as_of_date=cutoff_date)
-            if not components:
+            debt_date, debt_date_source = self._debt_order_date_info(order)
+            payments = merchandise_payments(order)
+            has_month_activity = bool(
+                debt_date
+                and period["month_start"] <= debt_date < period["month_end"]
+            ) or any(
+                period["month_start"] <= payment.payment_date < period["month_end"]
+                for payment in payments
+            )
+            has_open_balance = bool(
+                order._systore_debt_components(as_of_date=cutoff_date)
+            )
+            if not has_open_balance and not has_month_activity:
                 continue
+            included_debt_orders |= order
+            components = order._systore_debt_components(
+                as_of_date=cutoff_date,
+                gross_only=True,
+            )
             lines = order.order_line.filtered(
                 lambda line: not line.display_type and line.product_id
             )
@@ -415,7 +500,6 @@ class SystoreSupplyDashboard(models.AbstractModel):
                     ordered, received, pending = self._debt_line_quantities(
                         line, cutoff_date
                     )
-                    debt_date, debt_date_source = self._debt_order_date_info(order)
                     rows.append({
                         "company_id": self.env.company.id,
                         "usd_currency_id": usd_currency.id,
@@ -429,6 +513,7 @@ class SystoreSupplyDashboard(models.AbstractModel):
                         "purchase_line_id": line.id,
                         "product_id": line.product_id.id,
                         "internal_reference": line.product_id.default_code or "",
+                        "payment_reference": "",
                         "ordered_qty": ordered,
                         "received_qty": received,
                         "pending_qty": pending,
@@ -438,81 +523,33 @@ class SystoreSupplyDashboard(models.AbstractModel):
                             if component.get("total_usd", 0.0) else 0.0
                         ),
                         "total_usd": allocated["total_usd"],
-                        "paid_usd": allocated["paid_usd"],
+                        "paid_usd": 0.0,
                         "balance_usd": allocated["pending_usd"],
                         "total_mxn": allocated["total_mxn"],
-                        "paid_mxn": allocated["paid_mxn"],
+                        "paid_mxn": 0.0,
                         "balance_mxn": allocated["pending_mxn"],
                     })
+            append_payment_rows(order, payments, "payment")
 
-        advance_entries = self._historical_supplier_advances(
+        advance_orders = self._historical_purchase_orders(
             self.env.company,
-            cutoff_date,
             warehouse_id=warehouse_id,
             channel=channel,
-            supplier_id=selected_supplier_id,
             supplier_type=supplier_type,
-        )
-        for advance in sorted(
-            advance_entries,
-            key=lambda entry: (entry["payment_date"], entry["order"].id),
-        ):
-            if advance["sector"] != sector:
-                continue
-            partner_id = advance["partner"].id
-            applied_mxn = advance["amount_mxn"]
-            applied_usd = advance["amount_usd"]
-            order = advance["order"]
-            lines = order.order_line.filtered(
-                lambda line: not line.display_type and line.product_id
+        ).filtered(lambda order: (
+            order not in included_debt_orders
+            and order._systore_resolved_purchase_origin() == sector
+            and (
+                not selected_supplier_id
+                or order.partner_id.id == selected_supplier_id
             )
-            if not lines:
-                continue
-            weights = self._debt_line_weights(order, lines)
-            weight_total = sum(weights)
-            remaining_mxn = applied_mxn
-            remaining_usd = applied_usd
-            for index, (line, weight) in enumerate(zip(lines, weights)):
-                is_last = index == len(lines) - 1
-                line_mxn = (
-                    remaining_mxn
-                    if is_last else applied_mxn * weight / weight_total
-                )
-                line_usd = (
-                    remaining_usd
-                    if is_last else applied_usd * weight / weight_total
-                )
-                remaining_mxn -= line_mxn
-                remaining_usd -= line_usd
-                ordered, received, pending = self._debt_line_quantities(
-                    line, cutoff_date
-                )
-                rows.append({
-                    "company_id": self.env.company.id,
-                    "usd_currency_id": usd_currency.id,
-                    "cutoff_date": cutoff_date,
-                    "debt_date": advance["payment_date"],
-                    "debt_date_source": "payment",
-                    "line_type": "advance",
-                    "sector": sector,
-                    "supplier_id": partner_id,
-                    "purchase_order_id": order.id,
-                    "purchase_line_id": line.id,
-                    "product_id": line.product_id.id,
-                    "internal_reference": line.product_id.default_code or "",
-                    "ordered_qty": ordered,
-                    "received_qty": received,
-                    "pending_qty": pending,
-                    "effective_exchange_rate": (
-                        applied_mxn / applied_usd if applied_usd else 0.0
-                    ),
-                    "total_usd": 0.0,
-                    "paid_usd": line_usd,
-                    "balance_usd": -line_usd,
-                    "total_mxn": 0.0,
-                    "paid_mxn": line_mxn,
-                    "balance_mxn": -line_mxn,
-                })
+            and self._debt_order_date_info(order)[1] == "receipt"
+            and self._debt_order_date(order) > cutoff_date
+        ))
+        for order in advance_orders:
+            payments = merchandise_payments(order)
+            if payments:
+                append_payment_rows(order, payments, "advance")
         report_lines = (
             self.env["systore.supply.debt.report"].create(rows)
             if rows else self.env["systore.supply.debt.report"].browse()

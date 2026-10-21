@@ -356,6 +356,7 @@
                             <small>Recepciones al cierre seleccionado y seguimiento de las piezas pendientes que llegaron posteriormente.</small>
                         </div>
                         <div class="o_supply_panel_actions">
+                            <button class="btn btn-link" t-on-click="() => openPurchaseLines('Reporte de productos recibidos')">Ver reporte completo</button>
                             <label class="form-check form-switch o_supply_table_switch">
                                 <input class="form-check-input" type="checkbox" role="switch"
                                        t-att-checked="state.showReceivedProductsTable" t-on-change="toggleReceivedProductsTable"/>

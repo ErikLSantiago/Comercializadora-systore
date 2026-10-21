@@ -19,14 +19,18 @@ class SystoreSupplyDebtReport(models.TransientModel):
         [
             ("order", "Fecha de orden"),
             ("receipt", "Fecha de llegada"),
-            ("payment", "Fecha de anticipo"),
+            ("payment", "Fecha de pago/anticipo"),
         ],
         string="Origen de fecha",
         required=True,
         readonly=True,
     )
     line_type = fields.Selection(
-        [("debt", "Deuda"), ("advance", "Anticipo")],
+        [
+            ("debt", "Orden de compra"),
+            ("payment", "Pago"),
+            ("advance", "Anticipo"),
+        ],
         string="Tipo de registro",
         required=True,
         default="debt",
@@ -52,6 +56,9 @@ class SystoreSupplyDebtReport(models.TransientModel):
     )
     internal_reference = fields.Char(
         string="Referencia interna", readonly=True
+    )
+    payment_reference = fields.Char(
+        string="Referencia de pago", readonly=True
     )
     ordered_qty = fields.Float(
         string="Piezas ordenadas", readonly=True

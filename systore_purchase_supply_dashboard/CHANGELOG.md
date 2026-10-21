@@ -1,5 +1,12 @@
 # Historial de cambios
 
+## 18.0.1.9.15
+
+- El reporte completo de deuda incorpora todas las OC con actividad en el mes, incluidas las que quedaron totalmente pagadas.
+- Cada pago de mercancía aparece en una línea independiente con su fecha, referencia, moneda e importe distribuido por producto.
+- Las líneas de OC muestran el monto bruto y las líneas de Pago o Anticipo lo disminuyen, de forma que el total del reporte conserva el saldo neto al corte.
+- El reporte de productos recibidos agrega la Fecha de recepción calculada para cada línea de producto con base en su primer movimiento efectivo de entrada.
+
 ## 18.0.1.9.14
 
 - Los anticipos se reconocen por su fecha de pago aunque la orden de compra se haya creado o aprobado en un mes posterior.
