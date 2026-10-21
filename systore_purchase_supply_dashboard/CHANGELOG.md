@@ -1,5 +1,12 @@
 # Historial de cambios
 
+## 18.0.1.9.13
+
+- Productos recibidos conserva Pendientes al cierre y agrega Recibidas pendientes para las piezas que llegaron después de la fecha consultada.
+- Se agregó Faltantes mes para identificar la parte del pendiente histórico que continúa sin recepción.
+- La relación queda conciliada por línea: Pendientes al cierre = Recibidas pendientes + Faltantes mes.
+- Las dos nuevas columnas incluyen su valuación en Costo USD, Costo MXN o Costo neto y se incorporan al total general.
+
 ## 18.0.1.9.12
 
 - Los pagos registrados antes de la recepción efectiva se reconocen como anticipos históricos del proveedor y reducen su deuda al corte consultado.

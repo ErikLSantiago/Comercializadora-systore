@@ -1330,9 +1330,14 @@ class SystoreSupplyDashboard(models.AbstractModel):
                     )
                 returned_by_line[purchase_line.id] += raw_qty
 
+        received_statuses = (
+            "ordered", "gross", "returned", "net", "pending",
+            "received_pending", "month_missing",
+        )
         received_by_supplier = defaultdict(lambda: {
             "name": "", "ordered": 0.0, "gross": 0.0,
             "returned": 0.0, "net": 0.0, "pending": 0.0,
+            "received_pending": 0.0, "month_missing": 0.0,
             "supplier_cost_usd": 0.0, "supplier_cost_mxn": 0.0,
             "net_cost_mxn": 0.0,
             "has_international": False, "has_national": False,
@@ -1341,20 +1346,43 @@ class SystoreSupplyDashboard(models.AbstractModel):
                     "qty": 0.0, "cost_usd": 0.0,
                     "cost_mxn": 0.0, "cost_net": 0.0,
                 }
-                for status in ("ordered", "gross", "returned", "net", "pending")
+                for status in received_statuses
             },
         })
+        received_line_ids = set()
+        for values in received_products.values():
+            received_line_ids.update(values["line_ids"])
+        current_quantities = self._historical_line_quantities(
+            self.env["purchase.order.line"].browse(received_line_ids),
+            fields.Date.context_today(self),
+        )
         for (partner_id, product_id), values in received_products.items():
             product = self.env["product.product"].browse(product_id)
-            ordered = pending = 0.0
+            ordered = pending = received_pending = month_missing = 0.0
             ordered_cost_usd = ordered_cost_mxn = ordered_cost_net = 0.0
             pending_cost_usd = pending_cost_mxn = pending_cost_net = 0.0
+            received_pending_cost_usd = 0.0
+            received_pending_cost_mxn = 0.0
+            received_pending_cost_net = 0.0
+            month_missing_cost_usd = 0.0
+            month_missing_cost_mxn = 0.0
+            month_missing_cost_net = 0.0
             for line in self.env["purchase.order.line"].browse(values["line_ids"]):
                 line_ordered_cost_qty = line.product_qty or 0.0
                 line_net = max(
                     received_by_line[line.id] - returned_by_line[line.id], 0.0
                 )
                 line_pending_cost_qty = max(line_ordered_cost_qty - line_net, 0.0)
+                current_net = current_quantities.get(
+                    line.id, (line_ordered_cost_qty, line_net, line_pending_cost_qty)
+                )[1]
+                line_received_pending_cost_qty = min(
+                    max(current_net - line_net, 0.0),
+                    line_pending_cost_qty,
+                )
+                line_month_missing_cost_qty = max(
+                    line_pending_cost_qty - line_received_pending_cost_qty, 0.0
+                )
                 line_order = line.order_id
                 line_international = (
                     line_order._systore_resolved_purchase_origin() == "international"
@@ -1372,12 +1400,40 @@ class SystoreSupplyDashboard(models.AbstractModel):
                 pending_cost_usd += line_pending_cost_qty * line_supplier_usd
                 pending_cost_mxn += line_pending_cost_qty * line_supplier_mxn
                 pending_cost_net += line_pending_cost_qty * line_net_unit_mxn
+                received_pending_cost_usd += (
+                    line_received_pending_cost_qty * line_supplier_usd
+                )
+                received_pending_cost_mxn += (
+                    line_received_pending_cost_qty * line_supplier_mxn
+                )
+                received_pending_cost_net += (
+                    line_received_pending_cost_qty * line_net_unit_mxn
+                )
+                month_missing_cost_usd += (
+                    line_month_missing_cost_qty * line_supplier_usd
+                )
+                month_missing_cost_mxn += (
+                    line_month_missing_cost_qty * line_supplier_mxn
+                )
+                month_missing_cost_net += (
+                    line_month_missing_cost_qty * line_net_unit_mxn
+                )
                 line_ordered = line_ordered_cost_qty
+                line_received_pending = line_received_pending_cost_qty
+                line_month_missing = line_month_missing_cost_qty
                 if line.product_uom and product.uom_id and line.product_uom != product.uom_id:
                     line_ordered = line.product_uom._compute_quantity(line_ordered, product.uom_id)
                     line_net = line.product_uom._compute_quantity(line_net, product.uom_id)
+                    line_received_pending = line.product_uom._compute_quantity(
+                        line_received_pending, product.uom_id
+                    )
+                    line_month_missing = line.product_uom._compute_quantity(
+                        line_month_missing, product.uom_id
+                    )
                 ordered += line_ordered
                 pending += max(line_ordered - line_net, 0.0)
+                received_pending += line_received_pending
+                month_missing += line_month_missing
             gross = values["gross"]
             returned = values["returned"]
             net = max(gross - returned, 0.0)
@@ -1413,6 +1469,18 @@ class SystoreSupplyDashboard(models.AbstractModel):
                     "qty": pending, "cost_usd": pending_cost_usd,
                     "cost_mxn": pending_cost_mxn, "cost_net": pending_cost_net,
                 },
+                "received_pending": {
+                    "qty": received_pending,
+                    "cost_usd": received_pending_cost_usd,
+                    "cost_mxn": received_pending_cost_mxn,
+                    "cost_net": received_pending_cost_net,
+                },
+                "month_missing": {
+                    "qty": month_missing,
+                    "cost_usd": month_missing_cost_usd,
+                    "cost_mxn": month_missing_cost_mxn,
+                    "cost_net": month_missing_cost_net,
+                },
             }
             row = {
                 "id": product_id,
@@ -1424,6 +1492,8 @@ class SystoreSupplyDashboard(models.AbstractModel):
                 "returned": returned,
                 "net": net,
                 "pending": pending,
+                "received_pending": received_pending,
+                "month_missing": month_missing,
                 "supplier_cost_usd": supplier_cost_usd,
                 "supplier_cost_mxn": supplier_cost_mxn,
                 "net_cost_mxn": net_cost_mxn,
@@ -1431,7 +1501,7 @@ class SystoreSupplyDashboard(models.AbstractModel):
             }
             supplier_values = received_by_supplier[partner_id]
             supplier_values["name"] = values["partner_name"]
-            for metric in ("ordered", "gross", "returned", "net", "pending"):
+            for metric in received_statuses:
                 supplier_values[metric] += row[metric]
             for metric in ("supplier_cost_usd", "supplier_cost_mxn", "net_cost_mxn"):
                 supplier_values[metric] += row[metric]
@@ -1451,6 +1521,8 @@ class SystoreSupplyDashboard(models.AbstractModel):
                 "returned": values["returned"],
                 "net": values["net"],
                 "pending": values["pending"],
+                "received_pending": values["received_pending"],
+                "month_missing": values["month_missing"],
                 "supplier_cost_usd": values["supplier_cost_usd"],
                 "supplier_cost_mxn": values["supplier_cost_mxn"],
                 "net_cost_mxn": values["net_cost_mxn"],
@@ -1465,18 +1537,20 @@ class SystoreSupplyDashboard(models.AbstractModel):
         received_supplier_rows.sort(key=lambda row: row["gross"], reverse=True)
         received_totals = {
             "ordered": 0.0, "gross": 0.0, "returned": 0.0,
-            "net": 0.0, "pending": 0.0, "is_international": False,
+            "net": 0.0, "pending": 0.0,
+            "received_pending": 0.0, "month_missing": 0.0,
+            "is_international": False,
             "values": {
                 status: {
                     "qty": 0.0, "cost_usd": 0.0,
                     "cost_mxn": 0.0, "cost_net": 0.0,
                 }
-                for status in ("ordered", "gross", "returned", "net", "pending")
+                for status in received_statuses
             },
         }
         for supplier_row in received_supplier_rows:
             received_totals["is_international"] |= supplier_row["is_international"]
-            for status in ("ordered", "gross", "returned", "net", "pending"):
+            for status in received_statuses:
                 received_totals[status] += supplier_row[status]
                 for metric, amount in supplier_row["values"][status].items():
                     received_totals["values"][status][metric] += amount

@@ -22,7 +22,8 @@ Versión preparada para producción en Odoo 18.
 - Gráfica de pastel con piezas solicitadas en espera por canal; el número de órdenes se conserva como dato secundario.
 - Gráfica de pastel con piezas de compra recibidas y pendientes.
 - Resumen de productos recibidos directamente del historial de movimientos, totalizado por proveedor y con rango Desde/Hasta.
-- Sumatorias por proveedor de solicitadas, recibidas brutas, devueltas, recibidas netas y pendientes.
+- Sumatorias por proveedor de solicitadas, recibidas brutas, devueltas, recibidas netas y pendientes al cierre.
+- El pendiente histórico se concilia entre Recibidas pendientes (piezas que llegaron después del corte) y Faltantes mes (piezas que continúan sin recepción).
 - Cada línea de proveedor abre Recepciones de compra con el proveedor aplicado como filtro.
 - Para compras internacionales se muestran mercancía USD, mercancía convertida a MXN con `x_exchange_rate` y costo neto MXN.
 - La mercancía internacional excluye expresamente logística e importación; el costo neto MXN sí las incorpora.
@@ -55,6 +56,7 @@ Versión preparada para producción en Odoo 18.
 - La gráfica Monto comprado por proveedor distribuye el valor solicitado de la cohorte seleccionada según la valuación elegida.
 - La gráfica Monto comprado por proveedor alterna entre Costo USD, Costo MXN y Costo neto; Costo USD es la selección inicial.
 - Productos recibidos inicia en Costo USD y conserva sus tres modos de valuación.
+- Las columnas Recibidas pendientes y Faltantes mes conservan la valuación seleccionada y forman parte del total general.
 
 ## Dependencias
 
