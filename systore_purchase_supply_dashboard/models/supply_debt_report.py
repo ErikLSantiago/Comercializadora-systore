@@ -16,9 +16,20 @@ class SystoreSupplyDebtReport(models.TransientModel):
     cutoff_date = fields.Date(string="Fecha de corte", required=True, readonly=True)
     debt_date = fields.Date(string="Fecha de deuda", required=True, readonly=True)
     debt_date_source = fields.Selection(
-        [("order", "Fecha de orden"), ("receipt", "Fecha de llegada")],
+        [
+            ("order", "Fecha de orden"),
+            ("receipt", "Fecha de llegada"),
+            ("payment", "Fecha de anticipo"),
+        ],
         string="Origen de fecha",
         required=True,
+        readonly=True,
+    )
+    line_type = fields.Selection(
+        [("debt", "Deuda"), ("advance", "Anticipo")],
+        string="Tipo de registro",
+        required=True,
+        default="debt",
         readonly=True,
     )
     sector = fields.Selection(

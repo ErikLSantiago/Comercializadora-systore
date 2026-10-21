@@ -304,6 +304,7 @@
         <field name="arch" type="xml">
             <list string="Deuda a proveedores extranjeros" create="0" edit="0" delete="0">
                 <field name="cutoff_date"/>
+                <field name="line_type"/>
                 <field name="debt_date"/>
                 <field name="debt_date_source"/>
                 <field name="supplier_id"/>
@@ -332,6 +333,7 @@
         <field name="arch" type="xml">
             <list string="Deuda a proveedores nacionales" create="0" edit="0" delete="0">
                 <field name="cutoff_date"/>
+                <field name="line_type"/>
                 <field name="debt_date"/>
                 <field name="debt_date_source"/>
                 <field name="supplier_id"/>

@@ -1,5 +1,13 @@
 # Historial de cambios
 
+## 18.0.1.9.12
+
+- Los pagos registrados antes de la recepción efectiva se reconocen como anticipos históricos del proveedor y reducen su deuda al corte consultado.
+- El anticipo deja de aplicarse por separado cuando la recepción ya pertenece al periodo, evitando descontarlo dos veces.
+- El reporte completo identifica los registros de Anticipo y conserva la OC, productos, cantidades e importes que lo originan.
+- Productos recibidos limita recepciones y devoluciones a la fecha final seleccionada, aunque la OC se haya completado en un mes posterior.
+- Las piezas faltantes se reconstruyen con los movimientos existentes al cierre consultado y no con la cantidad final actual de la OC.
+
 ## 18.0.1.9.11
 
 - La deuda usa la fecha efectiva de llegada de la OC cuando ya existe una recepción; mientras no exista, conserva la fecha de aprobación u orden.
