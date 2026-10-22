@@ -1,5 +1,11 @@
 # Historial de cambios
 
+## 18.0.1.9.16
+
+- El reporte completo de deuda muestra una columna Número de orden de compra tomada directamente de `purchase.order.name`.
+- La nueva columna evita el nombre mostrado del Many2one, por lo que no concatena la referencia del proveedor.
+- Se realizó una revisión estática integral para la publicación productiva del módulo en Odoo 18.
+
 ## 18.0.1.9.15
 
 - El reporte completo de deuda incorpora todas las OC con actividad en el mes, incluidas las que quedaron totalmente pagadas.

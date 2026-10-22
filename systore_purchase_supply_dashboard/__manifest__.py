@@ -1,6 +1,6 @@
 {
     "name": "Analítica de compras",
-    "version": "18.0.1.9.15",
+    "version": "18.0.1.9.16",
     "category": "Inventory/Purchase",
     "summary": "Compras, demanda, recepciones, pagos y crédito de proveedores",
     "author": "Systore",

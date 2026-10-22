@@ -48,6 +48,9 @@ class SystoreSupplyDebtReport(models.TransientModel):
     purchase_order_id = fields.Many2one(
         "purchase.order", string="Orden de compra", required=True, readonly=True
     )
+    purchase_order_name = fields.Char(
+        string="Número de orden de compra", required=True, readonly=True
+    )
     purchase_line_id = fields.Many2one(
         "purchase.order.line", string="Línea de compra", required=True, readonly=True
     )
