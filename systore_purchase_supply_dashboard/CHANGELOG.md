@@ -1,5 +1,10 @@
 # Historial de cambios
 
+## 18.0.1.9.17
+
+- El reporte completo de deuda conserva una columna independiente Referencia de proveedor tomada de `purchase.order.partner_ref`.
+- Número de orden de compra y Referencia de proveedor se muestran por separado, sin concatenar sus valores.
+
 ## 18.0.1.9.16
 
 - El reporte completo de deuda muestra una columna Número de orden de compra tomada directamente de `purchase.order.name`.

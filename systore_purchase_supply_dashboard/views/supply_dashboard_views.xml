@@ -310,6 +310,7 @@
                 <field name="debt_date_source"/>
                 <field name="supplier_id"/>
                 <field name="purchase_order_name"/>
+                <field name="supplier_reference"/>
                 <field name="purchase_order_id" optional="hide"/>
                 <field name="payment_reference" optional="show"/>
                 <field name="internal_reference"/>
@@ -341,6 +342,7 @@
                 <field name="debt_date_source"/>
                 <field name="supplier_id"/>
                 <field name="purchase_order_name"/>
+                <field name="supplier_reference"/>
                 <field name="purchase_order_id" optional="hide"/>
                 <field name="payment_reference" optional="show"/>
                 <field name="internal_reference"/>
