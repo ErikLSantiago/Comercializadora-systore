@@ -6,7 +6,8 @@
         <field name="arch" type="xml">
             <list create="0" edit="0" delete="0" decoration-danger="pending_qty &gt; 0" decoration-success="pending_qty == 0">
                 <field name="report_date"/>
-                <field name="first_receipt_date" optional="show"/>
+                <field name="product_receipt_date"/>
+                <field name="first_receipt_date" optional="hide"/>
                 <field name="purchase_order_id"/>
                 <field name="supplier_id"/>
                 <field name="warehouse_id"/>
@@ -304,9 +305,19 @@
         <field name="arch" type="xml">
             <list string="Deuda a proveedores extranjeros" create="0" edit="0" delete="0">
                 <field name="cutoff_date"/>
+                <field name="line_type"/>
+                <field name="debt_date"/>
+                <field name="debt_date_source"/>
                 <field name="supplier_id"/>
-                <field name="order_count" sum="Órdenes"/>
-                <field name="purchase_order_ids" widget="many2many_tags" optional="show"/>
+                <field name="purchase_order_name"/>
+                <field name="supplier_reference"/>
+                <field name="purchase_order_id" optional="hide"/>
+                <field name="payment_reference" optional="show"/>
+                <field name="internal_reference"/>
+                <field name="product_id"/>
+                <field name="ordered_qty" sum="Piezas ordenadas"/>
+                <field name="received_qty" sum="Piezas recibidas"/>
+                <field name="pending_qty" sum="Piezas faltantes"/>
                 <field name="total_usd" sum="Monto de deuda USD"/>
                 <field name="paid_usd" sum="Pagado USD"/>
                 <field name="balance_usd" sum="Saldo por pagar USD"/>
@@ -326,9 +337,19 @@
         <field name="arch" type="xml">
             <list string="Deuda a proveedores nacionales" create="0" edit="0" delete="0">
                 <field name="cutoff_date"/>
+                <field name="line_type"/>
+                <field name="debt_date"/>
+                <field name="debt_date_source"/>
                 <field name="supplier_id"/>
-                <field name="order_count" sum="Órdenes"/>
-                <field name="purchase_order_ids" widget="many2many_tags" optional="show"/>
+                <field name="purchase_order_name"/>
+                <field name="supplier_reference"/>
+                <field name="purchase_order_id" optional="hide"/>
+                <field name="payment_reference" optional="show"/>
+                <field name="internal_reference"/>
+                <field name="product_id"/>
+                <field name="ordered_qty" sum="Piezas ordenadas"/>
+                <field name="received_qty" sum="Piezas recibidas"/>
+                <field name="pending_qty" sum="Piezas faltantes"/>
                 <field name="total_mxn" sum="Monto de deuda MXN"/>
                 <field name="paid_mxn" sum="Pagado MXN"/>
                 <field name="balance_mxn" sum="Saldo por pagar MXN"/>

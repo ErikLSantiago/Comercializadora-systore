@@ -4,7 +4,7 @@ from odoo import fields, models
 class SystoreSupplyDebtReport(models.TransientModel):
     _name = "systore.supply.debt.report"
     _description = "Deuda histórica a proveedores"
-    _order = "balance_mxn desc, balance_usd desc, supplier_id"
+    _order = "debt_date desc, purchase_order_id desc, product_id"
 
     company_id = fields.Many2one("res.company", required=True, readonly=True)
     currency_id = fields.Many2one(
@@ -14,6 +14,28 @@ class SystoreSupplyDebtReport(models.TransientModel):
         "res.currency", string="Moneda USD", required=True, readonly=True
     )
     cutoff_date = fields.Date(string="Fecha de corte", required=True, readonly=True)
+    debt_date = fields.Date(string="Fecha de deuda", required=True, readonly=True)
+    debt_date_source = fields.Selection(
+        [
+            ("order", "Fecha de orden"),
+            ("receipt", "Fecha de llegada"),
+            ("payment", "Fecha de pago/anticipo"),
+        ],
+        string="Origen de fecha",
+        required=True,
+        readonly=True,
+    )
+    line_type = fields.Selection(
+        [
+            ("debt", "Orden de compra"),
+            ("payment", "Pago"),
+            ("advance", "Anticipo"),
+        ],
+        string="Tipo de registro",
+        required=True,
+        default="debt",
+        readonly=True,
+    )
     sector = fields.Selection(
         [("national", "Nacional"), ("international", "Internacional")],
         string="Tipo de proveedor",
@@ -23,15 +45,36 @@ class SystoreSupplyDebtReport(models.TransientModel):
     supplier_id = fields.Many2one(
         "res.partner", string="Proveedor", required=True, readonly=True
     )
-    purchase_order_ids = fields.Many2many(
-        "purchase.order",
-        "systore_debt_report_purchase_rel",
-        "report_id",
-        "purchase_order_id",
-        string="Órdenes de compra",
-        readonly=True,
+    purchase_order_id = fields.Many2one(
+        "purchase.order", string="Orden de compra", required=True, readonly=True
     )
-    order_count = fields.Integer(string="Órdenes", readonly=True)
+    purchase_order_name = fields.Char(
+        string="Número de orden de compra", required=True, readonly=True
+    )
+    supplier_reference = fields.Char(
+        string="Referencia de proveedor", readonly=True
+    )
+    purchase_line_id = fields.Many2one(
+        "purchase.order.line", string="Línea de compra", required=True, readonly=True
+    )
+    product_id = fields.Many2one(
+        "product.product", string="Producto", required=True, readonly=True
+    )
+    internal_reference = fields.Char(
+        string="Referencia interna", readonly=True
+    )
+    payment_reference = fields.Char(
+        string="Referencia de pago", readonly=True
+    )
+    ordered_qty = fields.Float(
+        string="Piezas ordenadas", readonly=True
+    )
+    received_qty = fields.Float(
+        string="Piezas recibidas", readonly=True
+    )
+    pending_qty = fields.Float(
+        string="Piezas faltantes", readonly=True
+    )
     effective_exchange_rate = fields.Float(
         string="TC efectivo USD/MXN", digits=(16, 4), readonly=True
     )

@@ -353,9 +353,10 @@
                     <div class="o_supply_panel_title">
                         <div>
                             <h2>Productos recibidos</h2>
-                            <small>Órdenes cuya primera recepción ocurrió entre <t t-esc="state.filters.date_from"/> y <t t-esc="state.filters.date_to"/>. Las recepciones posteriores actualizan la misma cohorte.</small>
+                            <small>Recepciones al cierre seleccionado y seguimiento de las piezas pendientes que llegaron posteriormente.</small>
                         </div>
                         <div class="o_supply_panel_actions">
+                            <button class="btn btn-link" t-on-click="() => openPurchaseLines('Reporte de productos recibidos')">Ver reporte completo</button>
                             <label class="form-check form-switch o_supply_table_switch">
                                 <input class="form-check-input" type="checkbox" role="switch"
                                        t-att-checked="state.showReceivedProductsTable" t-on-change="toggleReceivedProductsTable"/>
@@ -379,7 +380,9 @@
                                     <th class="text-end">Recibidas brutas</th>
                                     <th class="text-end">Devueltas</th>
                                     <th class="text-end">Recibidas netas</th>
-                                    <th class="text-end">Pendientes</th>
+                                    <th class="text-end">Pendientes al cierre</th>
+                                    <th class="text-end">Recibidas pendientes</th>
+                                    <th class="text-end">Faltantes mes</th>
                                 </tr>
                             </thead>
                             <tbody>
@@ -395,9 +398,11 @@
                                     <td class="text-end text-danger"><strong t-esc="formatQty(supplier.returned)"/><small t-esc="formatReceivedValue(supplier, 'returned')"/></td>
                                     <td class="text-end text-success"><strong t-esc="formatQty(supplier.net)"/><small t-esc="formatReceivedValue(supplier, 'net')"/></td>
                                     <td class="text-end" t-att-class="supplier.pending ? 'text-danger' : ''"><strong t-esc="formatQty(supplier.pending)"/><small t-esc="formatReceivedValue(supplier, 'pending')"/></td>
+                                    <td class="text-end text-primary"><strong t-esc="formatQty(supplier.received_pending)"/><small t-esc="formatReceivedValue(supplier, 'received_pending')"/></td>
+                                    <td class="text-end" t-att-class="supplier.month_missing ? 'text-danger' : 'text-success'"><strong t-esc="formatQty(supplier.month_missing)"/><small t-esc="formatReceivedValue(supplier, 'month_missing')"/></td>
                                 </tr>
                                 <tr t-if="!state.data.rankings.received_products_by_supplier.length">
-                                    <td colspan="6" class="o_supply_empty">No hay recepciones terminadas dentro del rango seleccionado.</td>
+                                    <td colspan="8" class="o_supply_empty">No hay recepciones terminadas dentro del rango seleccionado.</td>
                                 </tr>
                             </tbody>
                             <tfoot t-if="state.data.rankings.received_products_by_supplier.length">
@@ -408,6 +413,8 @@
                                     <td class="text-end text-danger"><strong t-esc="formatQty(state.data.rankings.received_products_totals.returned)"/><small t-esc="formatReceivedValue(state.data.rankings.received_products_totals, 'returned')"/></td>
                                     <td class="text-end text-success"><strong t-esc="formatQty(state.data.rankings.received_products_totals.net)"/><small t-esc="formatReceivedValue(state.data.rankings.received_products_totals, 'net')"/></td>
                                     <td class="text-end" t-att-class="state.data.rankings.received_products_totals.pending ? 'text-danger' : ''"><strong t-esc="formatQty(state.data.rankings.received_products_totals.pending)"/><small t-esc="formatReceivedValue(state.data.rankings.received_products_totals, 'pending')"/></td>
+                                    <td class="text-end text-primary"><strong t-esc="formatQty(state.data.rankings.received_products_totals.received_pending)"/><small t-esc="formatReceivedValue(state.data.rankings.received_products_totals, 'received_pending')"/></td>
+                                    <td class="text-end" t-att-class="state.data.rankings.received_products_totals.month_missing ? 'text-danger' : 'text-success'"><strong t-esc="formatQty(state.data.rankings.received_products_totals.month_missing)"/><small t-esc="formatReceivedValue(state.data.rankings.received_products_totals, 'month_missing')"/></td>
                                 </tr>
                             </tfoot>
                         </table>

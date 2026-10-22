@@ -1,5 +1,54 @@
 # Historial de cambios
 
+## 18.0.1.9.17
+
+- El reporte completo de deuda conserva una columna independiente Referencia de proveedor tomada de `purchase.order.partner_ref`.
+- Número de orden de compra y Referencia de proveedor se muestran por separado, sin concatenar sus valores.
+
+## 18.0.1.9.16
+
+- El reporte completo de deuda muestra una columna Número de orden de compra tomada directamente de `purchase.order.name`.
+- La nueva columna evita el nombre mostrado del Many2one, por lo que no concatena la referencia del proveedor.
+- Se realizó una revisión estática integral para la publicación productiva del módulo en Odoo 18.
+
+## 18.0.1.9.15
+
+- El reporte completo de deuda incorpora todas las OC con actividad en el mes, incluidas las que quedaron totalmente pagadas.
+- Cada pago de mercancía aparece en una línea independiente con su fecha, referencia, moneda e importe distribuido por producto.
+- Las líneas de OC muestran el monto bruto y las líneas de Pago o Anticipo lo disminuyen, de forma que el total del reporte conserva el saldo neto al corte.
+- El reporte de productos recibidos agrega la Fecha de recepción calculada para cada línea de producto con base en su primer movimiento efectivo de entrada.
+
+## 18.0.1.9.14
+
+- Los anticipos se reconocen por su fecha de pago aunque la orden de compra se haya creado o aprobado en un mes posterior.
+- Antes de la recepción, el corte histórico incorpora únicamente el monto anticipado y no el valor total de la orden.
+- El reporte completo muestra el anticipo íntegro como saldo a favor, incluso cuando excede otras deudas reconocidas del proveedor al corte.
+- Los saldos netos a favor permanecen visibles en el tablero y permiten abrir su detalle de anticipos.
+- Al llegar la mercancía, el anticipo se integra al pago de la OC y deja de presentarse por separado para evitar duplicidades.
+
+## 18.0.1.9.13
+
+- Productos recibidos conserva Pendientes al cierre y agrega Recibidas pendientes para las piezas que llegaron después de la fecha consultada.
+- Se agregó Faltantes mes para identificar la parte del pendiente histórico que continúa sin recepción.
+- La relación queda conciliada por línea: Pendientes al cierre = Recibidas pendientes + Faltantes mes.
+- Las dos nuevas columnas incluyen su valuación en Costo USD, Costo MXN o Costo neto y se incorporan al total general.
+
+## 18.0.1.9.12
+
+- Los pagos registrados antes de la recepción efectiva se reconocen como anticipos históricos del proveedor y reducen su deuda al corte consultado.
+- El anticipo deja de aplicarse por separado cuando la recepción ya pertenece al periodo, evitando descontarlo dos veces.
+- El reporte completo identifica los registros de Anticipo y conserva la OC, productos, cantidades e importes que lo originan.
+- Productos recibidos limita recepciones y devoluciones a la fecha final seleccionada, aunque la OC se haya completado en un mes posterior.
+- Las piezas faltantes se reconstruyen con los movimientos existentes al cierre consultado y no con la cantidad final actual de la OC.
+
+## 18.0.1.9.11
+
+- La deuda usa la fecha efectiva de llegada de la OC cuando ya existe una recepción; mientras no exista, conserva la fecha de aprobación u orden.
+- El tablero y el reporte detallado aplican la misma fecha de deuda al corte del mes operativo.
+- El reporte de deuda muestra una línea independiente por producto y orden de compra.
+- Se añadieron orden de compra, producto, referencia interna, piezas ordenadas, recibidas y faltantes al corte consultado.
+- Los importes de deuda, pagos y saldo se distribuyen proporcionalmente entre las líneas de producto para evitar duplicar los totales de la OC.
+
 ## 18.0.1.9.10
 
 - **Sin definir** vuelve a ser una condición válida al confirmar o aprobar una orden de compra.

@@ -34,6 +34,9 @@ class SystoreSupplyPurchaseLine(models.Model):
     )
     order_date = fields.Datetime(string="Fecha de orden", readonly=True)
     first_receipt_date = fields.Datetime(string="Primera recepción", index=True, readonly=True)
+    product_receipt_date = fields.Datetime(
+        string="Fecha de recepción", index=True, readonly=True
+    )
     report_date = fields.Date(string="Fecha del reporte", index=True, readonly=True)
     has_receipt = fields.Boolean(string="Con recepción", index=True, readonly=True)
 
@@ -127,6 +130,34 @@ class SystoreSupplyPurchaseLine(models.Model):
             elif "qty_done" in move_line._fields:
                 quantities += move_line.qty_done or 0.0
         return quantities or move.product_uom_qty or 0.0
+
+    @api.model
+    def _line_first_receipt_date(self, line):
+        """First effective incoming date for this exact purchase product line."""
+        StockMove = self.env["stock.move"].sudo()
+        moves = line.move_ids.sudo().filtered(lambda move: (
+            move.state == "done"
+            and move.location_id.usage == "supplier"
+            and move.location_dest_id.usage == "internal"
+        ))
+        if not moves and "purchase_line_id" in StockMove._fields:
+            moves = StockMove.search([
+                ("purchase_line_id", "=", line.id),
+                ("state", "=", "done"),
+                ("location_id.usage", "=", "supplier"),
+                ("location_dest_id.usage", "=", "internal"),
+            ])
+        dates = []
+        for move in moves:
+            effective_date = (
+                move.picking_id.effective_date
+                if "effective_date" in move.picking_id._fields
+                else False
+            )
+            receipt_date = effective_date or move.picking_id.date_done or move.date
+            if receipt_date:
+                dates.append(fields.Datetime.to_datetime(receipt_date))
+        return min(dates) if dates else False
 
     @api.model
     def _line_receipt_quantities(self, line):
@@ -248,6 +279,7 @@ class SystoreSupplyPurchaseLine(models.Model):
                     "purchase_origin": purchase_origin,
                     "order_date": order.date_order,
                     "first_receipt_date": first_receipt,
+                    "product_receipt_date": self._line_first_receipt_date(line),
                     "report_date": report_date,
                     "has_receipt": received > 0,
                     "ordered_qty": ordered,

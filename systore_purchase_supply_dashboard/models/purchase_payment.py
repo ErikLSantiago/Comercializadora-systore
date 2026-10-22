@@ -621,9 +621,9 @@ class PurchaseOrder(models.Model):
                 status = "paid"
             order.systore_payment_status = status
 
-    def _systore_debt_components(self, as_of_date=None):
+    def _systore_debt_components(self, as_of_date=None, gross_only=False):
         self.ensure_one()
-        if self.systore_payment_status_manual == "paid":
+        if self.systore_payment_status_manual == "paid" and not gross_only:
             return []
 
         payments = self.systore_payment_line_ids.filtered(
@@ -635,6 +635,8 @@ class PurchaseOrder(models.Model):
         if not self.systore_is_international:
             paid_mxn = sum(payments.mapped("amount_mxn"))
             total_mxn = self.amount_total or 0.0
+            if gross_only:
+                paid_mxn = 0.0
             pending_mxn = max(total_mxn - paid_mxn, 0.0)
             return [{
                 "partner": self.partner_id,
@@ -657,6 +659,9 @@ class PurchaseOrder(models.Model):
             if paid_usd else (self.x_exchange_rate or 0.0)
         )
         total_usd = self.systore_merchandise_payable_usd or 0.0
+        if gross_only:
+            paid_usd = 0.0
+            merchandise_paid_mxn = 0.0
         pending_usd = max(total_usd - paid_usd, 0.0)
         if pending_usd > 0:
             pending_mxn = pending_usd * merchandise_rate

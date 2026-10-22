@@ -22,7 +22,8 @@ Versión preparada para producción en Odoo 18.
 - Gráfica de pastel con piezas solicitadas en espera por canal; el número de órdenes se conserva como dato secundario.
 - Gráfica de pastel con piezas de compra recibidas y pendientes.
 - Resumen de productos recibidos directamente del historial de movimientos, totalizado por proveedor y con rango Desde/Hasta.
-- Sumatorias por proveedor de solicitadas, recibidas brutas, devueltas, recibidas netas y pendientes.
+- Sumatorias por proveedor de solicitadas, recibidas brutas, devueltas, recibidas netas y pendientes al cierre.
+- El pendiente histórico se concilia entre Recibidas pendientes (piezas que llegaron después del corte) y Faltantes mes (piezas que continúan sin recepción).
 - Cada línea de proveedor abre Recepciones de compra con el proveedor aplicado como filtro.
 - Para compras internacionales se muestran mercancía USD, mercancía convertida a MXN con `x_exchange_rate` y costo neto MXN.
 - La mercancía internacional excluye expresamente logística e importación; el costo neto MXN sí las incorpora.
@@ -31,8 +32,12 @@ Versión preparada para producción en Odoo 18.
 - Cada estado de recepción muestra su cantidad y el valor calculado con el modo seleccionado.
 - El filtro Tipo de proveedor permite consultar únicamente compras Nacionales o Internacionales.
 - Productos recibidos incluye un total general de cantidades y valores para los filtros aplicados.
+- El reporte detallado de productos recibidos muestra la fecha efectiva de recepción de cada producto.
 - Recepciones brutas, devoluciones a proveedor y recepciones netas por línea de compra.
-- Deuda histórica de mercancía separada entre proveedores nacionales y extranjeros, con selector MXN/USD, expansión de proveedores y reporte completo con deuda original, pagos y saldo por proveedor al corte.
+- Deuda histórica de mercancía separada entre proveedores nacionales y extranjeros, con selector MXN/USD, anticipos reconocidos por la fecha de pago aunque la OC pertenezca a un mes posterior, expansión de proveedores y reporte completo por OC y producto con deuda original, pagos, saldo y cantidades al corte.
+- El reporte completo conserva las OC pagadas con actividad dentro del mes y presenta cada pago en una línea independiente.
+- En el reporte de deuda, Número de orden de compra muestra exclusivamente `purchase.order.name`, sin concatenar la referencia del proveedor.
+- La Referencia de proveedor se conserva en una columna independiente tomada de `purchase.order.partner_ref`.
 - Control de líneas de crédito de proveedor con límite, moneda, crédito ocupado y disponible.
 - Condición Contado/Crédito independiente por orden, aunque el proveedor tenga una línea autorizada.
 - Inicio y vencimiento de crédito capturados directamente por orden; los días naturales se calculan entre ambas fechas.
@@ -55,6 +60,7 @@ Versión preparada para producción en Odoo 18.
 - La gráfica Monto comprado por proveedor distribuye el valor solicitado de la cohorte seleccionada según la valuación elegida.
 - La gráfica Monto comprado por proveedor alterna entre Costo USD, Costo MXN y Costo neto; Costo USD es la selección inicial.
 - Productos recibidos inicia en Costo USD y conserva sus tres modos de valuación.
+- Las columnas Recibidas pendientes y Faltantes mes conservan la valuación seleccionada y forman parte del total general.
 
 ## Dependencias
 
@@ -101,7 +107,7 @@ Versión preparada para producción en Odoo 18.
 - Una compra de Contado continúa en la deuda operativa si está pendiente, pero no consume la línea de crédito.
 - Las órdenes confirmadas a crédito consumen la línea por su saldo pendiente de mercancía, aunque la fecha de inicio todavía no haya llegado.
 - La deuda se calcula al cierre del Mes operativo: incluye órdenes confirmadas hasta ese día y resta únicamente los abonos cuya fecha no sea posterior al corte.
-- El reporte internacional expresa deuda, pagos y saldo en USD y MXN; el nacional presenta los mismos importes en MXN.
+- El reporte internacional expresa deuda, pagos y saldo en USD y MXN; el nacional presenta los mismos importes en MXN. Cada línea identifica si corresponde a deuda o anticipo, además de la OC, el producto, la referencia interna y las piezas ordenadas, recibidas y faltantes.
 - Las órdenes marcadas manualmente como Pagada permanecen fuera de la deuda en cualquier corte histórico.
 - Costo internacional: `x_calc_price_mxn`.
 - Costo nacional: `price_unit`, convertido a moneda de compañía cuando corresponda.
