@@ -1,0 +1,14 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<odoo>
+    <menuitem id="menu_mkp_collection_root" name="Cobranza MKP" sequence="59"
+              groups="mkp_collection_control.group_mkp_collection_operator" web_icon="mkp_collection_control,static/description/icon.png"/>
+    <menuitem id="menu_mkp_collection_capture" name="Captura de cobranza"
+              parent="menu_mkp_collection_root" action="action_collection_capture" sequence="10"
+              groups="mkp_collection_control.group_mkp_collection_operator"/>
+    <menuitem id="menu_mkp_collection_orders" name="Órdenes de cobranza"
+              parent="menu_mkp_collection_root" action="action_collection_orders" sequence="20"
+              groups="mkp_collection_control.group_mkp_collection_operator"/>
+    <menuitem id="menu_mkp_collection_events" name="Historial de movimientos cobranza"
+              parent="menu_mkp_collection_root" action="action_collection_events" sequence="30"
+              groups="mkp_collection_control.group_mkp_collection_operator"/>
+</odoo>

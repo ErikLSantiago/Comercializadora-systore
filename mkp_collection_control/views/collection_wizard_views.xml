@@ -1,0 +1,74 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<odoo>
+    <record id="view_collection_capture_wizard_form" model="ir.ui.view">
+        <field name="name">mkp.collection.capture.wizard.form</field>
+        <field name="model">mkp.collection.capture.wizard</field>
+        <field name="arch" type="xml">
+            <form string="Captura manual de cobranza">
+                <sheet>
+                    <group>
+                        <field name="order_id" invisible="1"/>
+                        <field name="sale_order_id" options="{'no_create': True, 'no_open': True}" readonly="bool(order_id)"/>
+                        <field name="marketplace" invisible="event_type != 'opening'" required="event_type == 'opening'"/>
+                        <field name="marketplace_reference" invisible="event_type != 'opening'"/>
+                        <field name="event_type"/>
+                        <field name="event_time"/>
+                    </group>
+                    <group string="Desglose de apertura" invisible="event_type != 'opening'">
+                        <group>
+                            <field name="initial_gross" required="event_type == 'opening'"/>
+                            <field name="initial_withholding"/>
+                            <field name="initial_commission"/>
+                        </group>
+                        <group>
+                            <field name="initial_shipping"/>
+                            <field name="initial_other"/>
+                        </group>
+                    </group>
+                    <group string="Detalle del evento" invisible="event_type == 'opening'">
+                        <field name="amount" required="event_type != 'opening'"/>
+                        <field name="extra_commission" invisible="event_type not in ('coupon','killer')"/>
+                        <field name="refund_bucket" invisible="event_type != 'refund'" required="event_type == 'refund'"/>
+                    </group>
+                    <group string="Referencia y evidencia">
+                        <field name="reference" placeholder="ID externo / número de reporte"/>
+                        <field name="notes" placeholder="Motivo o detalles del evento"/>
+                        <field name="attachment_data" filename="attachment_name"/>
+                        <field name="attachment_name" invisible="1"/>
+                        <field name="currency_id" invisible="1"/>
+                    </group>
+                </sheet>
+                <footer>
+                    <button name="action_confirm" type="object" string="Confirmar y registrar evento" class="btn-primary"/>
+                    <button string="Cancelar" special="cancel" class="btn-secondary"/>
+                </footer>
+            </form>
+        </field>
+    </record>
+    <record id="action_collection_capture" model="ir.actions.act_window">
+        <field name="name">Captura de cobranza</field>
+        <field name="res_model">mkp.collection.capture.wizard</field>
+        <field name="view_mode">form</field>
+        <field name="view_id" ref="view_collection_capture_wizard_form"/>
+        <field name="target">new</field>
+    </record>
+    <record id="view_collection_reversal_wizard_form" model="ir.ui.view">
+        <field name="name">mkp.collection.reversal.wizard.form</field>
+        <field name="model">mkp.collection.reversal.wizard</field>
+        <field name="arch" type="xml">
+            <form string="Revertir movimiento de cobranza">
+                <sheet>
+                    <group>
+                        <field name="event_id"/>
+                        <field name="event_time"/>
+                        <field name="reason" placeholder="Explique el motivo y, si aplica, la evidencia que respalda la corrección."/>
+                    </group>
+                </sheet>
+                <footer>
+                    <button type="object" name="action_confirm" string="Confirmar reversión" class="btn-primary"/>
+                    <button special="cancel" string="Cancelar" class="btn-secondary"/>
+                </footer>
+            </form>
+        </field>
+    </record>
+</odoo>

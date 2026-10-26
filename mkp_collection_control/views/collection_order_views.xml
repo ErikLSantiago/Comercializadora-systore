@@ -1,0 +1,127 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<odoo>
+    <record id="view_collection_order_list" model="ir.ui.view">
+        <field name="name">mkp.collection.order.list</field>
+        <field name="model">mkp.collection.order</field>
+        <field name="arch" type="xml">
+            <list string="Órdenes de cobranza" create="0" edit="0" delete="0">
+                <field name="sale_order_id" string="Pedido Odoo"/>
+                <field name="marketplace"/>
+                <field name="marketplace_reference"/>
+                <field name="gross" sum="Total venta ajustada"/>
+                <field name="net_expected" sum="Neto total"/>
+                <field name="pending" sum="Total por cobrar"/>
+                <field name="held" sum="Total retenido"/>
+                <field name="released" sum="Total liberado"/>
+                <field name="refund_impact" sum="Impacto devoluciones"/>
+                <field name="paid" optional="show" sum="Pago MKP reportado"/>
+                <field name="event_count"/>
+                <field name="company_id" groups="base.group_multi_company" optional="hide"/>
+                <field name="currency_id" column_invisible="True"/>
+            </list>
+        </field>
+    </record>
+
+    <record id="view_collection_order_form" model="ir.ui.view">
+        <field name="name">mkp.collection.order.form</field>
+        <field name="model">mkp.collection.order</field>
+        <field name="arch" type="xml">
+            <form string="Expediente de cobranza" create="0" edit="0" delete="0">
+                <header>
+                    <button type="object" name="action_new_event" string="Capturar movimiento"
+                            class="btn-primary" groups="mkp_collection_control.group_mkp_collection_operator"/>
+                    <button type="object" name="action_view_events" string="Abrir historial" class="btn-secondary"/>
+                </header>
+                <sheet>
+                    <field name="currency_id" invisible="1"/>
+                    <div class="oe_button_box" name="button_box">
+                        <button type="object" name="action_view_events" class="oe_stat_button" icon="fa-history">
+                            <field name="event_count" widget="statinfo" string="Movimientos"/>
+                        </button>
+                    </div>
+                    <div class="oe_title">
+                        <h1><field name="sale_order_id"/></h1>
+                        <h3>Cobranza del marketplace</h3>
+                    </div>
+                    <group>
+                        <group string="Identificación de la orden">
+                            <field name="marketplace"/>
+                            <field name="marketplace_reference"/>
+                            <field name="sale_amount"/>
+                            <field name="initialized" invisible="1"/>
+                        </group>
+                        <group string="Desglose financiero vigente">
+                            <field name="gross"/>
+                            <field name="withholding"/>
+                            <field name="commission"/>
+                            <field name="shipping"/>
+                            <field name="other"/>
+                            <field name="net_expected"/>
+                        </group>
+                    </group>
+                    <group string="Cuatro escenarios de cobranza">
+                        <group>
+                            <field name="pending"/>
+                            <field name="held"/>
+                        </group>
+                        <group>
+                            <field name="released"/>
+                            <field name="refund_impact"/>
+                        </group>
+                    </group>
+                    <group string="Dato complementario (sin conciliación bancaria)">
+                        <field name="paid"/>
+                    </group>
+                    <notebook>
+                        <page string="Historial de movimientos">
+                            <field name="event_ids" readonly="1" nolabel="1">
+                                <list create="0" edit="0" delete="0" default_order="event_time desc,id desc">
+                                    <field name="event_time"/>
+                                    <field name="name"/>
+                                    <field name="description"/>
+                                    <field name="status_from" optional="show"/>
+                                    <field name="status_to" optional="show"/>
+                                    <field name="event_amount"/>
+                                    <field name="net_impact"/>
+                                    <field name="after_pending" string="Por cobrar"/>
+                                    <field name="after_held" string="Retenido"/>
+                                    <field name="after_released" string="Liberado"/>
+                                    <field name="refund_total_negative" string="Devoluciones"/>
+                                    <field name="reference" optional="show"/>
+                                    <field name="captured_by_id" optional="show"/>
+                                    <field name="currency_id" column_invisible="True"/>
+                                </list>
+                            </field>
+                        </page>
+                    </notebook>
+                </sheet>
+            </form>
+        </field>
+    </record>
+
+    <record id="view_collection_order_search" model="ir.ui.view">
+        <field name="name">mkp.collection.order.search</field>
+        <field name="model">mkp.collection.order</field>
+        <field name="arch" type="xml">
+            <search string="Buscar órdenes de cobranza">
+                <field name="sale_order_id"/>
+                <field name="marketplace_reference"/>
+                <field name="marketplace"/>
+                <filter name="has_pending" string="Por cobrar" domain="[('pending','&gt;',0)]"/>
+                <filter name="has_held" string="Retenidos" domain="[('held','&gt;',0)]"/>
+                <filter name="has_released" string="Liberados" domain="[('released','&gt;',0)]"/>
+                <filter name="has_refunds" string="Con devoluciones" domain="[('refunded','&gt;',0)]"/>
+                <separator/>
+                <filter name="by_marketplace" string="Marketplace" context="{'group_by':'marketplace'}"/>
+                <filter name="by_company" string="Empresa" context="{'group_by':'company_id'}"/>
+            </search>
+        </field>
+    </record>
+
+    <record id="action_collection_orders" model="ir.actions.act_window">
+        <field name="name">Órdenes de cobranza</field>
+        <field name="res_model">mkp.collection.order</field>
+        <field name="view_mode">list,form</field>
+        <field name="search_view_id" ref="view_collection_order_search"/>
+    </record>
+</odoo>
