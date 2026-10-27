@@ -8,36 +8,31 @@ class MkpCollectionCaptureWizard(models.TransientModel):
 
     sale_order_id = fields.Many2one('sale.order', string='Orden de venta', required=True)
     order_id = fields.Many2one('mkp.collection.order', string='Expediente de cobranza', readonly=True)
-    marketplace = fields.Char('Marketplace')
-    marketplace_reference = fields.Char('Número de orden MKP')
-    event_type = fields.Selection([
-        ('opening', 'Desglose inicial'), ('hold', 'Reconocer importe retenido'),
-        ('unlock', 'Regresar fondos retenidos a por cobrar'),
-        ('release', 'Liberar fondos retenidos'),
-        ('release_direct', 'Reconocer importe liberado directamente'),
-        ('payment', 'Pago informado por marketplace'),
-        ('coupon', 'Cupón confirmado'), ('killer', 'Killer confirmado'),
-        ('commission', 'Ajuste de comisión'), ('tax', 'Ajuste de impuestos / retenciones'),
-        ('shipping', 'Ajuste de envío'), ('other', 'Otras comisiones (incluye guía)'),
-        ('refund', 'Devolución financiera básica'),
-    ], string='¿Qué sucedió?', required=True, default='opening')
+    marketplace = fields.Char('Marketplace', readonly=True)
+    marketplace_reference = fields.Char('Número de orden MKP', readonly=True)
+    payment_state = fields.Selection([
+        ('draft', 'Borrador'),
+        ('confirmed', 'Confirmado'),
+        ('recalculated', 'Recalculado'),
+        ('refund', 'Devolución'),
+    ], string='Estado', required=True, default='draft')
     event_time = fields.Datetime('Fecha y hora del evento', required=True,
                                  default=fields.Datetime.now)
-    initial_gross = fields.Monetary('Venta inicial', currency_field='currency_id')
-    initial_withholding = fields.Monetary('Retenciones / impuestos', currency_field='currency_id')
-    initial_commission = fields.Monetary('Comisión inicial', currency_field='currency_id')
-    initial_shipping = fields.Monetary('Envío inicial', currency_field='currency_id')
-    initial_other = fields.Monetary('Otras comisiones iniciales', currency_field='currency_id')
+    gross = fields.Monetary('Venta', currency_field='currency_id')
+    withholding = fields.Monetary('Retenciones / impuestos', currency_field='currency_id')
+    commission = fields.Monetary('Comisión', currency_field='currency_id')
+    killer_commission = fields.Monetary('Comisión killer', currency_field='currency_id')
+    coupon_commission = fields.Monetary('Comisión cupón', currency_field='currency_id')
+    shipping = fields.Monetary('Envío', currency_field='currency_id')
+    other = fields.Monetary('Otras comisiones', currency_field='currency_id')
     amount = fields.Monetary('Importe del evento', currency_field='currency_id')
-    extra_commission = fields.Monetary('Comisión adicional del cupón / killer',
-                                       currency_field='currency_id')
     refund_bucket = fields.Selection([
         ('pending', 'Monto por cobrar'), ('held', 'Retenido'),
         ('released', 'Liberado'), ('paid', 'Pago reportado')],
         string='¿De qué saldo se descuenta?', default='pending')
     currency_id = fields.Many2one(related='sale_order_id.currency_id', readonly=True)
     reference = fields.Char('Referencia del reporte / marketplace')
-    notes = fields.Text('Motivo / observaciones')
+    notes = fields.Text('Comentario')
     attachment_data = fields.Binary('Evidencia del movimiento', attachment=False)
     attachment_name = fields.Char('Nombre del archivo')
 
@@ -53,22 +48,38 @@ class MkpCollectionCaptureWizard(models.TransientModel):
                 vals['sale_order_id'] = sale_id
                 vals['marketplace'] = existing.marketplace
                 vals['marketplace_reference'] = existing.marketplace_reference
-                if not existing.initialized:
-                    vals['event_type'] = 'opening'
+                vals['payment_state'] = existing.payment_state if existing.initialized else 'draft'
+                for field_name in ('gross', 'withholding', 'commission',
+                                   'killer_commission', 'coupon_commission',
+                                   'shipping', 'other'):
+                    vals[field_name] = existing[field_name]
         if sale_id:
             sale = self.env['sale.order'].browse(sale_id)
             if sale.exists():
-                vals['initial_gross'] = sale.amount_total
-                if not order_id:
-                    vals['marketplace_reference'] = self._get_sale_marketplace_ref(sale)
+                vals.setdefault('gross', sale.amount_total)
+                vals['marketplace'] = self._get_sale_marketplace(sale)
+                vals['marketplace_reference'] = self._get_sale_marketplace_ref(sale)
         return vals
 
     @api.model
+    def _field_as_text(self, sale, field_name):
+        if field_name not in sale._fields or not sale[field_name]:
+            return ''
+        value = sale[field_name]
+        if hasattr(value, 'display_name'):
+            return value.display_name or ''
+        field = sale._fields[field_name]
+        if field.type == 'selection':
+            return dict(field._description_selection(sale.env)).get(value, str(value))
+        return str(value)
+
+    @api.model
+    def _get_sale_marketplace(self, sale):
+        return self._field_as_text(sale, 'x_studio_canal_de_venta_1')
+
+    @api.model
     def _get_sale_marketplace_ref(self, sale):
-        for field_name in ('x_studio_nmero_de_orden_mkp', 'x_studio_numero_de_orden_mkp'):
-            if field_name in sale._fields and sale[field_name]:
-                return str(sale[field_name])
-        return sale.client_order_ref or sale.origin or ''
+        return self._field_as_text(sale, 'x_studio_nmero_de_orden_mkp')
 
     @api.onchange('sale_order_id')
     def _onchange_sale_order_id(self):
@@ -76,18 +87,26 @@ class MkpCollectionCaptureWizard(models.TransientModel):
             existing = self.env['mkp.collection.order'].search([
                 ('sale_order_id', '=', self.sale_order_id.id)], limit=1)
             self.order_id = existing
-            self.initial_gross = self.sale_order_id.amount_total
+            self.marketplace = self._get_sale_marketplace(self.sale_order_id)
+            self.marketplace_reference = self._get_sale_marketplace_ref(self.sale_order_id)
             if existing:
-                self.marketplace = existing.marketplace
-                self.marketplace_reference = existing.marketplace_reference
-                if not existing.initialized:
-                    self.event_type = 'opening'
-                elif self.event_type == 'opening':
-                    self.event_type = 'hold'
+                self.payment_state = existing.payment_state if existing.initialized else 'draft'
+                self.gross = existing.gross
+                self.withholding = existing.withholding
+                self.commission = existing.commission
+                self.killer_commission = existing.killer_commission
+                self.coupon_commission = existing.coupon_commission
+                self.shipping = existing.shipping
+                self.other = existing.other
             else:
-                self.event_type = 'opening'
-                self.marketplace = False
-                self.marketplace_reference = self._get_sale_marketplace_ref(self.sale_order_id)
+                self.payment_state = 'draft'
+                self.gross = self.sale_order_id.amount_total
+                self.withholding = 0
+                self.commission = 0
+                self.killer_commission = 0
+                self.coupon_commission = 0
+                self.shipping = 0
+                self.other = 0
 
     def action_confirm(self):
         self.ensure_one()
@@ -97,28 +116,35 @@ class MkpCollectionCaptureWizard(models.TransientModel):
             raise ValidationError(_('Seleccione una orden válida.'))
         # Read with caller's rights: never use sudo to bypass sale.order security.
         self.sale_order_id.read(['name', 'amount_total', 'company_id'])
+        marketplace = self._get_sale_marketplace(self.sale_order_id)
+        marketplace_reference = self._get_sale_marketplace_ref(self.sale_order_id)
         existing = self.env['mkp.collection.order'].search([
             ('sale_order_id', '=', self.sale_order_id.id)], limit=1)
         if not existing:
-            if self.event_type != 'opening':
-                raise ValidationError(_('Primero registre el desglose inicial.'))
-            if not self.marketplace or not self.marketplace.strip():
-                raise ValidationError(_('Indique el marketplace del pedido.'))
+            if self.payment_state == 'refund':
+                raise ValidationError(_('Primero registre el desglose de comisiones.'))
+            if not marketplace or not marketplace.strip():
+                raise ValidationError(_(
+                    'La orden no tiene informado el campo x_studio_canal_de_venta_1.'
+                ))
             existing = self.env['mkp.collection.order'].sudo().create({
                 'sale_order_id': self.sale_order_id.id,
-                'marketplace': self.marketplace.strip(),
-                'marketplace_reference': (self.marketplace_reference or '').strip(),
+                'marketplace': marketplace.strip(),
+                'marketplace_reference': (marketplace_reference or '').strip(),
             })
         elif existing.sale_order_id != self.sale_order_id:
             raise ValidationError(_('La orden de venta no coincide con el expediente.'))
-        if self.event_type == 'opening' and self.initial_gross < 0:
-            raise ValidationError(_('El importe original no puede ser negativo.'))
+        if self.payment_state != 'refund' and self.gross < 0:
+            raise ValidationError(_('El importe de venta no puede ser negativo.'))
         existing._post_event(
-            kind=self.event_type, event_time=self.event_time,
-            amount=self.amount, extra_commission=self.extra_commission,
-            gross=self.initial_gross, withholding=self.initial_withholding,
-            commission=self.initial_commission, shipping=self.initial_shipping,
-            other=self.initial_other, bucket=self.refund_bucket,
+            payment_state=self.payment_state, event_time=self.event_time,
+            amount=self.amount,
+            gross=self.gross, withholding=self.withholding,
+            commission=self.commission,
+            killer_commission=self.killer_commission,
+            coupon_commission=self.coupon_commission,
+            shipping=self.shipping, other=self.other,
+            bucket=self.refund_bucket,
             reference=self.reference or '', notes=self.notes or '',
             attachment_data=self.attachment_data,
             attachment_name=self.attachment_name,

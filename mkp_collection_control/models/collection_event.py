@@ -18,6 +18,7 @@ class MkpCollectionEvent(models.Model):
     company_id = fields.Many2one(related='order_id.company_id', store=True, readonly=True)
     event_time = fields.Datetime('Fecha del evento MKP', required=True, readonly=True, index=True)
     event_type = fields.Selection([
+        ('snapshot', 'Fotografía financiera'),
         ('opening', 'Apertura'), ('hold', 'Retenido'),
         ('unlock', 'Retenido a por cobrar'), ('release', 'Liberado'),
         ('release_direct', 'Liberado directo'), ('payment', 'Pago reportado'),
@@ -26,6 +27,25 @@ class MkpCollectionEvent(models.Model):
         ('shipping', 'Envío'), ('other', 'Otras comisiones'),
         ('refund', 'Devolución'), ('reversal', 'Reversión')],
         string='Tipo de evento', required=True, readonly=True, index=True)
+    payment_state = fields.Selection([
+        ('draft', 'Borrador'),
+        ('confirmed', 'Confirmado'),
+        ('recalculated', 'Recalculado'),
+        ('refund', 'Devolución'),
+    ], string='Estado', required=True, readonly=True, index=True, default='draft')
+    state_from = fields.Selection([
+        ('draft', 'Borrador'),
+        ('confirmed', 'Confirmado'),
+        ('recalculated', 'Recalculado'),
+        ('refund', 'Devolución'),
+    ], string='Estado anterior', readonly=True)
+    state_to = fields.Selection([
+        ('draft', 'Borrador'),
+        ('confirmed', 'Confirmado'),
+        ('recalculated', 'Recalculado'),
+        ('refund', 'Devolución'),
+    ], string='Estado nuevo', readonly=True)
+    is_reversal_entry = fields.Boolean('Es reversión', readonly=True, index=True)
     description = fields.Char('¿Qué pasó?', readonly=True)
     status_from = fields.Selection([
         ('none','Sin información'),('pending','Monto por cobrar'),
@@ -64,6 +84,8 @@ class MkpCollectionEvent(models.Model):
     delta_gross = fields.Monetary('Δ Venta', currency_field='currency_id', readonly=True)
     delta_withholding = fields.Monetary('Δ Retenciones', currency_field='currency_id', readonly=True)
     delta_commission = fields.Monetary('Δ Comisión', currency_field='currency_id', readonly=True)
+    delta_killer_commission = fields.Monetary('Δ Comisión killer', currency_field='currency_id', readonly=True)
+    delta_coupon_commission = fields.Monetary('Δ Comisión cupón', currency_field='currency_id', readonly=True)
     delta_shipping = fields.Monetary('Δ Envío', currency_field='currency_id', readonly=True)
     delta_other = fields.Monetary('Δ Otras comisiones', currency_field='currency_id', readonly=True)
     delta_refunded = fields.Monetary('Δ Devoluciones', currency_field='currency_id', readonly=True)
@@ -75,6 +97,8 @@ class MkpCollectionEvent(models.Model):
     before_gross = fields.Monetary('Antes: venta', currency_field='currency_id', readonly=True)
     before_withholding = fields.Monetary('Antes: retenciones', currency_field='currency_id', readonly=True)
     before_commission = fields.Monetary('Antes: comisión', currency_field='currency_id', readonly=True)
+    before_killer_commission = fields.Monetary('Antes: comisión killer', currency_field='currency_id', readonly=True)
+    before_coupon_commission = fields.Monetary('Antes: comisión cupón', currency_field='currency_id', readonly=True)
     before_shipping = fields.Monetary('Antes: envío', currency_field='currency_id', readonly=True)
     before_other = fields.Monetary('Antes: otras comisiones', currency_field='currency_id', readonly=True)
     before_refunded = fields.Monetary('Antes: devoluciones', currency_field='currency_id', readonly=True)
@@ -87,6 +111,8 @@ class MkpCollectionEvent(models.Model):
     after_gross = fields.Monetary('Después: venta', currency_field='currency_id', readonly=True)
     after_withholding = fields.Monetary('Después: retenciones', currency_field='currency_id', readonly=True)
     after_commission = fields.Monetary('Después: comisión', currency_field='currency_id', readonly=True)
+    after_killer_commission = fields.Monetary('Después: comisión killer', currency_field='currency_id', readonly=True)
+    after_coupon_commission = fields.Monetary('Después: comisión cupón', currency_field='currency_id', readonly=True)
     after_shipping = fields.Monetary('Después: envío', currency_field='currency_id', readonly=True)
     after_other = fields.Monetary('Después: otras comisiones', currency_field='currency_id', readonly=True)
     after_refunded = fields.Monetary('Después: devoluciones', currency_field='currency_id', readonly=True)
@@ -135,7 +161,7 @@ class MkpCollectionEvent(models.Model):
         self.ensure_one()
         if not self.env.user.has_group('mkp_collection_control.group_mkp_collection_supervisor'):
             raise AccessError(_('Solo un supervisor puede solicitar reversiones.'))
-        if self.event_type == 'reversal' or self.is_reversed:
+        if self.is_reversal_entry or self.is_reversed:
             raise UserError(_('No se puede revertir este movimiento.'))
         return {
             'type': 'ir.actions.act_window', 'name': _('Revertir evento financiero'),

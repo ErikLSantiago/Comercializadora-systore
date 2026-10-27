@@ -1,6 +1,6 @@
 """Pure ledger invariants. Runs without an Odoo DB via unittest."""
 import unittest
-from ..models.ledger import money, state, net, apply_event, event_deltas
+from ..models.ledger import money, state, net, apply_event, event_deltas, snapshot_deltas
 
 
 class TestMkpCollectionLedger(unittest.TestCase):
@@ -84,3 +84,31 @@ class TestMkpCollectionLedger(unittest.TestCase):
     def test_underflow_before_opening(self):
         with self.assertRaises(ValueError):
             self.post(state(), 'opening', gross=100, commission=200)
+
+    def test_state_snapshot_and_separate_commissions(self):
+        current = state()
+        current = apply_event(current, snapshot_deltas(
+            current,
+            gross=1000,
+            withholding=100,
+            commission=80,
+            killer_commission=20,
+            coupon_commission=10,
+            shipping=50,
+            other=5,
+        ))
+        self.assertEqual(current['pending'], money(735))
+        self.assertEqual(net(current), money(735))
+
+        recalculated = apply_event(current, snapshot_deltas(
+            current,
+            gross=1100,
+            withholding=100,
+            commission=90,
+            killer_commission=25,
+            coupon_commission=15,
+            shipping=50,
+            other=5,
+        ))
+        self.assertEqual(recalculated['pending'], money(815))
+        self.assertEqual(net(recalculated), money(815))

@@ -1,4 +1,4 @@
-# Cobranza MKP — v18.0.1.0.0 (prototipo manual)
+# Cobranza MKP — v18.0.1.0.1 (prototipo manual)
 
 Módulo independiente para **Odoo 18 Enterprise / Odoo.sh**.
 No requiere Producteca, Odoo Studio ni módulos de comisiones como dependencias; se conecta con `sale.order`.
@@ -10,17 +10,14 @@ No requiere Producteca, Odoo Studio ni módulos de comisiones como dependencias;
 3. Actualizar la lista de Aplicaciones, buscar **Cobranza MKP** e instalar.
 4. En Ajustes > Usuarios asignar **Cobranza MKP / Operador** o **Cobranza MKP / Supervisor**.
 5. El usuario debe **tener ya permiso para consultar las órdenes de Ventas**. El módulo no concede acceso general a Ventas.
-6. Usar **Ventas > Orden de venta > Cobranza** o el menú **Cobranza MKP**.
+6. Usar **Ventas > Orden de venta > Cobranza** o el menú **Cobranza MKP**. El icono general abre directamente el historial de movimientos.
 
 ## Captura manual
 
-- **Desglose inicial**: elegir cualquier orden existente (incluye órdenes históricas), el nombre del marketplace, referencia de Producteca/MKP y registrar comisión, retenciones/impuestos, envío, otras comisiones. El formulario propone como venta inicial el `amount_total` de la orden, editable antes de confirmar el evento inicial. No se crea nada contable.
-- **Reconocer retenido**: mueve dinero desde `Monto por cobrar` a `Retenido`.
-- **Liberar**: mueve `Retenido` a `Liberado`. Existe alternativa de `Liberado directo`, desde `Por cobrar`.
-- **Pago informado por MKP**: mueve `Liberado` a `Pagado reportado`, **sin crear pago ni acreditar depósito bancario**.
-- **Cupón / killer**: incrementa la venta reportada y captura al mismo tiempo su comisión adicional. El diferencial se suma a `Por cobrar`.
-- **Comisión, impuestos, envío y otras comisiones**: ajustan los importes de la venta reportada. Los cargos por guía se registran **una sola vez** como `Otras comisiones`. Se admiten ajustes negativos para corregir a la baja un cargo (siempre que las cifras totales permanezcan válidas).
-- **Devolución financiera básica**: reduce el saldo indicado (pendiente, retenido, liberado o pagado reportado) y acumula su impacto negativo en `Devoluciones`. NO genera recepción ni nota de crédito.
+- Elegir cualquier orden existente, incluidas las históricas. **Marketplace** se obtiene de `x_studio_canal_de_venta_1` y **Número de orden MKP** de `x_studio_nmero_de_orden_mkp`.
+- El asistente trabaja con cuatro estados principales: **Borrador**, **Confirmado**, **Recalculado** y **Devolución**. Los subestados se incorporarán en una iteración posterior.
+- Borrador, Confirmado y Recalculado guardan una fotografía completa del desglose: venta, retenciones, comisión, comisión killer, comisión cupón, envío y otras comisiones. Cada nueva fotografía registra solo la variación contra el saldo anterior.
+- Devolución registra el importe y el saldo de origen. No genera recepción, nota de crédito ni efecto contable.
 - **Revertir**: exclusivo Supervisor; crea evento inverso con motivo. Si eventos posteriores consumieron fondos, se debe revertirlos primero para conservar la consistencia del saldo.
 
 ## Orden e historial
@@ -28,7 +25,7 @@ No requiere Producteca, Odoo Studio ni módulos de comisiones como dependencias;
 - Expediente único por `sale.order`.
 - Cuatro indicadores solicitados: `Retenido`, `Monto por cobrar`, `Liberado`, `Devoluciones` (esta última con signo negativo para mostrar la pérdida de cobranza).
 - Indicador auxiliar: **Pagado informado**. Es una declaración manual de la liquidación del marketplace, *no conciliación bancaria*.
-- Cada movimiento usa secuencia `COB/año/000001`, `Fecha del evento` (de la plataforma), `Fecha de captura` (automática), `Registrado por`, `Qué pasó`, referencia y evidencia opcional.
+- Cada movimiento usa secuencia `COB/año/000001`, `Fecha del evento` (de la plataforma), `Fecha de captura` (automática), `Registrado por`, Estado, referencia, comentario y evidencia opcional.
 - Cada evento almacena **deltas** y fotografías de los saldos antes y después. El historial no permite editar/borrar eventos con ORM ordinario. Los saldos actuales solo se modifican desde el método interno de publicación del evento.
 - Un movimiento con `Fecha del evento` anterior a su carga queda con **fotografía a la fecha en que se registró**, no una reescritura retrospectiva de cada saldo anterior. Por eso se conservan ambas fechas.
 
@@ -39,17 +36,15 @@ Ejemplo Walmart del archivo de prueba:
 - Venta inicial: MXN 5,499.00
 - Retenciones: MXN 497.75, comisión MXN 549.90, envío MXN 100.00
 - Neto inicial: **MXN 4,351.35**
-- Cupón +500.00 con comisión adicional +50.00 => +450.00 netos
-- Killer +1,000.00 con comisión adicional +100.00 => +900.00 netos
-- Neto ajustado **MXN 5,701.35**.
-- Devolución completa por MXN 5,701.35 desde el saldo correspondiente: impacto de devoluciones **−5,701.35**.
+- Una captura Recalculada puede sustituir el desglose completo y separar Comisión killer y Comisión cupón; el historial conserva únicamente las diferencias contra la fotografía anterior.
+- Una devolución reduce el saldo indicado y acumula su impacto negativo en Devoluciones.
 - Guía de MXN 100.00, **solo una vez en Otras comisiones**: resultado neto **−100.00**, representado como monto por cobrar negativo.
 
 Si el dinero está repartido entre `Retenido`, `Liberado`, `Pagado reportado` y `Por cobrar`, la devolución debe registrarse en tantos eventos de origen como sean necesarios; no se permite descontar fondos inexistentes. La logística de devoluciones queda para la etapa posterior.
 
 **Identidad invariante:**
 
-`Venta ajustada - retenciones - comisión - envío - otras comisiones - devoluciones = monto por cobrar + retenido + liberado + pagado reportado`.
+`Venta ajustada - retenciones - comisión - comisión killer - comisión cupón - envío - otras comisiones - devoluciones = monto por cobrar + retenido + liberado + pagado reportado`.
 
 ## Delimitación de la versión
 

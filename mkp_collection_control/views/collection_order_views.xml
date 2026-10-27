@@ -8,6 +8,7 @@
                 <field name="sale_order_id" string="Pedido Odoo"/>
                 <field name="marketplace"/>
                 <field name="marketplace_reference"/>
+                <field name="payment_state"/>
                 <field name="gross" sum="Total venta ajustada"/>
                 <field name="net_expected" sum="Neto total"/>
                 <field name="pending" sum="Total por cobrar"/>
@@ -31,6 +32,8 @@
                     <button type="object" name="action_new_event" string="Capturar movimiento"
                             class="btn-primary" groups="mkp_collection_control.group_mkp_collection_operator"/>
                     <button type="object" name="action_view_events" string="Abrir historial" class="btn-secondary"/>
+                    <field name="payment_state" widget="statusbar"
+                           statusbar_visible="draft,confirmed,recalculated,refund"/>
                 </header>
                 <sheet>
                     <field name="currency_id" invisible="1"/>
@@ -54,6 +57,8 @@
                             <field name="gross"/>
                             <field name="withholding"/>
                             <field name="commission"/>
+                            <field name="killer_commission"/>
+                            <field name="coupon_commission"/>
                             <field name="shipping"/>
                             <field name="other"/>
                             <field name="net_expected"/>
@@ -79,8 +84,9 @@
                                     <field name="event_time"/>
                                     <field name="name"/>
                                     <field name="description"/>
-                                    <field name="status_from" optional="show"/>
-                                    <field name="status_to" optional="show"/>
+                                    <field name="payment_state" string="Estado"/>
+                                    <field name="state_from" optional="show"/>
+                                    <field name="state_to" optional="show"/>
                                     <field name="event_amount"/>
                                     <field name="net_impact"/>
                                     <field name="after_pending" string="Por cobrar"/>
@@ -112,8 +118,14 @@
                 <filter name="has_released" string="Liberados" domain="[('released','&gt;',0)]"/>
                 <filter name="has_refunds" string="Con devoluciones" domain="[('refunded','&gt;',0)]"/>
                 <separator/>
+                <filter name="state_draft" string="Borrador" domain="[('payment_state','=','draft')]"/>
+                <filter name="state_confirmed" string="Confirmado" domain="[('payment_state','=','confirmed')]"/>
+                <filter name="state_recalculated" string="Recalculado" domain="[('payment_state','=','recalculated')]"/>
+                <filter name="state_refund" string="Devolución" domain="[('payment_state','=','refund')]"/>
+                <separator/>
                 <filter name="by_marketplace" string="Marketplace" context="{'group_by':'marketplace'}"/>
                 <filter name="by_company" string="Empresa" context="{'group_by':'company_id'}"/>
+                <filter name="by_state" string="Estado" context="{'group_by':'payment_state'}"/>
             </search>
         </field>
     </record>

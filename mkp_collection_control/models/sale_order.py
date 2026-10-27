@@ -30,5 +30,5 @@ class SaleOrder(models.Model):
             'type': 'ir.actions.act_window', 'name': _('Iniciar cobranza de %s') % self.name,
             'res_model': 'mkp.collection.capture.wizard', 'view_mode': 'form',
             'target': 'new', 'context': {'default_sale_order_id': self.id,
-                                       'default_event_type': 'opening'},
+                                       'default_payment_state': 'draft'},
         }

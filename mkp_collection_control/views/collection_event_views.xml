@@ -11,9 +11,9 @@
                 <field name="marketplace_reference" optional="show"/>
                 <field name="name" string="Movimiento"/>
                 <field name="description" string="Qué pasó"/>
-                <field name="event_type" string="Tipo" optional="show"/>
-                <field name="status_from" optional="show"/>
-                <field name="status_to" optional="show"/>
+                <field name="payment_state" string="Estado"/>
+                <field name="state_from" optional="show"/>
+                <field name="state_to" optional="show"/>
                 <field name="event_amount"/>
                 <field name="net_impact" sum="Efecto total"/>
                 <field name="after_pending" string="Por cobrar"/>
@@ -38,8 +38,9 @@
                 <header>
                     <button name="action_reverse" type="object" string="Revertir movimiento"
                             class="btn-secondary" groups="mkp_collection_control.group_mkp_collection_supervisor"
-                            invisible="is_reversed or event_type == 'reversal'" confirm="Este evento no será borrado. Se registrará una reversión independiente."/>
+                            invisible="is_reversed or is_reversal_entry" confirm="Este evento no será borrado. Se registrará una reversión independiente."/>
                     <field name="is_reversed" invisible="1"/>
+                    <field name="is_reversal_entry" invisible="1"/>
                 </header>
                 <sheet>
                     <field name="currency_id" invisible="1"/>
@@ -52,9 +53,9 @@
                             <field name="sale_order_id"/>
                             <field name="marketplace"/>
                             <field name="marketplace_reference"/>
-                            <field name="event_type"/>
-                            <field name="status_from"/>
-                            <field name="status_to"/>
+                            <field name="payment_state"/>
+                            <field name="state_from"/>
+                            <field name="state_to"/>
                             <field name="event_time"/>
                             <field name="reference"/>
                         </group>
@@ -63,10 +64,9 @@
                             <field name="net_impact"/>
                             <field name="captured_by_id"/>
                             <field name="captured_at"/>
-                            <field name="refund_bucket" invisible="event_type != 'refund'"/>
-                            <field name="extra_commission" invisible="event_type not in ('coupon', 'killer')"/>
-                            <field name="reversal_of_id" invisible="event_type != 'reversal'"/>
-                            <field name="reversal_reason" invisible="event_type != 'reversal'"/>
+                            <field name="refund_bucket" invisible="payment_state != 'refund'"/>
+                            <field name="reversal_of_id" invisible="not is_reversal_entry"/>
+                            <field name="reversal_reason" invisible="not is_reversal_entry"/>
                         </group>
                     </group>
                     <notebook>
@@ -98,6 +98,8 @@
                                     <field name="delta_gross"/>
                                     <field name="delta_withholding"/>
                                     <field name="delta_commission"/>
+                                    <field name="delta_killer_commission"/>
+                                    <field name="delta_coupon_commission"/>
                                     <field name="delta_shipping"/>
                                     <field name="delta_other"/>
                                     <field name="refund_impact"/>
@@ -111,6 +113,10 @@
                                     <field name="after_withholding"/>
                                     <field name="before_commission"/>
                                     <field name="after_commission"/>
+                                    <field name="before_killer_commission"/>
+                                    <field name="after_killer_commission"/>
+                                    <field name="before_coupon_commission"/>
+                                    <field name="after_coupon_commission"/>
                                     <field name="before_shipping"/>
                                     <field name="after_shipping"/>
                                     <field name="before_other"/>
@@ -142,16 +148,15 @@
                 <field name="marketplace"/>
                 <field name="reference"/>
                 <field name="description"/>
-                <filter name="filter_held" string="Retenido" domain="[('event_type','in',['hold','unlock'])]"/>
-                <filter name="filter_receivable" string="Monto por cobrar" domain="[('event_type','in',['opening','coupon','killer','commission','tax','shipping','other'])]"/>
-                <filter name="filter_released" string="Liberado" domain="[('event_type','in',['release','release_direct'])]"/>
-                <filter name="filter_refunds" string="Devoluciones" domain="[('event_type','=','refund')]"/>
-                <filter name="filter_payments" string="Pagos reportados" domain="[('event_type','=','payment')]"/>
-                <filter name="filter_reversed" string="Reversiones" domain="[('event_type','=','reversal')]"/>
+                <filter name="filter_draft" string="Borrador" domain="[('payment_state','=','draft')]"/>
+                <filter name="filter_confirmed" string="Confirmado" domain="[('payment_state','=','confirmed')]"/>
+                <filter name="filter_recalculated" string="Recalculado" domain="[('payment_state','=','recalculated')]"/>
+                <filter name="filter_refunds" string="Devolución" domain="[('payment_state','=','refund')]"/>
+                <filter name="filter_reversed" string="Reversiones" domain="[('is_reversal_entry','=',True)]"/>
                 <separator/>
                 <filter name="group_order" string="Pedido" context="{'group_by':'sale_order_id'}"/>
                 <filter name="group_marketplace" string="Marketplace" context="{'group_by':'marketplace'}"/>
-                <filter name="group_type" string="Tipo de evento" context="{'group_by':'event_type'}"/>
+                <filter name="group_state" string="Estado" context="{'group_by':'payment_state'}"/>
                 <filter name="group_date" string="Mes del evento" context="{'group_by':'event_time:month'}"/>
                 <filter name="group_user" string="Usuario" context="{'group_by':'create_uid'}"/>
             </search>

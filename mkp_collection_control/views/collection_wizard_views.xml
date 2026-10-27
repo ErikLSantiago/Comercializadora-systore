@@ -9,30 +9,31 @@
                     <group>
                         <field name="order_id" invisible="1"/>
                         <field name="sale_order_id" options="{'no_create': True, 'no_open': True}" readonly="bool(order_id)"/>
-                        <field name="marketplace" invisible="event_type != 'opening'" required="event_type == 'opening'"/>
-                        <field name="marketplace_reference" invisible="event_type != 'opening'"/>
-                        <field name="event_type"/>
+                        <field name="marketplace"/>
+                        <field name="marketplace_reference"/>
+                        <field name="payment_state"/>
                         <field name="event_time"/>
                     </group>
-                    <group string="Desglose de apertura" invisible="event_type != 'opening'">
+                    <group string="Comisiones" invisible="payment_state == 'refund'">
                         <group>
-                            <field name="initial_gross" required="event_type == 'opening'"/>
-                            <field name="initial_withholding"/>
-                            <field name="initial_commission"/>
+                            <field name="gross" required="payment_state != 'refund'"/>
+                            <field name="withholding"/>
+                            <field name="commission"/>
+                            <field name="killer_commission"/>
                         </group>
                         <group>
-                            <field name="initial_shipping"/>
-                            <field name="initial_other"/>
+                            <field name="coupon_commission"/>
+                            <field name="shipping"/>
+                            <field name="other"/>
                         </group>
                     </group>
-                    <group string="Detalle del evento" invisible="event_type == 'opening'">
-                        <field name="amount" required="event_type != 'opening'"/>
-                        <field name="extra_commission" invisible="event_type not in ('coupon','killer')"/>
-                        <field name="refund_bucket" invisible="event_type != 'refund'" required="event_type == 'refund'"/>
+                    <group string="Detalle de devolución" invisible="payment_state != 'refund'">
+                        <field name="amount" required="payment_state == 'refund'"/>
+                        <field name="refund_bucket" required="payment_state == 'refund'"/>
                     </group>
-                    <group string="Referencia y evidencia">
+                    <group string="Referencia">
                         <field name="reference" placeholder="ID externo / número de reporte"/>
-                        <field name="notes" placeholder="Motivo o detalles del evento"/>
+                        <field name="notes" placeholder="Añadir un comentario"/>
                         <field name="attachment_data" filename="attachment_name"/>
                         <field name="attachment_name" invisible="1"/>
                         <field name="currency_id" invisible="1"/>

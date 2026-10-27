@@ -6,7 +6,8 @@ The outstanding/pending bucket can be negative for subsequent marketplace fees.
 """
 from decimal import Decimal, ROUND_HALF_UP
 
-KEYS = ('gross', 'withholding', 'commission', 'shipping', 'other',
+KEYS = ('gross', 'withholding', 'commission', 'killer_commission',
+        'coupon_commission', 'shipping', 'other',
         'refunded', 'pending', 'held', 'released', 'paid')
 BUCKETS = ('pending', 'held', 'released', 'paid')
 CENTS = Decimal('0.01')
@@ -23,12 +24,49 @@ def state(values=None):
 
 def net(values):
     return money(values['gross'] - values['withholding']
-                 - values['commission'] - values['shipping']
+                 - values['commission'] - values['killer_commission']
+                 - values['coupon_commission'] - values['shipping']
                  - values['other'] - values['refunded'])
+
+
+def snapshot_deltas(before, *, gross=0, withholding=0, commission=0,
+                    killer_commission=0, coupon_commission=0,
+                    shipping=0, other=0):
+    """Build deltas that restate the current commission breakdown.
+
+    Draft, confirmed and recalculated entries all capture a complete financial
+    snapshot. The difference in expected net remains in the pending bucket;
+    funds already held, released or reported as paid are left untouched.
+    """
+    old = state(before)
+    targets = {
+        'gross': money(gross),
+        'withholding': money(withholding),
+        'commission': money(commission),
+        'killer_commission': money(killer_commission),
+        'coupon_commission': money(coupon_commission),
+        'shipping': money(shipping),
+        'other': money(other),
+    }
+    if any(value < 0 for value in targets.values()):
+        raise ValueError('El desglose de comisiones no admite valores negativos.')
+    target_net = money(
+        targets['gross'] - targets['withholding'] - targets['commission']
+        - targets['killer_commission'] - targets['coupon_commission']
+        - targets['shipping'] - targets['other'] - old['refunded']
+    )
+    if target_net < 0 and not old['refunded']:
+        raise ValueError('El neto del desglose no puede ser negativo.')
+    deltas = state()
+    for key, target in targets.items():
+        deltas[key] = money(target - old[key])
+    deltas['pending'] = money(target_net - net(old))
+    return deltas
 
 
 def event_deltas(kind, *, amount=0, extra_commission=0,
                  gross=0, withholding=0, commission=0,
+                 killer_commission=0, coupon_commission=0,
                  shipping=0, other=0, bucket='pending'):
     """Return journal deltas for an opening, transfer, adjustment or refund.
 
@@ -40,13 +78,17 @@ def event_deltas(kind, *, amount=0, extra_commission=0,
     d = state()
     if kind == 'opening':
         vals = dict(gross=money(gross), withholding=money(withholding),
-                    commission=money(commission), shipping=money(shipping),
-                    other=money(other))
+                    commission=money(commission),
+                    killer_commission=money(killer_commission),
+                    coupon_commission=money(coupon_commission),
+                    shipping=money(shipping), other=money(other))
         if any(v < 0 for v in vals.values()):
             raise ValueError('El desglose inicial no admite valores negativos.')
         d.update(vals)
         d['pending'] = money(vals['gross'] - vals['withholding']
-                             - vals['commission'] - vals['shipping'] - vals['other'])
+                             - vals['commission'] - vals['killer_commission']
+                             - vals['coupon_commission'] - vals['shipping']
+                             - vals['other'])
         if d['pending'] < 0:
             raise ValueError('El neto inicial no puede ser negativo.')
     elif kind in ('hold', 'release', 'unlock', 'release_direct', 'payment'):
@@ -89,7 +131,8 @@ def apply_event(before, deltas):
     old = state(before)
     d = state(deltas)
     new = {k: money(old[k] + d[k]) for k in KEYS}
-    for key in ('gross', 'withholding', 'commission', 'shipping',
+    for key in ('gross', 'withholding', 'commission', 'killer_commission',
+                'coupon_commission', 'shipping',
                 'other', 'refunded', 'held', 'released', 'paid'):
         if new[key] < 0:
             raise ValueError('El movimiento dejaría negativo el concepto %s; revise los eventos.' % key)

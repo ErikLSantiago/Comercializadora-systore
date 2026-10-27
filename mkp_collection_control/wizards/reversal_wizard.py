@@ -18,10 +18,10 @@ class MkpCollectionReversalWizard(models.TransientModel):
         if not self.reason or not self.reason.strip():
             raise ValidationError(_('El motivo de reversión es obligatorio.'))
         event = self.event_id
-        if not event or event.is_reversed or event.event_type == 'reversal':
+        if not event or event.is_reversed or event.is_reversal_entry:
             raise ValidationError(_('El movimiento ya fue revertido o no admite reversión.'))
         event.order_id._post_event(
-            kind='reversal', event_time=self.event_time,
+            payment_state=event.order_id.payment_state, event_time=self.event_time,
             reference=event.reference or '', notes=_('Se revierte %s') % event.name,
             reversal_of=event, reversal_reason=self.reason.strip(),
         )
