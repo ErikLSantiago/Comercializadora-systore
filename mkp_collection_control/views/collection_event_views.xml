@@ -5,6 +5,12 @@
         <field name="model">mkp.collection.event</field>
         <field name="arch" type="xml">
             <list string="Historial de movimientos cobranza" create="0" edit="0" delete="0" default_order="event_time desc,id desc">
+                <header>
+                    <button name="%(action_collection_import)d" type="action"
+                            string="Importar registros" class="btn-primary"
+                            display="always"
+                            groups="mkp_collection_control.group_mkp_collection_operator"/>
+                </header>
                 <field name="event_time" string="Fecha del evento"/>
                 <field name="sale_order_id" string="Pedido Odoo"/>
                 <field name="marketplace"/>
@@ -16,6 +22,8 @@
                 <field name="state_to" optional="show"/>
                 <field name="event_amount"/>
                 <field name="net_impact" sum="Efecto total"/>
+                <field name="after_sale_total" string="Total de venta" optional="show"/>
+                <field name="after_net" string="Monto a cobrar" optional="show"/>
                 <field name="after_pending" string="Por cobrar"/>
                 <field name="after_held" string="Retenido"/>
                 <field name="after_released" string="Liberado"/>
@@ -74,6 +82,7 @@
                             <group>
                                 <group string="Antes del evento">
                                     <field name="before_gross"/>
+                                    <field name="before_sale_total"/>
                                     <field name="before_net"/>
                                     <field name="before_pending"/>
                                     <field name="before_held"/>
@@ -83,6 +92,7 @@
                                 </group>
                                 <group string="Después del evento">
                                     <field name="after_gross"/>
+                                    <field name="after_sale_total"/>
                                     <field name="after_net"/>
                                     <field name="after_pending"/>
                                     <field name="after_held"/>
@@ -96,6 +106,8 @@
                             <group>
                                 <group string="Cambios del evento">
                                     <field name="delta_gross"/>
+                                    <field name="delta_coupon_amount"/>
+                                    <field name="delta_killer_amount"/>
                                     <field name="delta_withholding"/>
                                     <field name="delta_commission"/>
                                     <field name="delta_killer_commission"/>
@@ -111,6 +123,10 @@
                                 <group string="Desglose antes / después">
                                     <field name="before_withholding"/>
                                     <field name="after_withholding"/>
+                                    <field name="before_coupon_amount"/>
+                                    <field name="after_coupon_amount"/>
+                                    <field name="before_killer_amount"/>
+                                    <field name="after_killer_amount"/>
                                     <field name="before_commission"/>
                                     <field name="after_commission"/>
                                     <field name="before_killer_commission"/>

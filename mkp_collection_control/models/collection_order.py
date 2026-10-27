@@ -29,6 +29,10 @@ class MkpCollectionOrder(models.Model):
     event_count = fields.Integer('Movimientos', compute='_compute_event_count')
 
     gross = fields.Monetary('Venta ajustada', currency_field='currency_id', readonly=True)
+    coupon_amount = fields.Monetary('Cupon', currency_field='currency_id', readonly=True)
+    killer_amount = fields.Monetary('Killer', currency_field='currency_id', readonly=True)
+    sale_total = fields.Monetary('Total de venta', currency_field='currency_id',
+                                 compute='_compute_sale_total', store=True)
     withholding = fields.Monetary('Retenciones / impuestos', currency_field='currency_id', readonly=True)
     commission = fields.Monetary('Comisiones', currency_field='currency_id', readonly=True)
     killer_commission = fields.Monetary('Comisión killer', currency_field='currency_id', readonly=True)
@@ -39,6 +43,8 @@ class MkpCollectionOrder(models.Model):
     refund_impact = fields.Monetary('Devoluciones (impacto)', compute='_compute_refund_impact', store=True,
                                     currency_field='currency_id')
     net_expected = fields.Monetary('Neto ajustado de cobranza', currency_field='currency_id', readonly=True)
+    amount_to_collect = fields.Monetary(related='net_expected', string='Monto a cobrar',
+                                        currency_field='currency_id', readonly=True, store=True)
     pending = fields.Monetary('Monto por cobrar', currency_field='currency_id', readonly=True)
     held = fields.Monetary('Retenido', currency_field='currency_id', readonly=True)
     released = fields.Monetary('Liberado', currency_field='currency_id', readonly=True)
@@ -53,6 +59,11 @@ class MkpCollectionOrder(models.Model):
     def _compute_refund_impact(self):
         for rec in self:
             rec.refund_impact = -rec.refunded
+
+    @api.depends('gross', 'coupon_amount', 'killer_amount')
+    def _compute_sale_total(self):
+        for rec in self:
+            rec.sale_total = rec.gross + rec.coupon_amount + rec.killer_amount
 
     @api.depends('event_ids')
     def _compute_event_count(self):
@@ -81,7 +92,8 @@ class MkpCollectionOrder(models.Model):
         return {k: money(self[k]) for k in KEYS}
 
     def _post_event(self, *, payment_state, event_time, reference='', notes='', amount=0,
-                    gross=0, withholding=0, commission=0,
+                    gross=0, coupon_amount=0, killer_amount=0,
+                    withholding=0, commission=0,
                     killer_commission=0, coupon_commission=0,
                     shipping=0, other=0, bucket='pending',
                     attachment_data=False, attachment_name=False,
@@ -121,6 +133,8 @@ class MkpCollectionOrder(models.Model):
                     deltas = snapshot_deltas(
                         before,
                         gross=gross,
+                        coupon_amount=coupon_amount,
+                        killer_amount=killer_amount,
                         withholding=withholding,
                         commission=commission,
                         killer_commission=killer_commission,

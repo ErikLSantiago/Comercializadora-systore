@@ -9,8 +9,8 @@
                 <field name="marketplace"/>
                 <field name="marketplace_reference"/>
                 <field name="payment_state"/>
-                <field name="gross" sum="Total venta ajustada"/>
-                <field name="net_expected" sum="Neto total"/>
+                <field name="sale_total" sum="Total venta"/>
+                <field name="amount_to_collect" sum="Total a cobrar"/>
                 <field name="pending" sum="Total por cobrar"/>
                 <field name="held" sum="Total retenido"/>
                 <field name="released" sum="Total liberado"/>
@@ -55,13 +55,16 @@
                         </group>
                         <group string="Desglose financiero vigente">
                             <field name="gross"/>
+                            <field name="coupon_amount"/>
+                            <field name="killer_amount"/>
+                            <field name="sale_total"/>
                             <field name="withholding"/>
                             <field name="commission"/>
                             <field name="killer_commission"/>
                             <field name="coupon_commission"/>
                             <field name="shipping"/>
                             <field name="other"/>
-                            <field name="net_expected"/>
+                            <field name="amount_to_collect"/>
                         </group>
                     </group>
                     <group string="Cuatro escenarios de cobranza">

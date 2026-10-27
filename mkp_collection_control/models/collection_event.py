@@ -82,6 +82,8 @@ class MkpCollectionEvent(models.Model):
     # Explicit before/after snapshots make the complete history auditable even
     # when events are backdated and subsequent changes have been entered.
     delta_gross = fields.Monetary('Δ Venta', currency_field='currency_id', readonly=True)
+    delta_coupon_amount = fields.Monetary('Δ Cupon', currency_field='currency_id', readonly=True)
+    delta_killer_amount = fields.Monetary('Δ Killer', currency_field='currency_id', readonly=True)
     delta_withholding = fields.Monetary('Δ Retenciones', currency_field='currency_id', readonly=True)
     delta_commission = fields.Monetary('Δ Comisión', currency_field='currency_id', readonly=True)
     delta_killer_commission = fields.Monetary('Δ Comisión killer', currency_field='currency_id', readonly=True)
@@ -95,6 +97,8 @@ class MkpCollectionEvent(models.Model):
     delta_paid = fields.Monetary('Δ Pago informado', currency_field='currency_id', readonly=True)
 
     before_gross = fields.Monetary('Antes: venta', currency_field='currency_id', readonly=True)
+    before_coupon_amount = fields.Monetary('Antes: cupon', currency_field='currency_id', readonly=True)
+    before_killer_amount = fields.Monetary('Antes: killer', currency_field='currency_id', readonly=True)
     before_withholding = fields.Monetary('Antes: retenciones', currency_field='currency_id', readonly=True)
     before_commission = fields.Monetary('Antes: comisión', currency_field='currency_id', readonly=True)
     before_killer_commission = fields.Monetary('Antes: comisión killer', currency_field='currency_id', readonly=True)
@@ -107,8 +111,12 @@ class MkpCollectionEvent(models.Model):
     before_released = fields.Monetary('Antes: liberado', currency_field='currency_id', readonly=True)
     before_paid = fields.Monetary('Antes: pago informado', currency_field='currency_id', readonly=True)
     before_net = fields.Monetary('Antes: neto', currency_field='currency_id', readonly=True)
+    before_sale_total = fields.Monetary('Antes: total de venta', currency_field='currency_id',
+                                        compute='_compute_sale_totals')
 
     after_gross = fields.Monetary('Después: venta', currency_field='currency_id', readonly=True)
+    after_coupon_amount = fields.Monetary('Después: cupon', currency_field='currency_id', readonly=True)
+    after_killer_amount = fields.Monetary('Después: killer', currency_field='currency_id', readonly=True)
     after_withholding = fields.Monetary('Después: retenciones', currency_field='currency_id', readonly=True)
     after_commission = fields.Monetary('Después: comisión', currency_field='currency_id', readonly=True)
     after_killer_commission = fields.Monetary('Después: comisión killer', currency_field='currency_id', readonly=True)
@@ -121,6 +129,8 @@ class MkpCollectionEvent(models.Model):
     after_released = fields.Monetary('Después: liberado', currency_field='currency_id', readonly=True)
     after_paid = fields.Monetary('Después: pago informado', currency_field='currency_id', readonly=True)
     after_net = fields.Monetary('Después: neto', currency_field='currency_id', readonly=True)
+    after_sale_total = fields.Monetary('Después: total de venta', currency_field='currency_id',
+                                       compute='_compute_sale_totals')
 
     _sql_constraints = [
         ('unique_reversal_original', 'unique(reversal_of_id)',
@@ -131,6 +141,17 @@ class MkpCollectionEvent(models.Model):
     def _compute_refund_total_negative(self):
         for rec in self:
             rec.refund_total_negative = -rec.after_refunded
+
+    @api.depends('before_gross', 'before_coupon_amount', 'before_killer_amount',
+                 'after_gross', 'after_coupon_amount', 'after_killer_amount')
+    def _compute_sale_totals(self):
+        for rec in self:
+            rec.before_sale_total = (
+                rec.before_gross + rec.before_coupon_amount + rec.before_killer_amount
+            )
+            rec.after_sale_total = (
+                rec.after_gross + rec.after_coupon_amount + rec.after_killer_amount
+            )
 
     @api.depends('delta_refunded')
     def _compute_refund_impact(self):

@@ -17,15 +17,22 @@
                     <group string="Comisiones" invisible="payment_state == 'refund'">
                         <group>
                             <field name="gross" required="payment_state != 'refund'"/>
+                            <field name="coupon_amount"/>
+                            <field name="killer_amount"/>
+                            <field name="sale_total" readonly="1"/>
+                        </group>
+                        <group>
                             <field name="withholding"/>
                             <field name="commission"/>
                             <field name="killer_commission"/>
-                        </group>
-                        <group>
                             <field name="coupon_commission"/>
                             <field name="shipping"/>
                             <field name="other"/>
                         </group>
+                    </group>
+                    <group string="Resultado" invisible="payment_state == 'refund'">
+                        <field name="refunded" invisible="1"/>
+                        <field name="amount_to_collect" readonly="1"/>
                     </group>
                     <group string="Detalle de devolución" invisible="payment_state != 'refund'">
                         <field name="amount" required="payment_state == 'refund'"/>

@@ -90,6 +90,8 @@ class TestMkpCollectionLedger(unittest.TestCase):
         current = apply_event(current, snapshot_deltas(
             current,
             gross=1000,
+            coupon_amount=100,
+            killer_amount=50,
             withholding=100,
             commission=80,
             killer_commission=20,
@@ -97,12 +99,14 @@ class TestMkpCollectionLedger(unittest.TestCase):
             shipping=50,
             other=5,
         ))
-        self.assertEqual(current['pending'], money(735))
-        self.assertEqual(net(current), money(735))
+        self.assertEqual(current['pending'], money(885))
+        self.assertEqual(net(current), money(885))
 
         recalculated = apply_event(current, snapshot_deltas(
             current,
             gross=1100,
+            coupon_amount=100,
+            killer_amount=50,
             withholding=100,
             commission=90,
             killer_commission=25,
@@ -110,5 +114,5 @@ class TestMkpCollectionLedger(unittest.TestCase):
             shipping=50,
             other=5,
         ))
-        self.assertEqual(recalculated['pending'], money(815))
-        self.assertEqual(net(recalculated), money(815))
+        self.assertEqual(recalculated['pending'], money(965))
+        self.assertEqual(net(recalculated), money(965))

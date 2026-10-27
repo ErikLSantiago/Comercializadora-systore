@@ -19,12 +19,19 @@ class MkpCollectionCaptureWizard(models.TransientModel):
     event_time = fields.Datetime('Fecha y hora del evento', required=True,
                                  default=fields.Datetime.now)
     gross = fields.Monetary('Venta', currency_field='currency_id')
+    coupon_amount = fields.Monetary('Cupon', currency_field='currency_id')
+    killer_amount = fields.Monetary('Killer', currency_field='currency_id')
+    sale_total = fields.Monetary('Total de venta', currency_field='currency_id',
+                                 compute='_compute_totals')
     withholding = fields.Monetary('Retenciones / impuestos', currency_field='currency_id')
     commission = fields.Monetary('Comisión', currency_field='currency_id')
     killer_commission = fields.Monetary('Comisión killer', currency_field='currency_id')
     coupon_commission = fields.Monetary('Comisión cupón', currency_field='currency_id')
     shipping = fields.Monetary('Envío', currency_field='currency_id')
     other = fields.Monetary('Otras comisiones', currency_field='currency_id')
+    refunded = fields.Monetary('Devoluciones acumuladas', currency_field='currency_id', readonly=True)
+    amount_to_collect = fields.Monetary('Monto a cobrar', currency_field='currency_id',
+                                        compute='_compute_totals')
     amount = fields.Monetary('Importe del evento', currency_field='currency_id')
     refund_bucket = fields.Selection([
         ('pending', 'Monto por cobrar'), ('held', 'Retenido'),
@@ -35,6 +42,18 @@ class MkpCollectionCaptureWizard(models.TransientModel):
     notes = fields.Text('Comentario')
     attachment_data = fields.Binary('Evidencia del movimiento', attachment=False)
     attachment_name = fields.Char('Nombre del archivo')
+
+    @api.depends('gross', 'coupon_amount', 'killer_amount', 'withholding',
+                 'commission', 'killer_commission', 'coupon_commission',
+                 'shipping', 'other', 'refunded')
+    def _compute_totals(self):
+        for wizard in self:
+            wizard.sale_total = wizard.gross + wizard.coupon_amount + wizard.killer_amount
+            wizard.amount_to_collect = (
+                wizard.sale_total - wizard.withholding - wizard.commission
+                - wizard.killer_commission - wizard.coupon_commission
+                - wizard.shipping - wizard.other - wizard.refunded
+            )
 
     @api.model
     def default_get(self, field_names):
@@ -49,10 +68,12 @@ class MkpCollectionCaptureWizard(models.TransientModel):
                 vals['marketplace'] = existing.marketplace
                 vals['marketplace_reference'] = existing.marketplace_reference
                 vals['payment_state'] = existing.payment_state if existing.initialized else 'draft'
-                for field_name in ('gross', 'withholding', 'commission',
+                for field_name in ('gross', 'coupon_amount', 'killer_amount',
+                                   'withholding', 'commission',
                                    'killer_commission', 'coupon_commission',
                                    'shipping', 'other'):
                     vals[field_name] = existing[field_name]
+                vals['refunded'] = existing.refunded
         if sale_id:
             sale = self.env['sale.order'].browse(sale_id)
             if sale.exists():
@@ -92,21 +113,27 @@ class MkpCollectionCaptureWizard(models.TransientModel):
             if existing:
                 self.payment_state = existing.payment_state if existing.initialized else 'draft'
                 self.gross = existing.gross
+                self.coupon_amount = existing.coupon_amount
+                self.killer_amount = existing.killer_amount
                 self.withholding = existing.withholding
                 self.commission = existing.commission
                 self.killer_commission = existing.killer_commission
                 self.coupon_commission = existing.coupon_commission
                 self.shipping = existing.shipping
                 self.other = existing.other
+                self.refunded = existing.refunded
             else:
                 self.payment_state = 'draft'
                 self.gross = self.sale_order_id.amount_total
+                self.coupon_amount = 0
+                self.killer_amount = 0
                 self.withholding = 0
                 self.commission = 0
                 self.killer_commission = 0
                 self.coupon_commission = 0
                 self.shipping = 0
                 self.other = 0
+                self.refunded = 0
 
     def action_confirm(self):
         self.ensure_one()
@@ -140,6 +167,8 @@ class MkpCollectionCaptureWizard(models.TransientModel):
             payment_state=self.payment_state, event_time=self.event_time,
             amount=self.amount,
             gross=self.gross, withholding=self.withholding,
+            coupon_amount=self.coupon_amount,
+            killer_amount=self.killer_amount,
             commission=self.commission,
             killer_commission=self.killer_commission,
             coupon_commission=self.coupon_commission,

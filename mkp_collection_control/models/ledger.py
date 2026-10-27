@@ -6,7 +6,8 @@ The outstanding/pending bucket can be negative for subsequent marketplace fees.
 """
 from decimal import Decimal, ROUND_HALF_UP
 
-KEYS = ('gross', 'withholding', 'commission', 'killer_commission',
+KEYS = ('gross', 'coupon_amount', 'killer_amount',
+        'withholding', 'commission', 'killer_commission',
         'coupon_commission', 'shipping', 'other',
         'refunded', 'pending', 'held', 'released', 'paid')
 BUCKETS = ('pending', 'held', 'released', 'paid')
@@ -23,13 +24,15 @@ def state(values=None):
 
 
 def net(values):
-    return money(values['gross'] - values['withholding']
+    return money(values['gross'] + values['coupon_amount'] + values['killer_amount']
+                 - values['withholding']
                  - values['commission'] - values['killer_commission']
                  - values['coupon_commission'] - values['shipping']
                  - values['other'] - values['refunded'])
 
 
-def snapshot_deltas(before, *, gross=0, withholding=0, commission=0,
+def snapshot_deltas(before, *, gross=0, coupon_amount=0, killer_amount=0,
+                    withholding=0, commission=0,
                     killer_commission=0, coupon_commission=0,
                     shipping=0, other=0):
     """Build deltas that restate the current commission breakdown.
@@ -41,6 +44,8 @@ def snapshot_deltas(before, *, gross=0, withholding=0, commission=0,
     old = state(before)
     targets = {
         'gross': money(gross),
+        'coupon_amount': money(coupon_amount),
+        'killer_amount': money(killer_amount),
         'withholding': money(withholding),
         'commission': money(commission),
         'killer_commission': money(killer_commission),
@@ -51,7 +56,8 @@ def snapshot_deltas(before, *, gross=0, withholding=0, commission=0,
     if any(value < 0 for value in targets.values()):
         raise ValueError('El desglose de comisiones no admite valores negativos.')
     target_net = money(
-        targets['gross'] - targets['withholding'] - targets['commission']
+        targets['gross'] + targets['coupon_amount'] + targets['killer_amount']
+        - targets['withholding'] - targets['commission']
         - targets['killer_commission'] - targets['coupon_commission']
         - targets['shipping'] - targets['other'] - old['refunded']
     )
