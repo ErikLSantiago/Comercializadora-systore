@@ -1,0 +1,65 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <record id="view_mkp_payment_gateway_config_list" model="ir.ui.view">
+        <field name="name">mkp.payment.gateway.config.list</field>
+        <field name="model">mkp.payment.gateway.config</field>
+        <field name="arch" type="xml">
+            <list string="Configuración de pasarelas" create="1" edit="1">
+                <field name="partner_id"/>
+                <field name="commission_expense_account_id"/>
+                <field name="fixed_commission_expense_account_id"/>
+                <field name="commission_vat_account_id"/>
+                <field name="fixed_commission_vat_account_id"/>
+                <field name="commission_journal_id"/>
+                <field name="company_id" groups="base.group_multi_company"/>
+                <field name="active" optional="hide"/>
+            </list>
+        </field>
+    </record>
+
+    <record id="view_mkp_payment_gateway_config_form" model="ir.ui.view">
+        <field name="name">mkp.payment.gateway.config.form</field>
+        <field name="model">mkp.payment.gateway.config</field>
+        <field name="arch" type="xml">
+            <form string="Configuración de pasarela">
+                <sheet>
+                    <group>
+                        <group>
+                            <field name="partner_id"/>
+                            <field name="company_id" groups="base.group_multi_company"/>
+                            <field name="active"/>
+                        </group>
+                        <group>
+                            <field name="commission_expense_account_id"/>
+                            <field name="fixed_commission_expense_account_id"/>
+                            <field name="commission_vat_account_id"/>
+                            <field name="fixed_commission_vat_account_id"/>
+                            <field name="commission_journal_id"/>
+                        </group>
+                    </group>
+                </sheet>
+            </form>
+        </field>
+    </record>
+
+    <record id="action_mkp_payment_gateway_config" model="ir.actions.act_window">
+        <field name="name">Configuración de pasarelas</field>
+        <field name="res_model">mkp.payment.gateway.config</field>
+        <field name="view_mode">list,form</field>
+    </record>
+
+    <menuitem
+        id="menu_mkp_payment_gateway_config_root"
+        name="Configuración de pasarelas"
+        parent="account.menu_finance_configuration"
+        sequence="95"
+    />
+
+    <menuitem
+        id="menu_mkp_payment_gateway_config"
+        name="Pasarelas"
+        parent="menu_mkp_payment_gateway_config_root"
+        action="action_mkp_payment_gateway_config"
+        sequence="10"
+    />
+</odoo>

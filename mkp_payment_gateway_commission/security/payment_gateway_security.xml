@@ -1,0 +1,20 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <record id="rule_mkp_payment_gateway_config_company" model="ir.rule">
+        <field name="name">Pasarelas de pago por compañía</field>
+        <field name="model_id" ref="model_mkp_payment_gateway_config"/>
+        <field name="domain_force">[('company_id', 'in', company_ids)]</field>
+    </record>
+
+    <record id="rule_mkp_sale_gateway_payment_company" model="ir.rule">
+        <field name="name">Pagos por pasarela por compañía</field>
+        <field name="model_id" ref="model_mkp_sale_gateway_payment"/>
+        <field name="domain_force">[('company_id', 'in', company_ids)]</field>
+    </record>
+
+    <record id="rule_mkp_account_gateway_commission_company" model="ir.rule">
+        <field name="name">Comisiones facturadas por compañía</field>
+        <field name="model_id" ref="model_mkp_account_gateway_commission_line"/>
+        <field name="domain_force">[('company_id', 'in', company_ids)]</field>
+    </record>
+</odoo>

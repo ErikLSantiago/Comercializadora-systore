@@ -1,0 +1,45 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <record id="view_sale_order_form_mkp_gateway_commission" model="ir.ui.view">
+        <field name="name">sale.order.form.mkp.gateway.commission</field>
+        <field name="model">sale.order</field>
+        <field name="inherit_id" ref="sale.view_order_form"/>
+        <field name="arch" type="xml">
+            <xpath expr="//notebook" position="inside">
+                <page string="Comisión de pasarela">
+                    <field name="mkp_gateway_payment_line_ids"
+                           readonly="state not in ('draft', 'sent')">
+                        <list editable="bottom" string="Pagos combinados">
+                            <field name="sequence" widget="handle"/>
+                            <field name="company_id" column_invisible="True"/>
+                            <field name="currency_id" column_invisible="True"/>
+                            <field name="gateway_config_id"
+                                   options="{'no_create': True}"/>
+                            <field name="gateway_partner_id" optional="hide"/>
+                            <field name="payment_amount" sum="Total pagado"/>
+                            <field name="commission_amount"
+                                   sum="Comisión Pasarela"/>
+                            <field name="fixed_commission_amount"
+                                   sum="Comisión fija"/>
+                            <field name="commission_vat_amount"
+                                   sum="IVA Comisión Pasarela"/>
+                            <field name="fixed_commission_vat_amount"
+                                   sum="IVA Comisión Fija"/>
+                            <field name="total_commission_amount" readonly="1"
+                                   sum="Comisión total"/>
+                        </list>
+                    </field>
+                    <group class="oe_subtotal_footer oe_right">
+                        <field name="mkp_gateway_paid_amount" readonly="1"/>
+                        <field name="mkp_gateway_unassigned_amount" readonly="1"/>
+                        <field name="mkp_gateway_commission_amount" readonly="1"/>
+                        <field name="mkp_gateway_fixed_commission_amount" readonly="1"/>
+                        <field name="mkp_gateway_commission_vat_amount" readonly="1"/>
+                        <field name="mkp_gateway_fixed_commission_vat_amount" readonly="1"/>
+                        <field name="mkp_gateway_total_commission_amount" readonly="1"/>
+                    </group>
+                </page>
+            </xpath>
+        </field>
+    </record>
+</odoo>

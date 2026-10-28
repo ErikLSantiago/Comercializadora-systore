@@ -1,0 +1,41 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <record id="view_move_form_mkp_gateway_commission" model="ir.ui.view">
+        <field name="name">account.move.form.mkp.gateway.commission</field>
+        <field name="model">account.move</field>
+        <field name="inherit_id" ref="account.view_move_form"/>
+        <field name="arch" type="xml">
+            <xpath expr="//notebook" position="inside">
+                <page string="Comisiones de pasarelas"
+                      invisible="move_type != 'out_invoice' or not mkp_gateway_commission_line_ids">
+                    <field name="mkp_gateway_commission_line_ids">
+                        <list create="0" edit="0" delete="0">
+                            <field name="currency_id" column_invisible="True"/>
+                            <field name="gateway_config_id"/>
+                            <field name="gateway_partner_id" optional="hide"/>
+                            <field name="payment_amount" sum="Importe procesado"/>
+                            <field name="commission_amount" sum="Comisión Pasarela"/>
+                            <field name="fixed_commission_amount" sum="Comisión fija"/>
+                            <field name="commission_vat_amount" sum="IVA Comisión Pasarela"/>
+                            <field name="fixed_commission_vat_amount" sum="IVA Comisión Fija"/>
+                            <field name="total_commission_amount" sum="Comisión total"/>
+                        </list>
+                    </field>
+                    <group>
+                        <group>
+                            <field name="mkp_gateway_commission_move_ids"
+                                   widget="many2many_tags"/>
+                        </group>
+                        <group>
+                            <field name="mkp_gateway_commission_amount"/>
+                            <field name="mkp_gateway_fixed_commission_amount"/>
+                            <field name="mkp_gateway_commission_vat_amount"/>
+                            <field name="mkp_gateway_fixed_commission_vat_amount"/>
+                            <field name="mkp_gateway_total_commission_amount"/>
+                        </group>
+                    </group>
+                </page>
+            </xpath>
+        </field>
+    </record>
+</odoo>
