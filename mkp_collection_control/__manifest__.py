@@ -1,7 +1,7 @@
 {
     'name': 'Cobranza MKP - Control manual e historial',
     'summary': 'Captura manual, saldos por estado e historial inalterable por orden de venta',
-    'version': '18.0.1.0.2',
+    'version': '18.0.1.0.3',
     'category': 'Sales/Sales',
     'author': 'Desarrollo personalizado',
     'license': 'LGPL-3',

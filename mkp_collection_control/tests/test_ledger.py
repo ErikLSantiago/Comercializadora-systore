@@ -1,6 +1,8 @@
 """Pure ledger invariants. Runs without an Odoo DB via unittest."""
 import unittest
-from ..models.ledger import money, state, net, apply_event, event_deltas, snapshot_deltas
+from ..models.ledger import (
+    money, state, net, apply_event, event_deltas, snapshot_deltas, payment_deltas,
+)
 
 
 class TestMkpCollectionLedger(unittest.TestCase):
@@ -99,8 +101,8 @@ class TestMkpCollectionLedger(unittest.TestCase):
             shipping=50,
             other=5,
         ))
-        self.assertEqual(current['pending'], money(885))
-        self.assertEqual(net(current), money(885))
+        self.assertEqual(current['pending'], money(685))
+        self.assertEqual(net(current), money(685))
 
         recalculated = apply_event(current, snapshot_deltas(
             current,
@@ -114,5 +116,23 @@ class TestMkpCollectionLedger(unittest.TestCase):
             shipping=50,
             other=5,
         ))
-        self.assertEqual(recalculated['pending'], money(965))
-        self.assertEqual(net(recalculated), money(965))
+        self.assertEqual(recalculated['pending'], money(765))
+        self.assertEqual(net(recalculated), money(765))
+
+    def test_payment_lines_and_negative_penalty(self):
+        current = apply_event(state(), snapshot_deltas(state(), gross=1000))
+        deltas = payment_deltas(current, [
+            {'amount': 100, 'payment_status': 'held'},
+            {'amount': 200, 'payment_status': 'released'},
+            {'amount': -30, 'payment_status': 'penalized'},
+            {'amount': 50, 'payment_status': 'cancelled'},
+        ])
+        current = apply_event(current, deltas)
+        self.assertEqual(current['pending'], money(670))
+        self.assertEqual(current['held'], money(100))
+        self.assertEqual(current['released'], money(200))
+        self.assertEqual(current['other'], money(30))
+        self.assertEqual(net(current), money(970))
+
+        with self.assertRaises(ValueError):
+            payment_deltas(current, [{'amount': 10, 'payment_status': 'penalized'}])

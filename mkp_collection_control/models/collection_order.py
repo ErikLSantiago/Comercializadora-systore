@@ -1,7 +1,7 @@
 from odoo import api, fields, models, _
 from odoo.exceptions import AccessError, UserError, ValidationError
 
-from .ledger import KEYS, event_deltas, snapshot_deltas, apply_event, money, net
+from .ledger import KEYS, event_deltas, snapshot_deltas, payment_deltas, apply_event, money, net
 
 
 class MkpCollectionOrder(models.Model):
@@ -26,6 +26,7 @@ class MkpCollectionOrder(models.Model):
         ('refund', 'Devolución'),
     ], string='Estado', default='draft', required=True, readonly=True, index=True)
     event_ids = fields.One2many('mkp.collection.event', 'order_id', string='Historial')
+    payment_ids = fields.One2many('mkp.collection.payment', 'order_id', string='Pagos')
     event_count = fields.Integer('Movimientos', compute='_compute_event_count')
 
     gross = fields.Monetary('Venta ajustada', currency_field='currency_id', readonly=True)
@@ -63,7 +64,7 @@ class MkpCollectionOrder(models.Model):
     @api.depends('gross', 'coupon_amount', 'killer_amount')
     def _compute_sale_total(self):
         for rec in self:
-            rec.sale_total = rec.gross + rec.coupon_amount + rec.killer_amount
+            rec.sale_total = rec.gross - rec.coupon_amount + rec.killer_amount
 
     @api.depends('event_ids')
     def _compute_event_count(self):
@@ -97,6 +98,7 @@ class MkpCollectionOrder(models.Model):
                     killer_commission=0, coupon_commission=0,
                     shipping=0, other=0, bucket='pending',
                     attachment_data=False, attachment_name=False,
+                    payments=None,
                     reversal_of=None, reversal_reason=''):
         """Lock, validate and post one immutable state change atomically."""
         self.ensure_one()
@@ -120,10 +122,13 @@ class MkpCollectionOrder(models.Model):
             target_payment_state = previous_payment_state
         else:
             target_payment_state = payment_state
+            payments = payments or []
             if target_payment_state not in ('draft', 'confirmed', 'recalculated', 'refund'):
                 raise ValidationError(_('Seleccione un estado de cobranza válido.'))
             if target_payment_state == 'refund' and not self.initialized:
                 raise ValidationError(_('Primero debe registrar el desglose de comisiones.'))
+            if target_payment_state == 'refund' and payments:
+                raise ValidationError(_('La devolución no admite pagos en el mismo movimiento.'))
             try:
                 if target_payment_state == 'refund':
                     technical_kind = 'refund'
@@ -149,6 +154,12 @@ class MkpCollectionOrder(models.Model):
                 raise ValidationError(_('No existe suficiente monto por cobrar para la devolución.'))
 
         try:
+            after_financial = apply_event(before, deltas)
+            payment_delta = payment_deltas(after_financial, payments or [])
+            deltas = {
+                key: money(deltas[key] + payment_delta[key])
+                for key in KEYS
+            }
             after = apply_event(before, deltas)
         except ValueError as exc:
             raise ValidationError(str(exc)) from exc
@@ -215,7 +226,17 @@ class MkpCollectionOrder(models.Model):
             'before_net': float(net(before)),
             'after_net': float(net(after)),
         }
-        return self.env['mkp.collection.event'].sudo().create(event_vals)
+        event = self.env['mkp.collection.event'].sudo().create(event_vals)
+        if payments:
+            self.env['mkp.collection.payment'].sudo().create([{
+                'name': '%s/P%02d' % (event.name, index),
+                'order_id': self.id,
+                'event_id': event.id,
+                'amount': float(money(payment['amount'])),
+                'payment_date': payment['payment_date'],
+                'payment_status': payment['payment_status'],
+            } for index, payment in enumerate(payments, start=1)])
+        return event
 
     def action_new_event(self):
         self.ensure_one()

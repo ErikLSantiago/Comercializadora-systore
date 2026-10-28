@@ -30,6 +30,16 @@
                             <field name="other"/>
                         </group>
                     </group>
+                    <group string="Pagos" invisible="payment_state == 'refund'">
+                        <field name="payment_line_ids" nolabel="1">
+                            <list editable="bottom">
+                                <field name="amount"/>
+                                <field name="payment_date"/>
+                                <field name="payment_status"/>
+                                <field name="currency_id" column_invisible="True"/>
+                            </list>
+                        </field>
+                    </group>
                     <group string="Resultado" invisible="payment_state == 'refund'">
                         <field name="refunded" invisible="1"/>
                         <field name="amount_to_collect" readonly="1"/>

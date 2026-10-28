@@ -24,7 +24,7 @@ def state(values=None):
 
 
 def net(values):
-    return money(values['gross'] + values['coupon_amount'] + values['killer_amount']
+    return money(values['gross'] - values['coupon_amount'] + values['killer_amount']
                  - values['withholding']
                  - values['commission'] - values['killer_commission']
                  - values['coupon_commission'] - values['shipping']
@@ -56,7 +56,7 @@ def snapshot_deltas(before, *, gross=0, coupon_amount=0, killer_amount=0,
     if any(value < 0 for value in targets.values()):
         raise ValueError('El desglose de comisiones no admite valores negativos.')
     target_net = money(
-        targets['gross'] + targets['coupon_amount'] + targets['killer_amount']
+        targets['gross'] - targets['coupon_amount'] + targets['killer_amount']
         - targets['withholding'] - targets['commission']
         - targets['killer_commission'] - targets['coupon_commission']
         - targets['shipping'] - targets['other'] - old['refunded']
@@ -68,6 +68,37 @@ def snapshot_deltas(before, *, gross=0, coupon_amount=0, killer_amount=0,
         deltas[key] = money(target - old[key])
     deltas['pending'] = money(target_net - net(old))
     return deltas
+
+
+def payment_deltas(before, payments):
+    """Aggregate payment-line effects while validating them sequentially."""
+    current = state(before)
+    total = state()
+    for payment in payments or []:
+        payment_state = payment.get('payment_status')
+        amount = money(payment.get('amount'))
+        delta = state()
+        if payment_state in ('held', 'released'):
+            if amount <= 0:
+                raise ValueError('Los pagos retenidos o liberados deben ser mayores a cero.')
+            if current['pending'] < amount:
+                raise ValueError('El monto por cobrar es insuficiente para registrar el pago.')
+            delta['pending'] = -amount
+            delta[payment_state] = amount
+        elif payment_state == 'penalized':
+            if amount >= 0:
+                raise ValueError('Una penalización debe capturarse con monto negativo.')
+            charge = -amount
+            delta['other'] = charge
+            delta['pending'] = amount
+        elif payment_state == 'cancelled':
+            if amount == 0:
+                raise ValueError('El pago cancelado debe conservar el monto reportado.')
+        else:
+            raise ValueError('Estado de pago desconocido.')
+        current = apply_event(current, delta)
+        total = {key: money(total[key] + delta[key]) for key in KEYS}
+    return total
 
 
 def event_deltas(kind, *, amount=0, extra_commission=0,

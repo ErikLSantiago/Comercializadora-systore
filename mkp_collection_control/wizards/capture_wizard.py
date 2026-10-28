@@ -42,17 +42,22 @@ class MkpCollectionCaptureWizard(models.TransientModel):
     notes = fields.Text('Comentario')
     attachment_data = fields.Binary('Evidencia del movimiento', attachment=False)
     attachment_name = fields.Char('Nombre del archivo')
+    payment_line_ids = fields.One2many('mkp.collection.capture.payment.line', 'wizard_id',
+                                       string='Pagos')
 
     @api.depends('gross', 'coupon_amount', 'killer_amount', 'withholding',
                  'commission', 'killer_commission', 'coupon_commission',
-                 'shipping', 'other', 'refunded')
+                 'shipping', 'other', 'refunded',
+                 'payment_line_ids.amount', 'payment_line_ids.payment_status')
     def _compute_totals(self):
         for wizard in self:
-            wizard.sale_total = wizard.gross + wizard.coupon_amount + wizard.killer_amount
+            wizard.sale_total = wizard.gross - wizard.coupon_amount + wizard.killer_amount
             wizard.amount_to_collect = (
                 wizard.sale_total - wizard.withholding - wizard.commission
                 - wizard.killer_commission - wizard.coupon_commission
                 - wizard.shipping - wizard.other - wizard.refunded
+                + sum(line.amount for line in wizard.payment_line_ids
+                      if line.payment_status == 'penalized')
             )
 
     @api.model
@@ -177,6 +182,11 @@ class MkpCollectionCaptureWizard(models.TransientModel):
             reference=self.reference or '', notes=self.notes or '',
             attachment_data=self.attachment_data,
             attachment_name=self.attachment_name,
+            payments=[{
+                'amount': line.amount,
+                'payment_date': line.payment_date,
+                'payment_status': line.payment_status,
+            } for line in self.payment_line_ids],
         )
         return {
             'type': 'ir.actions.act_window',
@@ -184,3 +194,21 @@ class MkpCollectionCaptureWizard(models.TransientModel):
             'res_model': 'mkp.collection.order', 'res_id': existing.id,
             'view_mode': 'form', 'target': 'current',
         }
+
+
+class MkpCollectionCapturePaymentLine(models.TransientModel):
+    _name = 'mkp.collection.capture.payment.line'
+    _description = 'Pago para captura de cobranza'
+    _order = 'payment_date, id'
+
+    wizard_id = fields.Many2one('mkp.collection.capture.wizard', required=True,
+                                ondelete='cascade')
+    amount = fields.Monetary('Monto', required=True, currency_field='currency_id')
+    payment_date = fields.Datetime('Fecha', required=True, default=fields.Datetime.now)
+    payment_status = fields.Selection([
+        ('held', 'Retenido'),
+        ('released', 'Liberado'),
+        ('penalized', 'Penalizado'),
+        ('cancelled', 'Cancelado'),
+    ], string='Estado', required=True, default='held')
+    currency_id = fields.Many2one(related='wizard_id.currency_id', readonly=True)

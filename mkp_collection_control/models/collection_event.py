@@ -76,6 +76,7 @@ class MkpCollectionEvent(models.Model):
     extra_commission = fields.Monetary('Comisión cupón / killer', currency_field='currency_id', readonly=True)
     attachment_data = fields.Binary('Evidencia', attachment=True, readonly=True, copy=False)
     attachment_name = fields.Char('Nombre de evidencia', readonly=True)
+    payment_ids = fields.One2many('mkp.collection.payment', 'event_id', string='Pagos', readonly=True)
     captured_by_id = fields.Many2one(related='create_uid', string='Registrado por', readonly=True)
     captured_at = fields.Datetime(related='create_date', string='Fecha de captura', readonly=True)
 
@@ -147,10 +148,10 @@ class MkpCollectionEvent(models.Model):
     def _compute_sale_totals(self):
         for rec in self:
             rec.before_sale_total = (
-                rec.before_gross + rec.before_coupon_amount + rec.before_killer_amount
+                rec.before_gross - rec.before_coupon_amount + rec.before_killer_amount
             )
             rec.after_sale_total = (
-                rec.after_gross + rec.after_coupon_amount + rec.after_killer_amount
+                rec.after_gross - rec.after_coupon_amount + rec.after_killer_amount
             )
 
     @api.depends('delta_refunded')

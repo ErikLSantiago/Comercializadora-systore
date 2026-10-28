@@ -1,4 +1,4 @@
-# Cobranza MKP — v18.0.1.0.2 (prototipo manual)
+# Cobranza MKP — v18.0.1.0.3 (prototipo manual)
 
 Módulo independiente para **Odoo 18 Enterprise / Odoo.sh**.
 No requiere Producteca, Odoo Studio ni módulos de comisiones como dependencias; se conecta con `sale.order`.
@@ -16,15 +16,14 @@ No requiere Producteca, Odoo Studio ni módulos de comisiones como dependencias;
 
 - Elegir cualquier orden existente, incluidas las históricas. **Marketplace** se obtiene de `x_studio_canal_de_venta_1` y **Número de orden MKP** de `x_studio_nmero_de_orden_mkp`.
 - El asistente trabaja con cuatro estados principales: **Borrador**, **Confirmado**, **Recalculado** y **Devolución**. Los subestados se incorporarán en una iteración posterior.
-- Borrador, Confirmado y Recalculado guardan una fotografía completa del desglose: venta, Cupon, Killer, retenciones, comisión, comisión killer, comisión cupón, envío y otras comisiones. **Total de venta** suma Venta + Cupon + Killer; **Monto a cobrar** descuenta las comisiones y cargos. Cada nueva fotografía registra solo la variación contra el saldo anterior.
+- Borrador, Confirmado y Recalculado guardan una fotografía completa del desglose: venta, Cupon, Killer, retenciones, comisión, comisión killer, comisión cupón, envío y otras comisiones. **Total de venta** calcula Venta − Cupon + Killer; **Monto a cobrar** usa ese nuevo total como base y descuenta las comisiones y cargos. Cada nueva fotografía registra solo la variación contra el saldo anterior.
+- La sección **Pagos** admite Monto, Fecha y Estado. Retenido y Liberado requieren importes positivos; Penalizado requiere un importe negativo y reduce el monto a cobrar; Cancelado conserva el registro sin efecto financiero.
 - Devolución registra el importe y el saldo de origen. No genera recepción, nota de crédito ni efecto contable.
 - **Revertir**: exclusivo Supervisor; crea evento inverso con motivo. Si eventos posteriores consumieron fondos, se debe revertirlos primero para conservar la consistencia del saldo.
 
 ## Importación
 
-El historial completo incluye la acción **Importar registros**. Recibe CSV UTF-8 separado por coma, punto y coma o tabulador y registra cada fila mediante la misma lógica auditada del wizard.
-
-Encabezados admitidos: `pedido_odoo`, `estado`, `fecha_evento`, `venta`, `cupon`, `killer`, `retenciones`, `comision`, `comision_killer`, `comision_cupon`, `envio`, `otras_comisiones`, `importe_devolucion`, `origen_devolucion`, `referencia`, `comentario`.
+El historial completo incluye la acción **Importar registros**. Abre un modelo de importación que usa el mapeo de columnas nativo de Odoo. Las columnas disponibles incluyen el desglose, la devolución y un pago por fila. Cada fila genera un movimiento mediante la misma lógica auditada del wizard.
 
 ## Orden e historial
 
@@ -50,7 +49,7 @@ Si el dinero está repartido entre `Retenido`, `Liberado`, `Pagado reportado` y 
 
 **Identidad invariante:**
 
-`Venta + Cupon + Killer - retenciones - comisión - comisión killer - comisión cupón - envío - otras comisiones - devoluciones = monto por cobrar + retenido + liberado + pagado reportado`.
+`Venta - Cupon + Killer - retenciones - comisión - comisión killer - comisión cupón - envío - otras comisiones - devoluciones = monto por cobrar + retenido + liberado + pagado reportado`.
 
 ## Delimitación de la versión
 

@@ -1,40 +1,77 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <odoo>
-    <record id="view_collection_import_wizard_form" model="ir.ui.view">
-        <field name="name">mkp.collection.import.wizard.form</field>
-        <field name="model">mkp.collection.import.wizard</field>
+    <record id="view_collection_import_row_list" model="ir.ui.view">
+        <field name="name">mkp.collection.import.row.list</field>
+        <field name="model">mkp.collection.import.row</field>
         <field name="arch" type="xml">
-            <form string="Importar registros de cobranza">
+            <list string="Importación de cobranza" create="1" edit="0" delete="0" import="1">
+                <field name="sale_order_id"/>
+                <field name="payment_state"/>
+                <field name="event_time"/>
+                <field name="gross" optional="show"/>
+                <field name="coupon_amount" optional="show"/>
+                <field name="killer_amount" optional="show"/>
+                <field name="withholding" optional="show"/>
+                <field name="commission" optional="show"/>
+                <field name="payment_amount" optional="show"/>
+                <field name="payment_date" optional="show"/>
+                <field name="payment_status" optional="show"/>
+                <field name="event_id"/>
+                <field name="company_id" groups="base.group_multi_company" optional="hide"/>
+                <field name="currency_id" column_invisible="True"/>
+            </list>
+        </field>
+    </record>
+
+    <record id="view_collection_import_row_form" model="ir.ui.view">
+        <field name="name">mkp.collection.import.row.form</field>
+        <field name="model">mkp.collection.import.row</field>
+        <field name="arch" type="xml">
+            <form string="Registro de importación" edit="0" delete="0">
                 <sheet>
+                    <field name="currency_id" invisible="1"/>
                     <group>
-                        <field name="file_data" filename="file_name"/>
-                        <field name="file_name" invisible="1"/>
+                        <group string="Movimiento">
+                            <field name="sale_order_id"/>
+                            <field name="payment_state"/>
+                            <field name="event_time"/>
+                            <field name="reference"/>
+                            <field name="notes"/>
+                            <field name="event_id"/>
+                        </group>
+                        <group string="Desglose">
+                            <field name="gross"/>
+                            <field name="coupon_amount"/>
+                            <field name="killer_amount"/>
+                            <field name="withholding"/>
+                            <field name="commission"/>
+                            <field name="killer_commission"/>
+                            <field name="coupon_commission"/>
+                            <field name="shipping"/>
+                            <field name="other"/>
+                        </group>
                     </group>
-                    <div class="alert alert-info" role="alert">
-                        <p>Use un CSV UTF-8 separado por coma, punto y coma o tabulador.</p>
-                        <p>Encabezados: pedido_odoo, estado, fecha_evento, venta, cupon, killer,
-                           retenciones, comision, comision_killer, comision_cupon, envio,
-                           otras_comisiones, importe_devolucion, origen_devolucion,
-                           referencia, comentario.</p>
-                        <p>Borrador, Confirmado y Recalculado requieren Venta y representan una
-                           fotografía completa. Para Devolución use importe_devolucion y
-                           origen_devolucion.</p>
-                    </div>
+                    <group string="Devolución">
+                        <field name="refund_amount"/>
+                        <field name="refund_bucket"/>
+                    </group>
+                    <group string="Pago">
+                        <field name="payment_amount"/>
+                        <field name="payment_date"/>
+                        <field name="payment_status"/>
+                    </group>
                 </sheet>
-                <footer>
-                    <button name="action_import" type="object" string="Importar registros"
-                            class="btn-primary"/>
-                    <button string="Cancelar" special="cancel" class="btn-secondary"/>
-                </footer>
             </form>
         </field>
     </record>
 
     <record id="action_collection_import" model="ir.actions.act_window">
         <field name="name">Importar registros de cobranza</field>
-        <field name="res_model">mkp.collection.import.wizard</field>
-        <field name="view_mode">form</field>
-        <field name="view_id" ref="view_collection_import_wizard_form"/>
-        <field name="target">new</field>
+        <field name="res_model">mkp.collection.import.row</field>
+        <field name="view_mode">list,form</field>
+        <field name="help" type="html">
+            <p class="o_view_nocontent_smiling_face">Use la acción Importar para mapear las columnas de su archivo como en Odoo.</p>
+            <p>Cada fila genera un movimiento auditado de cobranza.</p>
+        </field>
     </record>
 </odoo>
