@@ -17,6 +17,7 @@ class MkpCollectionImportRow(models.Model):
         ('refund', 'Devolución'),
     ], string='Estado', required=True, default='draft')
     event_time = fields.Datetime('Fecha del evento', required=True, default=fields.Datetime.now)
+    update_commissions = fields.Boolean('Actualizar comisiones')
     gross = fields.Monetary('Venta', currency_field='currency_id')
     coupon_amount = fields.Monetary('Cupon', currency_field='currency_id')
     killer_amount = fields.Monetary('Killer', currency_field='currency_id')
@@ -35,14 +36,16 @@ class MkpCollectionImportRow(models.Model):
     ], string='Origen devolución', default='pending')
     reference = fields.Char('Referencia')
     notes = fields.Text('Comentario')
-    payment_amount = fields.Monetary('Pago: monto', currency_field='currency_id')
-    payment_date = fields.Datetime('Pago: fecha')
+    payment_amount = fields.Monetary('Cobranza: importe', currency_field='currency_id')
+    payment_date = fields.Datetime('Cobranza: fecha')
     payment_status = fields.Selection([
         ('held', 'Retenido'),
-        ('released', 'Liberado'),
-        ('penalized', 'Penalizado'),
+        ('pending', 'Pendiente'),
+        ('paid', 'Pagado'),
         ('cancelled', 'Cancelado'),
-    ], string='Pago: estado')
+        ('refund', 'Reembolso'),
+    ], string='Cobranza: estado')
+    payment_reference = fields.Char('Cobranza: referencia')
     event_id = fields.Many2one('mkp.collection.event', string='Movimiento generado',
                                readonly=True, ondelete='restrict')
     company_id = fields.Many2one(related='sale_order_id.company_id', store=True, readonly=True)
@@ -67,6 +70,7 @@ class MkpCollectionImportRow(models.Model):
         self.sale_order_id.read(['name', 'amount_total', 'company_id'])
         collection = self.env['mkp.collection.order'].search([
             ('sale_order_id', '=', self.sale_order_id.id)], limit=1)
+        new_collection = not collection
         capture_model = self.env['mkp.collection.capture.wizard']
         if not collection:
             if self.payment_state == 'refund':
@@ -84,30 +88,57 @@ class MkpCollectionImportRow(models.Model):
                 ).strip(),
             })
 
+        if self.update_commissions or new_collection:
+            financial_values = {
+                'gross': self.gross,
+                'coupon_amount': self.coupon_amount,
+                'killer_amount': self.killer_amount,
+                'withholding': self.withholding,
+                'commission': self.commission,
+                'killer_commission': self.killer_commission,
+                'coupon_commission': self.coupon_commission,
+                'shipping': self.shipping,
+                'other': self.other,
+            }
+        else:
+            financial_values = {
+                field_name: collection[field_name]
+                for field_name in (
+                    'gross', 'coupon_amount', 'killer_amount', 'withholding',
+                    'commission', 'killer_commission', 'coupon_commission',
+                    'shipping', 'other',
+                )
+            }
+
         payments = []
         if self.payment_status or self.payment_date or self.payment_amount:
-            if not self.payment_status or not self.payment_date:
+            if not self.payment_status or not self.payment_date or not self.payment_reference:
                 raise ValidationError(_(
-                    'Para importar un pago indique Monto, Fecha y Estado.'
+                    'Para importar una cobranza indique Importe, Referencia, Fecha y Estado.'
                 ))
-            payments.append({
+            source = collection.payment_ids.filtered(
+                lambda payment: payment.is_active_revision
+                and (payment.payment_reference or '').strip().casefold()
+                == (self.payment_reference or '').strip().casefold()
+            )[:1]
+            payment_vals = {
                 'amount': self.payment_amount,
+                'payment_reference': self.payment_reference,
                 'payment_date': self.payment_date,
                 'payment_status': self.payment_status,
-            })
+                'source_payment_id': source.id if source else False,
+            }
+            if source:
+                payment_vals.update(
+                    old_amount=source.amount,
+                    old_payment_status=source.payment_status,
+                )
+            payments.append(payment_vals)
 
         event = collection._post_event(
             payment_state=self.payment_state,
             event_time=self.event_time,
-            gross=self.gross,
-            coupon_amount=self.coupon_amount,
-            killer_amount=self.killer_amount,
-            withholding=self.withholding,
-            commission=self.commission,
-            killer_commission=self.killer_commission,
-            coupon_commission=self.coupon_commission,
-            shipping=self.shipping,
-            other=self.other,
+            **financial_values,
             amount=self.refund_amount,
             bucket=self.refund_bucket,
             reference=self.reference or '',

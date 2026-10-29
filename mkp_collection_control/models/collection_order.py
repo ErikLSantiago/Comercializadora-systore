@@ -155,7 +155,11 @@ class MkpCollectionOrder(models.Model):
 
         try:
             after_financial = apply_event(before, deltas)
-            payment_delta = payment_deltas(after_financial, payments or [])
+            payment_delta = (
+                {key: money(0) for key in KEYS}
+                if reversal_of
+                else payment_deltas(after_financial, payments or [])
+            )
             deltas = {
                 key: money(deltas[key] + payment_delta[key])
                 for key in KEYS
@@ -226,16 +230,42 @@ class MkpCollectionOrder(models.Model):
             'before_net': float(net(before)),
             'after_net': float(net(after)),
         }
+        self.event_ids.filtered('is_active_revision').sudo().with_context(
+            mkp_internal_revision=True
+        ).write({'is_active_revision': False})
+        event_vals['is_active_revision'] = True
         event = self.env['mkp.collection.event'].sudo().create(event_vals)
         if payments:
-            self.env['mkp.collection.payment'].sudo().create([{
-                'name': '%s/P%02d' % (event.name, index),
-                'order_id': self.id,
-                'event_id': event.id,
-                'amount': float(money(payment['amount'])),
-                'payment_date': payment['payment_date'],
-                'payment_status': payment['payment_status'],
-            } for index, payment in enumerate(payments, start=1)])
+            for index, payment in enumerate(payments, start=1):
+                source = self.env['mkp.collection.payment'].browse(
+                    payment.get('source_payment_id') or []
+                )
+                if source:
+                    if source.order_id != self or not source.is_active_revision:
+                        raise ValidationError(_('La revisión de cobranza ya no está activa.'))
+                    revision_key = source.revision_key
+                    revision_no = source.revision_no + 1
+                    previous_id = source.id
+                    source.sudo().with_context(mkp_internal_revision=True).write({
+                        'is_active_revision': False,
+                    })
+                else:
+                    revision_key = '%s/C%02d' % (event.name, index)
+                    revision_no = 1
+                    previous_id = False
+                self.env['mkp.collection.payment'].sudo().create({
+                    'name': '%s/R%02d' % (revision_key, revision_no),
+                    'revision_key': revision_key,
+                    'revision_no': revision_no,
+                    'previous_id': previous_id,
+                    'is_active_revision': True,
+                    'order_id': self.id,
+                    'event_id': event.id,
+                    'amount': float(money(payment['amount'])),
+                    'payment_reference': payment['payment_reference'],
+                    'payment_date': payment['payment_date'],
+                    'payment_status': payment['payment_status'],
+                })
         return event
 
     def action_new_event(self):

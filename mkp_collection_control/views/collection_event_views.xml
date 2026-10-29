@@ -18,6 +18,7 @@
                 <field name="name" string="Movimiento"/>
                 <field name="description" string="Qué pasó"/>
                 <field name="payment_state" string="Estado"/>
+                <field name="history_status" string="Estatus del movimiento"/>
                 <field name="state_from" optional="show"/>
                 <field name="state_to" optional="show"/>
                 <field name="event_amount"/>
@@ -147,13 +148,15 @@
                                 <field name="attachment_name" invisible="1"/>
                             </group>
                         </page>
-                        <page string="Pagos">
+                        <page string="Cobranza">
                             <field name="payment_ids" readonly="1" nolabel="1">
                                 <list create="0" edit="0" delete="0">
                                     <field name="payment_date"/>
                                     <field name="name"/>
                                     <field name="amount"/>
+                                    <field name="payment_reference"/>
                                     <field name="payment_status"/>
+                                    <field name="history_status"/>
                                     <field name="currency_id" column_invisible="True"/>
                                 </list>
                             </field>
@@ -180,6 +183,8 @@
                 <filter name="filter_recalculated" string="Recalculado" domain="[('payment_state','=','recalculated')]"/>
                 <filter name="filter_refunds" string="Devolución" domain="[('payment_state','=','refund')]"/>
                 <filter name="filter_reversed" string="Reversiones" domain="[('is_reversal_entry','=',True)]"/>
+                <filter name="filter_active" string="Activo" domain="[('is_active_revision','=',True)]"/>
+                <filter name="filter_historical" string="Histórico" domain="[('is_active_revision','=',False)]"/>
                 <separator/>
                 <filter name="group_order" string="Pedido" context="{'group_by':'sale_order_id'}"/>
                 <filter name="group_marketplace" string="Marketplace" context="{'group_by':'marketplace'}"/>

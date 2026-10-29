@@ -47,8 +47,7 @@ class MkpCollectionCaptureWizard(models.TransientModel):
 
     @api.depends('gross', 'coupon_amount', 'killer_amount', 'withholding',
                  'commission', 'killer_commission', 'coupon_commission',
-                 'shipping', 'other', 'refunded',
-                 'payment_line_ids.amount', 'payment_line_ids.payment_status')
+                 'shipping', 'other', 'refunded')
     def _compute_totals(self):
         for wizard in self:
             wizard.sale_total = wizard.gross - wizard.coupon_amount + wizard.killer_amount
@@ -56,8 +55,6 @@ class MkpCollectionCaptureWizard(models.TransientModel):
                 wizard.sale_total - wizard.withholding - wizard.commission
                 - wizard.killer_commission - wizard.coupon_commission
                 - wizard.shipping - wizard.other - wizard.refunded
-                + sum(line.amount for line in wizard.payment_line_ids
-                      if line.payment_status == 'penalized')
             )
 
     @api.model
@@ -79,6 +76,7 @@ class MkpCollectionCaptureWizard(models.TransientModel):
                                    'shipping', 'other'):
                     vals[field_name] = existing[field_name]
                 vals['refunded'] = existing.refunded
+                vals['payment_line_ids'] = self._payment_commands(existing)
         if sale_id:
             sale = self.env['sale.order'].browse(sale_id)
             if sale.exists():
@@ -107,6 +105,18 @@ class MkpCollectionCaptureWizard(models.TransientModel):
     def _get_sale_marketplace_ref(self, sale):
         return self._field_as_text(sale, 'x_studio_nmero_de_orden_mkp')
 
+    @api.model
+    def _payment_commands(self, collection):
+        return [(0, 0, {
+            'source_payment_id': payment.id,
+            'amount': payment.amount,
+            'payment_reference': payment.payment_reference,
+            'payment_date': payment.payment_date,
+            'payment_status': payment.payment_status,
+        }) for payment in collection.payment_ids.filtered('is_active_revision').sorted(
+            key=lambda payment: (payment.payment_date, payment.id)
+        )]
+
     @api.onchange('sale_order_id')
     def _onchange_sale_order_id(self):
         if self.sale_order_id:
@@ -127,6 +137,7 @@ class MkpCollectionCaptureWizard(models.TransientModel):
                 self.shipping = existing.shipping
                 self.other = existing.other
                 self.refunded = existing.refunded
+                self.payment_line_ids = [(5, 0, 0)] + self._payment_commands(existing)
             else:
                 self.payment_state = 'draft'
                 self.gross = self.sale_order_id.amount_total
@@ -139,6 +150,66 @@ class MkpCollectionCaptureWizard(models.TransientModel):
                 self.shipping = 0
                 self.other = 0
                 self.refunded = 0
+                self.payment_line_ids = [(5, 0, 0)]
+
+    def _prepare_payment_changes(self, collection):
+        active_payments = collection.payment_ids.filtered('is_active_revision')
+        active_by_id = {payment.id: payment for payment in active_payments}
+        submitted_source_ids = set()
+        submitted_references = set()
+        changes = []
+        for line in self.payment_line_ids:
+            normalized_reference = (line.payment_reference or '').strip().casefold()
+            if not normalized_reference:
+                raise ValidationError(_('La referencia de pago es obligatoria.'))
+            if normalized_reference in submitted_references:
+                raise ValidationError(_(
+                    'La referencia de pago %s está repetida.'
+                ) % line.payment_reference)
+            submitted_references.add(normalized_reference)
+            source = line.source_payment_id
+            if source:
+                if source.id not in active_by_id:
+                    raise ValidationError(_('La cobranza seleccionada ya no es la revisión activa.'))
+                submitted_source_ids.add(source.id)
+                changed = any((
+                    source.amount != line.amount,
+                    source.payment_reference != line.payment_reference,
+                    source.payment_date != line.payment_date,
+                    source.payment_status != line.payment_status,
+                ))
+                if not changed:
+                    continue
+                changes.append({
+                    'source_payment_id': source.id,
+                    'old_amount': source.amount,
+                    'old_payment_status': source.payment_status,
+                    'amount': line.amount,
+                    'payment_reference': line.payment_reference,
+                    'payment_date': line.payment_date,
+                    'payment_status': line.payment_status,
+                })
+            else:
+                changes.append({
+                    'source_payment_id': False,
+                    'amount': line.amount,
+                    'payment_reference': line.payment_reference,
+                    'payment_date': line.payment_date,
+                    'payment_status': line.payment_status,
+                })
+        for payment in active_payments.filtered(
+                lambda item: item.id not in submitted_source_ids
+                and item.payment_status != 'cancelled'):
+            changes.append({
+                'source_payment_id': payment.id,
+                'old_amount': payment.amount,
+                'old_payment_status': payment.payment_status,
+                'amount': payment.amount,
+                'payment_reference': payment.payment_reference,
+                'payment_date': payment.payment_date,
+                'payment_status': 'cancelled',
+            })
+        return changes
 
     def action_confirm(self):
         self.ensure_one()
@@ -168,6 +239,7 @@ class MkpCollectionCaptureWizard(models.TransientModel):
             raise ValidationError(_('La orden de venta no coincide con el expediente.'))
         if self.payment_state != 'refund' and self.gross < 0:
             raise ValidationError(_('El importe de venta no puede ser negativo.'))
+        payment_changes = self._prepare_payment_changes(existing)
         existing._post_event(
             payment_state=self.payment_state, event_time=self.event_time,
             amount=self.amount,
@@ -182,11 +254,7 @@ class MkpCollectionCaptureWizard(models.TransientModel):
             reference=self.reference or '', notes=self.notes or '',
             attachment_data=self.attachment_data,
             attachment_name=self.attachment_name,
-            payments=[{
-                'amount': line.amount,
-                'payment_date': line.payment_date,
-                'payment_status': line.payment_status,
-            } for line in self.payment_line_ids],
+            payments=payment_changes,
         )
         return {
             'type': 'ir.actions.act_window',
@@ -203,12 +271,16 @@ class MkpCollectionCapturePaymentLine(models.TransientModel):
 
     wizard_id = fields.Many2one('mkp.collection.capture.wizard', required=True,
                                 ondelete='cascade')
-    amount = fields.Monetary('Monto', required=True, currency_field='currency_id')
+    source_payment_id = fields.Many2one('mkp.collection.payment', string='Registro vigente',
+                                        readonly=True)
+    amount = fields.Monetary('Importe', required=True, currency_field='currency_id')
+    payment_reference = fields.Char('Referencia de pago', required=True)
     payment_date = fields.Datetime('Fecha', required=True, default=fields.Datetime.now)
     payment_status = fields.Selection([
         ('held', 'Retenido'),
-        ('released', 'Liberado'),
-        ('penalized', 'Penalizado'),
+        ('pending', 'Pendiente'),
+        ('paid', 'Pagado'),
         ('cancelled', 'Cancelado'),
-    ], string='Estado', required=True, default='held')
+        ('refund', 'Reembolso'),
+    ], string='Estado', required=True, default='pending')
     currency_id = fields.Many2one(related='wizard_id.currency_id', readonly=True)

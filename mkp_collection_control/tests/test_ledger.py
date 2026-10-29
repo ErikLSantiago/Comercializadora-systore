@@ -119,20 +119,32 @@ class TestMkpCollectionLedger(unittest.TestCase):
         self.assertEqual(recalculated['pending'], money(765))
         self.assertEqual(net(recalculated), money(765))
 
-    def test_payment_lines_and_negative_penalty(self):
+    def test_collection_revisions_and_refund(self):
         current = apply_event(state(), snapshot_deltas(state(), gross=1000))
         deltas = payment_deltas(current, [
             {'amount': 100, 'payment_status': 'held'},
-            {'amount': 200, 'payment_status': 'released'},
-            {'amount': -30, 'payment_status': 'penalized'},
+            {'amount': 200, 'payment_status': 'paid'},
+            {'amount': 30, 'payment_status': 'refund'},
             {'amount': 50, 'payment_status': 'cancelled'},
         ])
         current = apply_event(current, deltas)
         self.assertEqual(current['pending'], money(670))
         self.assertEqual(current['held'], money(100))
-        self.assertEqual(current['released'], money(200))
-        self.assertEqual(current['other'], money(30))
+        self.assertEqual(current['paid'], money(200))
+        self.assertEqual(current['refunded'], money(30))
         self.assertEqual(net(current), money(970))
 
+        revision = payment_deltas(current, [{
+            'source_payment_id': 1,
+            'old_amount': 100,
+            'old_payment_status': 'held',
+            'amount': 120,
+            'payment_status': 'paid',
+        }])
+        current = apply_event(current, revision)
+        self.assertEqual(current['pending'], money(650))
+        self.assertEqual(current['held'], money(0))
+        self.assertEqual(current['paid'], money(320))
+
         with self.assertRaises(ValueError):
-            payment_deltas(current, [{'amount': 10, 'payment_status': 'penalized'}])
+            payment_deltas(current, [{'amount': 0, 'payment_status': 'pending'}])

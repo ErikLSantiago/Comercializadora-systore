@@ -1,0 +1,83 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<odoo>
+    <record id="view_collection_payment_list" model="ir.ui.view">
+        <field name="name">mkp.collection.payment.list</field>
+        <field name="model">mkp.collection.payment</field>
+        <field name="arch" type="xml">
+            <list string="Historial de registros de cobranza" create="0" edit="0" delete="0"
+                  default_order="payment_date desc,id desc">
+                <field name="payment_date"/>
+                <field name="sale_order_id" string="Pedido Odoo"/>
+                <field name="marketplace"/>
+                <field name="marketplace_reference" optional="show"/>
+                <field name="payment_reference"/>
+                <field name="amount"/>
+                <field name="payment_status"/>
+                <field name="revision_no" optional="show"/>
+                <field name="history_status"/>
+                <field name="event_id" string="Movimiento" optional="show"/>
+                <field name="captured_by_id" optional="show"/>
+                <field name="captured_at" optional="hide"/>
+                <field name="company_id" groups="base.group_multi_company" optional="hide"/>
+                <field name="currency_id" column_invisible="True"/>
+            </list>
+        </field>
+    </record>
+
+    <record id="view_collection_payment_form" model="ir.ui.view">
+        <field name="name">mkp.collection.payment.form</field>
+        <field name="model">mkp.collection.payment</field>
+        <field name="arch" type="xml">
+            <form string="Revisión de cobranza" create="0" edit="0" delete="0">
+                <sheet>
+                    <field name="currency_id" invisible="1"/>
+                    <group>
+                        <group string="Cobranza">
+                            <field name="name"/>
+                            <field name="payment_reference"/>
+                            <field name="amount"/>
+                            <field name="payment_date"/>
+                            <field name="payment_status"/>
+                            <field name="history_status"/>
+                        </group>
+                        <group string="Trazabilidad">
+                            <field name="order_id"/>
+                            <field name="event_id"/>
+                            <field name="revision_key"/>
+                            <field name="revision_no"/>
+                            <field name="previous_id"/>
+                            <field name="captured_by_id"/>
+                            <field name="captured_at"/>
+                        </group>
+                    </group>
+                </sheet>
+            </form>
+        </field>
+    </record>
+
+    <record id="view_collection_payment_search" model="ir.ui.view">
+        <field name="name">mkp.collection.payment.search</field>
+        <field name="model">mkp.collection.payment</field>
+        <field name="arch" type="xml">
+            <search string="Buscar historial de cobranza">
+                <field name="payment_reference"/>
+                <field name="sale_order_id"/>
+                <field name="marketplace_reference"/>
+                <field name="payment_status"/>
+                <filter name="active" string="Activo" domain="[('is_active_revision','=',True)]"/>
+                <filter name="historical" string="Histórico" domain="[('is_active_revision','=',False)]"/>
+                <separator/>
+                <filter name="by_status" string="Estado" context="{'group_by':'payment_status'}"/>
+                <filter name="by_order" string="Expediente" context="{'group_by':'order_id'}"/>
+                <filter name="by_month" string="Mes" context="{'group_by':'payment_date:month'}"/>
+            </search>
+        </field>
+    </record>
+
+    <record id="action_collection_payments" model="ir.actions.act_window">
+        <field name="name">Historial de registros de cobranza</field>
+        <field name="res_model">mkp.collection.payment</field>
+        <field name="view_mode">list,form</field>
+        <field name="search_view_id" ref="view_collection_payment_search"/>
+    </record>
+</odoo>

@@ -8,12 +8,14 @@
                 <field name="sale_order_id"/>
                 <field name="payment_state"/>
                 <field name="event_time"/>
+                <field name="update_commissions" optional="show"/>
                 <field name="gross" optional="show"/>
                 <field name="coupon_amount" optional="show"/>
                 <field name="killer_amount" optional="show"/>
                 <field name="withholding" optional="show"/>
                 <field name="commission" optional="show"/>
                 <field name="payment_amount" optional="show"/>
+                <field name="payment_reference" optional="show"/>
                 <field name="payment_date" optional="show"/>
                 <field name="payment_status" optional="show"/>
                 <field name="event_id"/>
@@ -35,6 +37,7 @@
                             <field name="sale_order_id"/>
                             <field name="payment_state"/>
                             <field name="event_time"/>
+                            <field name="update_commissions"/>
                             <field name="reference"/>
                             <field name="notes"/>
                             <field name="event_id"/>
@@ -57,6 +60,7 @@
                     </group>
                     <group string="Pago">
                         <field name="payment_amount"/>
+                        <field name="payment_reference"/>
                         <field name="payment_date"/>
                         <field name="payment_status"/>
                     </group>

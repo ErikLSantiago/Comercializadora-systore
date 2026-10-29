@@ -9,6 +9,12 @@ class MkpCollectionEvent(models.Model):
     _rec_name = 'name'
 
     name = fields.Char('Movimiento', required=True, readonly=True, index=True)
+    is_active_revision = fields.Boolean('Activo', required=True, readonly=True,
+                                        default=True, index=True)
+    history_status = fields.Selection([
+        ('active', 'Activo'),
+        ('historical', 'Histórico'),
+    ], string='Estatus del movimiento', compute='_compute_history_status', store=True)
     order_id = fields.Many2one('mkp.collection.order', string='Expediente de cobranza',
                                 required=True, readonly=True, index=True, ondelete='restrict')
     sale_order_id = fields.Many2one(related='order_id.sale_order_id', store=True, readonly=True)
@@ -138,6 +144,11 @@ class MkpCollectionEvent(models.Model):
          'Este movimiento ya tiene una reversión registrada.'),
     ]
 
+    @api.depends('is_active_revision')
+    def _compute_history_status(self):
+        for rec in self:
+            rec.history_status = 'active' if rec.is_active_revision else 'historical'
+
     @api.depends('after_refunded')
     def _compute_refund_total_negative(self):
         for rec in self:
@@ -174,6 +185,9 @@ class MkpCollectionEvent(models.Model):
         return super().create(vals_list)
 
     def write(self, vals):
+        if self.env.su and self.env.context.get('mkp_internal_revision'):
+            if set(vals) <= {'is_active_revision'}:
+                return super().write(vals)
         raise UserError(_('El historial de movimientos es inalterable. Use Revertir.'))
 
     def unlink(self):

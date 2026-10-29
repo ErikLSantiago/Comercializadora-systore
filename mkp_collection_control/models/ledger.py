@@ -70,34 +70,44 @@ def snapshot_deltas(before, *, gross=0, coupon_amount=0, killer_amount=0,
     return deltas
 
 
+def _collection_contribution(amount, collection_status):
+    """Return the ledger contribution for one active collection revision."""
+    value = money(amount)
+    if value <= 0:
+        raise ValueError('El importe de cobranza debe ser mayor a cero.')
+    delta = state()
+    if collection_status in ('pending', 'cancelled'):
+        return delta
+    if collection_status == 'held':
+        delta['pending'], delta['held'] = -value, value
+    elif collection_status == 'paid':
+        delta['pending'], delta['paid'] = -value, value
+    elif collection_status == 'refund':
+        delta['pending'], delta['refunded'] = -value, value
+    else:
+        raise ValueError('Estado de cobranza desconocido.')
+    return delta
+
+
 def payment_deltas(before, payments):
-    """Aggregate payment-line effects while validating them sequentially."""
-    current = state(before)
+    """Aggregate differences between previous and new collection revisions."""
     total = state()
     for payment in payments or []:
-        payment_state = payment.get('payment_status')
-        amount = money(payment.get('amount'))
-        delta = state()
-        if payment_state in ('held', 'released'):
-            if amount <= 0:
-                raise ValueError('Los pagos retenidos o liberados deben ser mayores a cero.')
-            if current['pending'] < amount:
-                raise ValueError('El monto por cobrar es insuficiente para registrar el pago.')
-            delta['pending'] = -amount
-            delta[payment_state] = amount
-        elif payment_state == 'penalized':
-            if amount >= 0:
-                raise ValueError('Una penalización debe capturarse con monto negativo.')
-            charge = -amount
-            delta['other'] = charge
-            delta['pending'] = amount
-        elif payment_state == 'cancelled':
-            if amount == 0:
-                raise ValueError('El pago cancelado debe conservar el monto reportado.')
+        new_delta = _collection_contribution(
+            payment.get('amount'), payment.get('payment_status')
+        )
+        if payment.get('source_payment_id'):
+            old_delta = _collection_contribution(
+                payment.get('old_amount'), payment.get('old_payment_status')
+            )
         else:
-            raise ValueError('Estado de pago desconocido.')
-        current = apply_event(current, delta)
-        total = {key: money(total[key] + delta[key]) for key in KEYS}
+            old_delta = state()
+        total = {
+            key: money(total[key] + new_delta[key] - old_delta[key])
+            for key in KEYS
+        }
+    # Validate the resulting aggregate against the current ledger.
+    apply_event(before, total)
     return total
 
 

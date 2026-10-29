@@ -30,10 +30,12 @@
                             <field name="other"/>
                         </group>
                     </group>
-                    <group string="Pagos" invisible="payment_state == 'refund'">
+                    <group string="Cobranza" invisible="payment_state == 'refund'">
                         <field name="payment_line_ids" nolabel="1">
                             <list editable="bottom">
+                                <field name="source_payment_id" column_invisible="True"/>
                                 <field name="amount"/>
+                                <field name="payment_reference"/>
                                 <field name="payment_date"/>
                                 <field name="payment_status"/>
                                 <field name="currency_id" column_invisible="True"/>

@@ -1,4 +1,4 @@
-# Cobranza MKP — v18.0.1.0.3 (prototipo manual)
+# Cobranza MKP — v18.0.1.0.4 (prototipo manual)
 
 Módulo independiente para **Odoo 18 Enterprise / Odoo.sh**.
 No requiere Producteca, Odoo Studio ni módulos de comisiones como dependencias; se conecta con `sale.order`.
@@ -17,13 +17,14 @@ No requiere Producteca, Odoo Studio ni módulos de comisiones como dependencias;
 - Elegir cualquier orden existente, incluidas las históricas. **Marketplace** se obtiene de `x_studio_canal_de_venta_1` y **Número de orden MKP** de `x_studio_nmero_de_orden_mkp`.
 - El asistente trabaja con cuatro estados principales: **Borrador**, **Confirmado**, **Recalculado** y **Devolución**. Los subestados se incorporarán en una iteración posterior.
 - Borrador, Confirmado y Recalculado guardan una fotografía completa del desglose: venta, Cupon, Killer, retenciones, comisión, comisión killer, comisión cupón, envío y otras comisiones. **Total de venta** calcula Venta − Cupon + Killer; **Monto a cobrar** usa ese nuevo total como base y descuenta las comisiones y cargos. Cada nueva fotografía registra solo la variación contra el saldo anterior.
-- La sección **Pagos** admite Monto, Fecha y Estado. Retenido y Liberado requieren importes positivos; Penalizado requiere un importe negativo y reduce el monto a cobrar; Cancelado conserva el registro sin efecto financiero.
+- La sección **Cobranza** admite Importe, Referencia de pago, Fecha y Estado: Retenido, Pendiente, Pagado, Cancelado o Reembolso.
+- Al volver a abrir el wizard se cargan los registros vigentes. Cambiar importe, referencia, fecha o estado crea una nueva revisión; la anterior permanece como Histórica. Eliminar una línea vigente desde el wizard genera una revisión Cancelada.
 - Devolución registra el importe y el saldo de origen. No genera recepción, nota de crédito ni efecto contable.
 - **Revertir**: exclusivo Supervisor; crea evento inverso con motivo. Si eventos posteriores consumieron fondos, se debe revertirlos primero para conservar la consistencia del saldo.
 
 ## Importación
 
-El historial completo incluye la acción **Importar registros**. Abre un modelo de importación que usa el mapeo de columnas nativo de Odoo. Las columnas disponibles incluyen el desglose, la devolución y un pago por fila. Cada fila genera un movimiento mediante la misma lógica auditada del wizard.
+El historial completo incluye la acción **Importar registros**. Abre un modelo de importación que usa el mapeo de columnas nativo de Odoo. Las columnas disponibles incluyen el desglose, la devolución y una cobranza por fila. Si la referencia coincide con un registro activo de la orden, la fila crea una revisión en lugar de duplicarlo.
 
 ## Orden e historial
 
@@ -31,6 +32,8 @@ El historial completo incluye la acción **Importar registros**. Abre un modelo 
 - Cuatro indicadores solicitados: `Retenido`, `Monto por cobrar`, `Liberado`, `Devoluciones` (esta última con signo negativo para mostrar la pérdida de cobranza).
 - Indicador auxiliar: **Pagado informado**. Es una declaración manual de la liquidación del marketplace, *no conciliación bancaria*.
 - Cada movimiento usa secuencia `COB/año/000001`, `Fecha del evento` (de la plataforma), `Fecha de captura` (automática), `Registrado por`, Estado, referencia, comentario y evidencia opcional.
+- En el reporte general, únicamente el movimiento más reciente de cada expediente aparece con estatus **Activo**; los anteriores se conservan como **Histórico**.
+- El reporte **Historial de registros de cobranza** muestra todas las revisiones, su referencia, fecha, importe, estado y estatus Activo/Histórico.
 - Cada evento almacena **deltas** y fotografías de los saldos antes y después. El historial no permite editar/borrar eventos con ORM ordinario. Los saldos actuales solo se modifican desde el método interno de publicación del evento.
 - Un movimiento con `Fecha del evento` anterior a su carga queda con **fotografía a la fecha en que se registró**, no una reescritura retrospectiva de cada saldo anterior. Por eso se conservan ambas fechas.
 
