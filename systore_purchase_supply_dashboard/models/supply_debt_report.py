@@ -19,6 +19,7 @@ class SystoreSupplyDebtReport(models.TransientModel):
         [
             ("order", "Fecha de orden"),
             ("receipt", "Fecha de llegada"),
+            ("expected", "Entrega esperada"),
             ("payment", "Fecha de pago/anticipo"),
         ],
         string="Origen de fecha",

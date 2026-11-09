@@ -29,8 +29,10 @@ class SystoreSupplyDashboard(models.AbstractModel):
         """Date and source on which a purchase starts contributing to debt.
 
         Once Odoo has an effective receipt date, that operational arrival date
-        replaces the order/approval date.  Keeping this rule in one helper
-        makes the dashboard and its detailed report use the same cutoff.
+        replaces every planned date.  Before receipt, international purchases
+        use their expected delivery date; national purchases and orders without
+        a planned date keep the order/approval date.  Keeping this rule in one
+        helper makes the dashboard and its detailed report use the same cutoff.
         """
         effective_date = (
             order.effective_date
@@ -65,6 +67,20 @@ class SystoreSupplyDashboard(models.AbstractModel):
                 receipt_dates.append(fields.Date.to_date(receipt_date))
         if receipt_dates:
             return min(receipt_dates), "receipt"
+
+        if order._systore_resolved_purchase_origin() == "international":
+            expected_date = (
+                order.date_planned
+                if "date_planned" in order._fields
+                else False
+            )
+            if not expected_date:
+                planned_dates = order.order_line.filtered(
+                    lambda line: not line.display_type and line.date_planned
+                ).mapped("date_planned")
+                expected_date = min(planned_dates) if planned_dates else False
+            if expected_date:
+                return fields.Date.to_date(expected_date), "expected"
 
         reference = order.date_approve or order.date_order
         return (
@@ -222,11 +238,12 @@ class SystoreSupplyDashboard(models.AbstractModel):
         self, company, cutoff_date, warehouse_id=None, channel=None,
         supplier_id=None, supplier_type=None,
     ):
-        """Payments made before purchase debt recognition by receipt.
+        """Payments made before purchase debt recognition.
 
         The payment date controls the historical recognition of an advance.
         The purchase order may have been created or approved after the cutoff;
-        until its receipt date, only the amount already paid is recognized.
+        until its receipt or expected debt date, only the net amount already
+        paid is recognized.  Negative payments reverse advances or add charges.
         """
         scoped_orders = self._historical_purchase_orders(
             company,
@@ -238,7 +255,7 @@ class SystoreSupplyDashboard(models.AbstractModel):
         for order in scoped_orders:
             debt_date, debt_date_source = self._debt_order_date_info(order)
             if (
-                debt_date_source != "receipt"
+                debt_date_source not in ("receipt", "expected")
                 or not debt_date
                 or debt_date <= cutoff_date
                 or (supplier_id and order.partner_id.id != supplier_id)
@@ -257,7 +274,7 @@ class SystoreSupplyDashboard(models.AbstractModel):
             else:
                 amount_usd = 0.0
                 amount_mxn = sum(payments.mapped("amount_mxn"))
-            if amount_usd <= 0 and amount_mxn <= 0:
+            if amount_usd == 0 and amount_mxn == 0:
                 continue
             advances.append({
                 "order": order,
@@ -547,7 +564,7 @@ class SystoreSupplyDashboard(models.AbstractModel):
                 not selected_supplier_id
                 or order.partner_id.id == selected_supplier_id
             )
-            and self._debt_order_date_info(order)[1] == "receipt"
+            and self._debt_order_date_info(order)[1] in ("receipt", "expected")
             and self._debt_order_date(order) > cutoff_date
         ))
         for order in advance_orders:

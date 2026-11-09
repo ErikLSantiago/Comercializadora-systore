@@ -1,5 +1,13 @@
 # Historial de cambios
 
+## 18.0.1.9.18
+
+- Los pagos manuales aceptan importes negativos en MXN y USD para registrar devoluciones, reversiones o cargos adicionales conservando el histórico.
+- Los importes negativos disminuyen el pagado acumulado y aumentan el saldo pendiente; los movimientos con importe cero continúan bloqueados.
+- La deuda de proveedores extranjeros sin recepción utiliza Entrega esperada (`date_planned`) para determinar el mes de reconocimiento.
+- Cuando ya existe una recepción, su fecha efectiva mantiene prioridad sobre Entrega esperada.
+- Los pagos anteriores a la Entrega esperada se conservan como anticipos, incluidos sus movimientos negativos.
+
 ## 18.0.1.9.17
 
 - El reporte completo de deuda conserva una columna independiente Referencia de proveedor tomada de `purchase.order.partner_ref`.

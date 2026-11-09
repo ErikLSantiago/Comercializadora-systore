@@ -52,7 +52,14 @@ class SystorePurchasePayment(models.Model):
         required=True,
         default="mxn",
     )
-    amount_usd = fields.Float(string="Monto pagado (USD)", digits=(16, 2))
+    amount_usd = fields.Float(
+        string="Monto pagado (USD)",
+        digits=(16, 2),
+        help=(
+            "Acepta importes negativos para registrar devoluciones de pago, "
+            "reversiones o cargos adicionales sin perder el histórico."
+        ),
+    )
     exchange_rate = fields.Float(
         string="Tipo de cambio USD/MXN",
         digits=(16, 4),
@@ -61,6 +68,10 @@ class SystorePurchasePayment(models.Model):
         string="Monto pagado (MXN)",
         currency_field="currency_id",
         required=True,
+        help=(
+            "Acepta importes negativos para registrar devoluciones de pago, "
+            "reversiones o cargos adicionales sin perder el histórico."
+        ),
     )
     reference = fields.Char(string="Referencia")
     notes = fields.Text(string="Notas")
@@ -125,12 +136,12 @@ class SystorePurchasePayment(models.Model):
     def _check_amount_mxn(self):
         for payment in self:
             if payment.payment_currency == "usd":
-                if payment.amount_usd <= 0:
-                    raise ValidationError("El monto pagado en USD debe ser mayor a cero.")
+                if payment.amount_usd == 0:
+                    raise ValidationError("El monto pagado en USD no puede ser cero.")
                 if payment.exchange_rate <= 0:
                     raise ValidationError("El tipo de cambio debe ser mayor a cero.")
-            if payment.amount_mxn <= 0:
-                raise ValidationError("El monto pagado debe ser mayor a cero.")
+            if payment.amount_mxn == 0:
+                raise ValidationError("El monto pagado en MXN no puede ser cero.")
 
 class PurchaseOrder(models.Model):
     _inherit = "purchase.order"
