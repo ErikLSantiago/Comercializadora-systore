@@ -18,6 +18,7 @@ Versión preparada para producción en Odoo 18.
 - Trazabilidad Compra → lote → salida → Venta.
 - Traslados parciales proporcionados por `stock_upc_validation`.
 - Pagos operativos manuales por concepto, fecha, moneda y tipo de cambio, sin efectos contables.
+- Los pagos manuales permiten valores negativos para devoluciones, reversiones y cargos adicionales; únicamente se prohíbe el importe cero.
 - Gráfica de Demanda de piezas con cantidades cubiertas y por comprar.
 - Gráfica de pastel con piezas solicitadas en espera por canal; el número de órdenes se conserva como dato secundario.
 - Gráfica de pastel con piezas de compra recibidas y pendientes.
@@ -38,6 +39,7 @@ Versión preparada para producción en Odoo 18.
 - El reporte completo conserva las OC pagadas con actividad dentro del mes y presenta cada pago en una línea independiente.
 - En el reporte de deuda, Número de orden de compra muestra exclusivamente `purchase.order.name`, sin concatenar la referencia del proveedor.
 - La Referencia de proveedor se conserva en una columna independiente tomada de `purchase.order.partner_ref`.
+- Para deuda extranjera sin recepción, Entrega esperada (`date_planned`) determina el mes; la fecha efectiva de llegada prevalece cuando la mercancía ya fue recibida.
 - Control de líneas de crédito de proveedor con límite, moneda, crédito ocupado y disponible.
 - Condición Contado/Crédito independiente por orden, aunque el proveedor tenga una línea autorizada.
 - Inicio y vencimiento de crédito capturados directamente por orden; los días naturales se calculan entre ambas fechas.

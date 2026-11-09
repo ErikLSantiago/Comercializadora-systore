@@ -252,7 +252,7 @@
         <field name="name">systore.purchase.payment.list</field>
         <field name="model">systore.purchase.payment</field>
         <field name="arch" type="xml">
-            <list delete="1">
+            <list delete="1" decoration-warning="amount_mxn &lt; 0">
                 <field name="payment_date"/>
                 <field name="purchase_order_id"/>
                 <field name="partner_id"/>
