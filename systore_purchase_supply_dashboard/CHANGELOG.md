@@ -1,5 +1,10 @@
 # Historial de cambios
 
+## 18.0.1.9.19
+
+- El reporte completo de deuda agrega la columna Fecha de pago.
+- Las líneas de Pago y Anticipo muestran directamente `systore.purchase.payment.payment_date`; las líneas de Orden de compra mantienen la columna vacía.
+
 ## 18.0.1.9.18
 
 - Los pagos manuales aceptan importes negativos en MXN y USD para registrar devoluciones, reversiones o cargos adicionales conservando el histórico.

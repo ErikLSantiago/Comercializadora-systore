@@ -37,6 +37,7 @@ Versión preparada para producción en Odoo 18.
 - Recepciones brutas, devoluciones a proveedor y recepciones netas por línea de compra.
 - Deuda histórica de mercancía separada entre proveedores nacionales y extranjeros, con selector MXN/USD, anticipos reconocidos por la fecha de pago aunque la OC pertenezca a un mes posterior, expansión de proveedores y reporte completo por OC y producto con deuda original, pagos, saldo y cantidades al corte.
 - El reporte completo conserva las OC pagadas con actividad dentro del mes y presenta cada pago en una línea independiente.
+- El reporte completo muestra la Fecha de pago en cada línea de Pago o Anticipo.
 - En el reporte de deuda, Número de orden de compra muestra exclusivamente `purchase.order.name`, sin concatenar la referencia del proveedor.
 - La Referencia de proveedor se conserva en una columna independiente tomada de `purchase.order.partner_ref`.
 - Para deuda extranjera sin recepción, Entrega esperada (`date_planned`) determina el mes; la fecha efectiva de llegada prevalece cuando la mercancía ya fue recibida.
