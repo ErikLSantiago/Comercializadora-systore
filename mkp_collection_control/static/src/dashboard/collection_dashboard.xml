@@ -1,7 +1,7 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <templates xml:space="preserve">
     <t t-name="mkp_collection_control.CollectionDashboard">
-        <div class="o_mkp_collection_dashboard">
+        <div class="o_mkp_collection_dashboard h-100">
             <div class="o_mkp_dashboard_header">
                 <div>
                     <h1>Dashboard de cobranza</h1>
