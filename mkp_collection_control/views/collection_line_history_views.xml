@@ -1,0 +1,244 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<odoo>
+    <record id="view_collection_line_history_list" model="ir.ui.view">
+        <field name="name">mkp.collection.line.history.list</field>
+        <field name="model">mkp.collection.line.history</field>
+        <field name="arch" type="xml">
+            <list string="Historial de movimientos de cobranza" create="0" edit="0" delete="0"
+                  default_order="sale_order_id desc,sequence,sale_line_id,revision_no desc,id desc"
+                  decoration-muted="not is_active_revision">
+                <header>
+                    <button name="%(action_collection_line_import)d" type="action"
+                            string="Importar comisiones" class="btn-primary"
+                            display="always"
+                            groups="mkp_collection_control.group_mkp_collection_operator"/>
+                </header>
+                <field name="sale_order_id" optional="show"/>
+                <field name="sku"/>
+                <field name="product_name" string="Producto"/>
+                <field name="quantity"/>
+                <field name="uom_name" string="Unidad" optional="hide"/>
+                <field name="price_unit"/>
+                <field name="amount"/>
+                <field name="coupon_amount"/>
+                <field name="killer_amount"/>
+                <field name="killer_commission"/>
+                <field name="commission"/>
+                <field name="taxes"/>
+                <field name="shipping"/>
+                <field name="other_commission"/>
+                <field name="calculation_type"/>
+                <field name="subtotal"/>
+                <field name="amount_to_collect"/>
+                <field name="payment_status"/>
+                <field name="payment_reference" optional="show"/>
+                <field name="return_status"/>
+                <field name="return_quantity" optional="show"/>
+                <field name="return_request_date" optional="show"/>
+                <field name="return_reference" optional="hide"/>
+                <field name="history_status"/>
+                <field name="revision_no" optional="show"/>
+                <field name="changed_by_id" optional="show"/>
+                <field name="changed_at" optional="show"/>
+                <field name="change_origin" optional="hide"/>
+                <field name="marketplace" optional="hide"/>
+                <field name="marketplace_reference" optional="hide"/>
+                <field name="is_active_revision" column_invisible="True"/>
+                <field name="sequence" column_invisible="True"/>
+                <field name="sale_line_id" column_invisible="True"/>
+                <field name="currency_id" column_invisible="True"/>
+                <button name="action_edit_collection_line" type="object" string="Modificar"
+                        icon="fa-pencil" class="btn-link"
+                        invisible="not is_active_revision"
+                        groups="mkp_collection_control.group_mkp_collection_operator"/>
+            </list>
+        </field>
+    </record>
+
+    <record id="view_collection_line_history_form" model="ir.ui.view">
+        <field name="name">mkp.collection.line.history.form</field>
+        <field name="model">mkp.collection.line.history</field>
+        <field name="arch" type="xml">
+            <form string="Movimiento de cobranza" create="0" edit="0" delete="0">
+                <header>
+                    <button name="action_edit_collection_line" type="object"
+                            string="Modificar" class="btn-primary"
+                            invisible="not is_active_revision"
+                            groups="mkp_collection_control.group_mkp_collection_operator"/>
+                    <field name="history_status" widget="statusbar"
+                           statusbar_visible="active,historical"/>
+                </header>
+                <sheet>
+                    <field name="is_active_revision" invisible="1"/>
+                    <field name="currency_id" invisible="1"/>
+                    <div class="oe_title">
+                        <h1><field name="product_name"/></h1>
+                        <h3><field name="sale_order_id"/> · <field name="sku"/></h3>
+                    </div>
+                    <group>
+                        <group string="Línea de venta">
+                            <field name="sku"/>
+                            <field name="product_name"/>
+                            <field name="quantity"/>
+                            <field name="uom_name"/>
+                            <field name="price_unit"/>
+                            <field name="amount"/>
+                        </group>
+                        <group string="Promociones">
+                            <field name="coupon_amount"/>
+                            <field name="killer_amount"/>
+                            <field name="killer_commission"/>
+                        </group>
+                        <group string="Comisiones y descuentos">
+                            <field name="commission"/>
+                            <field name="taxes"/>
+                            <field name="shipping"/>
+                            <field name="other_commission"/>
+                            <field name="calculation_type"/>
+                        </group>
+                    </group>
+                    <group string="Cobranza">
+                        <field name="subtotal"/>
+                        <field name="amount_to_collect"/>
+                        <field name="payment_status"/>
+                        <field name="payment_reference"/>
+                    </group>
+                    <group string="Devoluciones">
+                        <field name="sale_line_id"/>
+                        <field name="return_status"/>
+                        <field name="return_quantity"/>
+                        <field name="return_request_date"/>
+                        <field name="return_reference"/>
+                    </group>
+                    <group string="Auditoría">
+                        <group>
+                            <field name="revision_no"/>
+                            <field name="previous_id"/>
+                            <field name="change_origin"/>
+                        </group>
+                        <group>
+                            <field name="changed_by_id"/>
+                            <field name="changed_at"/>
+                            <field name="comment"/>
+                        </group>
+                    </group>
+                </sheet>
+            </form>
+        </field>
+    </record>
+
+    <record id="view_collection_line_history_search" model="ir.ui.view">
+        <field name="name">mkp.collection.line.history.search</field>
+        <field name="model">mkp.collection.line.history</field>
+        <field name="arch" type="xml">
+            <search string="Buscar movimientos de cobranza">
+                <field name="sale_order_id"/>
+                <field name="marketplace_reference"/>
+                <field name="sku"/>
+                <field name="product_name"/>
+                <field name="payment_status"/>
+                <field name="calculation_type"/>
+                <field name="return_status"/>
+                <field name="return_reference"/>
+                <filter name="filter_active" string="Activo"
+                        domain="[('is_active_revision','=',True)]"/>
+                <filter name="filter_historical" string="Histórico"
+                        domain="[('is_active_revision','=',False)]"/>
+                <separator/>
+                <filter name="group_order" string="Orden"
+                        context="{'group_by':'sale_order_id'}"/>
+                <filter name="group_product" string="Producto"
+                        context="{'group_by':'product_name'}"/>
+                <filter name="group_status" string="Estatus"
+                        context="{'group_by':'history_status'}"/>
+                <filter name="group_payment_status" string="Estado de pago"
+                        context="{'group_by':'payment_status'}"/>
+                <filter name="group_calculation_type" string="Tipo de cálculo"
+                        context="{'group_by':'calculation_type'}"/>
+                <filter name="group_return_status" string="Estado de devolución"
+                        context="{'group_by':'return_status'}"/>
+                <filter name="group_date" string="Mes"
+                        context="{'group_by':'changed_at:month'}"/>
+            </search>
+        </field>
+    </record>
+
+    <record id="view_collection_line_wizard_form" model="ir.ui.view">
+        <field name="name">mkp.collection.line.wizard.form</field>
+        <field name="model">mkp.collection.line.wizard</field>
+        <field name="arch" type="xml">
+            <form string="Modificar línea de cobranza">
+                <sheet>
+                    <field name="history_id" invisible="1"/>
+                    <field name="currency_id" invisible="1"/>
+                    <group string="Línea de venta">
+                        <group>
+                            <field name="wizard_order_id"/>
+                            <field name="sku"/>
+                            <field name="product_name"/>
+                        </group>
+                        <group>
+                            <field name="quantity"/>
+                            <field name="uom_name"/>
+                            <field name="price_unit"/>
+                            <field name="amount"/>
+                        </group>
+                    </group>
+                    <group string="Promociones">
+                        <group>
+                            <field name="coupon_amount"/>
+                        </group>
+                        <group>
+                            <field name="killer_amount"/>
+                            <field name="killer_commission"/>
+                        </group>
+                    </group>
+                    <group string="Comisiones y descuentos">
+                        <group>
+                            <field name="commission"/>
+                            <field name="taxes"/>
+                        </group>
+                        <group>
+                            <field name="shipping"/>
+                            <field name="other_commission"/>
+                            <field name="calculation_type"/>
+                        </group>
+                    </group>
+                    <group string="Cobranza">
+                        <field name="subtotal" readonly="1"/>
+                        <field name="amount_to_collect" readonly="1"/>
+                        <field name="payment_status"/>
+                        <field name="payment_reference"/>
+                    </group>
+                    <group string="Devoluciones">
+                        <field name="target_sale_line_id"
+                               domain="[('order_id','=',wizard_order_id),('display_type','=',False)]"
+                               options="{'no_create': True, 'no_open': True}"/>
+                        <field name="return_status"/>
+                        <field name="return_quantity"/>
+                        <field name="return_request_date"/>
+                        <field name="return_reference"/>
+                    </group>
+                    <group string="Comentario">
+                        <field name="comment" placeholder="Motivo opcional del cambio"/>
+                    </group>
+                </sheet>
+                <footer>
+                    <button name="action_confirm" type="object" string="Guardar nueva línea"
+                            class="btn-primary"/>
+                    <button string="Cancelar" special="cancel" class="btn-secondary"/>
+                </footer>
+            </form>
+        </field>
+    </record>
+
+    <record id="action_collection_line_history" model="ir.actions.act_window">
+        <field name="name">Historial de movimientos de cobranza</field>
+        <field name="res_model">mkp.collection.line.history</field>
+        <field name="view_mode">list,form</field>
+        <field name="search_view_id" ref="view_collection_line_history_search"/>
+        <field name="help" type="html">
+            <p class="o_view_nocontent_smiling_face">Abra Cobranza desde una orden de venta para generar sus líneas.</p>
+        </field>
+    </record>
+</odoo>

@@ -1,0 +1,93 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<odoo>
+    <record id="view_collection_dashboard_graph" model="ir.ui.view">
+        <field name="name">mkp.collection.dashboard.graph</field>
+        <field name="model">mkp.collection.line.history</field>
+        <field name="arch" type="xml">
+            <graph string="Cobranza por estado de pago" type="pie">
+                <field name="payment_status"/>
+                <field name="amount_to_collect" type="measure"/>
+            </graph>
+        </field>
+    </record>
+
+    <record id="view_collection_dashboard_pivot" model="ir.ui.view">
+        <field name="name">mkp.collection.dashboard.pivot</field>
+        <field name="model">mkp.collection.line.history</field>
+        <field name="arch" type="xml">
+            <pivot string="Análisis de cobranza">
+                <field name="marketplace" type="row"/>
+                <field name="payment_status" type="col"/>
+                <field name="amount" type="measure"/>
+                <field name="amount_to_collect" type="measure"/>
+                <field name="coupon_amount" type="measure"/>
+                <field name="killer_amount" type="measure"/>
+                <field name="killer_commission" type="measure"/>
+                <field name="commission" type="measure"/>
+                <field name="taxes" type="measure"/>
+                <field name="shipping" type="measure"/>
+                <field name="other_commission" type="measure"/>
+                <field name="return_quantity" type="measure"/>
+            </pivot>
+        </field>
+    </record>
+
+    <record id="view_collection_dashboard_search" model="ir.ui.view">
+        <field name="name">mkp.collection.dashboard.search</field>
+        <field name="model">mkp.collection.line.history</field>
+        <field name="arch" type="xml">
+            <search string="Analizar cobranza">
+                <field name="sale_order_id"/>
+                <field name="marketplace"/>
+                <field name="marketplace_reference"/>
+                <field name="sku"/>
+                <field name="product_name"/>
+                <field name="payment_status"/>
+                <field name="calculation_type"/>
+                <field name="return_status"/>
+                <filter name="has_return" string="Con devolución"
+                        domain="[('return_status','!=','sale')]"/>
+                <separator/>
+                <filter name="group_payment" string="Estado de pago"
+                        context="{'group_by':'payment_status'}"/>
+                <filter name="group_marketplace" string="Marketplace"
+                        context="{'group_by':'marketplace'}"/>
+                <filter name="group_calculation" string="Tipo de cálculo"
+                        context="{'group_by':'calculation_type'}"/>
+                <filter name="group_return" string="Estado de devolución"
+                        context="{'group_by':'return_status'}"/>
+                <filter name="group_order" string="Orden de venta"
+                        context="{'group_by':'sale_order_id'}"/>
+                <filter name="group_product" string="Producto"
+                        context="{'group_by':'product_name'}"/>
+                <filter name="group_month" string="Mes de actualización"
+                        context="{'group_by':'changed_at:month'}"/>
+            </search>
+        </field>
+    </record>
+
+    <record id="action_collection_dashboard" model="ir.actions.act_window">
+        <field name="name">Dashboard de cobranza</field>
+        <field name="res_model">mkp.collection.line.history</field>
+        <field name="view_mode">graph,pivot,list</field>
+        <field name="search_view_id" ref="view_collection_dashboard_search"/>
+        <field name="domain">[('is_active_revision','=',True)]</field>
+        <field name="help" type="html">
+            <p class="o_view_nocontent_smiling_face">Abra Cobranza desde las órdenes de venta para generar información de análisis.</p>
+        </field>
+    </record>
+
+    <record id="action_collection_dashboard_graph_view" model="ir.actions.act_window.view">
+        <field name="sequence">1</field>
+        <field name="view_mode">graph</field>
+        <field name="view_id" ref="view_collection_dashboard_graph"/>
+        <field name="act_window_id" ref="action_collection_dashboard"/>
+    </record>
+
+    <record id="action_collection_dashboard_pivot_view" model="ir.actions.act_window.view">
+        <field name="sequence">2</field>
+        <field name="view_mode">pivot</field>
+        <field name="view_id" ref="view_collection_dashboard_pivot"/>
+        <field name="act_window_id" ref="action_collection_dashboard"/>
+    </record>
+</odoo>

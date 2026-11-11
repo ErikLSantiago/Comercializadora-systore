@@ -1,0 +1,44 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<odoo>
+    <menuitem id="menu_mkp_collection_root" name="Cobranza MKP" sequence="59"
+              action="action_collection_dashboard"
+              groups="mkp_collection_control.group_mkp_collection_operator" web_icon="mkp_collection_control,static/description/icon.png"/>
+    <menuitem id="menu_mkp_collection_dashboard" name="Dashboard"
+              parent="menu_mkp_collection_root" action="action_collection_dashboard" sequence="5"
+              groups="mkp_collection_control.group_mkp_collection_operator"/>
+    <menuitem id="menu_mkp_collection_line_history" name="Historial de cobranza"
+              parent="menu_mkp_collection_root" action="action_collection_line_history" sequence="10"
+              groups="mkp_collection_control.group_mkp_collection_operator"/>
+    <record id="menu_mkp_collection_capture" model="ir.ui.menu">
+        <field name="name">Captura de cobranza</field>
+        <field name="parent_id" ref="menu_mkp_collection_root"/>
+        <field name="action" ref="action_collection_capture"/>
+        <field name="sequence">10</field>
+        <field name="groups_id" eval="[(6, 0, [ref('mkp_collection_control.group_mkp_collection_operator')])]"/>
+        <field name="active" eval="False"/>
+    </record>
+    <record id="menu_mkp_collection_orders" model="ir.ui.menu">
+        <field name="name">Órdenes de cobranza</field>
+        <field name="parent_id" ref="menu_mkp_collection_root"/>
+        <field name="action" ref="action_collection_orders"/>
+        <field name="sequence">20</field>
+        <field name="groups_id" eval="[(6, 0, [ref('mkp_collection_control.group_mkp_collection_operator')])]"/>
+        <field name="active" eval="False"/>
+    </record>
+    <record id="menu_mkp_collection_events" model="ir.ui.menu">
+        <field name="name">Historial de cambios de comisiones</field>
+        <field name="parent_id" ref="menu_mkp_collection_root"/>
+        <field name="action" ref="action_collection_events"/>
+        <field name="sequence">30</field>
+        <field name="groups_id" eval="[(6, 0, [ref('mkp_collection_control.group_mkp_collection_operator')])]"/>
+        <field name="active" eval="False"/>
+    </record>
+    <record id="menu_mkp_collection_payments" model="ir.ui.menu">
+        <field name="name">Historial de registros de cobranza</field>
+        <field name="parent_id" ref="menu_mkp_collection_root"/>
+        <field name="action" ref="action_collection_payments"/>
+        <field name="sequence">40</field>
+        <field name="groups_id" eval="[(6, 0, [ref('mkp_collection_control.group_mkp_collection_operator')])]"/>
+        <field name="active" eval="False"/>
+    </record>
+</odoo>

@@ -1,0 +1,188 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<odoo>
+    <record id="view_collection_event_list" model="ir.ui.view">
+        <field name="name">mkp.collection.event.list</field>
+        <field name="model">mkp.collection.event</field>
+        <field name="arch" type="xml">
+            <list string="Historial de cambios de comisiones" create="0" edit="0" delete="0" default_order="event_time desc,id desc">
+                <field name="captured_at" string="Fecha del cambio"/>
+                <field name="sale_order_id" string="Pedido Odoo"/>
+                <field name="marketplace"/>
+                <field name="marketplace_reference" optional="show"/>
+                <field name="payment_state" string="Estado"/>
+                <field name="history_status" string="Estatus del movimiento"/>
+                <field name="before_commission" string="Comisión anterior"/>
+                <field name="after_commission" string="Comisión nueva"/>
+                <field name="before_killer_commission" string="Com. killer anterior" optional="show"/>
+                <field name="after_killer_commission" string="Com. killer nueva" optional="show"/>
+                <field name="before_net" string="Monto anterior" optional="show"/>
+                <field name="after_net" string="Monto nuevo" optional="show"/>
+                <field name="reference" optional="show"/>
+                <field name="captured_by_id" string="Modificado por"/>
+                <field name="company_id" groups="base.group_multi_company" optional="hide"/>
+                <field name="currency_id" column_invisible="True"/>
+            </list>
+        </field>
+    </record>
+
+    <record id="view_collection_event_form" model="ir.ui.view">
+        <field name="name">mkp.collection.event.form</field>
+        <field name="model">mkp.collection.event</field>
+        <field name="arch" type="xml">
+            <form string="Evento de cobranza" create="0" edit="0" delete="0">
+                <header>
+                    <button name="action_reverse" type="object" string="Revertir movimiento"
+                            class="btn-secondary" groups="mkp_collection_control.group_mkp_collection_supervisor"
+                            invisible="is_reversed or is_reversal_entry" confirm="Este evento no será borrado. Se registrará una reversión independiente."/>
+                    <field name="is_reversed" invisible="1"/>
+                    <field name="is_reversal_entry" invisible="1"/>
+                </header>
+                <sheet>
+                    <field name="currency_id" invisible="1"/>
+                    <div class="oe_title">
+                        <h1><field name="name"/></h1>
+                        <h3><field name="description"/></h3>
+                    </div>
+                    <group>
+                        <group string="Origen del movimiento">
+                            <field name="sale_order_id"/>
+                            <field name="marketplace"/>
+                            <field name="marketplace_reference"/>
+                            <field name="payment_state"/>
+                            <field name="state_from"/>
+                            <field name="state_to"/>
+                            <field name="event_time"/>
+                            <field name="reference"/>
+                        </group>
+                        <group string="Registro y efecto">
+                            <field name="event_amount"/>
+                            <field name="net_impact"/>
+                            <field name="captured_by_id"/>
+                            <field name="captured_at"/>
+                            <field name="refund_bucket" invisible="payment_state != 'refund'"/>
+                            <field name="reversal_of_id" invisible="not is_reversal_entry"/>
+                            <field name="reversal_reason" invisible="not is_reversal_entry"/>
+                        </group>
+                    </group>
+                    <notebook>
+                        <page string="Saldos antes y después">
+                            <group>
+                                <group string="Antes del evento">
+                                    <field name="before_gross"/>
+                                    <field name="before_sale_total"/>
+                                    <field name="before_net"/>
+                                    <field name="before_pending"/>
+                                    <field name="before_held"/>
+                                    <field name="before_released"/>
+                                    <field name="before_paid"/>
+                                    <field name="before_refunded"/>
+                                </group>
+                                <group string="Después del evento">
+                                    <field name="after_gross"/>
+                                    <field name="after_sale_total"/>
+                                    <field name="after_net"/>
+                                    <field name="after_pending"/>
+                                    <field name="after_held"/>
+                                    <field name="after_released"/>
+                                    <field name="after_paid"/>
+                                    <field name="after_refunded"/>
+                                </group>
+                            </group>
+                        </page>
+                        <page string="Detalle de importes y variaciones">
+                            <group>
+                                <group string="Cambios del evento">
+                                    <field name="delta_gross"/>
+                                    <field name="delta_coupon_amount"/>
+                                    <field name="delta_killer_amount"/>
+                                    <field name="delta_withholding"/>
+                                    <field name="delta_commission"/>
+                                    <field name="delta_killer_commission"/>
+                                    <field name="delta_shipping"/>
+                                    <field name="delta_other"/>
+                                    <field name="refund_impact"/>
+                                    <field name="delta_pending"/>
+                                    <field name="delta_held"/>
+                                    <field name="delta_released"/>
+                                    <field name="delta_paid"/>
+                                </group>
+                                <group string="Desglose antes / después">
+                                    <field name="before_withholding"/>
+                                    <field name="after_withholding"/>
+                                    <field name="before_coupon_amount"/>
+                                    <field name="after_coupon_amount"/>
+                                    <field name="before_killer_amount"/>
+                                    <field name="after_killer_amount"/>
+                                    <field name="before_commission"/>
+                                    <field name="after_commission"/>
+                                    <field name="before_killer_commission"/>
+                                    <field name="after_killer_commission"/>
+                                    <field name="before_shipping"/>
+                                    <field name="after_shipping"/>
+                                    <field name="before_other"/>
+                                    <field name="after_other"/>
+                                </group>
+                            </group>
+                        </page>
+                        <page string="Evidencia y observaciones">
+                            <group>
+                                <field name="notes"/>
+                                <field name="attachment_data" filename="attachment_name"/>
+                                <field name="attachment_name" invisible="1"/>
+                            </group>
+                        </page>
+                        <page string="Cobranza">
+                            <field name="payment_ids" readonly="1" nolabel="1">
+                                <list create="0" edit="0" delete="0">
+                                    <field name="payment_date"/>
+                                    <field name="name"/>
+                                    <field name="amount"/>
+                                    <field name="payment_reference"/>
+                                    <field name="payment_status"/>
+                                    <field name="history_status"/>
+                                    <field name="currency_id" column_invisible="True"/>
+                                </list>
+                            </field>
+                        </page>
+                    </notebook>
+                </sheet>
+            </form>
+        </field>
+    </record>
+
+    <record id="view_collection_event_search" model="ir.ui.view">
+        <field name="name">mkp.collection.event.search</field>
+        <field name="model">mkp.collection.event</field>
+        <field name="arch" type="xml">
+            <search string="Buscar movimientos de cobranza">
+                <field name="name"/>
+                <field name="sale_order_id"/>
+                <field name="marketplace_reference"/>
+                <field name="marketplace"/>
+                <field name="reference"/>
+                <field name="description"/>
+                <filter name="filter_draft" string="Borrador" domain="[('payment_state','=','draft')]"/>
+                <filter name="filter_confirmed" string="Confirmado" domain="[('payment_state','=','confirmed')]"/>
+                <filter name="filter_recalculated" string="Recalculado" domain="[('payment_state','=','recalculated')]"/>
+                <filter name="filter_refunds" string="Devolución" domain="[('payment_state','=','refund')]"/>
+                <filter name="filter_reversed" string="Reversiones" domain="[('is_reversal_entry','=',True)]"/>
+                <filter name="filter_active" string="Activo" domain="[('is_active_revision','=',True)]"/>
+                <filter name="filter_historical" string="Histórico" domain="[('is_active_revision','=',False)]"/>
+                <separator/>
+                <filter name="group_order" string="Pedido" context="{'group_by':'sale_order_id'}"/>
+                <filter name="group_marketplace" string="Marketplace" context="{'group_by':'marketplace'}"/>
+                <filter name="group_state" string="Estado" context="{'group_by':'payment_state'}"/>
+                <filter name="group_date" string="Mes del evento" context="{'group_by':'event_time:month'}"/>
+                <filter name="group_user" string="Usuario" context="{'group_by':'create_uid'}"/>
+            </search>
+        </field>
+    </record>
+
+    <record id="action_collection_events" model="ir.actions.act_window">
+        <field name="name">Historial de cambios de comisiones</field>
+        <field name="res_model">mkp.collection.event</field>
+        <field name="view_mode">list,form</field>
+        <field name="search_view_id" ref="view_collection_event_search"/>
+        <field name="help" type="html"><p class="o_view_nocontent_smiling_face">Los cambios de comisiones aparecerán aquí.</p></field>
+    </record>
+</odoo>

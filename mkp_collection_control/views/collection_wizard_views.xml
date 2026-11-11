@@ -1,0 +1,143 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<odoo>
+    <record id="view_collection_commission_wizard_form" model="ir.ui.view">
+        <field name="name">mkp.collection.commission.wizard.form</field>
+        <field name="model">mkp.collection.capture.wizard</field>
+        <field name="arch" type="xml">
+            <form string="Actualizar comisiones">
+                <sheet>
+                    <field name="order_id" invisible="1"/>
+                    <field name="event_time" invisible="1"/>
+                    <field name="currency_id" invisible="1"/>
+                    <field name="refunded" invisible="1"/>
+                    <group>
+                        <group string="Orden">
+                            <field name="sale_order_id" readonly="1"/>
+                            <field name="marketplace"/>
+                            <field name="marketplace_reference"/>
+                        </group>
+                        <group string="Estado">
+                            <field name="payment_state" widget="statusbar"
+                                   statusbar_visible="draft,confirmed,recalculated"/>
+                        </group>
+                    </group>
+                    <group string="Comisiones">
+                        <group>
+                            <field name="gross"/>
+                            <field name="coupon_amount"/>
+                            <field name="killer_amount"/>
+                            <field name="sale_total" readonly="1"/>
+                        </group>
+                        <group>
+                            <field name="withholding"/>
+                            <field name="commission"/>
+                            <field name="killer_commission"/>
+                            <field name="shipping"/>
+                            <field name="other"/>
+                            <field name="amount_to_collect" readonly="1"/>
+                        </group>
+                    </group>
+                    <group string="Referencia">
+                        <field name="reference" placeholder="Referencia opcional"/>
+                        <field name="notes" placeholder="Comentario opcional sobre el cambio"/>
+                    </group>
+                </sheet>
+                <footer>
+                    <button name="action_confirm_commissions" type="object"
+                            string="Guardar comisiones" class="btn-primary"/>
+                    <button string="Cancelar" special="cancel" class="btn-secondary"/>
+                </footer>
+            </form>
+        </field>
+    </record>
+    <record id="view_collection_capture_wizard_form" model="ir.ui.view">
+        <field name="name">mkp.collection.capture.wizard.form</field>
+        <field name="model">mkp.collection.capture.wizard</field>
+        <field name="arch" type="xml">
+            <form string="Captura manual de cobranza">
+                <sheet>
+                    <group>
+                        <field name="order_id" invisible="1"/>
+                        <field name="sale_order_id" options="{'no_create': True, 'no_open': True}" readonly="bool(order_id)"/>
+                        <field name="marketplace"/>
+                        <field name="marketplace_reference"/>
+                        <field name="payment_state"/>
+                        <field name="event_time"/>
+                    </group>
+                    <group string="Comisiones" invisible="payment_state == 'refund'">
+                        <group>
+                            <field name="gross" required="payment_state != 'refund'"/>
+                            <field name="coupon_amount"/>
+                            <field name="killer_amount"/>
+                            <field name="sale_total" readonly="1"/>
+                        </group>
+                        <group>
+                            <field name="withholding"/>
+                            <field name="commission"/>
+                            <field name="killer_commission"/>
+                            <field name="shipping"/>
+                            <field name="other"/>
+                        </group>
+                    </group>
+                    <group string="Cobranza" invisible="payment_state == 'refund'">
+                        <field name="payment_line_ids" nolabel="1">
+                            <list editable="bottom">
+                                <field name="source_payment_id" column_invisible="True"/>
+                                <field name="amount"/>
+                                <field name="payment_reference"/>
+                                <field name="payment_date"/>
+                                <field name="payment_status"/>
+                                <field name="currency_id" column_invisible="True"/>
+                            </list>
+                        </field>
+                    </group>
+                    <group string="Resultado" invisible="payment_state == 'refund'">
+                        <field name="refunded" invisible="1"/>
+                        <field name="amount_to_collect" readonly="1"/>
+                    </group>
+                    <group string="Detalle de devolución" invisible="payment_state != 'refund'">
+                        <field name="amount" required="payment_state == 'refund'"/>
+                        <field name="refund_bucket" required="payment_state == 'refund'"/>
+                    </group>
+                    <group string="Referencia">
+                        <field name="reference" placeholder="ID externo / número de reporte"/>
+                        <field name="notes" placeholder="Añadir un comentario"/>
+                        <field name="attachment_data" filename="attachment_name"/>
+                        <field name="attachment_name" invisible="1"/>
+                        <field name="currency_id" invisible="1"/>
+                    </group>
+                </sheet>
+                <footer>
+                    <button name="action_confirm" type="object" string="Confirmar y registrar evento" class="btn-primary"/>
+                    <button string="Cancelar" special="cancel" class="btn-secondary"/>
+                </footer>
+            </form>
+        </field>
+    </record>
+    <record id="action_collection_capture" model="ir.actions.act_window">
+        <field name="name">Captura de cobranza</field>
+        <field name="res_model">mkp.collection.capture.wizard</field>
+        <field name="view_mode">form</field>
+        <field name="view_id" ref="view_collection_capture_wizard_form"/>
+        <field name="target">new</field>
+    </record>
+    <record id="view_collection_reversal_wizard_form" model="ir.ui.view">
+        <field name="name">mkp.collection.reversal.wizard.form</field>
+        <field name="model">mkp.collection.reversal.wizard</field>
+        <field name="arch" type="xml">
+            <form string="Revertir movimiento de cobranza">
+                <sheet>
+                    <group>
+                        <field name="event_id"/>
+                        <field name="event_time"/>
+                        <field name="reason" placeholder="Explique el motivo y, si aplica, la evidencia que respalda la corrección."/>
+                    </group>
+                </sheet>
+                <footer>
+                    <button type="object" name="action_confirm" string="Confirmar reversión" class="btn-primary"/>
+                    <button special="cancel" string="Cancelar" class="btn-secondary"/>
+                </footer>
+            </form>
+        </field>
+    </record>
+</odoo>
