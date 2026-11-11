@@ -1,4 +1,4 @@
-# Cobranza MKP — v18.0.1.0.12
+# Cobranza MKP — v18.0.1.0.13
 
 Módulo independiente para **Odoo 18 Enterprise / Odoo.sh**. Esta versión organiza la cobranza como un historial inalterable por línea de producto de la orden de venta.
 
@@ -25,10 +25,16 @@ Módulo independiente para **Odoo 18 Enterprise / Odoo.sh**. Esta versión organ
 
 ## Dashboard
 
-- El icono **Cobranza MKP** abre ahora el Dashboard de cobranza.
-- La vista inicial es una gráfica de pastel que suma **Por cobrar** y lo distribuye por Estado de pago.
+- El icono **Cobranza MKP** abre un tablero propio con segmentadores, indicadores y gráficas de composición.
+- **Fecha desde**, **Fecha hasta** y **Mes** usan `invoice_date`, tomando la fecha más reciente de las facturas de cliente no canceladas asociadas a la orden.
+- **Cliente** usa `sale.order.partner_invoice_id`.
+- **Estado** filtra el Estado de pago.
+- Los segmentadores **Killer**, **Cupón** y **Devolución** localizan órdenes con líneas Activas que contengan esos conceptos y conservan todas las líneas activas de las órdenes resultantes para no recortar sus totales.
 - El análisis utiliza únicamente las revisiones Activas para no duplicar importes históricos.
-- La tabla dinámica permite analizar importe de venta, Por cobrar, promociones, comisiones, impuestos, envío y piezas devueltas por marketplace y estado de pago.
+- Las tarjetas muestran Base ajustada, Por cobrar, comisiones, retenciones/impuestos, envío, Cupón, Killer y piezas devueltas.
+- La barra global segmenta Por cobrar, comisiones, envío, retenciones/impuestos, Comisión killer, otras comisiones y Cupón.
+- El resumen inferior muestra la cobranza por Estado de pago.
+- La tabla dinámica anterior permanece disponible desde **Análisis dinámico**.
 - Se puede agrupar también por Tipo de cálculo, Estado de devolución, Orden de venta, Producto y mes de actualización.
 - El menú **Historial de cobranza** conserva el reporte detallado y la importación.
 

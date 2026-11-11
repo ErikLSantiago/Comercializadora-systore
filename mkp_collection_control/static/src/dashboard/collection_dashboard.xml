@@ -1,0 +1,189 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<templates xml:space="preserve">
+    <t t-name="mkp_collection_control.CollectionDashboard">
+        <div class="o_mkp_collection_dashboard">
+            <div class="o_mkp_dashboard_header">
+                <div>
+                    <h1>Dashboard de cobranza</h1>
+                    <p>Información vigente por línea de producto y fecha de factura.</p>
+                </div>
+                <div class="o_mkp_header_actions">
+                    <button class="btn btn-outline-secondary" t-on-click="openDynamicAnalysis">
+                        <i class="fa fa-table me-1"/> Análisis dinámico
+                    </button>
+                    <button class="btn btn-outline-primary" t-on-click="openHistory">
+                        <i class="fa fa-history me-1"/> Historial
+                    </button>
+                </div>
+            </div>
+
+            <section class="o_mkp_panel o_mkp_filters_panel">
+                <div class="o_mkp_panel_title">
+                    <h2>Segmentadores principales</h2>
+                    <span>Fecha basada en la factura más reciente de la orden</span>
+                </div>
+                <div class="o_mkp_filter_grid">
+                    <label class="o_mkp_filter">
+                        <span>Fecha desde</span>
+                        <input type="date" class="form-control" t-model="state.filters.date_from"/>
+                    </label>
+                    <label class="o_mkp_filter">
+                        <span>Fecha hasta</span>
+                        <input type="date" class="form-control" t-model="state.filters.date_to"/>
+                    </label>
+                    <label class="o_mkp_filter">
+                        <span>Mes</span>
+                        <select class="form-select" t-model="state.filters.month">
+                            <option value="">Todos</option>
+                            <t t-foreach="state.data.options.months" t-as="month" t-key="month">
+                                <option t-att-value="month"><t t-esc="formatMonth(month)"/></option>
+                            </t>
+                        </select>
+                    </label>
+                    <label class="o_mkp_filter">
+                        <span>Estado</span>
+                        <select class="form-select" t-model="state.filters.state">
+                            <option value="">Todos</option>
+                            <t t-foreach="state.data.options.states" t-as="status" t-key="status.key">
+                                <option t-att-value="status.key"><t t-esc="status.label"/></option>
+                            </t>
+                        </select>
+                    </label>
+                    <label class="o_mkp_filter o_mkp_filter_wide">
+                        <span>Cliente de facturación</span>
+                        <select class="form-select" t-model="state.filters.partner_id">
+                            <option value="">Todos</option>
+                            <t t-foreach="state.data.options.clients" t-as="client" t-key="client.id">
+                                <option t-att-value="client.id"><t t-esc="client.name"/></option>
+                            </t>
+                        </select>
+                    </label>
+                    <label class="o_mkp_toggle">
+                        <input type="checkbox" t-model="state.filters.has_killer"/>
+                        <span><i class="fa fa-bolt"/> Con Killer</span>
+                    </label>
+                    <label class="o_mkp_toggle">
+                        <input type="checkbox" t-model="state.filters.has_coupon"/>
+                        <span><i class="fa fa-ticket"/> Con Cupón</span>
+                    </label>
+                    <label class="o_mkp_toggle">
+                        <input type="checkbox" t-model="state.filters.has_return"/>
+                        <span><i class="fa fa-undo"/> Con devolución</span>
+                    </label>
+                </div>
+                <div class="o_mkp_filter_actions">
+                    <button class="btn btn-primary" t-on-click="applyFilters" t-att-disabled="state.loading">
+                        <i class="fa fa-filter me-1"/> Aplicar filtros
+                    </button>
+                    <button class="btn btn-link" t-on-click="clearFilters" t-att-disabled="state.loading">
+                        Limpiar segmentadores
+                    </button>
+                </div>
+            </section>
+
+            <div class="o_mkp_loading" t-if="state.loading">
+                <i class="fa fa-spinner fa-spin"/> Actualizando información…
+            </div>
+
+            <t t-if="!state.loading">
+                <section class="o_mkp_kpi_grid">
+                    <article class="o_mkp_kpi o_mkp_kpi_primary">
+                        <span>Base ajustada</span>
+                        <strong t-esc="formatCurrency(state.data.totals.adjusted_base)"/>
+                        <small>Importe + Killer</small>
+                    </article>
+                    <article class="o_mkp_kpi o_mkp_kpi_success">
+                        <span>Por cobrar</span>
+                        <strong t-esc="formatCurrency(state.data.totals.amount_to_collect)"/>
+                        <small>Después de promociones y descuentos</small>
+                    </article>
+                    <article class="o_mkp_kpi">
+                        <span>Comisiones</span>
+                        <strong t-esc="formatCurrency(state.data.totals.total_commissions)"/>
+                        <small>General + Killer + otras</small>
+                    </article>
+                    <article class="o_mkp_kpi">
+                        <span>Retenciones / impuestos</span>
+                        <strong t-esc="formatCurrency(state.data.totals.taxes)"/>
+                        <small>Total descontado</small>
+                    </article>
+                    <article class="o_mkp_kpi">
+                        <span>Envío</span>
+                        <strong t-esc="formatCurrency(state.data.totals.shipping)"/>
+                        <small>Cargos de envío</small>
+                    </article>
+                    <article class="o_mkp_kpi">
+                        <span>Cupón</span>
+                        <strong t-esc="formatCurrency(state.data.totals.coupon)"/>
+                        <small>Promoción descontada</small>
+                    </article>
+                    <article class="o_mkp_kpi">
+                        <span>Killer</span>
+                        <strong t-esc="formatCurrency(state.data.totals.killer)"/>
+                        <small>Promoción agregada</small>
+                    </article>
+                    <article class="o_mkp_kpi o_mkp_kpi_return">
+                        <span>Devoluciones</span>
+                        <strong><t t-esc="formatNumber(state.data.totals.return_quantity)"/> pzas.</strong>
+                        <small><t t-esc="state.data.counts.returns"/> líneas activas</small>
+                    </article>
+                </section>
+
+                <section class="o_mkp_panel o_mkp_composition_panel">
+                    <div class="o_mkp_panel_title">
+                        <h2>Composición global de la cobranza</h2>
+                        <span><t t-esc="state.data.counts.orders"/> órdenes · <t t-esc="state.data.counts.lines"/> líneas activas</span>
+                    </div>
+                    <div class="o_mkp_composition_summary">
+                        <div>
+                            <span>Base ajustada</span>
+                            <strong t-esc="formatCurrency(state.data.totals.adjusted_base)"/>
+                        </div>
+                        <div>
+                            <span>Deducciones</span>
+                            <strong t-esc="formatCurrency(state.data.totals.total_deductions)"/>
+                        </div>
+                        <div>
+                            <span>Por cobrar</span>
+                            <strong t-esc="formatCurrency(state.data.totals.amount_to_collect)"/>
+                        </div>
+                    </div>
+                    <div class="o_mkp_stacked_bar" t-if="state.data.composition_total">
+                        <t t-foreach="state.data.composition" t-as="segment" t-key="segment.key">
+                            <div class="o_mkp_bar_segment"
+                                 t-if="segment.percentage &gt; 0"
+                                 t-att-style="segmentStyle(segment)"
+                                 t-att-title="segment.label + ': ' + formatCurrency(segment.value)">
+                                <span t-if="segment.percentage &gt;= 10" t-esc="segment.label"/>
+                            </div>
+                        </t>
+                    </div>
+                    <div class="o_mkp_empty_bar" t-else="">No hay importes para los filtros seleccionados.</div>
+                    <div class="o_mkp_legend">
+                        <div t-foreach="state.data.composition" t-as="segment" t-key="segment.key"
+                             t-if="segment.value &gt; 0">
+                            <i t-att-style="'background-color:' + segment.color + ';'"/>
+                            <span t-esc="segment.label"/>
+                            <strong t-esc="formatCurrency(segment.value)"/>
+                            <small><t t-esc="segment.percentage.toFixed(1)"/>%</small>
+                        </div>
+                    </div>
+                </section>
+
+                <section class="o_mkp_panel">
+                    <div class="o_mkp_panel_title">
+                        <h2>Cobranza por estado</h2>
+                        <span>Importe Por cobrar de cada estado de pago</span>
+                    </div>
+                    <div class="o_mkp_status_grid">
+                        <article t-foreach="state.data.payment_breakdown" t-as="item" t-key="item.key"
+                                 class="o_mkp_status_card" t-att-style="accentStyle(item)">
+                            <span t-esc="item.label"/>
+                            <strong t-esc="formatCurrency(item.value)"/>
+                        </article>
+                    </div>
+                </section>
+            </t>
+        </div>
+    </t>
+</templates>

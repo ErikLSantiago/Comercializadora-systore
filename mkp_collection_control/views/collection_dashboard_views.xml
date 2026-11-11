@@ -1,5 +1,10 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <odoo>
+    <record id="action_collection_dashboard_client" model="ir.actions.client">
+        <field name="name">Dashboard de cobranza</field>
+        <field name="tag">mkp_collection_control.dashboard</field>
+    </record>
+
     <record id="view_collection_dashboard_graph" model="ir.ui.view">
         <field name="name">mkp.collection.dashboard.graph</field>
         <field name="model">mkp.collection.line.history</field>

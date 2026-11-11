@@ -1,6 +1,7 @@
 from odoo import api, fields, models, _
 from odoo.exceptions import AccessError, UserError, ValidationError
 from odoo.tools.float_utils import float_compare
+from dateutil.relativedelta import relativedelta
 
 from .ledger import collection_line_totals, validate_return_quantity
 
@@ -87,6 +88,14 @@ class MkpCollectionLineHistory(models.Model):
     marketplace = fields.Char(related='order_id.marketplace', store=True, readonly=True)
     marketplace_reference = fields.Char(
         related='order_id.marketplace_reference', store=True, readonly=True
+    )
+    partner_invoice_id = fields.Many2one(
+        related='sale_order_id.partner_invoice_id', string='Cliente', store=True,
+        readonly=True, index=True
+    )
+    invoice_date = fields.Date(
+        'Fecha de factura', compute='_compute_invoice_date', compute_sudo=True,
+        readonly=True
     )
     import_sale_order_id = fields.Many2one(
         'sale.order', string='Orden de venta', ondelete='restrict',
@@ -176,6 +185,201 @@ class MkpCollectionLineHistory(models.Model):
     def _compute_history_status(self):
         for record in self:
             record.history_status = 'active' if record.is_active_revision else 'historical'
+
+    @api.depends(
+        'sale_order_id.invoice_ids.invoice_date',
+        'sale_order_id.invoice_ids.state',
+        'sale_order_id.invoice_ids.move_type',
+    )
+    def _compute_invoice_date(self):
+        for record in self:
+            invoices = record.sale_order_id.invoice_ids.filtered(
+                lambda invoice: invoice.move_type == 'out_invoice'
+                and invoice.state != 'cancel'
+                and invoice.invoice_date
+            )
+            record.invoice_date = max(invoices.mapped('invoice_date'), default=False)
+
+    @api.model
+    def get_dashboard_data(self, filters=None):
+        filters = filters or {}
+        base_domain = [
+            ('is_active_revision', '=', True),
+            ('company_id', '=', self.env.company.id),
+        ]
+        domain = list(base_domain)
+        date_from = fields.Date.to_date(filters.get('date_from')) \
+            if filters.get('date_from') else False
+        date_to = fields.Date.to_date(filters.get('date_to')) \
+            if filters.get('date_to') else False
+        month_start = False
+        if filters.get('month'):
+            try:
+                month_start = fields.Date.to_date('%s-01' % filters['month'])
+            except (TypeError, ValueError):
+                month_start = False
+        if filters.get('state'):
+            domain.append(('payment_status', '=', filters['state']))
+        if filters.get('partner_id'):
+            try:
+                partner_id = int(filters['partner_id'])
+            except (TypeError, ValueError):
+                partner_id = 0
+            if partner_id:
+                domain.append(('partner_invoice_id', '=', partner_id))
+        order_filters = []
+        if filters.get('has_killer'):
+            order_filters.append(('killer_amount', '>', 0))
+        if filters.get('has_coupon'):
+            order_filters.append(('coupon_amount', '>', 0))
+        if filters.get('has_return'):
+            order_filters.append(('return_status', '!=', 'sale'))
+        for condition in order_filters:
+            matching_order_ids = self.search(
+                base_domain + [condition]
+            ).mapped('sale_order_id').ids
+            domain.append(('sale_order_id', 'in', matching_order_ids))
+
+        dashboard_fields = [
+            'sale_order_id', 'invoice_date', 'partner_invoice_id',
+            'payment_status', 'return_status', 'amount', 'coupon_amount',
+            'killer_amount', 'killer_commission', 'commission', 'taxes',
+            'shipping', 'other_commission', 'amount_to_collect',
+            'return_quantity',
+        ]
+        records = self.search(domain)
+        values = records.read(dashboard_fields)
+        if date_from or date_to or month_start:
+            month_end = month_start + relativedelta(months=1) if month_start else False
+            filtered_values = []
+            for row in values:
+                row_date = fields.Date.to_date(row.get('invoice_date')) \
+                    if row.get('invoice_date') else False
+                if not row_date:
+                    continue
+                if date_from and row_date < date_from:
+                    continue
+                if date_to and row_date > date_to:
+                    continue
+                if month_start and not (month_start <= row_date < month_end):
+                    continue
+                filtered_values.append(row)
+            values = filtered_values
+
+        def total(field_name):
+            return sum((row.get(field_name) or 0.0) for row in values)
+
+        totals = {
+            'amount': total('amount'),
+            'coupon': total('coupon_amount'),
+            'killer': total('killer_amount'),
+            'killer_commission': total('killer_commission'),
+            'commission': total('commission'),
+            'taxes': total('taxes'),
+            'shipping': total('shipping'),
+            'other_commission': total('other_commission'),
+            'amount_to_collect': total('amount_to_collect'),
+            'return_quantity': total('return_quantity'),
+        }
+        totals['adjusted_base'] = totals['amount'] + totals['killer']
+        totals['total_commissions'] = (
+            totals['commission']
+            + totals['killer_commission']
+            + totals['other_commission']
+        )
+        totals['total_deductions'] = (
+            totals['coupon']
+            + totals['killer_commission']
+            + totals['commission']
+            + totals['taxes']
+            + totals['shipping']
+            + totals['other_commission']
+        )
+
+        composition = [
+            {'key': 'collect', 'label': _('Por cobrar'),
+             'value': max(totals['amount_to_collect'], 0), 'color': '#16a765'},
+            {'key': 'commission', 'label': _('Comisiones'),
+             'value': totals['commission'], 'color': '#7c5cfc'},
+            {'key': 'shipping', 'label': _('Envío'),
+             'value': totals['shipping'], 'color': '#3b82f6'},
+            {'key': 'taxes', 'label': _('Retenciones / impuestos'),
+             'value': totals['taxes'], 'color': '#f59e0b'},
+            {'key': 'killer_commission', 'label': _('Comisión killer'),
+             'value': totals['killer_commission'], 'color': '#ef4444'},
+            {'key': 'other', 'label': _('Otras comisiones'),
+             'value': totals['other_commission'], 'color': '#64748b'},
+            {'key': 'coupon', 'label': _('Cupón'),
+             'value': totals['coupon'], 'color': '#ec4899'},
+        ]
+        composition_total = sum(item['value'] for item in composition if item['value'] > 0)
+        for item in composition:
+            item['percentage'] = (
+                item['value'] * 100 / composition_total
+                if composition_total and item['value'] > 0 else 0
+            )
+
+        payment_labels = dict(
+            self._fields['payment_status']._description_selection(self.env)
+        )
+        payment_totals = {}
+        for row in values:
+            status = row.get('payment_status') or 'pending'
+            payment_totals[status] = payment_totals.get(status, 0) + (
+                row.get('amount_to_collect') or 0.0
+            )
+        payment_colors = {
+            'held': '#f59e0b', 'pending': '#64748b', 'paid': '#16a765',
+            'cancelled': '#ef4444', 'refund': '#8b5cf6',
+        }
+        payment_breakdown = [
+            {
+                'key': key,
+                'label': payment_labels.get(key, key),
+                'value': payment_totals.get(key, 0),
+                'color': payment_colors.get(key, '#64748b'),
+            }
+            for key in payment_labels
+        ]
+
+        base_values = self.search(base_domain).read([
+            'invoice_date', 'partner_invoice_id'
+        ])
+        month_keys = sorted({
+            fields.Date.to_date(row['invoice_date']).strftime('%Y-%m')
+            for row in base_values if row.get('invoice_date')
+        }, reverse=True)
+        clients = {}
+        for row in base_values:
+            partner = row.get('partner_invoice_id')
+            if partner:
+                clients[partner[0]] = partner[1]
+
+        return {
+            'totals': totals,
+            'counts': {
+                'lines': len(values),
+                'orders': len({row['sale_order_id'][0] for row in values
+                               if row.get('sale_order_id')}),
+                'returns': sum(1 for row in values
+                               if row.get('return_status') != 'sale'),
+            },
+            'composition': composition,
+            'composition_total': composition_total,
+            'payment_breakdown': payment_breakdown,
+            'options': {
+                'months': month_keys,
+                'clients': [
+                    {'id': partner_id, 'name': clients[partner_id]}
+                    for partner_id in sorted(clients, key=lambda item: clients[item].lower())
+                ],
+                'states': [
+                    {'key': key, 'label': label}
+                    for key, label in payment_labels.items()
+                ],
+            },
+            'currency': self.env.company.currency_id.name,
+        }
 
     @api.depends(
         'amount', 'coupon_amount', 'killer_amount',

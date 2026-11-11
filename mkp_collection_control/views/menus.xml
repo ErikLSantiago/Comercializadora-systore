@@ -1,13 +1,16 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <odoo>
     <menuitem id="menu_mkp_collection_root" name="Cobranza MKP" sequence="59"
-              action="action_collection_dashboard"
+              action="action_collection_dashboard_client"
               groups="mkp_collection_control.group_mkp_collection_operator" web_icon="mkp_collection_control,static/description/icon.png"/>
     <menuitem id="menu_mkp_collection_dashboard" name="Dashboard"
-              parent="menu_mkp_collection_root" action="action_collection_dashboard" sequence="5"
+              parent="menu_mkp_collection_root" action="action_collection_dashboard_client" sequence="5"
               groups="mkp_collection_control.group_mkp_collection_operator"/>
     <menuitem id="menu_mkp_collection_line_history" name="Historial de cobranza"
               parent="menu_mkp_collection_root" action="action_collection_line_history" sequence="10"
+              groups="mkp_collection_control.group_mkp_collection_operator"/>
+    <menuitem id="menu_mkp_collection_dynamic_analysis" name="Análisis dinámico"
+              parent="menu_mkp_collection_root" action="action_collection_dashboard" sequence="15"
               groups="mkp_collection_control.group_mkp_collection_operator"/>
     <record id="menu_mkp_collection_capture" model="ir.ui.menu">
         <field name="name">Captura de cobranza</field>
