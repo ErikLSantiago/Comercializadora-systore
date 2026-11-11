@@ -68,7 +68,7 @@ class MkpCollectionLineHistory(models.Model):
         ('sale_sync', 'Cambio en Ventas'),
         ('import', 'Importación'),
     ], string='Origen', required=True, readonly=True, default='manual')
-    comment = fields.Text('Comentario', readonly=True)
+    comment = fields.Text('Comentario')
 
     order_id = fields.Many2one(
         'mkp.collection.order', string='Expediente', required=True, readonly=True,
@@ -88,35 +88,39 @@ class MkpCollectionLineHistory(models.Model):
     marketplace_reference = fields.Char(
         related='order_id.marketplace_reference', store=True, readonly=True
     )
+    import_sale_order_id = fields.Many2one(
+        'sale.order', string='Orden de venta', ondelete='restrict',
+        help='Campo de identificación utilizado únicamente durante la importación.'
+    )
 
-    sequence = fields.Integer('Secuencia', readonly=True)
-    product_id = fields.Many2one('product.product', string='Producto', readonly=True,
+    sequence = fields.Integer('Secuencia')
+    product_id = fields.Many2one('product.product', string='Producto',
                                  ondelete='set null')
-    sku = fields.Char('SKU', readonly=True, index=True)
+    sku = fields.Char('SKU', index=True)
     product_name = fields.Char('Producto', required=True, readonly=True, index=True)
     quantity = fields.Float('Cantidad', digits='Product Unit of Measure', readonly=True)
     uom_name = fields.Char('Unidad', readonly=True)
     price_unit = fields.Monetary('Precio unitario', currency_field='currency_id', readonly=True)
     amount = fields.Monetary('Importe', currency_field='currency_id', readonly=True)
 
-    coupon_amount = fields.Monetary('Cupón', currency_field='currency_id', readonly=True)
+    coupon_amount = fields.Monetary('Cupón', currency_field='currency_id')
     coupon_commission = fields.Monetary(
         'Comisión cupón', currency_field='currency_id', readonly=True
     )
-    killer_amount = fields.Monetary('Killer', currency_field='currency_id', readonly=True)
+    killer_amount = fields.Monetary('Killer', currency_field='currency_id')
     killer_commission = fields.Monetary(
-        'Comisión killer', currency_field='currency_id', readonly=True
+        'Comisión killer', currency_field='currency_id'
     )
-    commission = fields.Monetary('Comisiones', currency_field='currency_id', readonly=True)
-    taxes = fields.Monetary('Impuestos', currency_field='currency_id', readonly=True)
-    shipping = fields.Monetary('Envío', currency_field='currency_id', readonly=True)
+    commission = fields.Monetary('Comisiones', currency_field='currency_id')
+    taxes = fields.Monetary('Impuestos', currency_field='currency_id')
+    shipping = fields.Monetary('Envío', currency_field='currency_id')
     other_commission = fields.Monetary(
-        'Otras comisiones', currency_field='currency_id', readonly=True
+        'Otras comisiones', currency_field='currency_id'
     )
     calculation_type = fields.Selection([
         ('precalculation', 'Precalculo'),
         ('marketplace', 'Marketplace'),
-    ], string='Tipo de cálculo', required=True, readonly=True,
+    ], string='Tipo de cálculo', required=True,
        default='precalculation', index=True)
     payment_status = fields.Selection([
         ('held', 'Retenido'),
@@ -124,9 +128,9 @@ class MkpCollectionLineHistory(models.Model):
         ('paid', 'Pagado'),
         ('cancelled', 'Cancelado'),
         ('refund', 'Reembolso'),
-    ], string='Estado de pago', required=True, readonly=True,
+    ], string='Estado de pago', required=True,
        default='pending', index=True)
-    payment_reference = fields.Char('Referencia de pago', readonly=True, index=True)
+    payment_reference = fields.Char('Referencia de pago', index=True)
     return_status = fields.Selection([
         ('created', 'Devolución creada'),
         ('new', 'Nuevo'),
@@ -135,12 +139,12 @@ class MkpCollectionLineHistory(models.Model):
         ('subtraction', 'Sustracción'),
         ('refund', 'Reembolso'),
         ('sale', 'Venta'),
-    ], string='Estado de devolución', required=True, readonly=True,
+    ], string='Estado de devolución', required=True,
        default='sale', index=True)
-    return_request_date = fields.Date('Fecha de solicitud', readonly=True, index=True)
-    return_reference = fields.Char('Referencia', readonly=True, index=True)
+    return_request_date = fields.Date('Fecha de solicitud', index=True)
+    return_reference = fields.Char('Referencia', index=True)
     return_quantity = fields.Float(
-        'Cantidad a devolver', digits='Product Unit of Measure', readonly=True,
+        'Cantidad a devolver', digits='Product Unit of Measure',
         default=0
     )
     subtotal = fields.Monetary(
@@ -196,12 +200,87 @@ class MkpCollectionLineHistory(models.Model):
     @api.model_create_multi
     def create(self, vals_list):
         if not self.env.su:
-            raise AccessError(_(
-                'Las líneas históricas solo pueden generarse desde Cobranza.'
-            ))
+            if not self.env.user.has_group(
+                    'mkp_collection_control.group_mkp_collection_operator'):
+                raise AccessError(_(
+                    'Se requiere el permiso Operador de Cobranza MKP.'
+                ))
+            return self._create_import_revisions(vals_list)
         if any(not vals.get('revision_key') for vals in vals_list):
             raise ValidationError(_('La clave de revisión es obligatoria.'))
         return super().create(vals_list)
+
+    @api.model
+    def _create_import_revisions(self, vals_list):
+        revision_ids = []
+        for original_values in vals_list:
+            values = dict(original_values)
+            sale_order = self.env['sale.order'].browse(
+                values.pop('import_sale_order_id', False)
+            ).exists()
+            if not sale_order:
+                raise ValidationError(_(
+                    'Cada fila debe incluir la columna Orden de venta.'
+                ))
+            sale_order.read(['name', 'company_id', 'currency_id'])
+            collection = self.env['mkp.collection.order'].search([
+                ('sale_order_id', '=', sale_order.id)
+            ], limit=1)
+            if not collection:
+                collection = self.env['mkp.collection.order'].sudo().create({
+                    'sale_order_id': sale_order.id,
+                    'marketplace': sale_order._mkp_field_as_text(
+                        'x_studio_canal_de_venta_1'
+                    ).strip(),
+                    'marketplace_reference': sale_order._mkp_field_as_text(
+                        'x_studio_nmero_de_orden_mkp'
+                    ).strip(),
+                })
+            self._sync_sale_order(sale_order, collection)
+
+            product_id = values.pop('product_id', False)
+            sku = (values.pop('sku', '') or '').strip()
+            sequence = values.pop('sequence', False)
+            domain = [
+                ('sale_order_id', '=', sale_order.id),
+                ('is_active_revision', '=', True),
+            ]
+            if product_id:
+                domain.append(('product_id', '=', product_id))
+            if sku:
+                domain.append(('sku', '=ilike', sku))
+            if not product_id and not sku:
+                raise ValidationError(_(
+                    'La orden %s requiere Producto o SKU para identificar la línea.'
+                ) % sale_order.display_name)
+            if sequence:
+                domain.append(('sequence', '=', sequence))
+            candidates = self.search(domain)
+            if not candidates:
+                raise ValidationError(_(
+                    'No se encontró una línea activa para la orden %s y el producto indicado.'
+                ) % sale_order.display_name)
+            if len(candidates) > 1:
+                raise ValidationError(_(
+                    'El producto aparece más de una vez en %s. Incluya la columna Secuencia.'
+                ) % sale_order.display_name)
+
+            changes = {
+                field_name: values[field_name]
+                for field_name in REVISION_FIELDS
+                if field_name in values
+            }
+            if not changes:
+                raise ValidationError(_(
+                    'La fila no contiene campos de cobranza para actualizar.'
+                ))
+            revision = candidates._create_revision(
+                changes,
+                change_origin='import',
+                comment=values.get('comment') or _('Actualización mediante importación.'),
+            )
+            revision_ids.append(revision.id)
+        return self.browse(revision_ids)
 
     def write(self, vals):
         if self.env.su and self.env.context.get('mkp_internal_revision'):

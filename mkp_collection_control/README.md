@@ -1,4 +1,4 @@
-# Cobranza MKP — v18.0.1.0.10
+# Cobranza MKP — v18.0.1.0.11
 
 Módulo independiente para **Odoo 18 Enterprise / Odoo.sh**. Esta versión organiza la cobranza como un historial inalterable por línea de producto de la orden de venta.
 
@@ -50,11 +50,14 @@ La sección **Cobranza** muestra Sub total y Por cobrar. El campo técnico Total
 
 ## Importación de comisiones
 
-- El historial incluye el botón **Importar comisiones**.
-- La pantalla de carga utiliza el importador nativo de Odoo y su mapeo por columnas.
-- Cada fila se identifica mediante **Orden de venta** y **SKU**. Si el SKU aparece varias veces en una orden, debe agregarse **Secuencia de línea**.
+- En **Historial de cobranza**, el engrane de acciones incluye **Importar registros**, igual que en las listas nativas de Odoo.
+- Admite archivos CSV y XLSX con la pantalla estándar de carga, prueba y mapeo de columnas.
+- Cada fila se identifica mediante **Orden de venta + Producto** o **Orden de venta + SKU**.
+- Si el producto o SKU aparece varias veces en una orden, debe agregarse la columna **Secuencia** de la línea de venta.
 - Solo se actualizan las columnas presentes en el archivo. Cada fila importada crea una nueva revisión Activa y conserva la anterior como Histórica.
 - Se pueden importar Cupón, Killer, Comisión killer, Comisiones, Impuestos, Envío, Otras comisiones, Tipo de cálculo, Estado de pago, Referencia de pago y Comentario.
+- También pueden mapearse los campos de devolución cuando se requiera una actualización masiva.
+- No utilice ID externo para reemplazar registros históricos: cada fila representa una actualización y debe producir una revisión nueva.
 
 Los cálculos se realizan por línea. El historial completo puede consultarse también desde el icono **Cobranza MKP** del inicio.
 

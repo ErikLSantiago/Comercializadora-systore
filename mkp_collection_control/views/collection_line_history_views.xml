@@ -4,15 +4,9 @@
         <field name="name">mkp.collection.line.history.list</field>
         <field name="model">mkp.collection.line.history</field>
         <field name="arch" type="xml">
-            <list string="Historial de movimientos de cobranza" create="0" edit="0" delete="0"
+            <list string="Historial de movimientos de cobranza" create="0" edit="0" delete="0" import="1"
                   default_order="sale_order_id desc,sequence,sale_line_id,revision_no desc,id desc"
                   decoration-muted="not is_active_revision">
-                <header>
-                    <button name="%(action_collection_line_import)d" type="action"
-                            string="Importar comisiones" class="btn-primary"
-                            display="always"
-                            groups="mkp_collection_control.group_mkp_collection_operator"/>
-                </header>
                 <field name="sale_order_id" optional="show"/>
                 <field name="sku"/>
                 <field name="product_name" string="Producto"/>
