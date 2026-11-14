@@ -1,0 +1,13 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<odoo>
+    <record id="action_seller_sales_profit" model="ir.actions.client">
+        <field name="name">Utilidad por ventas</field>
+        <field name="tag">seller_sales_profit.dashboard</field>
+    </record>
+    <menuitem id="menu_seller_sales_profit"
+              name="Utilidad por ventas"
+              parent="account.menu_finance_reports"
+              action="action_seller_sales_profit"
+              groups="account.group_account_readonly"
+              sequence="50"/>
+</odoo>

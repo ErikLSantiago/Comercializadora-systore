@@ -1,0 +1,101 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<templates xml:space="preserve">
+    <t t-name="seller_sales_profit.Dashboard">
+        <main class="o_content h-100 overflow-auto bg-light">
+            <div class="container-xl py-4">
+                <h1 class="h2 mb-3">Utilidad por ventas</h1>
+                <form class="card card-body mb-3" t-on-submit="load">
+                    <fieldset t-att-disabled="state.loading" class="row g-3 align-items-end">
+                        <div class="col-12 col-md-4">
+                            <label class="form-label" for="seller_profit_partner">Seller</label>
+                            <div class="form-control">
+                                <Many2XAutocomplete
+                                    id="'seller_profit_partner'"
+                                    resModel="'res.partner'"
+                                    fieldString="'Seller'"
+                                    value="state.sellerName"
+                                    placeholder="'Busca un contacto'"
+                                    activeActions="partnerActions"
+                                    getDomain.bind="partnerDomain"
+                                    update.bind="selectSeller"
+                                />
+                            </div>
+                        </div>
+                        <div class="col-6 col-md-2">
+                            <label class="form-label" for="seller_profit_from">Desde</label>
+                            <input id="seller_profit_from" class="form-control" type="date"
+                                   required="required" t-model="state.dateFrom" t-on-input="clearResult"/>
+                        </div>
+                        <div class="col-6 col-md-2">
+                            <label class="form-label" for="seller_profit_to">Hasta</label>
+                            <input id="seller_profit_to" class="form-control" type="date"
+                                   required="required" t-model="state.dateTo" t-on-input="clearResult"/>
+                        </div>
+                        <div class="col-6 col-md-2">
+                            <label class="form-label" for="seller_profit_sales">Cuenta de ventas</label>
+                            <input id="seller_profit_sales" class="form-control" type="text"
+                                   required="required" t-model="state.salesCode" t-on-input="clearResult"/>
+                        </div>
+                        <div class="col-6 col-md-2">
+                            <label class="form-label" for="seller_profit_cost">Cuenta de costo</label>
+                            <input id="seller_profit_cost" class="form-control" type="text"
+                                   required="required" t-model="state.costCode" t-on-input="clearResult"/>
+                        </div>
+                        <div class="col-12">
+                            <button class="btn btn-primary" type="submit"
+                                    t-att-disabled="!state.sellerId or state.loading">Consultar</button>
+                        </div>
+                    </fieldset>
+                </form>
+                <p class="text-muted">
+                    Facturas y notas de crédito contabilizadas, sin IVA, por fecha contable.
+                </p>
+                <p t-if="state.loading" role="status">Consultando…</p>
+                <p t-elif="!state.result" class="text-muted">
+                    Selecciona un seller y consulta el periodo.
+                </p>
+                <t t-else="">
+                    <p class="mb-2">
+                        <strong t-out="state.result.seller"/>
+                        <span class="text-muted">
+                            · <t t-out="state.result.company"/> · <t t-out="state.result.currency_name"/>
+                        </span>
+                    </p>
+                    <div class="row g-3">
+                        <div class="col-12 col-md-4">
+                            <section class="card card-body h-100">
+                                <h2 class="h6">Ventas facturadas al seller</h2>
+                                <div class="h3" t-out="money(state.result.sales)"/>
+                                <button t-if="state.result.sales_count" type="button"
+                                        class="btn btn-link p-0 align-self-start"
+                                        t-on-click="() => this.openLines('Apuntes de ventas', state.result.sales_domain)">
+                                    Ver apuntes de ventas
+                                </button>
+                            </section>
+                        </div>
+                        <div class="col-12 col-md-4">
+                            <section class="card card-body h-100">
+                                <h2 class="h6">Costo facturado por el seller</h2>
+                                <div class="h3" t-out="money(state.result.cost)"/>
+                                <button t-if="state.result.cost_count" type="button"
+                                        class="btn btn-link p-0 align-self-start"
+                                        t-on-click="() => this.openLines('Apuntes de costo', state.result.cost_domain)">
+                                    Ver apuntes de costo
+                                </button>
+                            </section>
+                        </div>
+                        <div class="col-12 col-md-4">
+                            <section class="card card-body h-100 border-primary">
+                                <h2 class="h6">Utilidad por ventas</h2>
+                                <div t-att-class="state.result.profit lt 0 ? 'h3 text-danger' : 'h3 text-primary'"
+                                     t-out="money(state.result.profit)"/>
+                            </section>
+                        </div>
+                    </div>
+                    <p t-if="!state.result.sales_count and !state.result.cost_count"
+                       class="mt-3 text-muted">No hay apuntes que coincidan con estos filtros.</p>
+                </t>
+            </div>
+        </main>
+    </t>
+</templates>
