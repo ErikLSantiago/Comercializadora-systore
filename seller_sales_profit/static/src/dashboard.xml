@@ -66,17 +66,9 @@
                         <div class="col-12 d-flex align-items-center flex-wrap gap-3">
                             <button class="btn btn-primary" type="submit"
                                     t-att-disabled="!state.sellerId or !state.salesAccountId or !state.costAccountId or state.loading">Consultar</button>
-                            <div class="form-check mb-0">
-                                <input id="seller_profit_compare" class="form-check-input" type="checkbox"
-                                       t-model="state.compareMonths" t-on-change="clearResult"/>
-                                <label class="form-check-label" for="seller_profit_compare">Comparar por mes</label>
-                            </div>
                         </div>
                     </fieldset>
                 </form>
-                <p class="text-muted">
-                    Facturas y notas de crédito contabilizadas, sin IVA, por fecha contable. «Total pagado al seller» incluye facturas de proveedor pendientes de pago.
-                </p>
                 <p t-if="state.loading" role="status">Consultando…</p>
                 <p t-elif="!state.result" class="text-muted">
                     Selecciona un seller y consulta el periodo. Si el contacto no aparece, activa la casilla Seller en su ficha.
@@ -135,31 +127,6 @@
                         <p t-else="" class="text-muted mb-0">
                             La gráfica requiere ventas positivas y un costo entre cero y el total de ventas.
                         </p>
-                    </section>
-                    <section t-if="state.result.months.length" class="card card-body mt-3">
-                        <h2 class="h5 mb-3">Comparación mensual</h2>
-                        <div class="table-responsive">
-                            <table class="table table-sm table-striped align-middle mb-0">
-                                <thead>
-                                    <tr>
-                                        <th scope="col">Mes</th>
-                                        <th scope="col" class="text-end">Ventas del seller</th>
-                                        <th scope="col" class="text-end">Total pagado al seller</th>
-                                        <th scope="col" class="text-end">Comisiones por ventas seller</th>
-                                    </tr>
-                                </thead>
-                                <tbody>
-                                    <tr t-foreach="state.result.months" t-as="row" t-key="row.month">
-                                        <th scope="row" class="text-nowrap" t-out="monthLabel(row.month)"/>
-                                        <td class="text-end text-nowrap" t-out="money(row.sales)"/>
-                                        <td class="text-end text-nowrap" t-out="money(row.cost)"/>
-                                        <td t-att-class="row.profit lt 0 ? 'text-end text-nowrap text-danger' : 'text-end text-nowrap'"
-                                            t-out="money(row.profit)"/>
-                                    </tr>
-                                </tbody>
-                            </table>
-                        </div>
-                        <p class="text-muted small mt-2 mb-0">El primer y último mes respetan las fechas seleccionadas.</p>
                     </section>
                     <p t-if="!state.result.sales_count and !state.result.cost_count"
                        class="mt-3 text-muted">No hay apuntes que coincidan con estos filtros.</p>

@@ -16,8 +16,8 @@ Si instalaste una versión anterior, reemplaza la carpeta del módulo y usa **Ac
 
 1. Abre la ficha del contacto, marca **Seller** y guarda. El selector del tablero muestra los contactos marcados. Las instalaciones existentes deben marcar sus sellers.
 2. En el tablero, selecciona el seller y usa **Año** y **Mes** para definir el periodo por fecha contable. Elige **Todo el año** o ajusta **Desde** y **Hasta** para un rango personalizado.
-3. Elige las cuentas por nombre. Ventas lista cuentas de tipo **Ingresos** y costo lista cuentas de tipo **Costo de ingresos**. El tablero preselecciona las cuentas de la captura si existen en la compañía activa.
-4. Marca **Comparar por mes** para ver el desglose del periodo y pulsa **Consultar**. Usa **Ver apuntes** para revisar los movimientos incluidos en cada importe.
+3. Elige las cuentas por nombre. Ventas lista cuentas de tipo **Ingresos** y costo lista cuentas de tipo **Costo de ingresos**. El tablero preselecciona 401.01.01 para ventas y 501.01.01 para costo si existen en la compañía activa con el tipo correspondiente.
+4. Pulsa **Consultar**. Usa **Ver apuntes** para revisar los movimientos incluidos en cada importe.
 
 El tablero usa la compañía activa y su moneda contable. Agrupa por contacto comercial, incluyendo los contactos secundarios de la misma empresa. Si administras varios sellers bajo un mismo contacto comercial, este tablero los tratará como un solo seller.
 

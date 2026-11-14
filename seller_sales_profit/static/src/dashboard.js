@@ -27,7 +27,6 @@ class SellerSalesProfitDashboard extends Component {
             dateTo: today.endOf("month").toISODate(),
             salesAccountId: "",
             costAccountId: "",
-            compareMonths: false,
             result: null,
             loading: false,
         });
@@ -111,7 +110,6 @@ class SellerSalesProfitDashboard extends Component {
                     this.state.dateTo,
                     Number(this.state.salesAccountId),
                     Number(this.state.costAccountId),
-                    this.state.compareMonths,
                 ]
             );
         } finally {
@@ -126,10 +124,6 @@ class SellerSalesProfitDashboard extends Component {
         }
         const costPercent = (cost / sales) * 100;
         return `background: conic-gradient(#526a87 0% ${costPercent}%, #168064 ${costPercent}% 100%); width: 11rem; height: 11rem;`;
-    }
-
-    monthLabel(month) {
-        return DateTime.fromISO(month).setLocale("es").toFormat("LLL yyyy");
     }
 
     money(value) {
