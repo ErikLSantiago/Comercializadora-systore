@@ -33,22 +33,35 @@
                         </div>
                         <div class="col-6 col-md-2">
                             <label class="form-label" for="seller_profit_sales">Cuenta de ventas</label>
-                            <input id="seller_profit_sales" class="form-control" type="text"
-                                   required="required" t-model="state.salesCode" t-on-input="clearResult"/>
+                            <select id="seller_profit_sales" class="form-select" required="required"
+                                    t-model="state.salesAccountId" t-on-change="clearResult">
+                                <option value="">Selecciona una cuenta</option>
+                                <option t-foreach="accounts" t-as="account" t-key="account.id"
+                                        t-att-value="account.id" t-out="account.name"/>
+                            </select>
                         </div>
                         <div class="col-6 col-md-2">
                             <label class="form-label" for="seller_profit_cost">Cuenta de costo</label>
-                            <input id="seller_profit_cost" class="form-control" type="text"
-                                   required="required" t-model="state.costCode" t-on-input="clearResult"/>
+                            <select id="seller_profit_cost" class="form-select" required="required"
+                                    t-model="state.costAccountId" t-on-change="clearResult">
+                                <option value="">Selecciona una cuenta</option>
+                                <option t-foreach="accounts" t-as="account" t-key="account.id"
+                                        t-att-value="account.id" t-out="account.name"/>
+                            </select>
                         </div>
-                        <div class="col-12">
+                        <div class="col-12 d-flex align-items-center flex-wrap gap-3">
                             <button class="btn btn-primary" type="submit"
-                                    t-att-disabled="!state.sellerId or state.loading">Consultar</button>
+                                    t-att-disabled="!state.sellerId or !state.salesAccountId or !state.costAccountId or state.loading">Consultar</button>
+                            <div class="form-check mb-0">
+                                <input id="seller_profit_compare" class="form-check-input" type="checkbox"
+                                       t-model="state.compareMonths" t-on-change="clearResult"/>
+                                <label class="form-check-label" for="seller_profit_compare">Comparar por mes</label>
+                            </div>
                         </div>
                     </fieldset>
                 </form>
                 <p class="text-muted">
-                    Facturas y notas de crédito contabilizadas, sin IVA, por fecha contable.
+                    Facturas y notas de crédito contabilizadas, sin IVA, por fecha contable. «Total pagado al seller» incluye facturas de proveedor pendientes de pago.
                 </p>
                 <p t-if="state.loading" role="status">Consultando…</p>
                 <p t-elif="!state.result" class="text-muted">
@@ -64,7 +77,7 @@
                     <div class="row g-3">
                         <div class="col-12 col-md-4">
                             <section class="card card-body h-100">
-                                <h2 class="h6">Ventas facturadas al seller</h2>
+                                <h2 class="h6">Ventas del seller</h2>
                                 <div class="h3" t-out="money(state.result.sales)"/>
                                 <button t-if="state.result.sales_count" type="button"
                                         class="btn btn-link p-0 align-self-start"
@@ -75,7 +88,7 @@
                         </div>
                         <div class="col-12 col-md-4">
                             <section class="card card-body h-100">
-                                <h2 class="h6">Costo facturado por el seller</h2>
+                                <h2 class="h6">Total pagado al seller</h2>
                                 <div class="h3" t-out="money(state.result.cost)"/>
                                 <button t-if="state.result.cost_count" type="button"
                                         class="btn btn-link p-0 align-self-start"
@@ -92,6 +105,48 @@
                             </section>
                         </div>
                     </div>
+                    <section class="card card-body mt-3">
+                        <h2 class="h5 mb-3">Distribución de las ventas</h2>
+                        <div t-if="pieStyle" class="d-flex flex-wrap align-items-center gap-4">
+                            <div class="rounded-circle flex-shrink-0" t-att-style="pieStyle" aria-hidden="true"/>
+                            <dl class="mb-0">
+                                <dt>Ventas del seller</dt>
+                                <dd t-out="money(state.result.sales)"/>
+                                <dt><span aria-hidden="true" style="color: #526a87;">●</span> Total pagado al seller</dt>
+                                <dd t-out="money(state.result.cost)"/>
+                                <dt><span aria-hidden="true" style="color: #168064;">●</span> Utilidad por ventas</dt>
+                                <dd class="mb-0" t-out="money(state.result.profit)"/>
+                            </dl>
+                        </div>
+                        <p t-else="" class="text-muted mb-0">
+                            La gráfica requiere ventas positivas y un costo entre cero y el total de ventas.
+                        </p>
+                    </section>
+                    <section t-if="state.result.months.length" class="card card-body mt-3">
+                        <h2 class="h5 mb-3">Comparación mensual</h2>
+                        <div class="table-responsive">
+                            <table class="table table-sm table-striped align-middle mb-0">
+                                <thead>
+                                    <tr>
+                                        <th scope="col">Mes</th>
+                                        <th scope="col" class="text-end">Ventas del seller</th>
+                                        <th scope="col" class="text-end">Total pagado al seller</th>
+                                        <th scope="col" class="text-end">Utilidad por ventas</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    <tr t-foreach="state.result.months" t-as="row" t-key="row.month">
+                                        <th scope="row" class="text-nowrap" t-out="monthLabel(row.month)"/>
+                                        <td class="text-end text-nowrap" t-out="money(row.sales)"/>
+                                        <td class="text-end text-nowrap" t-out="money(row.cost)"/>
+                                        <td t-att-class="row.profit lt 0 ? 'text-end text-nowrap text-danger' : 'text-end text-nowrap'"
+                                            t-out="money(row.profit)"/>
+                                    </tr>
+                                </tbody>
+                            </table>
+                        </div>
+                        <p class="text-muted small mt-2 mb-0">El primer y último mes respetan las fechas seleccionadas.</p>
+                    </section>
                     <p t-if="!state.result.sales_count and !state.result.cost_count"
                        class="mt-3 text-muted">No hay apuntes que coincidan con estos filtros.</p>
                 </t>

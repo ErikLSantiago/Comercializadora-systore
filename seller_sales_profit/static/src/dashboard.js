@@ -1,6 +1,6 @@
 /** @odoo-module **/
 
-import { Component, useState } from "@odoo/owl";
+import { Component, onWillStart, useState } from "@odoo/owl";
 import { registry } from "@web/core/registry";
 import { useService } from "@web/core/utils/hooks";
 import { formatMonetary } from "@web/views/fields/formatters";
@@ -23,12 +23,24 @@ class SellerSalesProfitDashboard extends Component {
             sellerName: "",
             dateFrom: today.startOf("month").toISODate(),
             dateTo: today.toISODate(),
-            salesCode: "401.01.01",
-            costCode: "501.01.01",
+            salesAccountId: "",
+            costAccountId: "",
+            compareMonths: false,
             result: null,
             loading: false,
         });
         this.partnerActions = { create: false, createEdit: false, write: false };
+        onWillStart(async () => {
+            this.accounts = await this.orm.call(
+                "account.move.line", "get_seller_sales_profit_accounts", []
+            );
+            const defaultAccount = (code) => {
+                const account = this.accounts.find((item) => item.code === code);
+                return account ? String(account.id) : "";
+            };
+            this.state.salesAccountId = defaultAccount("401.01.01");
+            this.state.costAccountId = defaultAccount("501.01.01");
+        });
     }
 
     partnerDomain() {
@@ -61,13 +73,27 @@ class SellerSalesProfitDashboard extends Component {
                     this.state.sellerId,
                     this.state.dateFrom,
                     this.state.dateTo,
-                    this.state.salesCode,
-                    this.state.costCode,
+                    Number(this.state.salesAccountId),
+                    Number(this.state.costAccountId),
+                    this.state.compareMonths,
                 ]
             );
         } finally {
             this.state.loading = false;
         }
+    }
+
+    get pieStyle() {
+        const { sales, cost, profit } = this.state.result;
+        if (sales <= 0 || cost < 0 || profit < 0 || cost > sales) {
+            return false;
+        }
+        const costPercent = (cost / sales) * 100;
+        return `background: conic-gradient(#526a87 0% ${costPercent}%, #168064 ${costPercent}% 100%); width: 11rem; height: 11rem;`;
+    }
+
+    monthLabel(month) {
+        return DateTime.fromISO(month).setLocale("es").toFormat("LLL yyyy");
     }
 
     money(value) {
