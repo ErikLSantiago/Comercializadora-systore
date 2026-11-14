@@ -3,7 +3,7 @@
     <t t-name="seller_sales_profit.Dashboard">
         <main class="o_content h-100 overflow-auto bg-light">
             <div class="container-xl py-4">
-                <h1 class="h2 mb-3">Utilidad por ventas</h1>
+                <h1 class="h2 mb-3">Comisiones por ventas seller</h1>
                 <form class="card card-body mb-3" t-on-submit="load">
                     <fieldset t-att-disabled="state.loading" class="row g-3 align-items-end">
                         <div class="col-12 col-md-4">
@@ -14,7 +14,7 @@
                                     resModel="'res.partner'"
                                     fieldString="'Seller'"
                                     value="state.sellerName"
-                                    placeholder="'Busca un contacto'"
+                                    placeholder="'Busca un contacto marcado como Seller'"
                                     activeActions="partnerActions"
                                     getDomain.bind="partnerDomain"
                                     update.bind="selectSeller"
@@ -22,21 +22,35 @@
                             </div>
                         </div>
                         <div class="col-6 col-md-2">
+                            <label class="form-label" for="seller_profit_year">Año</label>
+                            <input id="seller_profit_year" name="year" type="number" min="1" max="9999"
+                                   class="form-control" t-att-value="state.year" t-on-change="changeQuickPeriod"/>
+                        </div>
+                        <div class="col-6 col-md-2">
+                            <label class="form-label" for="seller_profit_month">Mes</label>
+                            <select id="seller_profit_month" name="month" class="form-select"
+                                    t-model="state.month" t-on-change="changeQuickPeriod">
+                                <option value="">Todo el año</option>
+                                <option t-foreach="months" t-as="month" t-key="month.number"
+                                        t-att-value="month.number" t-out="month.label"/>
+                            </select>
+                        </div>
+                        <div class="col-6 col-md-2">
                             <label class="form-label" for="seller_profit_from">Desde</label>
                             <input id="seller_profit_from" class="form-control" type="date"
-                                   required="required" t-model="state.dateFrom" t-on-input="clearResult"/>
+                                   required="required" t-model="state.dateFrom" t-on-input="changeCustomPeriod"/>
                         </div>
                         <div class="col-6 col-md-2">
                             <label class="form-label" for="seller_profit_to">Hasta</label>
                             <input id="seller_profit_to" class="form-control" type="date"
-                                   required="required" t-model="state.dateTo" t-on-input="clearResult"/>
+                                   required="required" t-model="state.dateTo" t-on-input="changeCustomPeriod"/>
                         </div>
                         <div class="col-6 col-md-2">
                             <label class="form-label" for="seller_profit_sales">Cuenta de ventas</label>
                             <select id="seller_profit_sales" class="form-select" required="required"
                                     t-model="state.salesAccountId" t-on-change="clearResult">
                                 <option value="">Selecciona una cuenta</option>
-                                <option t-foreach="accounts" t-as="account" t-key="account.id"
+                                <option t-foreach="salesAccounts" t-as="account" t-key="account.id"
                                         t-att-value="account.id" t-out="account.name"/>
                             </select>
                         </div>
@@ -45,7 +59,7 @@
                             <select id="seller_profit_cost" class="form-select" required="required"
                                     t-model="state.costAccountId" t-on-change="clearResult">
                                 <option value="">Selecciona una cuenta</option>
-                                <option t-foreach="accounts" t-as="account" t-key="account.id"
+                                <option t-foreach="costAccounts" t-as="account" t-key="account.id"
                                         t-att-value="account.id" t-out="account.name"/>
                             </select>
                         </div>
@@ -65,7 +79,7 @@
                 </p>
                 <p t-if="state.loading" role="status">Consultando…</p>
                 <p t-elif="!state.result" class="text-muted">
-                    Selecciona un seller y consulta el periodo.
+                    Selecciona un seller y consulta el periodo. Si el contacto no aparece, activa la casilla Seller en su ficha.
                 </p>
                 <t t-else="">
                     <p class="mb-2">
@@ -99,7 +113,7 @@
                         </div>
                         <div class="col-12 col-md-4">
                             <section class="card card-body h-100 border-primary">
-                                <h2 class="h6">Utilidad por ventas</h2>
+                                <h2 class="h6">Comisiones por ventas seller</h2>
                                 <div t-att-class="state.result.profit lt 0 ? 'h3 text-danger' : 'h3 text-primary'"
                                      t-out="money(state.result.profit)"/>
                             </section>
@@ -114,7 +128,7 @@
                                 <dd t-out="money(state.result.sales)"/>
                                 <dt><span aria-hidden="true" style="color: #526a87;">●</span> Total pagado al seller</dt>
                                 <dd t-out="money(state.result.cost)"/>
-                                <dt><span aria-hidden="true" style="color: #168064;">●</span> Utilidad por ventas</dt>
+                                <dt><span aria-hidden="true" style="color: #168064;">●</span> Comisiones por ventas seller</dt>
                                 <dd class="mb-0" t-out="money(state.result.profit)"/>
                             </dl>
                         </div>
@@ -131,7 +145,7 @@
                                         <th scope="col">Mes</th>
                                         <th scope="col" class="text-end">Ventas del seller</th>
                                         <th scope="col" class="text-end">Total pagado al seller</th>
-                                        <th scope="col" class="text-end">Utilidad por ventas</th>
+                                        <th scope="col" class="text-end">Comisiones por ventas seller</th>
                                     </tr>
                                 </thead>
                                 <tbody>

@@ -21,36 +21,72 @@ class SellerSalesProfitDashboard extends Component {
         this.state = useState({
             sellerId: false,
             sellerName: "",
+            year: today.year,
+            month: String(today.month),
             dateFrom: today.startOf("month").toISODate(),
-            dateTo: today.toISODate(),
+            dateTo: today.endOf("month").toISODate(),
             salesAccountId: "",
             costAccountId: "",
             compareMonths: false,
             result: null,
             loading: false,
         });
+        this.months = Array.from({ length: 12 }, (_, index) => ({
+            number: index + 1,
+            label: DateTime.fromObject({ year: 2000, month: index + 1 })
+                .setLocale("es").toFormat("LLLL"),
+        }));
         this.partnerActions = { create: false, createEdit: false, write: false };
         onWillStart(async () => {
-            this.accounts = await this.orm.call(
+            const accounts = await this.orm.call(
                 "account.move.line", "get_seller_sales_profit_accounts", []
             );
-            const defaultAccount = (code) => {
-                const account = this.accounts.find((item) => item.code === code);
+            this.salesAccounts = accounts.filter((account) => account.account_type === "income");
+            this.costAccounts = accounts.filter((account) => account.account_type === "expense_direct_cost");
+            const defaultAccount = (accounts, code) => {
+                const account = accounts.find((item) => item.code === code);
                 return account ? String(account.id) : "";
             };
-            this.state.salesAccountId = defaultAccount("401.01.01");
-            this.state.costAccountId = defaultAccount("501.01.01");
+            this.state.salesAccountId = defaultAccount(this.salesAccounts, "401.01.01");
+            this.state.costAccountId = defaultAccount(this.costAccounts, "501.01.01");
         });
     }
 
     partnerDomain() {
-        return [];
+        return [["seller_sales_profit_enabled", "=", true]];
     }
 
     selectSeller(records) {
         const partner = records && records[0];
         this.state.sellerId = partner ? partner.id : false;
         this.state.sellerName = partner ? partner.display_name : "";
+        this.clearResult();
+    }
+
+    changeQuickPeriod(event) {
+        if (event.target.name === "year") {
+            this.state.year = event.target.value;
+        } else {
+            this.state.month = event.target.value;
+        }
+        if (event.target.name === "month" && !this.state.year) {
+            this.state.year = DateTime.local().year;
+        }
+        const year = Number(this.state.year);
+        if (!Number.isInteger(year) || year < 1 || year > 9999) {
+            this.clearResult();
+            return;
+        }
+        const month = Number(this.state.month);
+        const start = DateTime.fromObject({ year, month: month || 1, day: 1 });
+        this.state.dateFrom = start.toISODate();
+        this.state.dateTo = start.endOf(month ? "month" : "year").toISODate();
+        this.clearResult();
+    }
+
+    changeCustomPeriod() {
+        this.state.year = "";
+        this.state.month = "";
         this.clearResult();
     }
 

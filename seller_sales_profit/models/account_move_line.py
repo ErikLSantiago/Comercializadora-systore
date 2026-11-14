@@ -2,6 +2,10 @@ from odoo import _, api, fields, models
 from odoo.exceptions import AccessError, ValidationError
 
 
+SALES_ACCOUNT_TYPE = "income"
+COST_ACCOUNT_TYPE = "expense_direct_cost"
+
+
 class AccountMoveLine(models.Model):
     _inherit = "account.move.line"
 
@@ -10,8 +14,11 @@ class AccountMoveLine(models.Model):
         self._check_seller_sales_profit_access()
         accounts = self.env["account.account"]
         return accounts.search_read(
-            accounts._check_company_domain(self.env.company),
-            ["name", "code"],
+            [
+                *accounts._check_company_domain(self.env.company),
+                ("account_type", "in", [SALES_ACCOUNT_TYPE, COST_ACCOUNT_TYPE]),
+            ],
+            ["name", "code", "account_type"],
             order="name, id",
         )
 
@@ -28,9 +35,12 @@ class AccountMoveLine(models.Model):
 
         if type(partner_id) is not int or partner_id <= 0:
             raise ValidationError(_("Selecciona un seller."))
-        partner = self.env["res.partner"].search([("id", "=", partner_id)], limit=1)
+        partner = self.env["res.partner"].search(
+            [("id", "=", partner_id), ("seller_sales_profit_enabled", "=", True)],
+            limit=1,
+        )
         if not partner:
-            raise ValidationError(_("El contacto seleccionado no está disponible."))
+            raise ValidationError(_("Selecciona un contacto marcado como Seller."))
 
         try:
             date_from = fields.Date.to_date(date_from)
@@ -52,10 +62,10 @@ class AccountMoveLine(models.Model):
             ("display_type", "in", ["product", "discount", "rounding", "epd"]),
         ]
         sales_domain = self._seller_sales_profit_domain(
-            base_domain, sales_account_id, ["out_invoice", "out_refund"]
+            base_domain, sales_account_id, SALES_ACCOUNT_TYPE, ["out_invoice", "out_refund"]
         )
         cost_domain = self._seller_sales_profit_domain(
-            base_domain, cost_account_id, ["in_invoice", "in_refund"]
+            base_domain, cost_account_id, COST_ACCOUNT_TYPE, ["in_invoice", "in_refund"]
         )
         sales, sales_count = self._seller_sales_profit_total(sales_domain, -1)
         cost, cost_count = self._seller_sales_profit_total(cost_domain, 1)
@@ -77,7 +87,7 @@ class AccountMoveLine(models.Model):
         }
 
     @api.model
-    def _seller_sales_profit_domain(self, base_domain, account_id, move_types):
+    def _seller_sales_profit_domain(self, base_domain, account_id, account_type, move_types):
         if type(account_id) is not int or account_id <= 0:
             raise ValidationError(_("Selecciona una cuenta contable."))
         accounts = self.env["account.account"]
@@ -85,11 +95,12 @@ class AccountMoveLine(models.Model):
             [
                 *accounts._check_company_domain(self.env.company),
                 ("id", "=", account_id),
+                ("account_type", "=", account_type),
             ],
             limit=1,
         )
         if not account:
-            raise ValidationError(_("La cuenta seleccionada no está disponible en la compañía activa."))
+            raise ValidationError(_("La cuenta debe pertenecer a la compañía activa y tener el tipo contable requerido."))
         return base_domain + [
             ("account_id", "=", account.id),
             ("move_id.move_type", "in", move_types),
