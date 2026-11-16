@@ -5,7 +5,7 @@ class ResPartner(models.Model):
     _inherit = "res.partner"
 
     seller_sales_profit_enabled = fields.Boolean(
-        string="Seller",
+        string="Es un seller",
         help="Incluye este contacto en el selector del tablero de comisiones por ventas.",
         index=True,
     )

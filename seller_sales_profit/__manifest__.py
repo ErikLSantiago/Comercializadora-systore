@@ -1,13 +1,14 @@
 {
     "name": "Utilidad por ventas de sellers",
-    "version": "18.0.1.3.0",
+    "version": "18.0.1.4.0",
     "summary": "Tablero contable de utilidad por seller",
     "category": "Accounting/Accounting",
     "license": "LGPL-3",
     "depends": ["account", "web"],
-    "data": ["views/res_partner_views.xml", "views/dashboard_menu.xml"],
+    "data": ["views/res_partner_views.xml", "views/dashboard_menu.xml", "views/res_config_settings_views.xml"],
     "assets": {
         "web.assets_backend": [
+            "seller_sales_profit/static/src/menu_visibility.js",
             "seller_sales_profit/static/src/dashboard.js",
             "seller_sales_profit/static/src/dashboard.xml",
         ],

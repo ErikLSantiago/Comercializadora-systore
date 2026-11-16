@@ -1,6 +1,6 @@
 # Utilidad por ventas de sellers
 
-Módulo para Odoo 18. Agrega el tablero **Comisiones por ventas seller** en **Contabilidad → Reportes** para usuarios con acceso de lectura contable.
+Módulo para Odoo 18. Agrega el tablero **Ingresos por comisiones (comisiones cobradas al seller)** en **Contabilidad → Reportes** para usuarios con acceso de lectura contable.
 
 ## Instalación
 
@@ -12,18 +12,24 @@ El entorno debe admitir módulos Python personalizados, como Odoo.sh o un servid
 
 Si instalaste una versión anterior, reemplaza la carpeta del módulo y usa **Actualizar** en la ficha del módulo en Aplicaciones.
 
+## Configuración
+
+Como administrador, abre **Contabilidad → Configuración → Ajustes** y selecciona la **Empresa del tablero de comisiones**. Guarda y recarga Odoo. El tablero se habilita únicamente cuando esa empresa está activa. Si el campo está vacío, el tablero queda deshabilitado.
+
 ## Consulta
 
-1. Abre la ficha del contacto, marca **Seller** y guarda. El selector del tablero muestra los contactos marcados. Las instalaciones existentes deben marcar sus sellers.
+1. Abre la ficha del contacto, marca **Es un seller** y guarda. El selector del tablero muestra los contactos marcados. Las instalaciones existentes deben marcar sus sellers.
 2. En el tablero, selecciona el seller y usa **Año** y **Mes** para definir el periodo por fecha contable. Elige **Todo el año** o ajusta **Desde** y **Hasta** para un rango personalizado.
-3. Elige las cuentas por nombre. Ventas lista cuentas de tipo **Ingresos** y costo lista cuentas de tipo **Costo de ingresos**. El tablero preselecciona 401.01.01 para ventas y 501.01.01 para costo si existen en la compañía activa con el tipo correspondiente.
+3. El tablero usa **401.01.01** para ventas y **501.01.01** para costo de ventas. Ambas cuentas deben existir con el tipo contable correspondiente en la empresa configurada.
 4. Pulsa **Consultar**. Usa **Ver apuntes** para revisar los movimientos incluidos en cada importe.
 
 El tablero usa la compañía activa y su moneda contable. Agrupa por contacto comercial, incluyendo los contactos secundarios de la misma empresa. Si administras varios sellers bajo un mismo contacto comercial, este tablero los tratará como un solo seller.
 
-Las tarjetas muestran **Ventas del seller**, **Total pagado al seller** y **Comisiones por ventas seller**. La gráfica divide el total de ventas entre costo y utilidad cuando ambos importes son positivos o cero y las ventas son mayores que cero. El cálculo incluye apuntes de la cuenta seleccionada en facturas y notas de crédito contabilizadas. Excluye IVA y toma el saldo contable en moneda de la compañía. Una nota de crédito reduce el importe de su lado. Las facturas pendientes de pago cuentan en el periodo.
+Las tarjetas muestran **Ventas del seller**, **Total pagado al seller** y **Ingresos por comisiones (comisiones cobradas al seller)**. La gráfica divide el total de ventas entre costo y utilidad cuando ambos importes son positivos o cero y las ventas son mayores que cero. El cálculo incluye apuntes de la cuenta seleccionada en facturas y notas de crédito contabilizadas. Excluye IVA y toma el saldo contable en moneda de la compañía. Una nota de crédito reduce el importe de su lado. Las facturas pendientes de pago cuentan en el periodo.
 
 Si para el mismo seller y periodo usas esas cuentas también para operaciones ajenas al portal, la consulta incluirá esas operaciones. En ese caso, usa cuentas dedicadas al portal o agrega un criterio de identificación antes de utilizar el tablero para medir exclusivamente el ecommerce.
+
+**Mes anterior** y **Mes siguiente** toman como referencia el mes de **Desde**. **Comparativa por periodos** muestra las ventas y comisiones de enero a diciembre del año de **Desde** para el seller seleccionado.
 
 ## Validación en una base de prueba
 

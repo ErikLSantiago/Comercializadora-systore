@@ -1,6 +1,7 @@
 /** @odoo-module **/
 
-import { Component, onWillStart, useState } from "@odoo/owl";
+import { Component, useState } from "@odoo/owl";
+import { session } from "@web/session";
 import { registry } from "@web/core/registry";
 import { useService } from "@web/core/utils/hooks";
 import { formatMonetary } from "@web/views/fields/formatters";
@@ -16,6 +17,7 @@ class SellerSalesProfitDashboard extends Component {
     setup() {
         this.orm = useService("orm");
         this.action = useService("action");
+        this.company = useService("company");
 
         const today = DateTime.local();
         this.state = useState({
@@ -25,8 +27,7 @@ class SellerSalesProfitDashboard extends Component {
             month: String(today.month),
             dateFrom: today.startOf("month").toISODate(),
             dateTo: today.endOf("month").toISODate(),
-            salesAccountId: "",
-            costAccountId: "",
+            comparison: null,
             result: null,
             loading: false,
         });
@@ -36,19 +37,10 @@ class SellerSalesProfitDashboard extends Component {
                 .setLocale("es").toFormat("LLLL"),
         }));
         this.partnerActions = { create: false, createEdit: false, write: false };
-        onWillStart(async () => {
-            const accounts = await this.orm.call(
-                "account.move.line", "get_seller_sales_profit_accounts", []
-            );
-            this.salesAccounts = accounts.filter((account) => account.account_type === "income");
-            this.costAccounts = accounts.filter((account) => account.account_type === "expense_direct_cost");
-            const defaultAccount = (accounts, code) => {
-                const account = accounts.find((item) => item.code === code);
-                return account ? String(account.id) : "";
-            };
-            this.state.salesAccountId = defaultAccount(this.salesAccounts, "401.01.01");
-            this.state.costAccountId = defaultAccount(this.costAccounts, "501.01.01");
-        });
+    }
+
+    get isEnabled() {
+        return this.company.currentCompany.id === session.seller_sales_profit_company_id;
     }
 
     partnerDomain() {
@@ -91,30 +83,66 @@ class SellerSalesProfitDashboard extends Component {
 
     clearResult() {
         this.state.result = null;
+        this.state.comparison = null;
     }
 
-    async load(event) {
+    load(event) {
         event.preventDefault();
-        if (!this.state.sellerId || this.state.loading) {
+        return this.query();
+    }
+
+    shiftMonth(offset) {
+        const reference = DateTime.fromISO(this.state.dateFrom || "");
+        if (!reference.isValid) {
+            return;
+        }
+        const start = reference.startOf("month").plus({ months: offset });
+        if (start.year < 1 || start.year > 9999) {
+            return;
+        }
+        this.state.year = start.year;
+        this.state.month = String(start.month);
+        this.state.dateFrom = start.toISODate();
+        this.state.dateTo = start.endOf("month").toISODate();
+        this.clearResult();
+        return this.query();
+    }
+
+    async query(compare = false) {
+        if (!this.isEnabled || !this.state.sellerId || this.state.loading) {
             return;
         }
         this.state.loading = true;
-        this.clearResult();
+        if (!compare) {
+            this.clearResult();
+        }
         try {
-            this.state.result = await this.orm.call(
+            const result = await this.orm.call(
                 "account.move.line",
                 "get_seller_sales_profit",
-                [
-                    this.state.sellerId,
-                    this.state.dateFrom,
-                    this.state.dateTo,
-                    Number(this.state.salesAccountId),
-                    Number(this.state.costAccountId),
-                ]
+                [this.state.sellerId, this.state.dateFrom, this.state.dateTo, compare]
             );
+            if (compare) {
+                this.state.comparison = result;
+            } else {
+                this.state.result = result;
+            }
         } finally {
             this.state.loading = false;
         }
+    }
+
+    get comparisonScale() {
+        const values = this.state.comparison.months.flatMap(({ sales, profit }) => [sales, profit]);
+        const minimum = Math.min(0, ...values);
+        const maximum = Math.max(0, ...values);
+        return { minimum, span: maximum - minimum || 1 };
+    }
+
+    barStyle(value, scale) {
+        const left = ((Math.min(value, 0) - scale.minimum) / scale.span) * 100;
+        const width = (Math.abs(value) / scale.span) * 100;
+        return `left: ${left}%; width: ${width}%;`;
     }
 
     get pieStyle() {
@@ -126,8 +154,8 @@ class SellerSalesProfitDashboard extends Component {
         return `background: conic-gradient(#526a87 0% ${costPercent}%, #168064 ${costPercent}% 100%); width: 11rem; height: 11rem;`;
     }
 
-    money(value) {
-        return formatMonetary(value, { currencyId: this.state.result.currency_id });
+    money(value, currencyId = this.state.result.currency_id) {
+        return formatMonetary(value, { currencyId });
     }
 
     openLines(name, domain) {
