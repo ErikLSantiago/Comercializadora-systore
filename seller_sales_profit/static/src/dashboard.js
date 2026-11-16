@@ -161,6 +161,12 @@ class SellerSalesProfitDashboard extends Component {
         return `left: ${left}%; width: ${width}%;`;
     }
 
+    get piePeriodLabel() {
+        const firstMonth = this.monthLabel(this.state.dateFrom);
+        const lastMonth = this.monthLabel(this.state.dateTo);
+        return firstMonth === lastMonth ? firstMonth : `${firstMonth} a ${lastMonth}`;
+    }
+
     get pieStyle() {
         const { sales, cost, profit } = this.state.result;
         if (sales <= 0 || cost < 0 || profit < 0 || cost > sales) {

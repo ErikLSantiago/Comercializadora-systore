@@ -108,8 +108,8 @@
                                 </section>
                             </div>
                         </div>
-                        <section class="card card-body mt-3">
-                            <h2 class="h5 mb-3">Distribución de las ventas</h2>
+                        <section t-if="!state.comparison" class="card card-body mt-3">
+                            <h2 class="h5 mb-3">Distribución de las ventas · <t t-out="piePeriodLabel"/></h2>
                             <div t-if="pieStyle" class="d-flex flex-wrap align-items-center gap-4">
                                 <div class="rounded-circle flex-shrink-0" t-att-style="pieStyle" aria-hidden="true"/>
                                 <dl class="mb-0">
