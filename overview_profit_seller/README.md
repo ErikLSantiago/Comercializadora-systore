@@ -1,0 +1,51 @@
+# overview_profit_seller
+
+Módulo para Odoo 18. Agrega el tablero **Overview** en **Contabilidad → Reportes** para usuarios con acceso de lectura contable.
+
+## Instalación
+
+El entorno debe admitir módulos Python personalizados, como Odoo.sh o un servidor propio.
+
+1. Copia la carpeta `overview_profit_seller` al directorio de módulos personalizados. En Odoo.sh, incluye la carpeta en el repositorio y despliega primero en una rama de pruebas.
+2. En Odoo, activa el modo de desarrollador y selecciona **Aplicaciones → Actualizar lista de aplicaciones**.
+3. Busca **overview_profit_seller** e instálalo. Retira el filtro predeterminado **Aplicaciones** si el módulo no aparece.
+
+### Base con la versión anterior instalada
+
+En una copia de la base, migra el nombre técnico antes de cargar el módulo nuevo. Usa [la utilidad oficial de Odoo](https://www.odoo.com/documentation/18.0/developer/reference/upgrades/upgrade_utils.html) en un script previo a la actualización de `base`:
+
+```python
+from odoo.upgrade import util
+
+
+def migrate(cr, version):
+    if util.modules_installed(cr, "seller_sales_profit"):
+        util.rename_module(cr, "seller_sales_profit", "overview_profit_seller")
+```
+
+En el despliegue del cambio, sustituye el código anterior por la carpeta nueva y ejecuta la actualización de `base` y `overview_profit_seller` con el script previo. Para un servidor que admite la línea de comandos de Odoo, usa `-u base,overview_profit_seller --pre-upgrade-scripts=/ruta/al/script.py --stop-after-init` con la base correspondiente y Upgrade Utils disponible. Si la base ya tiene instalados ambos nombres, revisa ese estado antes de ejecutar la migración.
+
+Comprueba que aparezca un solo menú **Overview**, que la empresa configurada y las marcas **Es un seller** se conserven y que el pastel use amarillo mostaza para los pagos al seller. Los nombres técnicos del campo de contacto y de la configuración se conservan para reutilizar sus valores.
+
+## Configuración
+
+Como administrador, abre **Contabilidad → Configuración → Ajustes** y selecciona la **Empresa del tablero de comisiones**. Guarda y recarga Odoo. El tablero se habilita únicamente cuando esa empresa está activa. Si el campo está vacío, el tablero queda deshabilitado.
+
+## Consulta
+
+1. Abre la ficha del contacto, marca **Es un seller** y guarda. El selector del tablero muestra los contactos marcados. Las instalaciones existentes deben marcar sus sellers.
+2. En el tablero, selecciona el seller y usa **Año** y **Mes** para definir el periodo por fecha contable. Elige **Todo el año** o ajusta **Desde** y **Hasta** para un rango personalizado.
+3. El tablero usa **401.01.01** para ventas y **501.01.01** para costo de ventas. Ambas cuentas deben existir con el tipo contable correspondiente en la empresa configurada.
+4. Pulsa **Consultar**. Usa **Ver apuntes** para revisar los movimientos incluidos en cada importe.
+
+El tablero usa la compañía activa y su moneda contable. Agrupa por contacto comercial, incluyendo los contactos secundarios de la misma empresa. Si administras varios sellers bajo un mismo contacto comercial, este tablero los tratará como un solo seller.
+
+Las tarjetas muestran **Ventas del seller**, **Total pagado al seller** y **Ingresos (comisiones cobradas al seller)**. La gráfica divide el total de ventas entre costo y utilidad cuando ambos importes son positivos o cero y las ventas son mayores que cero. El cálculo incluye apuntes de la cuenta seleccionada en facturas y notas de crédito contabilizadas. Excluye IVA y toma el saldo contable en moneda de la compañía. Una nota de crédito reduce el importe de su lado. Las facturas pendientes de pago cuentan en el periodo.
+
+Si para el mismo seller y periodo usas esas cuentas también para operaciones ajenas al portal, la consulta incluirá esas operaciones. En ese caso, usa cuentas dedicadas al portal o agrega un criterio de identificación antes de utilizar el tablero para medir exclusivamente el ecommerce.
+
+**Mes anterior** y **Mes siguiente** toman como referencia el mes de **Desde**. **Comparativa por periodos** incluye el mes de **Desde** y la cantidad indicada en **Meses anteriores**. Con marzo de 2023 y 8 meses anteriores, aparecen 9 filas, de julio de 2022 a marzo de 2023. La gráfica muestra **Venta seller**, **Pagos al seller** e **Ingresos por comisiones**.
+
+## Validación en una base de prueba
+
+Para un seller y un periodo, registra una factura de cliente por 1,000, una factura de proveedor por 800, una nota de crédito de cliente por 100 y una nota de crédito de proveedor por 50. Usa importes antes de IVA y los códigos configurados. Si son los únicos documentos aplicables, verifica que el tablero muestre 900 de ventas, 750 de costo y 150 de utilidad. Revisa los apuntes de cada tarjeta y confirma que un borrador, otra compañía y otro seller no alteren el resultado.
