@@ -29,7 +29,7 @@ Las tarjetas muestran **Ventas del seller**, **Total pagado al seller** y **Ingr
 
 Si para el mismo seller y periodo usas esas cuentas también para operaciones ajenas al portal, la consulta incluirá esas operaciones. En ese caso, usa cuentas dedicadas al portal o agrega un criterio de identificación antes de utilizar el tablero para medir exclusivamente el ecommerce.
 
-**Mes anterior** y **Mes siguiente** toman como referencia el mes de **Desde**. **Comparativa por periodos** muestra las ventas y comisiones de enero a diciembre del año de **Desde** para el seller seleccionado.
+**Mes anterior** y **Mes siguiente** toman como referencia el mes de **Desde**. **Comparativa por periodos** incluye el mes de **Desde** y la cantidad indicada en **Meses anteriores**. Con marzo de 2023 y 8 meses anteriores, aparecen 9 filas, de julio de 2022 a marzo de 2023. La gráfica muestra **Venta seller**, **Pagos al seller** e **Ingresos por comisiones**.
 
 ## Validación en una base de prueba
 

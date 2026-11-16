@@ -54,9 +54,15 @@
                                         t-on-click="() => this.shiftMonth(-1)">Mes anterior</button>
                                 <button type="button" class="btn btn-outline-secondary"
                                         t-on-click="() => this.shiftMonth(1)">Mes siguiente</button>
+                                <div class="d-flex align-items-center gap-2">
+                                    <label for="seller_profit_previous_months" class="mb-0">Meses anteriores</label>
+                                    <input id="seller_profit_previous_months" name="previous_months" type="number"
+                                           min="0" step="1" class="form-control" style="width: 6rem;"
+                                           t-model="state.previousMonths" t-on-input="() => this.state.comparison = null"/>
+                                </div>
                                 <button type="button" class="btn btn-outline-primary"
                                         t-att-disabled="!state.sellerId or !state.dateFrom or !state.dateTo"
-                                        t-on-click="() => this.query(true)">Comparativa por periodos</button>
+                                        t-on-click="comparePeriods">Comparativa por periodos</button>
                             </div>
                         </fieldset>
                     </form>
@@ -68,7 +74,7 @@
                         <p class="mb-2">
                             <strong t-out="state.result.seller"/>
                             <span class="text-muted">
-                                · <t t-out="state.result.company"/> · <t t-out="state.result.currency_name"/>
+                                · <t t-out="state.result.currency_name"/>
                             </span>
                         </p>
                         <div class="row g-3">
@@ -123,10 +129,11 @@
                            class="mt-3 text-muted">No hay apuntes que coincidan con estos filtros.</p>
                     </t>
                     <section t-if="state.comparison and !state.loading" class="card card-body mt-3">
-                        <h2 class="h5 mb-3">Comparativa por periodos · <t t-out="state.comparison.year"/></h2>
+                        <h2 class="h5 mb-3">Comparativa por periodos</h2>
                         <p class="mb-3">
-                            <span class="text-primary">●</span> Ventas del seller
-                            <span class="ms-3 text-success">●</span> Ingresos por comisiones (comisiones cobradas al seller)
+                            <span class="text-primary">●</span> Venta seller
+                            <span class="ms-3 text-secondary">●</span> Pagos al seller
+                            <span class="ms-3 text-success">●</span> Ingresos por comisiones
                         </p>
                         <t t-set="scale" t-value="comparisonScale"/>
                         <div class="table-responsive">
@@ -135,17 +142,22 @@
                                     <tr>
                                         <th scope="col">Mes</th>
                                         <th scope="col" class="w-50">Importes por mes</th>
-                                        <th scope="col" class="text-end">Ventas</th>
-                                        <th scope="col" class="text-end">Comisiones</th>
+                                        <th scope="col" class="text-end">Venta seller</th>
+                                        <th scope="col" class="text-end">Pagos al seller</th>
+                                        <th scope="col" class="text-end">Ingresos por comisiones</th>
                                     </tr>
                                 </thead>
                                 <tbody>
                                     <tr t-foreach="state.comparison.months" t-as="row" t-key="row.month">
-                                        <th scope="row" class="text-capitalize" t-out="months[row.month - 1].label"/>
+                                        <th scope="row" class="text-capitalize" t-out="monthLabel(row.month)"/>
                                         <td aria-hidden="true">
                                             <div class="position-relative bg-light mb-1" style="height: .65rem;">
                                                 <div class="position-absolute bg-primary h-100"
                                                      t-att-style="barStyle(row.sales, scale)"/>
+                                            </div>
+                                            <div class="position-relative bg-light mb-1" style="height: .65rem;">
+                                                <div class="position-absolute bg-secondary h-100"
+                                                     t-att-style="barStyle(row.cost, scale)"/>
                                             </div>
                                             <div class="position-relative bg-light" style="height: .65rem;">
                                                 <div class="position-absolute bg-success h-100"
@@ -153,6 +165,7 @@
                                             </div>
                                         </td>
                                         <td class="text-end text-nowrap" t-out="money(row.sales, state.comparison.currency_id)"/>
+                                        <td class="text-end text-nowrap" t-out="money(row.cost, state.comparison.currency_id)"/>
                                         <td class="text-end text-nowrap" t-out="money(row.profit, state.comparison.currency_id)"/>
                                     </tr>
                                 </tbody>

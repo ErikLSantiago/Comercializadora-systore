@@ -28,6 +28,7 @@ class SellerSalesProfitDashboard extends Component {
             dateFrom: today.startOf("month").toISODate(),
             dateTo: today.endOf("month").toISODate(),
             comparison: null,
+            previousMonths: 8,
             result: null,
             loading: false,
         });
@@ -108,21 +109,36 @@ class SellerSalesProfitDashboard extends Component {
         return this.query();
     }
 
-    async query(compare = false) {
+    comparePeriods(event) {
+        const input = event.currentTarget.form.elements.previous_months;
+        if (input.value === "" || !input.reportValidity()) {
+            return;
+        }
+        return this.query(input.valueAsNumber);
+    }
+
+    monthLabel(month) {
+        return DateTime.fromISO(month).setLocale("es").toFormat("LLLL yyyy");
+    }
+
+    async query(previousMonths = null) {
         if (!this.isEnabled || !this.state.sellerId || this.state.loading) {
             return;
         }
         this.state.loading = true;
-        if (!compare) {
+        const comparing = previousMonths !== null;
+        if (comparing) {
+            this.state.comparison = null;
+        } else {
             this.clearResult();
         }
         try {
             const result = await this.orm.call(
                 "account.move.line",
                 "get_seller_sales_profit",
-                [this.state.sellerId, this.state.dateFrom, this.state.dateTo, compare]
+                [this.state.sellerId, this.state.dateFrom, this.state.dateTo, previousMonths]
             );
-            if (compare) {
+            if (comparing) {
                 this.state.comparison = result;
             } else {
                 this.state.result = result;
@@ -133,7 +149,7 @@ class SellerSalesProfitDashboard extends Component {
     }
 
     get comparisonScale() {
-        const values = this.state.comparison.months.flatMap(({ sales, profit }) => [sales, profit]);
+        const values = this.state.comparison.months.flatMap(({ sales, cost, profit }) => [sales, cost, profit]);
         const minimum = Math.min(0, ...values);
         const maximum = Math.max(0, ...values);
         return { minimum, span: maximum - minimum || 1 };

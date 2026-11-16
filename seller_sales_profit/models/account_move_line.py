@@ -25,7 +25,7 @@ class AccountMoveLine(models.Model):
 
     @api.model
     def get_seller_sales_profit(
-        self, partner_id, date_from, date_to, compare_periods=False
+        self, partner_id, date_from, date_to, previous_months=None
     ):
         self._check_seller_sales_profit_access()
 
@@ -46,9 +46,12 @@ class AccountMoveLine(models.Model):
         if not date_from or not date_to or date_from > date_to:
             raise ValidationError(_("Ingresa un periodo válido."))
 
-        if compare_periods:
-            date_to = date_from.replace(month=12, day=31)
-            date_from = date_from.replace(month=1, day=1)
+        if previous_months is not None:
+            max_previous_months = (date_from.year - 1) * 12 + date_from.month - 1
+            if type(previous_months) is not int or not 0 <= previous_months <= max_previous_months:
+                raise ValidationError(_("Indica un número válido de meses anteriores."))
+            date_to = fields.Date.end_of(date_from, "month")
+            date_from = fields.Date.add(date_from.replace(day=1), months=-previous_months)
 
         company = self.env.company
         currency = company.currency_id
@@ -67,29 +70,26 @@ class AccountMoveLine(models.Model):
         cost_domain = self._seller_sales_profit_domain(
             base_domain, "501.01.01", COST_ACCOUNT_TYPE, ["in_invoice", "in_refund"]
         )
-        if compare_periods:
+        if previous_months is not None:
             sales_by_month = self._seller_sales_profit_month_balances(sales_domain)
             cost_by_month = self._seller_sales_profit_month_balances(cost_domain)
-            return {
-                "year": date_from.year,
-                "currency_id": currency.id,
-                "months": [
-                    {
-                        "month": month,
-                        "sales": currency.round(-sales_by_month.get(month, 0.0)),
-                        "profit": currency.round(
-                            -sales_by_month.get(month, 0.0) - cost_by_month.get(month, 0.0)
-                        ),
-                    }
-                    for month in range(1, 13)
-                ],
-            }
+            months = []
+            for offset in range(previous_months + 1):
+                month = fields.Date.add(date_from, months=offset)
+                sales = -sales_by_month.get(month, 0.0)
+                cost = cost_by_month.get(month, 0.0)
+                months.append({
+                    "month": fields.Date.to_string(month),
+                    "sales": currency.round(sales),
+                    "cost": currency.round(cost),
+                    "profit": currency.round(sales - cost),
+                })
+            return {"currency_id": currency.id, "months": months}
 
         sales, sales_count = self._seller_sales_profit_total(sales_domain, -1)
         cost, cost_count = self._seller_sales_profit_total(cost_domain, 1)
         return {
             "seller": partner.commercial_partner_id.display_name,
-            "company": company.display_name,
             "currency_id": currency.id,
             "currency_name": currency.name,
             "sales": currency.round(sales),
@@ -132,6 +132,6 @@ class AccountMoveLine(models.Model):
     @api.model
     def _seller_sales_profit_month_balances(self, domain):
         return {
-            month.month: balance or 0.0
+            month: balance or 0.0
             for month, balance in self._read_group(domain, ["date:month"], ["balance:sum"])
         }
