@@ -132,7 +132,7 @@
                         <h2 class="h5 mb-3">Comparativa por periodos</h2>
                         <p class="mb-3">
                             <span class="text-primary">●</span> Venta seller
-                            <span class="ms-3 text-secondary">●</span> Pagos al seller
+                            <span class="ms-3" style="color: #2563EB;">●</span> Pagos al seller
                             <span class="ms-3 text-success">●</span> Ingresos por comisiones
                         </p>
                         <t t-set="scale" t-value="comparisonScale"/>
@@ -156,8 +156,8 @@
                                                      t-att-style="barStyle(row.sales, scale)"/>
                                             </div>
                                             <div class="position-relative bg-light mb-1" style="height: .65rem;">
-                                                <div class="position-absolute bg-secondary h-100"
-                                                     t-att-style="barStyle(row.cost, scale)"/>
+                                                <div class="position-absolute h-100"
+                                                     t-att-style="barStyle(row.cost, scale) + ' background-color: #2563EB;'"/>
                                             </div>
                                             <div class="position-relative bg-light" style="height: .65rem;">
                                                 <div class="position-absolute bg-success h-100"

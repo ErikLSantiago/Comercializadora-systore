@@ -1,6 +1,6 @@
 {
     "name": "overview_profit_seller",
-    "version": "18.0.1.8.0",
+    "version": "18.0.1.9.0",
     "summary": "Tablero contable de utilidad por seller",
     "category": "Accounting/Accounting",
     "license": "LGPL-3",
