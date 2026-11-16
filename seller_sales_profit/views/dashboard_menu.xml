@@ -1,11 +1,11 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <odoo>
     <record id="action_seller_sales_profit" model="ir.actions.client">
-        <field name="name">Ingresos por comisiones (comisiones cobradas al seller)</field>
+        <field name="name">Overview</field>
         <field name="tag">seller_sales_profit.dashboard</field>
     </record>
     <menuitem id="menu_seller_sales_profit"
-              name="Ingresos por comisiones (comisiones cobradas al seller)"
+              name="Overview"
               parent="account.menu_finance_reports"
               action="action_seller_sales_profit"
               groups="account.group_account_readonly"

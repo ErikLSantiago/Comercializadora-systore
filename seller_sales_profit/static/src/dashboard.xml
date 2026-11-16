@@ -3,7 +3,7 @@
     <t t-name="seller_sales_profit.Dashboard">
         <main class="o_content h-100 overflow-auto bg-light">
             <div class="container-xl py-4">
-                <h1 class="h2 mb-3">Ingresos por comisiones (comisiones cobradas al seller)</h1>
+                <h1 class="h2 mb-3">Overview</h1>
                 <p t-if="!isEnabled">El tablero está disponible en la empresa configurada para el reporte.</p>
                 <t t-else="">
                     <form class="card card-body mb-3" t-on-submit="load">
@@ -102,7 +102,7 @@
                             </div>
                             <div class="col-12 col-md-4">
                                 <section class="card card-body h-100 border-primary">
-                                    <h2 class="h6">Ingresos por comisiones (comisiones cobradas al seller)</h2>
+                                    <h2 class="h6">Ingresos (comisiones cobradas al seller)</h2>
                                     <div t-att-class="state.result.profit lt 0 ? 'h3 text-danger' : 'h3 text-primary'"
                                          t-out="money(state.result.profit)"/>
                                 </section>
@@ -117,7 +117,7 @@
                                     <dd t-out="money(state.result.sales)"/>
                                     <dt><span aria-hidden="true" style="color: #526a87;">●</span> Total pagado al seller</dt>
                                     <dd t-out="money(state.result.cost)"/>
-                                    <dt><span aria-hidden="true" style="color: #168064;">●</span> Ingresos por comisiones (comisiones cobradas al seller)</dt>
+                                    <dt><span aria-hidden="true" style="color: #168064;">●</span> Ingresos (comisiones cobradas al seller)</dt>
                                     <dd class="mb-0" t-out="money(state.result.profit)"/>
                                 </dl>
                             </div>
