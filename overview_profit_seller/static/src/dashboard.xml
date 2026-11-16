@@ -1,0 +1,179 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<templates xml:space="preserve">
+    <t t-name="overview_profit_seller.Dashboard">
+        <main class="o_content h-100 overflow-auto bg-light">
+            <div class="container-xl py-4">
+                <h1 class="h2 mb-3">Overview</h1>
+                <p t-if="!isEnabled">El tablero está disponible en la empresa configurada para el reporte.</p>
+                <t t-else="">
+                    <form class="card card-body mb-3" t-on-submit="load">
+                        <fieldset t-att-disabled="state.loading" class="row g-3 align-items-end">
+                            <div class="col-12 col-md-4">
+                                <label class="form-label" for="seller_profit_partner">Seller</label>
+                                <div class="form-control">
+                                    <Many2XAutocomplete
+                                        id="'seller_profit_partner'"
+                                        resModel="'res.partner'"
+                                        fieldString="'Seller'"
+                                        value="state.sellerName"
+                                        placeholder="'Busca un contacto con la casilla Es un seller activada'"
+                                        activeActions="partnerActions"
+                                        getDomain.bind="partnerDomain"
+                                        update.bind="selectSeller"
+                                    />
+                                </div>
+                            </div>
+                            <div class="col-6 col-md-2">
+                                <label class="form-label" for="seller_profit_year">Año</label>
+                                <input id="seller_profit_year" name="year" type="number" min="1" max="9999"
+                                       class="form-control" t-att-value="state.year" t-on-change="changeQuickPeriod"/>
+                            </div>
+                            <div class="col-6 col-md-2">
+                                <label class="form-label" for="seller_profit_month">Mes</label>
+                                <select id="seller_profit_month" name="month" class="form-select"
+                                        t-model="state.month" t-on-change="changeQuickPeriod">
+                                    <option value="">Todo el año</option>
+                                    <option t-foreach="months" t-as="month" t-key="month.number"
+                                            t-att-value="month.number" t-out="month.label"/>
+                                </select>
+                            </div>
+                            <div class="col-6 col-md-2">
+                                <label class="form-label" for="seller_profit_from">Desde</label>
+                                <input id="seller_profit_from" class="form-control" type="date"
+                                       required="required" t-model="state.dateFrom" t-on-input="changeCustomPeriod"/>
+                            </div>
+                            <div class="col-6 col-md-2">
+                                <label class="form-label" for="seller_profit_to">Hasta</label>
+                                <input id="seller_profit_to" class="form-control" type="date"
+                                       required="required" t-model="state.dateTo" t-on-input="changeCustomPeriod"/>
+                            </div>
+                            <div class="col-12 d-flex align-items-center flex-wrap gap-3">
+                                <button class="btn btn-primary" type="submit"
+                                        t-att-disabled="!state.sellerId or state.loading">Consultar</button>
+                                <button type="button" class="btn btn-outline-secondary"
+                                        t-on-click="() => this.shiftMonth(-1)">Mes anterior</button>
+                                <button type="button" class="btn btn-outline-secondary"
+                                        t-on-click="() => this.shiftMonth(1)">Mes siguiente</button>
+                                <div class="d-flex align-items-center gap-2">
+                                    <label for="seller_profit_previous_months" class="mb-0">Meses anteriores</label>
+                                    <input id="seller_profit_previous_months" name="previous_months" type="number"
+                                           min="0" step="1" class="form-control" style="width: 6rem;"
+                                           t-model="state.previousMonths" t-on-input="() => this.state.comparison = null"/>
+                                </div>
+                                <button type="button" class="btn btn-outline-primary"
+                                        t-att-disabled="!state.sellerId or !state.dateFrom or !state.dateTo"
+                                        t-on-click="comparePeriods">Comparativa por periodos</button>
+                            </div>
+                        </fieldset>
+                    </form>
+                    <p t-if="state.loading" role="status">Consultando…</p>
+                    <p t-elif="!state.result and !state.comparison" class="text-muted">
+                        Selecciona un seller y consulta el periodo. Si el contacto no aparece, activa la casilla «Es un seller» en su ficha.
+                    </p>
+                    <t t-if="state.result and !state.loading">
+                        <p class="mb-2">
+                            <strong t-out="state.result.seller"/>
+                            <span class="text-muted">
+                                · <t t-out="state.result.currency_name"/>
+                            </span>
+                        </p>
+                        <div class="row g-3">
+                            <div class="col-12 col-md-4">
+                                <section class="card card-body h-100">
+                                    <h2 class="h6">Ventas del seller</h2>
+                                    <div class="h3" t-out="money(state.result.sales)"/>
+                                    <button t-if="state.result.sales_count" type="button"
+                                            class="btn btn-link p-0 align-self-start"
+                                            t-on-click="() => this.openLines('Apuntes de ventas', state.result.sales_domain)">
+                                        Ver apuntes de ventas
+                                    </button>
+                                </section>
+                            </div>
+                            <div class="col-12 col-md-4">
+                                <section class="card card-body h-100">
+                                    <h2 class="h6">Total pagado al seller</h2>
+                                    <div class="h3" t-out="money(state.result.cost)"/>
+                                    <button t-if="state.result.cost_count" type="button"
+                                            class="btn btn-link p-0 align-self-start"
+                                            t-on-click="() => this.openLines('Apuntes de costo', state.result.cost_domain)">
+                                        Ver apuntes de costo
+                                    </button>
+                                </section>
+                            </div>
+                            <div class="col-12 col-md-4">
+                                <section class="card card-body h-100 border-primary">
+                                    <h2 class="h6">Ingresos (comisiones cobradas al seller)</h2>
+                                    <div t-att-class="state.result.profit lt 0 ? 'h3 text-danger' : 'h3 text-primary'"
+                                         t-out="money(state.result.profit)"/>
+                                </section>
+                            </div>
+                        </div>
+                        <section t-if="!state.comparison" class="card card-body mt-3">
+                            <h2 class="h5 mb-3">Distribución de las ventas · <t t-out="piePeriodLabel"/></h2>
+                            <div t-if="pieStyle" class="d-flex flex-wrap align-items-center gap-4">
+                                <div class="rounded-circle flex-shrink-0" t-att-style="pieStyle" aria-hidden="true"/>
+                                <dl class="mb-0">
+                                    <dt>Ventas del seller</dt>
+                                    <dd t-out="money(state.result.sales)"/>
+                                    <dt><span aria-hidden="true" style="color: #C99A20;">●</span> Total pagado al seller</dt>
+                                    <dd t-out="money(state.result.cost)"/>
+                                    <dt><span aria-hidden="true" style="color: #168064;">●</span> Ingresos (comisiones cobradas al seller)</dt>
+                                    <dd class="mb-0" t-out="money(state.result.profit)"/>
+                                </dl>
+                            </div>
+                            <p t-else="" class="text-muted mb-0">
+                                La gráfica requiere ventas positivas y un costo entre cero y el total de ventas.
+                            </p>
+                        </section>
+                        <p t-if="!state.result.sales_count and !state.result.cost_count"
+                           class="mt-3 text-muted">No hay apuntes que coincidan con estos filtros.</p>
+                    </t>
+                    <section t-if="state.comparison and !state.loading" class="card card-body mt-3">
+                        <h2 class="h5 mb-3">Comparativa por periodos</h2>
+                        <p class="mb-3">
+                            <span class="text-primary">●</span> Venta seller
+                            <span class="ms-3" style="color: #2563EB;">●</span> Pagos al seller
+                            <span class="ms-3 text-success">●</span> Ingresos por comisiones
+                        </p>
+                        <t t-set="scale" t-value="comparisonScale"/>
+                        <div class="table-responsive">
+                            <table class="table table-sm align-middle mb-0">
+                                <thead>
+                                    <tr>
+                                        <th scope="col">Mes</th>
+                                        <th scope="col" class="w-50">Importes por mes</th>
+                                        <th scope="col" class="text-end">Venta seller</th>
+                                        <th scope="col" class="text-end">Pagos al seller</th>
+                                        <th scope="col" class="text-end">Ingresos por comisiones</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    <tr t-foreach="state.comparison.months" t-as="row" t-key="row.month">
+                                        <th scope="row" class="text-capitalize" t-out="monthLabel(row.month)"/>
+                                        <td aria-hidden="true">
+                                            <div class="position-relative bg-light mb-1" style="height: .65rem;">
+                                                <div class="position-absolute bg-primary h-100"
+                                                     t-att-style="barStyle(row.sales, scale)"/>
+                                            </div>
+                                            <div class="position-relative bg-light mb-1" style="height: .65rem;">
+                                                <div class="position-absolute h-100"
+                                                     t-att-style="barStyle(row.cost, scale) + ' background-color: #2563EB;'"/>
+                                            </div>
+                                            <div class="position-relative bg-light" style="height: .65rem;">
+                                                <div class="position-absolute bg-success h-100"
+                                                     t-att-style="barStyle(row.profit, scale)"/>
+                                            </div>
+                                        </td>
+                                        <td class="text-end text-nowrap" t-out="money(row.sales, state.comparison.currency_id)"/>
+                                        <td class="text-end text-nowrap" t-out="money(row.cost, state.comparison.currency_id)"/>
+                                        <td class="text-end text-nowrap" t-out="money(row.profit, state.comparison.currency_id)"/>
+                                    </tr>
+                                </tbody>
+                            </table>
+                        </div>
+                    </section>
+                </t>
+            </div>
+        </main>
+    </t>
+</templates>
