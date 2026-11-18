@@ -12,6 +12,7 @@
             <graph string="Cobranza por estado de pago" type="pie">
                 <field name="payment_status"/>
                 <field name="amount_to_collect" type="measure"/>
+                <field name="paid_amount" type="measure"/>
             </graph>
         </field>
     </record>
@@ -25,6 +26,7 @@
                 <field name="payment_status" type="col"/>
                 <field name="amount" type="measure"/>
                 <field name="amount_to_collect" type="measure"/>
+                <field name="paid_amount" type="measure"/>
                 <field name="coupon_amount" type="measure"/>
                 <field name="killer_amount" type="measure"/>
                 <field name="killer_commission" type="measure"/>
@@ -48,6 +50,7 @@
                 <field name="sku"/>
                 <field name="product_name"/>
                 <field name="payment_status"/>
+                <field name="payment_date"/>
                 <field name="calculation_type"/>
                 <field name="return_status"/>
                 <filter name="has_return" string="Con devolución"
@@ -55,6 +58,8 @@
                 <separator/>
                 <filter name="group_payment" string="Estado de pago"
                         context="{'group_by':'payment_status'}"/>
+                <filter name="group_payment_date" string="Fecha de pago"
+                        context="{'group_by':'payment_date:month'}"/>
                 <filter name="group_marketplace" string="Marketplace"
                         context="{'group_by':'marketplace'}"/>
                 <filter name="group_calculation" string="Tipo de cálculo"

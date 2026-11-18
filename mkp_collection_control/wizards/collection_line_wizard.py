@@ -4,7 +4,7 @@ from odoo.exceptions import ValidationError
 from ..models.collection_line_history import (
     MONETARY_REVISION_FIELDS, NON_MONETARY_REVISION_FIELDS, REVISION_FIELDS,
 )
-from ..models.ledger import collection_line_totals
+from ..models.ledger import collection_line_balance, collection_line_totals
 
 
 class MkpCollectionLineWizard(models.TransientModel):
@@ -60,6 +60,12 @@ class MkpCollectionLineWizard(models.TransientModel):
         ('refund', 'Reembolso'),
     ], string='Estado de pago', required=True, default='pending')
     payment_reference = fields.Char('Referencia de pago')
+    payment_date = fields.Date(
+        'Fecha de pago', help='Fecha confirmada o tentativa del pago o liberación.'
+    )
+    paid_amount = fields.Monetary(
+        'Importe pagado', currency_field='currency_id', default=0
+    )
     return_status = fields.Selection([
         ('created', 'Devolución creada'),
         ('new', 'Nuevo'),
@@ -72,7 +78,7 @@ class MkpCollectionLineWizard(models.TransientModel):
     return_request_date = fields.Date('Fecha de solicitud')
     return_reference = fields.Char('Referencia')
     return_quantity = fields.Float(
-        'Cantidad a devolver', digits='Product Unit of Measure', default=0
+        'Piezas devueltas', digits='Product Unit of Measure', default=0
     )
     subtotal = fields.Monetary(
         'Sub total', currency_field='currency_id', compute='_compute_totals'
@@ -142,7 +148,9 @@ class MkpCollectionLineWizard(models.TransientModel):
             )
             wizard.subtotal = subtotal
             wizard.adjusted_total = final_total
-            wizard.amount_to_collect = final_total
+            wizard.amount_to_collect = collection_line_balance(
+                final_total, wizard.paid_amount
+            )
 
     @api.onchange('return_status')
     def _onchange_return_status(self):

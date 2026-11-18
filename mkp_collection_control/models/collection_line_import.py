@@ -23,6 +23,7 @@ class MkpCollectionLineImport(models.Model):
     taxes = fields.Monetary('Impuestos', currency_field='currency_id')
     shipping = fields.Monetary('Envío', currency_field='currency_id')
     other_commission = fields.Monetary('Otras comisiones', currency_field='currency_id')
+    paid_amount = fields.Monetary('Importe pagado', currency_field='currency_id')
     calculation_type = fields.Selection([
         ('precalculation', 'Precalculo'),
         ('marketplace', 'Marketplace'),
@@ -35,6 +36,7 @@ class MkpCollectionLineImport(models.Model):
         ('refund', 'Reembolso'),
     ], string='Estado de pago')
     payment_reference = fields.Char('Referencia de pago')
+    payment_date = fields.Date('Fecha de pago')
     comment = fields.Text('Comentario')
     generated_history_id = fields.Many2one(
         'mkp.collection.line.history', string='Línea histórica generada',
@@ -134,9 +136,11 @@ class MkpCollectionLineImport(models.Model):
                 changes[field_name] = self[field_name]
         if 'payment_reference' in provided_fields:
             changes['payment_reference'] = self.payment_reference or False
+        if 'payment_date' in provided_fields:
+            changes['payment_date'] = self.payment_date or False
         if not changes:
             raise ValidationError(_(
-                'La fila no contiene columnas de comisiones, tipo de cálculo, estado o referencia de pago.'
+                'La fila no contiene columnas de comisiones, cálculo, estado, fecha o importe de pago.'
             ))
         return candidates._create_revision(
             changes,

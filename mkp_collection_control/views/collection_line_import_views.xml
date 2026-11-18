@@ -19,6 +19,8 @@
                 <field name="calculation_type" optional="show"/>
                 <field name="payment_status" optional="show"/>
                 <field name="payment_reference" optional="show"/>
+                <field name="payment_date" optional="show"/>
+                <field name="paid_amount" optional="show"/>
                 <field name="generated_history_id" optional="show"/>
                 <field name="imported_by_id" optional="hide"/>
                 <field name="imported_at" optional="show"/>
@@ -56,6 +58,8 @@
                     </group>
                     <group string="Cobranza">
                         <field name="payment_status"/>
+                        <field name="payment_date"/>
+                        <field name="paid_amount"/>
                         <field name="payment_reference"/>
                         <field name="comment"/>
                     </group>

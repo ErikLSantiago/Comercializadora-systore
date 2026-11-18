@@ -24,7 +24,9 @@
                 <field name="calculation_type"/>
                 <field name="subtotal"/>
                 <field name="amount_to_collect"/>
+                <field name="paid_amount" optional="show"/>
                 <field name="payment_status"/>
+                <field name="payment_date" optional="show"/>
                 <field name="payment_reference" optional="show"/>
                 <field name="return_status"/>
                 <field name="return_quantity" optional="show"/>
@@ -93,12 +95,14 @@
                     </group>
                     <group string="Cobranza">
                         <field name="subtotal"/>
+                        <field name="adjusted_total"/>
+                        <field name="paid_amount"/>
                         <field name="amount_to_collect"/>
                         <field name="payment_status"/>
+                        <field name="payment_date"/>
                         <field name="payment_reference"/>
                     </group>
                     <group string="Devoluciones">
-                        <field name="sale_line_id"/>
                         <field name="return_status"/>
                         <field name="return_quantity"/>
                         <field name="return_request_date"/>
@@ -131,6 +135,7 @@
                 <field name="sku"/>
                 <field name="product_name"/>
                 <field name="payment_status"/>
+                <field name="payment_date"/>
                 <field name="calculation_type"/>
                 <field name="return_status"/>
                 <field name="return_reference"/>
@@ -147,6 +152,8 @@
                         context="{'group_by':'history_status'}"/>
                 <filter name="group_payment_status" string="Estado de pago"
                         context="{'group_by':'payment_status'}"/>
+                <filter name="group_payment_date" string="Fecha de pago"
+                        context="{'group_by':'payment_date:month'}"/>
                 <filter name="group_calculation_type" string="Tipo de cálculo"
                         context="{'group_by':'calculation_type'}"/>
                 <filter name="group_return_status" string="Estado de devolución"
@@ -200,8 +207,11 @@
                     </group>
                     <group string="Cobranza">
                         <field name="subtotal" readonly="1"/>
+                        <field name="adjusted_total" readonly="1"/>
+                        <field name="paid_amount"/>
                         <field name="amount_to_collect" readonly="1"/>
                         <field name="payment_status"/>
+                        <field name="payment_date"/>
                         <field name="payment_reference"/>
                     </group>
                     <group string="Devoluciones">

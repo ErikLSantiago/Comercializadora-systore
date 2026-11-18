@@ -2,7 +2,7 @@
 import unittest
 from ..models.ledger import (
     money, state, net, apply_event, event_deltas, snapshot_deltas, payment_deltas,
-    collection_line_totals,
+    collection_line_balance, collection_line_totals,
     validate_return_quantity,
 )
 
@@ -164,6 +164,11 @@ class TestMkpCollectionLedger(unittest.TestCase):
         )
         self.assertEqual(subtotal, money(950))
         self.assertEqual(adjusted, money(695))
+
+    def test_collection_line_balance_supports_partial_payments(self):
+        self.assertEqual(collection_line_balance(695, 200), money(495))
+        self.assertEqual(collection_line_balance(695, 695), money(0))
+        self.assertEqual(collection_line_balance(695, 700), money(-5))
 
     def test_return_quantity_validation(self):
         self.assertEqual(validate_return_quantity(1, 2, 'created'), 1)

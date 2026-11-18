@@ -19,6 +19,8 @@ export class MkpCollectionDashboard extends Component {
                 counts: {},
                 composition: [],
                 payment_breakdown: [],
+                upcoming_payments: [],
+                upcoming_clients: [],
                 options: { months: [], clients: [], states: [] },
                 currency: "MXN",
             },
@@ -89,6 +91,18 @@ export class MkpCollectionDashboard extends Component {
             month: "long",
             year: "numeric",
         }).format(new Date(year, month - 1, 1));
+    }
+
+    formatDate(value) {
+        if (!value) {
+            return "";
+        }
+        const [year, month, day] = value.split("-").map(Number);
+        return new Intl.DateTimeFormat("es-MX", {
+            day: "2-digit",
+            month: "2-digit",
+            year: "numeric",
+        }).format(new Date(year, month - 1, day));
     }
 
     segmentStyle(segment) {

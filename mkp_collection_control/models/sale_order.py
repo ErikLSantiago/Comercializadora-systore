@@ -103,3 +103,44 @@ class SaleOrder(models.Model):
             'context': {'default_sale_order_id': self.id},
         })
         return action
+
+
+class SaleOrderLine(models.Model):
+    _inherit = 'sale.order.line'
+
+    mkp_commission = fields.Monetary(
+        'Comisiones', currency_field='currency_id',
+        compute='_compute_mkp_collection_amounts', compute_sudo=True,
+        groups='mkp_collection_control.group_mkp_collection_operator'
+    )
+    mkp_shipping = fields.Monetary(
+        'Envío', currency_field='currency_id',
+        compute='_compute_mkp_collection_amounts', compute_sudo=True,
+        groups='mkp_collection_control.group_mkp_collection_operator'
+    )
+    mkp_withholding = fields.Monetary(
+        'Retenciones', currency_field='currency_id',
+        compute='_compute_mkp_collection_amounts', compute_sudo=True,
+        groups='mkp_collection_control.group_mkp_collection_operator'
+    )
+    mkp_other_commission = fields.Monetary(
+        'Otras comisiones', currency_field='currency_id',
+        compute='_compute_mkp_collection_amounts', compute_sudo=True,
+        groups='mkp_collection_control.group_mkp_collection_operator'
+    )
+
+    def _compute_mkp_collection_amounts(self):
+        histories = self.env['mkp.collection.line.history'].sudo().search([
+            ('sale_line_id', 'in', self.ids),
+            ('is_active_revision', '=', True),
+        ]) if self.ids else self.env['mkp.collection.line.history']
+        active_by_line = {
+            history.sale_line_id.id: history
+            for history in histories if history.sale_line_id
+        }
+        for line in self:
+            history = active_by_line.get(line.id)
+            line.mkp_commission = history.commission if history else 0
+            line.mkp_shipping = history.shipping if history else 0
+            line.mkp_withholding = history.taxes if history else 0
+            line.mkp_other_commission = history.other_commission if history else 0

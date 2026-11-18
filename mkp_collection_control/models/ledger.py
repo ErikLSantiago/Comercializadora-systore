@@ -47,16 +47,21 @@ def collection_line_totals(*, amount=0, coupon_amount=0,
     return subtotal, adjusted_total
 
 
+def collection_line_balance(adjusted_total=0, paid_amount=0):
+    """Return the outstanding balance after cumulative partial payments."""
+    return money(money(adjusted_total) - money(paid_amount))
+
+
 def validate_return_quantity(return_quantity, ordered_quantity, return_status='sale'):
     """Validate a product quantity without imposing monetary rounding."""
     quantity = Decimal(str(return_quantity or 0))
     maximum = abs(Decimal(str(ordered_quantity or 0)))
     if quantity < 0:
-        raise ValueError('La cantidad a devolver no puede ser negativa.')
+        raise ValueError('Las piezas devueltas no pueden ser negativas.')
     if quantity > maximum:
-        raise ValueError('La cantidad a devolver no puede superar la cantidad vendida.')
+        raise ValueError('Las piezas devueltas no pueden superar la cantidad vendida.')
     if return_status == 'sale' and quantity:
-        raise ValueError('El estado Venta no admite una cantidad a devolver.')
+        raise ValueError('El estado Venta no admite piezas devueltas.')
     return quantity
 
 

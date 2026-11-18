@@ -17,6 +17,16 @@
                     <field name="mkp_return_count" widget="statinfo" string="Devoluciones"/>
                 </button>
             </xpath>
+            <xpath expr="//field[@name='order_line']/list" position="inside">
+                <field name="mkp_commission" readonly="1" optional="show" invisible="display_type"
+                       groups="mkp_collection_control.group_mkp_collection_operator"/>
+                <field name="mkp_shipping" readonly="1" optional="show" invisible="display_type"
+                       groups="mkp_collection_control.group_mkp_collection_operator"/>
+                <field name="mkp_withholding" readonly="1" optional="show" invisible="display_type"
+                       groups="mkp_collection_control.group_mkp_collection_operator"/>
+                <field name="mkp_other_commission" readonly="1" optional="show" invisible="display_type"
+                       groups="mkp_collection_control.group_mkp_collection_operator"/>
+            </xpath>
         </field>
     </record>
 </odoo>

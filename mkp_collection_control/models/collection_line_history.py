@@ -3,7 +3,9 @@ from odoo.exceptions import AccessError, UserError, ValidationError
 from odoo.tools.float_utils import float_compare
 from dateutil.relativedelta import relativedelta
 
-from .ledger import collection_line_totals, validate_return_quantity
+from .ledger import (
+    collection_line_balance, collection_line_totals, validate_return_quantity,
+)
 
 
 MONETARY_REVISION_FIELDS = (
@@ -14,11 +16,13 @@ MONETARY_REVISION_FIELDS = (
     'taxes',
     'shipping',
     'other_commission',
+    'paid_amount',
 )
 
 NON_MONETARY_REVISION_FIELDS = (
     'payment_status',
     'payment_reference',
+    'payment_date',
     'calculation_type',
     'return_status',
     'return_request_date',
@@ -140,6 +144,13 @@ class MkpCollectionLineHistory(models.Model):
     ], string='Estado de pago', required=True,
        default='pending', index=True)
     payment_reference = fields.Char('Referencia de pago', index=True)
+    payment_date = fields.Date(
+        'Fecha de pago', index=True,
+        help='Fecha confirmada o tentativa del pago o liberación.'
+    )
+    paid_amount = fields.Monetary(
+        'Importe pagado', currency_field='currency_id', default=0
+    )
     return_status = fields.Selection([
         ('created', 'Devolución creada'),
         ('new', 'Nuevo'),
@@ -153,7 +164,7 @@ class MkpCollectionLineHistory(models.Model):
     return_request_date = fields.Date('Fecha de solicitud', index=True)
     return_reference = fields.Char('Referencia', index=True)
     return_quantity = fields.Float(
-        'Cantidad a devolver', digits='Product Unit of Measure',
+        'Piezas devueltas', digits='Product Unit of Measure',
         default=0
     )
     subtotal = fields.Monetary(
@@ -242,9 +253,11 @@ class MkpCollectionLineHistory(models.Model):
 
         dashboard_fields = [
             'sale_order_id', 'invoice_date', 'partner_invoice_id',
-            'payment_status', 'return_status', 'amount', 'coupon_amount',
+            'marketplace_reference', 'product_name',
+            'payment_status', 'payment_reference', 'payment_date',
+            'return_status', 'amount', 'coupon_amount',
             'killer_amount', 'killer_commission', 'commission', 'taxes',
-            'shipping', 'other_commission', 'amount_to_collect',
+            'shipping', 'other_commission', 'paid_amount', 'amount_to_collect',
             'return_quantity',
         ]
         records = self.search(domain)
@@ -278,6 +291,7 @@ class MkpCollectionLineHistory(models.Model):
             'taxes': total('taxes'),
             'shipping': total('shipping'),
             'other_commission': total('other_commission'),
+            'paid_amount': total('paid_amount'),
             'amount_to_collect': total('amount_to_collect'),
             'return_quantity': total('return_quantity'),
         }
@@ -297,6 +311,8 @@ class MkpCollectionLineHistory(models.Model):
         )
 
         composition = [
+            {'key': 'paid', 'label': _('Importe pagado'),
+             'value': max(totals['paid_amount'], 0), 'color': '#0f766e'},
             {'key': 'collect', 'label': _('Por cobrar'),
              'value': max(totals['amount_to_collect'], 0), 'color': '#16a765'},
             {'key': 'commission', 'label': _('Comisiones'),
@@ -342,6 +358,58 @@ class MkpCollectionLineHistory(models.Model):
             for key in payment_labels
         ]
 
+        today = fields.Date.context_today(self)
+        upcoming_payments = []
+        upcoming_clients_map = {}
+        for row in values:
+            payment_date = fields.Date.to_date(row.get('payment_date')) \
+                if row.get('payment_date') else False
+            remaining = row.get('amount_to_collect') or 0.0
+            if (
+                not payment_date
+                or payment_date < today
+                or row.get('payment_status') not in ('pending', 'held')
+                or remaining <= 0
+            ):
+                continue
+            partner = row.get('partner_invoice_id')
+            partner_id = partner[0] if partner else 0
+            partner_name = partner[1] if partner else _('Sin cliente de facturación')
+            sale_order = row.get('sale_order_id')
+            upcoming_payments.append({
+                'id': row['id'],
+                'date': fields.Date.to_string(payment_date),
+                'partner_id': partner_id,
+                'partner_name': partner_name,
+                'order_name': sale_order[1] if sale_order else '',
+                'marketplace_reference': row.get('marketplace_reference') or '',
+                'product_name': row.get('product_name') or '',
+                'status': payment_labels.get(
+                    row.get('payment_status'), row.get('payment_status') or ''
+                ),
+                'payment_reference': row.get('payment_reference') or '',
+                'amount': remaining,
+            })
+            client_summary = upcoming_clients_map.setdefault(partner_id, {
+                'id': partner_id,
+                'name': partner_name,
+                'amount': 0.0,
+                'count': 0,
+                'next_date': fields.Date.to_string(payment_date),
+            })
+            client_summary['amount'] += remaining
+            client_summary['count'] += 1
+            client_summary['next_date'] = min(
+                client_summary['next_date'], fields.Date.to_string(payment_date)
+            )
+        upcoming_payments.sort(key=lambda item: (
+            item['date'], item['partner_name'].lower(), item['order_name'], item['id']
+        ))
+        upcoming_clients = sorted(
+            upcoming_clients_map.values(),
+            key=lambda item: (item['next_date'], item['name'].lower()),
+        )
+
         base_values = self.search(base_domain).read([
             'invoice_date', 'partner_invoice_id'
         ])
@@ -367,6 +435,8 @@ class MkpCollectionLineHistory(models.Model):
             'composition': composition,
             'composition_total': composition_total,
             'payment_breakdown': payment_breakdown,
+            'upcoming_payments': upcoming_payments,
+            'upcoming_clients': upcoming_clients,
             'options': {
                 'months': month_keys,
                 'clients': [
@@ -383,7 +453,8 @@ class MkpCollectionLineHistory(models.Model):
 
     @api.depends(
         'amount', 'coupon_amount', 'killer_amount',
-        'killer_commission', 'commission', 'taxes', 'shipping', 'other_commission'
+        'killer_commission', 'commission', 'taxes', 'shipping', 'other_commission',
+        'paid_amount'
     )
     def _compute_totals(self):
         for record in self:
@@ -399,7 +470,9 @@ class MkpCollectionLineHistory(models.Model):
             )
             record.subtotal = subtotal
             record.adjusted_total = final_total
-            record.amount_to_collect = final_total
+            record.amount_to_collect = collection_line_balance(
+                final_total, record.paid_amount
+            )
 
     @api.model_create_multi
     def create(self, vals_list):

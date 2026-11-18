@@ -95,7 +95,12 @@
                     <article class="o_mkp_kpi o_mkp_kpi_success">
                         <span>Por cobrar</span>
                         <strong t-esc="formatCurrency(state.data.totals.amount_to_collect)"/>
-                        <small>Después de promociones y descuentos</small>
+                        <small>Saldo después de pagos parciales</small>
+                    </article>
+                    <article class="o_mkp_kpi o_mkp_kpi_paid">
+                        <span>Importe pagado</span>
+                        <strong t-esc="formatCurrency(state.data.totals.paid_amount)"/>
+                        <small>Pagos acumulados informados</small>
                     </article>
                     <article class="o_mkp_kpi">
                         <span>Comisiones</span>
@@ -147,6 +152,10 @@
                             <span>Por cobrar</span>
                             <strong t-esc="formatCurrency(state.data.totals.amount_to_collect)"/>
                         </div>
+                        <div>
+                            <span>Importe pagado</span>
+                            <strong t-esc="formatCurrency(state.data.totals.paid_amount)"/>
+                        </div>
                     </div>
                     <div class="o_mkp_stacked_bar" t-if="state.data.composition_total">
                         <t t-foreach="state.data.composition" t-as="segment" t-key="segment.key">
@@ -167,6 +176,58 @@
                             <strong t-esc="formatCurrency(segment.value)"/>
                             <small><t t-esc="segment.percentage.toFixed(1)"/>%</small>
                         </div>
+                    </div>
+                </section>
+
+                <section class="o_mkp_panel o_mkp_upcoming_panel">
+                    <div class="o_mkp_panel_title">
+                        <h2>Próximos pagos o liberaciones</h2>
+                        <span>Saldo pendiente con Fecha de pago igual o posterior a hoy</span>
+                    </div>
+                    <t t-if="state.data.upcoming_payments.length">
+                        <div class="o_mkp_upcoming_clients">
+                            <article t-foreach="state.data.upcoming_clients" t-as="client" t-key="client.id"
+                                     class="o_mkp_upcoming_client">
+                                <span t-esc="client.name"/>
+                                <strong t-esc="formatCurrency(client.amount)"/>
+                                <small>
+                                    <t t-esc="client.count"/> línea(s) · Próximo <t t-esc="formatDate(client.next_date)"/>
+                                </small>
+                            </article>
+                        </div>
+                        <div class="table-responsive o_mkp_upcoming_table_wrap">
+                            <table class="table table-sm table-hover align-middle o_mkp_upcoming_table">
+                                <thead>
+                                    <tr>
+                                        <th>Fecha</th>
+                                        <th>Cliente de facturación</th>
+                                        <th>Orden</th>
+                                        <th>Producto</th>
+                                        <th>Estado</th>
+                                        <th>Referencia</th>
+                                        <th class="text-end">Por cobrar</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    <tr t-foreach="state.data.upcoming_payments" t-as="payment" t-key="payment.id">
+                                        <td t-esc="formatDate(payment.date)"/>
+                                        <td t-esc="payment.partner_name"/>
+                                        <td>
+                                            <span t-esc="payment.order_name"/>
+                                            <small t-if="payment.marketplace_reference" class="d-block text-muted"
+                                                   t-esc="payment.marketplace_reference"/>
+                                        </td>
+                                        <td t-esc="payment.product_name"/>
+                                        <td t-esc="payment.status"/>
+                                        <td t-esc="payment.payment_reference"/>
+                                        <td class="text-end fw-bold" t-esc="formatCurrency(payment.amount)"/>
+                                    </tr>
+                                </tbody>
+                            </table>
+                        </div>
+                    </t>
+                    <div class="o_mkp_empty_bar" t-else="">
+                        No hay pagos o liberaciones próximos para los filtros seleccionados.
                     </div>
                 </section>
 
