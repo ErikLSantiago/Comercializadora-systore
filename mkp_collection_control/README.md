@@ -1,4 +1,4 @@
-# Cobranza MKP — v18.0.1.0.15
+# Cobranza MKP — v18.0.1.0.16
 
 Módulo independiente para **Odoo 18 Enterprise / Odoo.sh**. Esta versión organiza la cobranza como un historial inalterable por línea de producto de la orden de venta.
 
@@ -18,9 +18,10 @@ Módulo independiente para **Odoo 18 Enterprise / Odoo.sh**. Esta versión organ
 - **Comisión cupón** se retira de la interfaz y deja de participar en los cálculos. Su columna técnica histórica se conserva únicamente para permitir una actualización segura desde versiones anteriores.
 - **Tipo de cálculo** admite Precalculo o Marketplace.
 - **Estado de pago** admite Retenido, Pendiente, Pagado, Cancelado o Reembolso.
-- La sección **Cobranza** incorpora **Referencia de pago**, **Fecha de pago** e **Importe pagado**.
-- La Fecha de pago admite tanto la fecha confirmada como la tentativa y Odoo la presenta de acuerdo con el idioma del usuario (`dd/mm/aaaa` en español).
-- Importe pagado es acumulado por línea y permite registrar pagos parciales. Cada ajuste genera una revisión histórica nueva.
+- La sección **Cobranza** incorpora una Fecha prevista de pago o liberación y una Referencia prevista/general.
+- **Pagos parciales** permite capturar tantas líneas como sean necesarias, cada una con Importe pagado, Fecha de pago parcial y Referencia de pago.
+- Importe pagado se calcula automáticamente como la suma de las líneas parciales. Cada ajuste genera una revisión histórica nueva y la versión anterior conserva su propio desglose.
+- Los importes pagados de versiones anteriores se migran a una primera línea de detalle para conservar el saldo acumulado.
 - La sección **Devoluciones** permite elegir una línea concreta de producto, indicar Fecha de solicitud, Referencia y uno de estos estados: Devolución creada, Nuevo, Open box, Pago por reclamo, Sustracción, Reembolso o Venta.
 - **Piezas devueltas** permite indicar las piezas de esa línea. No admite valores negativos, cantidades superiores a las vendidas ni cantidad cuando el estado es Venta.
 - En la consulta histórica de una devolución se omite el campo técnico Línea de venta; el wizard conserva el selector Línea de producto para aplicar devoluciones a un producto concreto cuando una orden contiene varias líneas.
@@ -36,7 +37,8 @@ Módulo independiente para **Odoo 18 Enterprise / Odoo.sh**. Esta versión organ
 - El análisis utiliza únicamente las revisiones Activas para no duplicar importes históricos.
 - Las tarjetas muestran Base ajustada, Por cobrar, Importe pagado, comisiones, retenciones/impuestos, envío, Cupón, Killer y piezas devueltas.
 - La barra global segmenta Importe pagado, Por cobrar, comisiones, envío, retenciones/impuestos, Comisión killer, otras comisiones y Cupón.
-- **Próximos pagos o liberaciones** muestra las líneas Pendientes o Retenidas con Fecha de pago igual o posterior al día actual. Incluye un resumen por Cliente de facturación y el detalle de fecha, orden, producto, estado, referencia y saldo.
+- **Próximos pagos o liberaciones** muestra únicamente el Saldo de liberaciones de las líneas Pendientes o Retenidas con fecha prevista igual o posterior al día actual; ya no despliega el historial dentro del tablero.
+- El Saldo de liberaciones y el botón **Consultar pedidos pendientes de pago** abren los pedidos que forman exactamente ese importe. El filtro Cliente de facturación permite consultar el saldo de un cliente concreto.
 - El resumen inferior muestra la cobranza por Estado de pago.
 - El tablero utiliza un contenedor de altura limitada con barra de desplazamiento vertical propia para permitir navegar por todos los indicadores y gráficas.
 - La tabla dinámica anterior permanece disponible desde **Análisis dinámico**.
@@ -70,6 +72,7 @@ La sección **Cobranza** muestra Sub total y Por cobrar. El campo técnico Total
 - Si el producto o SKU aparece varias veces en una orden, debe agregarse la columna **Secuencia** de la línea de venta.
 - Solo se actualizan las columnas presentes en el archivo. Cada fila importada crea una nueva revisión Activa y conserva la anterior como Histórica.
 - Se pueden importar Cupón, Killer, Comisión killer, Comisiones, Impuestos, Envío, Otras comisiones, Tipo de cálculo, Estado de pago, Fecha de pago, Importe pagado, Referencia de pago y Comentario.
+- Cuando una importación aumenta el Importe pagado acumulado, la diferencia genera automáticamente un detalle de pago con la fecha y referencia informadas en esa fila.
 - También pueden mapearse los campos de devolución cuando se requiera una actualización masiva.
 - No utilice ID externo para reemplazar registros históricos: cada fila representa una actualización y debe producir una revisión nueva.
 

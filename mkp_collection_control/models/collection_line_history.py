@@ -143,13 +143,17 @@ class MkpCollectionLineHistory(models.Model):
         ('refund', 'Reembolso'),
     ], string='Estado de pago', required=True,
        default='pending', index=True)
-    payment_reference = fields.Char('Referencia de pago', index=True)
+    payment_reference = fields.Char('Referencia prevista / general', index=True)
     payment_date = fields.Date(
-        'Fecha de pago', index=True,
+        'Fecha prevista de pago / liberación', index=True,
         help='Fecha confirmada o tentativa del pago o liberación.'
     )
     paid_amount = fields.Monetary(
         'Importe pagado', currency_field='currency_id', default=0
+    )
+    payment_detail_ids = fields.One2many(
+        'mkp.collection.line.payment.detail', 'history_id',
+        string='Historial de pagos parciales', readonly=True
     )
     return_status = fields.Selection([
         ('created', 'Devolución creada'),
@@ -359,8 +363,10 @@ class MkpCollectionLineHistory(models.Model):
         ]
 
         today = fields.Date.context_today(self)
-        upcoming_payments = []
-        upcoming_clients_map = {}
+        upcoming_total = 0.0
+        upcoming_line_count = 0
+        upcoming_order_ids = set()
+        upcoming_next_date = False
         for row in values:
             payment_date = fields.Date.to_date(row.get('payment_date')) \
                 if row.get('payment_date') else False
@@ -372,43 +378,14 @@ class MkpCollectionLineHistory(models.Model):
                 or remaining <= 0
             ):
                 continue
-            partner = row.get('partner_invoice_id')
-            partner_id = partner[0] if partner else 0
-            partner_name = partner[1] if partner else _('Sin cliente de facturación')
             sale_order = row.get('sale_order_id')
-            upcoming_payments.append({
-                'id': row['id'],
-                'date': fields.Date.to_string(payment_date),
-                'partner_id': partner_id,
-                'partner_name': partner_name,
-                'order_name': sale_order[1] if sale_order else '',
-                'marketplace_reference': row.get('marketplace_reference') or '',
-                'product_name': row.get('product_name') or '',
-                'status': payment_labels.get(
-                    row.get('payment_status'), row.get('payment_status') or ''
-                ),
-                'payment_reference': row.get('payment_reference') or '',
-                'amount': remaining,
-            })
-            client_summary = upcoming_clients_map.setdefault(partner_id, {
-                'id': partner_id,
-                'name': partner_name,
-                'amount': 0.0,
-                'count': 0,
-                'next_date': fields.Date.to_string(payment_date),
-            })
-            client_summary['amount'] += remaining
-            client_summary['count'] += 1
-            client_summary['next_date'] = min(
-                client_summary['next_date'], fields.Date.to_string(payment_date)
+            upcoming_total += remaining
+            upcoming_line_count += 1
+            if sale_order:
+                upcoming_order_ids.add(sale_order[0])
+            upcoming_next_date = min(
+                upcoming_next_date or payment_date, payment_date
             )
-        upcoming_payments.sort(key=lambda item: (
-            item['date'], item['partner_name'].lower(), item['order_name'], item['id']
-        ))
-        upcoming_clients = sorted(
-            upcoming_clients_map.values(),
-            key=lambda item: (item['next_date'], item['name'].lower()),
-        )
 
         base_values = self.search(base_domain).read([
             'invoice_date', 'partner_invoice_id'
@@ -435,8 +412,14 @@ class MkpCollectionLineHistory(models.Model):
             'composition': composition,
             'composition_total': composition_total,
             'payment_breakdown': payment_breakdown,
-            'upcoming_payments': upcoming_payments,
-            'upcoming_clients': upcoming_clients,
+            'upcoming': {
+                'total': upcoming_total,
+                'line_count': upcoming_line_count,
+                'order_count': len(upcoming_order_ids),
+                'order_ids': sorted(upcoming_order_ids),
+                'next_date': fields.Date.to_string(upcoming_next_date)
+                if upcoming_next_date else False,
+            },
             'options': {
                 'months': month_keys,
                 'clients': [
@@ -678,9 +661,64 @@ class MkpCollectionLineHistory(models.Model):
                 )
         return True
 
-    def _create_revision(self, adjustment_values, *, base_values=None,
-                         change_origin='manual', comment=''):
+    def _payment_snapshot_values(self, adjustment_values, payment_values=None):
+        """Build the payment breakdown that belongs to the new revision."""
         self.ensure_one()
+        if payment_values is not None:
+            snapshot = [dict(values) for values in payment_values]
+        else:
+            snapshot = [{
+                'payment_date': detail.payment_date,
+                'amount': detail.amount,
+                'payment_reference': detail.payment_reference,
+            } for detail in self.payment_detail_ids]
+            target = adjustment_values.get('paid_amount', self.paid_amount) or 0
+            current = sum((values['amount'] or 0) for values in snapshot)
+            if self.currency_id.compare_amounts(target, current):
+                payment_date = (
+                    adjustment_values.get('payment_date')
+                    or self.payment_date
+                    or fields.Date.context_today(self)
+                )
+                payment_reference = (
+                    adjustment_values.get('payment_reference')
+                    or self.payment_reference
+                    or _('Ajuste de importe pagado')
+                )
+                if target > current:
+                    snapshot.append({
+                        'payment_date': payment_date,
+                        'amount': target - current,
+                        'payment_reference': payment_reference,
+                    })
+                elif target > 0:
+                    snapshot = [{
+                        'payment_date': payment_date,
+                        'amount': target,
+                        'payment_reference': payment_reference,
+                    }]
+                else:
+                    snapshot = []
+        for values in snapshot:
+            if (values.get('amount') or 0) <= 0:
+                raise ValidationError(_('Cada pago parcial debe ser mayor a cero.'))
+            if not values.get('payment_date'):
+                raise ValidationError(_('Cada pago parcial requiere una fecha.'))
+            if not (values.get('payment_reference') or '').strip():
+                raise ValidationError(_('Cada pago parcial requiere una referencia de pago.'))
+        return snapshot
+
+    def _create_revision(self, adjustment_values, *, base_values=None,
+                         change_origin='manual', comment='', payment_values=None):
+        self.ensure_one()
+        adjustment_values = dict(adjustment_values)
+        payment_snapshot = self._payment_snapshot_values(
+            adjustment_values, payment_values
+        )
+        if payment_values is not None:
+            adjustment_values['paid_amount'] = sum(
+                (values.get('amount') or 0) for values in payment_snapshot
+            )
         if not self.env.user.has_group(
                 'mkp_collection_control.group_mkp_collection_operator'):
             raise AccessError(_('Se requiere el permiso Operador de Cobranza MKP.'))
@@ -723,7 +761,7 @@ class MkpCollectionLineHistory(models.Model):
         self.sudo().with_context(mkp_internal_revision=True).write({
             'is_active_revision': False,
         })
-        return self.sudo().create({
+        revision = self.sudo().create({
             'name': '%s/R%02d' % (self.revision_key, revision_no),
             'revision_key': self.revision_key,
             'revision_no': revision_no,
@@ -735,6 +773,12 @@ class MkpCollectionLineHistory(models.Model):
             'sale_line_id': self.sale_line_id.id or False,
             **values,
         })
+        if payment_snapshot:
+            self.env['mkp.collection.line.payment.detail'].sudo().create([{
+                'history_id': revision.id,
+                **payment,
+            } for payment in payment_snapshot])
+        return revision
 
     def action_edit_collection_line(self):
         self.ensure_one()

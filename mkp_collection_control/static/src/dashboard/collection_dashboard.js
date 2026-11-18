@@ -19,8 +19,13 @@ export class MkpCollectionDashboard extends Component {
                 counts: {},
                 composition: [],
                 payment_breakdown: [],
-                upcoming_payments: [],
-                upcoming_clients: [],
+                upcoming: {
+                    total: 0,
+                    line_count: 0,
+                    order_count: 0,
+                    order_ids: [],
+                    next_date: false,
+                },
                 options: { months: [], clients: [], states: [] },
                 currency: "MXN",
             },
@@ -124,6 +129,25 @@ export class MkpCollectionDashboard extends Component {
         await this.action.doAction(
             "mkp_collection_control.action_collection_dashboard"
         );
+    }
+
+    async openUpcomingOrders() {
+        const orderIds = this.state.data.upcoming?.order_ids || [];
+        if (!orderIds.length) {
+            this.notification.add(
+                "No hay pedidos pendientes de pago para los filtros seleccionados.",
+                { type: "info" }
+            );
+            return;
+        }
+        await this.action.doAction({
+            type: "ir.actions.act_window",
+            name: "Pedidos pendientes de pago",
+            res_model: "sale.order",
+            views: [[false, "list"], [false, "form"]],
+            domain: [["id", "in", orderIds]],
+            target: "current",
+        });
     }
 }
 

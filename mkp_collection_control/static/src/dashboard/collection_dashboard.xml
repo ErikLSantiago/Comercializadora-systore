@@ -182,52 +182,29 @@
                 <section class="o_mkp_panel o_mkp_upcoming_panel">
                     <div class="o_mkp_panel_title">
                         <h2>Próximos pagos o liberaciones</h2>
-                        <span>Saldo pendiente con Fecha de pago igual o posterior a hoy</span>
+                        <span>Pedidos Pendientes o Retenidos con fecha prevista igual o posterior a hoy</span>
                     </div>
-                    <t t-if="state.data.upcoming_payments.length">
-                        <div class="o_mkp_upcoming_clients">
-                            <article t-foreach="state.data.upcoming_clients" t-as="client" t-key="client.id"
-                                     class="o_mkp_upcoming_client">
-                                <span t-esc="client.name"/>
-                                <strong t-esc="formatCurrency(client.amount)"/>
-                                <small>
-                                    <t t-esc="client.count"/> línea(s) · Próximo <t t-esc="formatDate(client.next_date)"/>
-                                </small>
-                            </article>
+                    <div class="o_mkp_upcoming_summary">
+                        <button type="button" class="o_mkp_release_balance"
+                                t-on-click="openUpcomingOrders"
+                                t-att-disabled="!state.data.upcoming.order_count">
+                            <span>Saldo de liberaciones</span>
+                            <strong t-esc="formatCurrency(state.data.upcoming.total)"/>
+                            <small>
+                                <t t-esc="state.data.upcoming.order_count"/> pedido(s)
+                                <t t-if="state.data.upcoming.next_date">
+                                    · Próxima fecha <t t-esc="formatDate(state.data.upcoming.next_date)"/>
+                                </t>
+                            </small>
+                        </button>
+                        <div class="o_mkp_upcoming_action">
+                            <p>Consulta los pedidos que forman este saldo y sus clientes de facturación.</p>
+                            <button class="btn btn-primary" t-on-click="openUpcomingOrders"
+                                    t-att-disabled="!state.data.upcoming.order_count">
+                                <i class="fa fa-external-link me-1"/>
+                                Consultar pedidos pendientes de pago
+                            </button>
                         </div>
-                        <div class="table-responsive o_mkp_upcoming_table_wrap">
-                            <table class="table table-sm table-hover align-middle o_mkp_upcoming_table">
-                                <thead>
-                                    <tr>
-                                        <th>Fecha</th>
-                                        <th>Cliente de facturación</th>
-                                        <th>Orden</th>
-                                        <th>Producto</th>
-                                        <th>Estado</th>
-                                        <th>Referencia</th>
-                                        <th class="text-end">Por cobrar</th>
-                                    </tr>
-                                </thead>
-                                <tbody>
-                                    <tr t-foreach="state.data.upcoming_payments" t-as="payment" t-key="payment.id">
-                                        <td t-esc="formatDate(payment.date)"/>
-                                        <td t-esc="payment.partner_name"/>
-                                        <td>
-                                            <span t-esc="payment.order_name"/>
-                                            <small t-if="payment.marketplace_reference" class="d-block text-muted"
-                                                   t-esc="payment.marketplace_reference"/>
-                                        </td>
-                                        <td t-esc="payment.product_name"/>
-                                        <td t-esc="payment.status"/>
-                                        <td t-esc="payment.payment_reference"/>
-                                        <td class="text-end fw-bold" t-esc="formatCurrency(payment.amount)"/>
-                                    </tr>
-                                </tbody>
-                            </table>
-                        </div>
-                    </t>
-                    <div class="o_mkp_empty_bar" t-else="">
-                        No hay pagos o liberaciones próximos para los filtros seleccionados.
                     </div>
                 </section>
 
