@@ -19,7 +19,7 @@ class MkpCollectionOrder(models.Model):
     marketplace_reference = fields.Char('Número de orden MKP', readonly=True, index=True)
     collection_type = fields.Selection([
         ('marketplace', 'Marketplace'),
-        ('wholesale', 'Mayoreo'),
+        ('wholesale', 'Mayoreo (histórico)'),
     ], string='Tipo de cobranza', required=True, default='marketplace',
        readonly=True, index=True)
     sale_amount = fields.Monetary(related='sale_order_id.amount_total', string='Importe de Odoo',
@@ -120,6 +120,10 @@ class MkpCollectionOrder(models.Model):
         """Lock, validate and post one immutable state change atomically."""
         self.ensure_one()
         self._check_operator()
+        if self.sale_order_id.mkp_collection_type != 'marketplace':
+            raise ValidationError(_(
+                'Las órdenes de Mayoreo se gestionan en la pestaña Pagos mayoreo.'
+            ))
         self.env.cr.execute('SELECT id FROM mkp_collection_order WHERE id = %s FOR UPDATE', [self.id])
         self.invalidate_recordset(list(KEYS) + ['net_expected', 'initialized', 'payment_state'])
         before = self._snapshot()

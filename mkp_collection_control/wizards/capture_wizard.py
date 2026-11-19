@@ -221,7 +221,14 @@ class MkpCollectionCaptureWizard(models.TransientModel):
         if not self.sale_order_id.exists():
             raise ValidationError(_('Seleccione una orden válida.'))
         # Read with caller's rights: never use sudo to bypass sale.order security.
-        self.sale_order_id.read(['name', 'amount_total', 'company_id'])
+        self.sale_order_id.read([
+            'name', 'amount_total', 'company_id', 'mkp_collection_type'
+        ])
+        if self.sale_order_id.mkp_collection_type != 'marketplace':
+            raise ValidationError(_(
+                'La orden %s es de Mayoreo. Registre sus importes en la '
+                'pestaña Pagos mayoreo de la orden.'
+            ) % self.sale_order_id.display_name)
         marketplace = self._get_sale_marketplace(self.sale_order_id)
         marketplace_reference = self._get_sale_marketplace_ref(self.sale_order_id)
         existing = self.env['mkp.collection.order'].search([
@@ -235,6 +242,7 @@ class MkpCollectionCaptureWizard(models.TransientModel):
                 ))
             existing = self.env['mkp.collection.order'].sudo().create({
                 'sale_order_id': self.sale_order_id.id,
+                'collection_type': 'marketplace',
                 'marketplace': marketplace.strip(),
                 'marketplace_reference': (marketplace_reference or '').strip(),
             })

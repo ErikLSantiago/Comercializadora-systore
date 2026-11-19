@@ -69,6 +69,30 @@ def collection_line_balance(adjusted_total=0, paid_amount=0):
     return money(money(adjusted_total) - money(paid_amount))
 
 
+def wholesale_order_totals(*, order_total=0, general_expense=0, payments=None):
+    """Return net, paid, pending and balance for the order-level wholesale flow."""
+    expense = money(general_expense)
+    if expense < 0:
+        raise ValueError('El gasto general no puede ser negativo.')
+    paid = money(0)
+    pending = money(0)
+    for payment in payments or []:
+        amount = money(payment.get('amount'))
+        if amount <= 0:
+            raise ValueError('El importe del pago de mayoreo debe ser mayor a cero.')
+        status = payment.get('payment_status')
+        if status == 'paid':
+            paid = money(paid + amount)
+        elif status == 'refund':
+            paid = money(paid - amount)
+        elif status in ('held', 'pending'):
+            pending = money(pending + amount)
+        elif status != 'cancelled':
+            raise ValueError('Estado de pago de mayoreo desconocido.')
+    net_expected = money(money(order_total) - expense)
+    return net_expected, paid, pending, money(net_expected - paid)
+
+
 def validate_return_quantity(return_quantity, ordered_quantity, return_status='sale'):
     """Validate a product quantity without imposing monetary rounding."""
     quantity = Decimal(str(return_quantity or 0))

@@ -110,11 +110,6 @@ class MkpCollectionLineHistory(models.Model):
         'sale.order', string='Orden de venta', ondelete='restrict',
         help='Campo de identificación utilizado únicamente durante la importación.'
     )
-    import_collection_type = fields.Selection([
-        ('marketplace', 'Marketplace'),
-        ('wholesale', 'Mayoreo'),
-    ], string='Tipo de cobranza (importación)',
-       help='Permite definir el tipo de cobranza desde el template antes de crear el historial.')
 
     sequence = fields.Integer('Secuencia')
     product_id = fields.Many2one('product.product', string='Producto',
@@ -132,13 +127,13 @@ class MkpCollectionLineHistory(models.Model):
     )
     killer_amount = fields.Monetary('Killer', currency_field='currency_id')
     killer_commission = fields.Monetary(
-        'Comisión killer', currency_field='currency_id'
+        'Comisión killer por pieza', currency_field='currency_id'
     )
-    commission = fields.Monetary('Comisiones', currency_field='currency_id')
+    commission = fields.Monetary('Comisiones por pieza', currency_field='currency_id')
     taxes = fields.Monetary('Impuestos', currency_field='currency_id')
     shipping = fields.Monetary('Envío', currency_field='currency_id')
     other_commission = fields.Monetary(
-        'Otras comisiones', currency_field='currency_id'
+        'Otras comisiones por pieza', currency_field='currency_id'
     )
     killer_commission_total = fields.Monetary(
         'Comisión killer total', currency_field='currency_id',
@@ -243,6 +238,7 @@ class MkpCollectionLineHistory(models.Model):
         base_domain = [
             ('is_active_revision', '=', True),
             ('company_id', '=', self.env.company.id),
+            ('collection_type', '=', 'marketplace'),
         ]
         domain = list(base_domain)
         date_from = fields.Date.to_date(filters.get('date_from')) \
@@ -257,8 +253,6 @@ class MkpCollectionLineHistory(models.Model):
                 month_start = False
         if filters.get('state'):
             domain.append(('payment_status', '=', filters['state']))
-        if filters.get('collection_type'):
-            domain.append(('collection_type', '=', filters['collection_type']))
         if filters.get('partner_id'):
             try:
                 partner_id = int(filters['partner_id'])
@@ -366,9 +360,6 @@ class MkpCollectionLineHistory(models.Model):
         payment_labels = dict(
             self._fields['payment_status']._description_selection(self.env)
         )
-        collection_type_labels = dict(
-            self._fields['collection_type']._description_selection(self.env)
-        )
         payment_totals = {}
         for row in values:
             status = row.get('payment_status') or 'pending'
@@ -457,10 +448,6 @@ class MkpCollectionLineHistory(models.Model):
                     {'key': key, 'label': label}
                     for key, label in payment_labels.items()
                 ],
-                'collection_types': [
-                    {'key': key, 'label': label}
-                    for key, label in collection_type_labels.items()
-                ],
             },
             'currency': self.env.company.currency_id.name,
         }
@@ -518,7 +505,6 @@ class MkpCollectionLineHistory(models.Model):
         revision_ids = []
         for original_values in vals_list:
             values = dict(original_values)
-            import_collection_type = values.pop('import_collection_type', False)
             sale_order = self.env['sale.order'].browse(
                 values.pop('import_sale_order_id', False)
             ).exists()
@@ -527,24 +513,16 @@ class MkpCollectionLineHistory(models.Model):
                     'Cada fila debe incluir la columna Orden de venta.'
                 ))
             sale_order.read([
-                'name', 'company_id', 'currency_id', 'mkp_collection_type',
+                'name', 'company_id', 'currency_id', 'mkp_collection_type'
             ])
+            if sale_order.mkp_collection_type != 'marketplace':
+                raise ValidationError(_(
+                    'La orden %s es de Mayoreo. Registre sus importes en la '
+                    'pestaña Pagos mayoreo de la orden.'
+                ) % sale_order.display_name)
             collection = self.env['mkp.collection.order'].search([
                 ('sale_order_id', '=', sale_order.id)
             ], limit=1)
-            requested_type = (
-                import_collection_type
-                or sale_order.mkp_collection_type
-                or 'marketplace'
-            )
-            if collection and collection.collection_type != requested_type:
-                if self.search_count([('order_id', '=', collection.id)]):
-                    raise ValidationError(_(
-                        'La orden %s ya tiene historial con Tipo de cobranza %s.'
-                    ) % (sale_order.display_name, collection.collection_type))
-                collection.sudo().write({'collection_type': requested_type})
-            if sale_order.mkp_collection_type != requested_type:
-                sale_order.sudo().write({'mkp_collection_type': requested_type})
             if not collection:
                 collection = self.env['mkp.collection.order'].sudo().create({
                     'sale_order_id': sale_order.id,
@@ -554,7 +532,7 @@ class MkpCollectionLineHistory(models.Model):
                     'marketplace_reference': sale_order._mkp_field_as_text(
                         'x_studio_nmero_de_orden_mkp'
                     ).strip(),
-                    'collection_type': requested_type,
+                    'collection_type': 'marketplace',
                 })
             self._sync_sale_order(sale_order, collection)
 
@@ -565,28 +543,18 @@ class MkpCollectionLineHistory(models.Model):
                 ('sale_order_id', '=', sale_order.id),
                 ('is_active_revision', '=', True),
             ]
-            if collection.collection_type == 'wholesale':
-                domain.extend([
-                    ('collection_type', '=', 'wholesale'),
-                    ('sale_line_id', '=', False),
-                ])
-            else:
-                if product_id:
-                    domain.append(('product_id', '=', product_id))
-                if sku:
-                    domain.append(('sku', '=ilike', sku))
-                if not product_id and not sku:
-                    raise ValidationError(_(
-                        'La orden %s requiere Producto o SKU para identificar la línea.'
-                    ) % sale_order.display_name)
-                if sequence:
-                    domain.append(('sequence', '=', sequence))
+            if product_id:
+                domain.append(('product_id', '=', product_id))
+            if sku:
+                domain.append(('sku', '=ilike', sku))
+            if not product_id and not sku:
+                raise ValidationError(_(
+                    'La orden %s requiere Producto o SKU para identificar la línea.'
+                ) % sale_order.display_name)
+            if sequence:
+                domain.append(('sequence', '=', sequence))
             candidates = self.search(domain)
             if not candidates:
-                if collection.collection_type == 'wholesale':
-                    raise ValidationError(_(
-                        'No se encontró el Total general activo para la orden %s.'
-                    ) % sale_order.display_name)
                 raise ValidationError(_(
                     'No se encontró una línea activa para la orden %s y el producto indicado.'
                 ) % sale_order.display_name)
@@ -638,28 +606,6 @@ class MkpCollectionLineHistory(models.Model):
             'price_unit': sale_line.price_unit,
             'amount': sale_line.price_subtotal,
         }
-
-    @api.model
-    def _wholesale_order_values(self, sale_order):
-        return {
-            'sequence': 0,
-            'product_id': False,
-            'sku': '',
-            'product_name': _('Total general de la orden'),
-            'quantity': 1,
-            'uom_name': _('Orden'),
-            'price_unit': sale_order.amount_untaxed,
-            'amount': sale_order.amount_untaxed,
-        }
-
-    @api.model
-    def _wholesale_base_changed(self, history, values):
-        if any(history[field_name] != values[field_name]
-               for field_name in ('sequence', 'sku', 'product_name', 'uom_name')):
-            return True
-        currency = history.currency_id
-        return any(currency.compare_amounts(history[field_name], values[field_name])
-                   for field_name in ('quantity', 'price_unit', 'amount'))
 
     @api.model
     def _base_changed(self, history, values, sale_line):
@@ -726,42 +672,6 @@ class MkpCollectionLineHistory(models.Model):
             'SELECT id FROM mkp_collection_order WHERE id = %s FOR UPDATE',
             [collection.id],
         )
-        if collection.collection_type == 'wholesale':
-            active_wholesale = self.search([
-                ('order_id', '=', collection.id),
-                ('is_active_revision', '=', True),
-                ('sale_line_id', '=', False),
-            ], limit=1)
-            base_values = self._wholesale_order_values(sale_order)
-            if not active_wholesale:
-                financial_values = {}
-                if collection.initialized:
-                    financial_values = {
-                        'coupon_amount': collection.coupon_amount,
-                        'killer_amount': collection.killer_amount,
-                        'killer_commission': collection.killer_commission,
-                        'commission': collection.commission,
-                        'taxes': collection.withholding,
-                        'shipping': collection.shipping,
-                        'other_commission': collection.other,
-                    }
-                self.sudo().create({
-                    'name': '%s/MAY/R01' % sale_order.name,
-                    'revision_key': 'sale.order:%s:wholesale' % sale_order.id,
-                    'revision_no': 1,
-                    'is_active_revision': True,
-                    'change_origin': 'initial',
-                    'order_id': collection.id,
-                    'sale_line_id': False,
-                    **base_values,
-                    **financial_values,
-                })
-            elif self._wholesale_base_changed(active_wholesale, base_values):
-                active_wholesale._create_revision(
-                    {}, base_values=base_values, change_origin='sale_sync',
-                    comment=_('Total general sincronizado desde Ventas.')
-                )
-            return True
         sale_lines = sale_order.order_line.filtered(lambda line: not line.display_type)
         active_lines = self.search([
             ('order_id', '=', collection.id),

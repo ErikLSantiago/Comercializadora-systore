@@ -19,13 +19,13 @@ class MkpCollectionLineImport(models.Model):
     coupon_amount = fields.Monetary('Cupón', currency_field='currency_id')
     killer_amount = fields.Monetary('Killer', currency_field='currency_id')
     killer_commission = fields.Monetary(
-        'Comisión killer', currency_field='currency_id'
+        'Comisión killer por pieza', currency_field='currency_id'
     )
-    commission = fields.Monetary('Comisiones', currency_field='currency_id')
+    commission = fields.Monetary('Comisiones por pieza', currency_field='currency_id')
     taxes = fields.Monetary('Impuestos', currency_field='currency_id')
     shipping = fields.Monetary('Envío', currency_field='currency_id')
     other_commission = fields.Monetary(
-        'Otras comisiones', currency_field='currency_id'
+        'Otras comisiones por pieza', currency_field='currency_id'
     )
     paid_amount = fields.Monetary('Importe pagado', currency_field='currency_id')
     calculation_type = fields.Selection([
@@ -90,7 +90,14 @@ class MkpCollectionLineImport(models.Model):
     def _ensure_collection(self):
         self.ensure_one()
         sale_order = self.sale_order_id
-        sale_order.read(['name', 'company_id', 'currency_id'])
+        sale_order.read([
+            'name', 'company_id', 'currency_id', 'mkp_collection_type'
+        ])
+        if sale_order.mkp_collection_type != 'marketplace':
+            raise ValidationError(_(
+                'La orden %s es de Mayoreo. Registre sus importes en la '
+                'pestaña Pagos mayoreo de la orden.'
+            ) % sale_order.display_name)
         collection = self.env['mkp.collection.order'].search([
             ('sale_order_id', '=', sale_order.id)
         ], limit=1)
@@ -105,6 +112,7 @@ class MkpCollectionLineImport(models.Model):
                 'sale_order_id': sale_order.id,
                 'marketplace': marketplace,
                 'marketplace_reference': marketplace_reference,
+                'collection_type': 'marketplace',
             })
         self.env['mkp.collection.line.history']._sync_sale_order(
             sale_order, collection

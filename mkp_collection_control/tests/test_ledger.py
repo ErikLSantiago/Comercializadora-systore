@@ -3,7 +3,7 @@ import unittest
 from ..models.ledger import (
     money, state, net, apply_event, event_deltas, snapshot_deltas, payment_deltas,
     collection_commission_totals, collection_line_balance, collection_line_totals,
-    validate_return_quantity,
+    validate_return_quantity, wholesale_order_totals,
 )
 
 
@@ -195,19 +195,6 @@ class TestMkpCollectionLedger(unittest.TestCase):
             money(50),
         )
 
-    def test_wholesale_total_uses_single_general_quantity(self):
-        subtotal, adjusted = collection_line_totals(
-            amount=10000,
-            quantity=1,
-            killer_commission=100,
-            commission=500,
-            taxes=250,
-            shipping=150,
-            other_commission=75,
-        )
-        self.assertEqual(subtotal, money(10000))
-        self.assertEqual(adjusted, money(8925))
-
     def test_collection_line_balance_supports_partial_payments(self):
         self.assertEqual(collection_line_balance(695, 200), money(495))
         self.assertEqual(collection_line_balance(695, 695), money(0))
@@ -221,3 +208,19 @@ class TestMkpCollectionLedger(unittest.TestCase):
             validate_return_quantity(3, 2, 'created')
         with self.assertRaises(ValueError):
             validate_return_quantity(1, 2, 'sale')
+
+    def test_wholesale_order_level_totals(self):
+        net_expected, paid, pending, balance = wholesale_order_totals(
+            order_total=10000,
+            general_expense=750,
+            payments=[
+                {'amount': 3000, 'payment_status': 'paid'},
+                {'amount': 500, 'payment_status': 'refund'},
+                {'amount': 1000, 'payment_status': 'pending'},
+                {'amount': 200, 'payment_status': 'cancelled'},
+            ],
+        )
+        self.assertEqual(net_expected, money(9250))
+        self.assertEqual(paid, money(2500))
+        self.assertEqual(pending, money(1000))
+        self.assertEqual(balance, money(6750))

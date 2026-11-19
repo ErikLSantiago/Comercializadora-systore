@@ -22,7 +22,6 @@
         <field name="model">mkp.collection.line.history</field>
         <field name="arch" type="xml">
             <pivot string="Análisis de cobranza">
-                <field name="collection_type" type="row"/>
                 <field name="marketplace" type="row"/>
                 <field name="payment_status" type="col"/>
                 <field name="amount" type="measure"/>
@@ -51,7 +50,6 @@
                 <field name="sku"/>
                 <field name="product_name"/>
                 <field name="payment_status"/>
-                <field name="collection_type"/>
                 <field name="payment_date"/>
                 <field name="calculation_type"/>
                 <field name="return_status"/>
@@ -60,8 +58,6 @@
                 <separator/>
                 <filter name="group_payment" string="Estado de pago"
                         context="{'group_by':'payment_status'}"/>
-                <filter name="group_collection_type" string="Tipo de cobranza"
-                        context="{'group_by':'collection_type'}"/>
                 <filter name="group_payment_date" string="Fecha de pago"
                         context="{'group_by':'payment_date:month'}"/>
                 <filter name="group_marketplace" string="Marketplace"
@@ -85,7 +81,7 @@
         <field name="res_model">mkp.collection.line.history</field>
         <field name="view_mode">graph,pivot,list</field>
         <field name="search_view_id" ref="view_collection_dashboard_search"/>
-        <field name="domain">[('is_active_revision','=',True)]</field>
+        <field name="domain">[('is_active_revision','=',True),('collection_type','=','marketplace')]</field>
         <field name="help" type="html">
             <p class="o_view_nocontent_smiling_face">Abra Cobranza desde las órdenes de venta para generar información de análisis.</p>
         </field>

@@ -1,6 +1,6 @@
-# Cobranza MKP — v18.0.1.0.20
+# Cobranza MKP — v18.0.1.0.21
 
-Módulo independiente para **Odoo 18 Enterprise / Odoo.sh**. Esta versión organiza la cobranza como un historial inalterable por línea de producto de la orden de venta.
+Módulo independiente para **Odoo 18 Enterprise / Odoo.sh**. Marketplace conserva su historial inalterable por línea de producto y Mayoreo utiliza una captura general separada dentro de la orden de venta.
 
 ## Instalación o actualización
 
@@ -11,11 +11,9 @@ Módulo independiente para **Odoo 18 Enterprise / Odoo.sh**. Esta versión organ
 
 ## Flujo principal
 
+- **Tipo de venta** permite elegir Marketplace o Mayoreo en el encabezado de la orden.
+- El tipo debe definirse antes de capturar cobranza o pagos. Una orden con movimientos ya registrados no puede cambiar a un flujo incompatible.
 - En una orden de Ventas, el botón inteligente **Cobranza** abre directamente el historial de sus líneas.
-- **Tipo de cobranza** permite seleccionar Marketplace o Mayoreo en el encabezado de la orden antes de generar el historial.
-- **Marketplace** conserva una revisión por cada línea de producto y multiplica las comisiones por la cantidad de piezas.
-- **Mayoreo** crea una sola revisión de Total general de la orden; no presenta SKU ni productos individuales y las comisiones capturadas se aplican una vez al total de la orden.
-- Una vez generado el primer historial, el Tipo de cobranza queda protegido para evitar mezclar cálculos Marketplace y Mayoreo en la misma orden.
 - La primera apertura crea una línea activa por cada renglón de producto; las secciones y notas de la orden se omiten.
 - Se copian de Ventas: **SKU, Producto, Cantidad, Unidad, Precio unitario e Importe**.
 - El wizard separa **Promociones** (Cupón, Killer y Comisión killer por pieza) de **Comisiones y descuentos** (Comisiones por pieza, Impuestos, Envío, Otras comisiones por pieza y Tipo de cálculo).
@@ -32,10 +30,22 @@ Módulo independiente para **Odoo 18 Enterprise / Odoo.sh**. Esta versión organ
 - En la consulta histórica de una devolución se omite el campo técnico Línea de venta; el wizard conserva el selector Línea de producto para aplicar devoluciones a un producto concreto cuando una orden contiene varias líneas.
 - Al elegir otra línea del mismo pedido, el wizard carga su versión activa. Guardar genera una revisión únicamente para ese producto.
 
+## Pagos mayoreo
+
+- En órdenes con Tipo de venta **Mayoreo**, el botón Cobranza y las columnas de comisiones por línea se ocultan.
+- La pestaña **Pagos mayoreo** trabaja a nivel general de la orden y no crea registros en el historial de Cobranza Marketplace.
+- **Gasto general** es un importe positivo que se descuenta del total de la orden. Puede acompañarse de una referencia o concepto.
+- La tabla de pagos permite capturar Fecha de pago, Referencia, Importe, Estado y Comentario.
+- Los estados disponibles son Retenido, Pendiente, Pagado, Cancelado y Reembolso.
+- Pueden agregarse varios pagos para soportar pagos parciales. Solo los registros Pagados reducen el saldo; los Reembolsos lo incrementan, y Pendientes o Retenidos se muestran por separado.
+- Los pagos no se eliminan: si dejan de aplicar deben marcarse como Cancelados. Las modificaciones se registran en el chatter de la orden con sus valores anterior y nuevo.
+- `Neto esperado = Total de la orden - Gasto general`.
+- `Por cobrar = Neto esperado - Pagos pagados + Reembolsos`.
+- Al actualizar desde `18.0.1.0.20`, las capturas generales experimentales de Mayoreo se trasladan a esta pestaña cuando es posible; el historial anterior se conserva sin aparecer en los reportes Marketplace.
+
 ## Dashboard
 
 - El icono **Cobranza MKP** abre un tablero propio con segmentadores, indicadores y gráficas de composición.
-- El segmentador **Tipo de cobranza** permite analizar Marketplace, Mayoreo o ambos.
 - **Fecha desde**, **Fecha hasta** y **Mes** usan `invoice_date`, tomando la fecha más reciente de las facturas de cliente no canceladas asociadas a la orden.
 - **Cliente** usa `sale.order.partner_invoice_id`.
 - **Estado** filtra el Estado de pago.
@@ -50,6 +60,7 @@ Módulo independiente para **Odoo 18 Enterprise / Odoo.sh**. Esta versión organ
 - La tabla dinámica anterior permanece disponible desde **Análisis dinámico**.
 - Se puede agrupar también por Tipo de cálculo, Estado de devolución, Orden de venta, Producto y mes de actualización.
 - El menú **Historial de cobranza** conserva el reporte detallado y la importación.
+- El dashboard y el Historial de cobranza analizan exclusivamente Marketplace; Mayoreo permanece dentro de cada orden de venta.
 
 ## Alerta en Ventas
 
@@ -60,7 +71,6 @@ Módulo independiente para **Odoo 18 Enterprise / Odoo.sh**. Esta versión organ
 - Si SKU, producto, cantidad, precio unitario o importe cambian en Ventas, al volver a abrir Cobranza se crea otra revisión automáticamente.
 - Cada versión conserva usuario, fecha, origen, comentario opcional y vínculo con la versión anterior.
 - En cada línea de la orden de venta se muestran como columnas informativas **Comisiones**, **Envío**, **Retenciones** y **Otras comisiones**, obtenidas de la revisión activa de cobranza.
-- En Mayoreo, esas columnas se ocultan y el encabezado de la orden muestra Total ajustado, Comisiones totales, Impuestos, Envío, Importe pagado y Por cobrar.
 
 ## Cálculos
 
@@ -72,8 +82,6 @@ Módulo independiente para **Odoo 18 Enterprise / Odoo.sh**. Esta versión organ
 - `Total ajustado = Sub total - Comisión killer total - Comisiones totales - Impuestos - Envío - Otras comisiones totales`
 - `Por cobrar = Total ajustado - Importe pagado`
 
-En Marketplace, Piezas corresponde a la cantidad de la línea. En Mayoreo la revisión general utiliza Cantidad 1, por lo que las comisiones se consideran totales de la orden y no se multiplican por sus productos.
-
 La sección **Cobranza** muestra Sub total y Por cobrar. El campo técnico Total ajustado se conserva para mantener compatibilidad con las revisiones creadas por versiones anteriores.
 
 Al actualizar a esta versión, los valores existentes de Comisión killer, Comisiones y Otras comisiones se interpretan como importes unitarios y los saldos almacenados se recalculan con la Cantidad de cada línea. Revise el resultado primero en staging.
@@ -84,18 +92,17 @@ Al actualizar a esta versión, los valores existentes de Comisión killer, Comis
 - La vista mantiene habilitada la capacidad de creación requerida por el cliente web de Odoo para mostrar esa acción; el modelo intercepta la carga y la convierte en revisiones históricas, sin permitir edición ni eliminación ordinaria.
 - Admite archivos CSV y XLSX con la pantalla estándar de carga, prueba y mapeo de columnas.
 - Cada fila se identifica mediante **Orden de venta + Producto** o **Orden de venta + SKU**.
-- El template puede incluir **Tipo de cobranza (importación)** con los valores Marketplace o Mayoreo.
-- Para Marketplace se requiere Orden de venta + Producto o SKU. Para Mayoreo solo se requiere Orden de venta, porque la actualización se aplica al total general.
+- La importación de este reporte solo acepta órdenes Marketplace. Los pagos Mayoreo se registran manualmente en su pestaña independiente.
 - Si el producto o SKU aparece varias veces en una orden, debe agregarse la columna **Secuencia** de la línea de venta.
 - Solo se actualizan las columnas presentes en el archivo. Cada fila importada crea una nueva revisión Activa y conserva la anterior como Histórica.
 - Se pueden importar Cupón, Killer, Comisión killer, Comisiones, Impuestos, Envío, Otras comisiones, Tipo de cálculo, Estado de pago, Fecha de pago, Importe pagado, Referencia de pago y Comentario.
-- En Marketplace, Comisión killer, Comisiones y Otras comisiones se informan por pieza. En Mayoreo se informan como totales generales de la orden. Impuestos y Envío siempre son importes totales del registro de cobranza.
+- En el template, Comisión killer, Comisiones y Otras comisiones se informan como valores unitarios por pieza. Impuestos y Envío continúan siendo importes totales de la línea.
 - El mismo template permite actualizar el acumulado de Importe pagado junto con Fecha de pago y Referencia de pago. Cada fila crea una revisión histórica igual que una modificación manual.
 - Cuando la importación aumenta el Importe pagado, la diferencia genera automáticamente el detalle del pago parcial con la fecha y referencia de esa fila.
 - También pueden mapearse los campos de devolución cuando se requiera una actualización masiva.
 - No utilice ID externo para reemplazar registros históricos: cada fila representa una actualización y debe producir una revisión nueva.
 
-Los cálculos se realizan por línea. El historial completo puede consultarse también desde el icono **Cobranza MKP** del inicio.
+Los cálculos de Marketplace se realizan por línea. El historial completo puede consultarse también desde el icono **Cobranza MKP** del inicio.
 
 ## Compatibilidad con versiones anteriores
 

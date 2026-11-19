@@ -67,7 +67,14 @@ class MkpCollectionImportRow(models.Model):
 
     def _publish(self):
         self.ensure_one()
-        self.sale_order_id.read(['name', 'amount_total', 'company_id'])
+        self.sale_order_id.read([
+            'name', 'amount_total', 'company_id', 'mkp_collection_type'
+        ])
+        if self.sale_order_id.mkp_collection_type != 'marketplace':
+            raise ValidationError(_(
+                'La orden %s es de Mayoreo. Registre sus importes en la '
+                'pestaña Pagos mayoreo de la orden.'
+            ) % self.sale_order_id.display_name)
         collection = self.env['mkp.collection.order'].search([
             ('sale_order_id', '=', self.sale_order_id.id)], limit=1)
         new_collection = not collection
@@ -82,6 +89,7 @@ class MkpCollectionImportRow(models.Model):
                 ))
             collection = self.env['mkp.collection.order'].sudo().create({
                 'sale_order_id': self.sale_order_id.id,
+                'collection_type': 'marketplace',
                 'marketplace': marketplace.strip(),
                 'marketplace_reference': capture_model._get_sale_marketplace_ref(
                     self.sale_order_id

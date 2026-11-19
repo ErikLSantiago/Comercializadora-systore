@@ -7,7 +7,8 @@
         <field name="arch" type="xml">
             <xpath expr="//div[@name='button_box']" position="inside">
                 <button name="action_open_mkp_collection" type="object" class="oe_stat_button"
-                        icon="fa-money" groups="mkp_collection_control.group_mkp_collection_operator">
+                        icon="fa-money" invisible="mkp_collection_type == 'wholesale'"
+                        groups="mkp_collection_control.group_mkp_collection_operator">
                     <field name="mkp_collection_event_count" widget="statinfo" string="Cobranza"/>
                 </button>
                 <button name="action_open_mkp_returns" type="object"
@@ -21,21 +22,56 @@
                 <field name="mkp_collection_type"
                        groups="mkp_collection_control.group_mkp_collection_operator"/>
             </xpath>
-            <xpath expr="//sheet/notebook" position="before">
-                <group string="Cobranza Mayoreo"
-                       invisible="mkp_collection_type != 'wholesale'"
-                       groups="mkp_collection_control.group_mkp_collection_operator">
+            <xpath expr="//sheet/notebook" position="inside">
+                <page string="Pagos mayoreo" name="mkp_wholesale_payments"
+                      invisible="mkp_collection_type != 'wholesale'"
+                      groups="mkp_collection_control.group_mkp_collection_operator">
                     <group>
-                        <field name="mkp_wholesale_adjusted_total" readonly="1"/>
-                        <field name="mkp_wholesale_commissions" readonly="1"/>
-                        <field name="mkp_wholesale_taxes" readonly="1"/>
-                        <field name="mkp_wholesale_shipping" readonly="1"/>
+                        <group string="Resumen de la orden">
+                            <field name="amount_total" readonly="1"/>
+                            <field name="mkp_wholesale_general_expense"/>
+                            <field name="mkp_wholesale_expense_note"
+                                   placeholder="Concepto o referencia del gasto general"/>
+                            <field name="mkp_wholesale_net_expected" readonly="1"/>
+                        </group>
+                        <group string="Cobro general">
+                            <field name="mkp_wholesale_paid" readonly="1"/>
+                            <field name="mkp_wholesale_pending" readonly="1"/>
+                            <field name="mkp_wholesale_amount_to_collect" readonly="1"/>
+                        </group>
                     </group>
-                    <group>
-                        <field name="mkp_wholesale_paid" readonly="1"/>
-                        <field name="mkp_wholesale_amount_to_collect" readonly="1"/>
-                    </group>
-                </group>
+                    <separator string="Pagos manuales de la orden"/>
+                    <field name="mkp_wholesale_payment_ids" nolabel="1"
+                           context="{'default_sale_order_id': id}">
+                        <list editable="bottom" create="1" delete="0"
+                              default_order="payment_date desc,id desc"
+                              decoration-muted="payment_status == 'cancelled'"
+                              decoration-success="payment_status == 'paid'"
+                              decoration-warning="payment_status in ('held', 'pending')">
+                            <field name="payment_date"/>
+                            <field name="payment_reference"/>
+                            <field name="amount" sum="Total"/>
+                            <field name="payment_status" widget="badge"
+                                   decoration-success="payment_status == 'paid'"
+                                   decoration-warning="payment_status in ('held', 'pending')"
+                                   decoration-danger="payment_status in ('cancelled', 'refund')"/>
+                            <field name="notes" optional="show"/>
+                            <field name="create_uid" string="Registrado por" readonly="1"
+                                   optional="hide"/>
+                            <field name="create_date" string="Registrado el" readonly="1"
+                                   optional="hide"/>
+                            <field name="write_uid" string="Última modificación por" readonly="1"
+                                   optional="hide"/>
+                            <field name="write_date" string="Última modificación" readonly="1"
+                                   optional="hide"/>
+                            <field name="currency_id" column_invisible="True"/>
+                        </list>
+                    </field>
+                    <div class="text-muted mt-2">
+                        Los pagos Pagados reducen el saldo; los Reembolsos lo incrementan.
+                        Los registros se cancelan mediante su Estado y no se eliminan.
+                    </div>
+                </page>
             </xpath>
             <xpath expr="//field[@name='order_line']/list" position="inside">
                 <field name="mkp_commission" readonly="1" optional="show" invisible="display_type"
