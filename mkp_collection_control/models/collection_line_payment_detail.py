@@ -46,6 +46,13 @@ class MkpCollectionLinePaymentDetail(models.Model):
     captured_at = fields.Datetime(
         related='create_date', string='Fecha de registro', store=True, readonly=True
     )
+    registered_by_id = fields.Many2one(
+        'res.users', string='Registrado originalmente por', readonly=True,
+        index=True
+    )
+    registered_at = fields.Datetime(
+        'Fecha original de registro', readonly=True, index=True
+    )
 
     @api.model_create_multi
     def create(self, vals_list):
@@ -53,12 +60,17 @@ class MkpCollectionLinePaymentDetail(models.Model):
             raise AccessError(_(
                 'Los pagos parciales solo pueden guardarse desde Cobranza.'
             ))
-        for values in vals_list:
+        prepared_values = []
+        for original_values in vals_list:
+            values = dict(original_values)
             if (values.get('amount') or 0) <= 0:
                 raise ValidationError(_('El importe pagado debe ser mayor a cero.'))
             if not (values.get('payment_reference') or '').strip():
                 raise ValidationError(_('La referencia de pago es obligatoria.'))
-        return super().create(vals_list)
+            values.setdefault('registered_by_id', self.env.user.id)
+            values.setdefault('registered_at', fields.Datetime.now())
+            prepared_values.append(values)
+        return super().create(prepared_values)
 
     def write(self, vals):
         raise UserError(_(

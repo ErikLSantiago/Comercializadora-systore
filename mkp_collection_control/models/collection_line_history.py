@@ -671,6 +671,10 @@ class MkpCollectionLineHistory(models.Model):
                 'payment_date': detail.payment_date,
                 'amount': detail.amount,
                 'payment_reference': detail.payment_reference,
+                'registered_by_id': (
+                    detail.registered_by_id.id or detail.create_uid.id
+                ),
+                'registered_at': detail.registered_at or detail.create_date,
             } for detail in self.payment_detail_ids]
             target = adjustment_values.get('paid_amount', self.paid_amount) or 0
             current = sum((values['amount'] or 0) for values in snapshot)

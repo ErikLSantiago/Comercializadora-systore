@@ -1,4 +1,4 @@
-# Cobranza MKP — v18.0.1.0.16
+# Cobranza MKP — v18.0.1.0.17
 
 Módulo independiente para **Odoo 18 Enterprise / Odoo.sh**. Esta versión organiza la cobranza como un historial inalterable por línea de producto de la orden de venta.
 
@@ -19,8 +19,10 @@ Módulo independiente para **Odoo 18 Enterprise / Odoo.sh**. Esta versión organ
 - **Tipo de cálculo** admite Precalculo o Marketplace.
 - **Estado de pago** admite Retenido, Pendiente, Pagado, Cancelado o Reembolso.
 - La sección **Cobranza** incorpora una Fecha prevista de pago o liberación y una Referencia prevista/general.
-- **Pagos parciales** permite capturar tantas líneas como sean necesarias, cada una con Importe pagado, Fecha de pago parcial y Referencia de pago.
-- Importe pagado se calcula automáticamente como la suma de las líneas parciales. Cada ajuste genera una revisión histórica nueva y la versión anterior conserva su propio desglose.
+- **Asignar nuevo pago** presenta campos editables para Importe pagado, Fecha de pago y Referencia de pago.
+- Al guardar, el importe se suma al Total pagado acumulado y genera una nueva revisión de cobranza. La revisión anterior conserva el estado previo de los pagos.
+- **Historial de pagos parciales** es de solo lectura y muestra cada pago con importe, fecha, referencia, usuario y fecha original de registro.
+- Los cambios posteriores de comisiones o estado copian el desglose vigente sin reemplazar el autor ni la fecha original de cada pago.
 - Los importes pagados de versiones anteriores se migran a una primera línea de detalle para conservar el saldo acumulado.
 - La sección **Devoluciones** permite elegir una línea concreta de producto, indicar Fecha de solicitud, Referencia y uno de estos estados: Devolución creada, Nuevo, Open box, Pago por reclamo, Sustracción, Reembolso o Venta.
 - **Piezas devueltas** permite indicar las piezas de esa línea. No admite valores negativos, cantidades superiores a las vendidas ni cantidad cuando el estado es Venta.

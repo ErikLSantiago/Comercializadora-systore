@@ -68,8 +68,13 @@ class MkpCollectionLineWizard(models.TransientModel):
         'mkp.collection.line.payment.wizard', 'wizard_id',
         string='Pagos parciales'
     )
+    new_payment_amount = fields.Monetary(
+        'Importe pagado', currency_field='currency_id'
+    )
+    new_payment_date = fields.Date('Fecha de pago')
+    new_payment_reference = fields.Char('Referencia de pago')
     paid_amount = fields.Monetary(
-        'Importe pagado', currency_field='currency_id',
+        'Total pagado acumulado', currency_field='currency_id',
         compute='_compute_paid_amount'
     )
     return_status = fields.Selection([
@@ -119,6 +124,10 @@ class MkpCollectionLineWizard(models.TransientModel):
                 'payment_date': detail.payment_date,
                 'amount': detail.amount,
                 'payment_reference': detail.payment_reference,
+                'registered_by_id': (
+                    detail.registered_by_id.id or detail.create_uid.id
+                ),
+                'registered_at': detail.registered_at or detail.create_date,
             }) for detail in details]
         if history.paid_amount:
             return [(0, 0, {
@@ -163,11 +172,17 @@ class MkpCollectionLineWizard(models.TransientModel):
             if field_name != 'paid_amount':
                 self[field_name] = history[field_name]
         self.payment_line_ids = [(5, 0, 0)] + self._payment_commands(history)
+        self.new_payment_amount = 0
+        self.new_payment_date = False
+        self.new_payment_reference = False
 
-    @api.depends('payment_line_ids.amount')
+    @api.depends('payment_line_ids.amount', 'new_payment_amount')
     def _compute_paid_amount(self):
         for wizard in self:
-            amount = sum(wizard.payment_line_ids.mapped('amount'))
+            amount = (
+                sum(wizard.payment_line_ids.mapped('amount'))
+                + (wizard.new_payment_amount or 0)
+            )
             wizard.paid_amount = (
                 wizard.currency_id.round(amount) if wizard.currency_id else amount
             )
@@ -219,7 +234,26 @@ class MkpCollectionLineWizard(models.TransientModel):
             'payment_date': line.payment_date,
             'amount': line.amount,
             'payment_reference': (line.payment_reference or '').strip(),
+            'registered_by_id': line.registered_by_id.id or False,
+            'registered_at': line.registered_at or False,
         } for line in self.payment_line_ids]
+        new_payment_requested = any((
+            self.new_payment_amount,
+            self.new_payment_date,
+            self.new_payment_reference,
+        ))
+        if new_payment_requested:
+            if (self.new_payment_amount or 0) <= 0:
+                raise ValidationError(_('El Importe pagado debe ser mayor a cero.'))
+            if not self.new_payment_date:
+                raise ValidationError(_('Indique la Fecha de pago.'))
+            if not (self.new_payment_reference or '').strip():
+                raise ValidationError(_('Indique la Referencia de pago.'))
+            payment_values.append({
+                'payment_date': self.new_payment_date,
+                'amount': self.new_payment_amount,
+                'payment_reference': self.new_payment_reference.strip(),
+            })
         for payment in payment_values:
             if (payment['amount'] or 0) <= 0:
                 raise ValidationError(_('Cada pago parcial debe ser mayor a cero.'))
@@ -242,7 +276,10 @@ class MkpCollectionLineWizard(models.TransientModel):
             raise ValidationError(_('No hay cambios para guardar.'))
         history._create_revision(
             changes,
-            comment=self.comment or '',
+            comment=self.comment or (
+                (_('Pago parcial registrado: %s') % self.new_payment_reference.strip())
+                if new_payment_requested else ''
+            ),
             payment_values=payment_values,
         )
         return {
@@ -268,6 +305,10 @@ class MkpCollectionLinePaymentWizard(models.TransientModel):
         'Importe pagado', required=True, currency_field='currency_id'
     )
     payment_reference = fields.Char('Referencia de pago', required=True)
+    registered_by_id = fields.Many2one(
+        'res.users', string='Registrado por', readonly=True
+    )
+    registered_at = fields.Datetime('Fecha de registro', readonly=True)
     currency_id = fields.Many2one(
         related='wizard_id.currency_id', readonly=True
     )
