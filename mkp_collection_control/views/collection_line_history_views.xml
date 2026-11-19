@@ -219,26 +219,11 @@
                     <group string="Cobranza">
                         <field name="subtotal" readonly="1"/>
                         <field name="adjusted_total" readonly="1"/>
-                        <field name="paid_amount" readonly="1"/>
+                        <field name="paid_amount"/>
                         <field name="amount_to_collect" readonly="1"/>
                         <field name="payment_status"/>
                         <field name="payment_date"/>
                         <field name="payment_reference"/>
-                        <separator string="Asignar nuevo pago" colspan="2"/>
-                        <field name="new_payment_amount"/>
-                        <field name="new_payment_date"/>
-                        <field name="new_payment_reference"/>
-                        <separator string="Historial de pagos parciales" colspan="2"/>
-                        <field name="payment_line_ids" colspan="2" nolabel="1">
-                            <list create="0" edit="0" delete="0">
-                                <field name="payment_date"/>
-                                <field name="amount" sum="Total pagado"/>
-                                <field name="payment_reference"/>
-                                <field name="registered_by_id" optional="show"/>
-                                <field name="registered_at" optional="show"/>
-                                <field name="currency_id" column_invisible="True"/>
-                            </list>
-                        </field>
                     </group>
                     <group string="Devoluciones">
                         <field name="target_sale_line_id"

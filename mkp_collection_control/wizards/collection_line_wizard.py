@@ -59,23 +59,13 @@ class MkpCollectionLineWizard(models.TransientModel):
         ('cancelled', 'Cancelado'),
         ('refund', 'Reembolso'),
     ], string='Estado de pago', required=True, default='pending')
-    payment_reference = fields.Char('Referencia prevista / general')
+    payment_reference = fields.Char('Referencia de pago')
     payment_date = fields.Date(
-        'Fecha prevista de pago / liberación',
+        'Fecha de pago',
         help='Fecha confirmada o tentativa del pago o liberación.'
     )
-    payment_line_ids = fields.One2many(
-        'mkp.collection.line.payment.wizard', 'wizard_id',
-        string='Pagos parciales'
-    )
-    new_payment_amount = fields.Monetary(
-        'Importe pagado', currency_field='currency_id'
-    )
-    new_payment_date = fields.Date('Fecha de pago')
-    new_payment_reference = fields.Char('Referencia de pago')
     paid_amount = fields.Monetary(
-        'Total pagado acumulado', currency_field='currency_id',
-        compute='_compute_paid_amount'
+        'Importe pagado', currency_field='currency_id'
     )
     return_status = fields.Selection([
         ('created', 'Devolución creada'),
@@ -111,35 +101,8 @@ class MkpCollectionLineWizard(models.TransientModel):
             values['wizard_order_id'] = history.sale_order_id.id
             values['target_sale_line_id'] = history.sale_line_id.id
             for field_name in REVISION_FIELDS:
-                if field_name != 'paid_amount':
-                    values[field_name] = history[field_name]
-            values['payment_line_ids'] = self._payment_commands(history)
+                values[field_name] = history[field_name]
         return values
-
-    @api.model
-    def _payment_commands(self, history):
-        details = history.payment_detail_ids
-        if details:
-            return [(0, 0, {
-                'payment_date': detail.payment_date,
-                'amount': detail.amount,
-                'payment_reference': detail.payment_reference,
-                'registered_by_id': (
-                    detail.registered_by_id.id or detail.create_uid.id
-                ),
-                'registered_at': detail.registered_at or detail.create_date,
-            }) for detail in details]
-        if history.paid_amount:
-            return [(0, 0, {
-                'payment_date': (
-                    history.payment_date or fields.Date.context_today(self)
-                ),
-                'amount': history.paid_amount,
-                'payment_reference': (
-                    history.payment_reference or _('Saldo anterior')
-                ),
-            })]
-        return []
 
     @api.onchange('target_sale_line_id')
     def _onchange_target_sale_line_id(self):
@@ -169,23 +132,7 @@ class MkpCollectionLineWizard(models.TransientModel):
             }
         self.history_id = history
         for field_name in REVISION_FIELDS:
-            if field_name != 'paid_amount':
-                self[field_name] = history[field_name]
-        self.payment_line_ids = [(5, 0, 0)] + self._payment_commands(history)
-        self.new_payment_amount = 0
-        self.new_payment_date = False
-        self.new_payment_reference = False
-
-    @api.depends('payment_line_ids.amount', 'new_payment_amount')
-    def _compute_paid_amount(self):
-        for wizard in self:
-            amount = (
-                sum(wizard.payment_line_ids.mapped('amount'))
-                + (wizard.new_payment_amount or 0)
-            )
-            wizard.paid_amount = (
-                wizard.currency_id.round(amount) if wizard.currency_id else amount
-            )
+            self[field_name] = history[field_name]
 
     @api.depends('amount', *MONETARY_REVISION_FIELDS)
     def _compute_totals(self):
@@ -230,57 +177,22 @@ class MkpCollectionLineWizard(models.TransientModel):
                 changes[field_name] = self[field_name]
         if history.return_quantity != self.return_quantity:
             changes['return_quantity'] = self.return_quantity
-        payment_values = [{
-            'payment_date': line.payment_date,
-            'amount': line.amount,
-            'payment_reference': (line.payment_reference or '').strip(),
-            'registered_by_id': line.registered_by_id.id or False,
-            'registered_at': line.registered_at or False,
-        } for line in self.payment_line_ids]
-        new_payment_requested = any((
-            self.new_payment_amount,
-            self.new_payment_date,
-            self.new_payment_reference,
-        ))
-        if new_payment_requested:
-            if (self.new_payment_amount or 0) <= 0:
-                raise ValidationError(_('El Importe pagado debe ser mayor a cero.'))
-            if not self.new_payment_date:
+        paid_amount_changed = 'paid_amount' in changes
+        if paid_amount_changed:
+            if (self.paid_amount or 0) < 0:
+                raise ValidationError(_('El Importe pagado no puede ser negativo.'))
+            if not self.payment_date:
                 raise ValidationError(_('Indique la Fecha de pago.'))
-            if not (self.new_payment_reference or '').strip():
+            if not (self.payment_reference or '').strip():
                 raise ValidationError(_('Indique la Referencia de pago.'))
-            payment_values.append({
-                'payment_date': self.new_payment_date,
-                'amount': self.new_payment_amount,
-                'payment_reference': self.new_payment_reference.strip(),
-            })
-        for payment in payment_values:
-            if (payment['amount'] or 0) <= 0:
-                raise ValidationError(_('Cada pago parcial debe ser mayor a cero.'))
-            if not payment['payment_date']:
-                raise ValidationError(_('Cada pago parcial requiere una fecha.'))
-            if not payment['payment_reference']:
-                raise ValidationError(_('Cada pago parcial requiere una referencia.'))
-        current_payments = sorted((
-            detail.payment_date,
-            history.currency_id.round(detail.amount),
-            (detail.payment_reference or '').strip(),
-        ) for detail in history.payment_detail_ids)
-        requested_payments = sorted((
-            payment['payment_date'],
-            history.currency_id.round(payment['amount']),
-            payment['payment_reference'],
-        ) for payment in payment_values)
-        payments_changed = current_payments != requested_payments
-        if not changes and not payments_changed:
+        if not changes:
             raise ValidationError(_('No hay cambios para guardar.'))
         history._create_revision(
             changes,
             comment=self.comment or (
-                (_('Pago parcial registrado: %s') % self.new_payment_reference.strip())
-                if new_payment_requested else ''
+                _('Importe pagado actualizado: %s') % self.payment_reference.strip()
+                if paid_amount_changed else ''
             ),
-            payment_values=payment_values,
         )
         return {
             'type': 'ir.actions.act_window',

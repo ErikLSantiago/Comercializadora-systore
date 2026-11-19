@@ -143,9 +143,9 @@ class MkpCollectionLineHistory(models.Model):
         ('refund', 'Reembolso'),
     ], string='Estado de pago', required=True,
        default='pending', index=True)
-    payment_reference = fields.Char('Referencia prevista / general', index=True)
+    payment_reference = fields.Char('Referencia de pago', index=True)
     payment_date = fields.Date(
-        'Fecha prevista de pago / liberación', index=True,
+        'Fecha de pago', index=True,
         help='Fecha confirmada o tentativa del pago o liberación.'
     )
     paid_amount = fields.Monetary(
@@ -733,6 +733,26 @@ class MkpCollectionLineHistory(models.Model):
             value = adjustment_values.get(field_name)
             if value is not None and value < 0:
                 raise ValidationError(_('%s no puede ser negativo.') % self._fields[field_name].string)
+        if (
+            'paid_amount' in adjustment_values
+            and self.currency_id.compare_amounts(
+                adjustment_values['paid_amount'], self.paid_amount
+            )
+        ):
+            effective_payment_date = adjustment_values.get(
+                'payment_date', self.payment_date
+            )
+            effective_payment_reference = adjustment_values.get(
+                'payment_reference', self.payment_reference
+            )
+            if not effective_payment_date:
+                raise ValidationError(_(
+                    'Indique la Fecha de pago al modificar el Importe pagado.'
+                ))
+            if not (effective_payment_reference or '').strip():
+                raise ValidationError(_(
+                    'Indique la Referencia de pago al modificar el Importe pagado.'
+                ))
         self.env.cr.execute(
             'SELECT id FROM mkp_collection_line_history WHERE id = %s FOR UPDATE',
             [self.id],
