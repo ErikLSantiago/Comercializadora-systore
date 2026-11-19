@@ -418,6 +418,10 @@ class MkpCollectionLineHistory(models.Model):
             if partner:
                 clients[partner[0]] = partner[1]
 
+        wholesale_summary = self.env[
+            'sale.order'
+        ].get_mkp_wholesale_dashboard_summary()
+
         return {
             'totals': totals,
             'counts': {
@@ -438,6 +442,7 @@ class MkpCollectionLineHistory(models.Model):
                 'next_date': fields.Date.to_string(upcoming_next_date)
                 if upcoming_next_date else False,
             },
+            'wholesale': wholesale_summary,
             'options': {
                 'months': month_keys,
                 'clients': [

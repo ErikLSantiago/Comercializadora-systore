@@ -6,4 +6,5 @@ from . import collection_line_payment_detail
 from . import collection_line_import
 from . import sale_order
 from . import wholesale_payment
+from . import wholesale_report
 from . import import_row

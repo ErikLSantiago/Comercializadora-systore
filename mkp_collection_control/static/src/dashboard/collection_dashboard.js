@@ -26,6 +26,13 @@ export class MkpCollectionDashboard extends Component {
                     order_ids: [],
                     next_date: false,
                 },
+                wholesale: {
+                    order_count: 0,
+                    customer_count: 0,
+                    net_amount: 0,
+                    paid_amount: 0,
+                    amount_due: 0,
+                },
                 options: { months: [], clients: [], states: [] },
                 currency: "MXN",
             },
@@ -128,6 +135,12 @@ export class MkpCollectionDashboard extends Component {
     async openDynamicAnalysis() {
         await this.action.doAction(
             "mkp_collection_control.action_collection_dashboard"
+        );
+    }
+
+    async openWholesaleStatement() {
+        await this.action.doAction(
+            "mkp_collection_control.action_wholesale_customer_statement"
         );
     }
 

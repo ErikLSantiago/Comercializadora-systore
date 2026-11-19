@@ -86,6 +86,44 @@
             </div>
 
             <t t-if="!state.loading">
+                <section class="o_mkp_panel o_mkp_wholesale_panel">
+                    <div class="o_mkp_panel_title">
+                        <div>
+                            <h2>Estado de clientes Mayoreo</h2>
+                            <span>
+                                <t t-esc="state.data.wholesale.customer_count"/> cliente(s) ·
+                                <t t-esc="state.data.wholesale.order_count"/> pedido(s)
+                            </span>
+                        </div>
+                        <button class="btn btn-primary" t-on-click="openWholesaleStatement">
+                            <i class="fa fa-address-book-o me-1"/>
+                            Consultar estado de clientes
+                        </button>
+                    </div>
+                    <div class="o_mkp_composition_summary">
+                        <div>
+                            <span>Monto neto</span>
+                            <strong t-esc="formatCurrency(state.data.wholesale.net_amount)"/>
+                        </div>
+                        <div>
+                            <span>Monto pagado</span>
+                            <strong t-esc="formatCurrency(state.data.wholesale.paid_amount)"/>
+                        </div>
+                        <div>
+                            <span>Monto adeudado</span>
+                            <strong t-esc="formatCurrency(state.data.wholesale.amount_due)"/>
+                        </div>
+                        <div>
+                            <span>Pedidos</span>
+                            <strong t-esc="formatNumber(state.data.wholesale.order_count)"/>
+                        </div>
+                    </div>
+                    <small class="text-muted">
+                        El informe y el PDF se calculan por pedido y cliente de facturación,
+                        sin mezclar importes de Marketplace.
+                    </small>
+                </section>
+
                 <section class="o_mkp_kpi_grid">
                     <article class="o_mkp_kpi o_mkp_kpi_primary">
                         <span>Base ajustada</span>

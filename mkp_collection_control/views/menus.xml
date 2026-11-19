@@ -9,6 +9,10 @@
     <menuitem id="menu_mkp_collection_line_history" name="Historial de cobranza"
               parent="menu_mkp_collection_root" action="action_collection_line_history" sequence="10"
               groups="mkp_collection_control.group_mkp_collection_operator"/>
+    <menuitem id="menu_mkp_wholesale_customer_statement" name="Estado de clientes Mayoreo"
+              parent="menu_mkp_collection_root" action="action_wholesale_customer_statement"
+              sequence="12"
+              groups="mkp_collection_control.group_mkp_collection_operator"/>
     <menuitem id="menu_mkp_collection_dynamic_analysis" name="Análisis dinámico"
               parent="menu_mkp_collection_root" action="action_collection_dashboard" sequence="15"
               groups="mkp_collection_control.group_mkp_collection_operator"/>

@@ -28,6 +28,12 @@ class SaleOrder(models.Model):
     mkp_wholesale_payment_ids = fields.One2many(
         'mkp.wholesale.payment', 'sale_order_id', string='Pagos mayoreo', copy=False
     )
+    mkp_wholesale_payment_dates = fields.Char(
+        'Fechas de pago', compute='_compute_mkp_wholesale_payment_dates'
+    )
+    mkp_wholesale_last_payment_date = fields.Date(
+        'Última fecha de pago', compute='_compute_mkp_wholesale_payment_dates'
+    )
     mkp_wholesale_net_expected = fields.Monetary(
         'Neto esperado', currency_field='currency_id',
         compute='_compute_mkp_wholesale_totals', compute_sudo=True,
@@ -138,6 +144,44 @@ class SaleOrder(models.Model):
             sale.mkp_wholesale_commissions = commissions
             sale.mkp_wholesale_taxes = taxes
             sale.mkp_wholesale_shipping = shipping
+
+    @api.depends(
+        'mkp_wholesale_payment_ids.payment_date',
+        'mkp_wholesale_payment_ids.payment_status',
+    )
+    def _compute_mkp_wholesale_payment_dates(self):
+        for sale in self:
+            payment_dates = sorted({
+                payment.payment_date
+                for payment in sale.mkp_wholesale_payment_ids
+                if payment.payment_date
+                and payment.payment_status in ('paid', 'refund')
+            })
+            sale.mkp_wholesale_payment_dates = ', '.join(
+                payment_date.strftime('%d/%m/%Y')
+                for payment_date in payment_dates
+            )
+            sale.mkp_wholesale_last_payment_date = (
+                payment_dates[-1] if payment_dates else False
+            )
+
+    @api.model
+    def get_mkp_wholesale_dashboard_summary(self):
+        orders = self.sudo().search([
+            ('company_id', '=', self.env.company.id),
+            ('mkp_collection_type', '=', 'wholesale'),
+        ])
+        return {
+            'order_count': len(orders),
+            'customer_count': len(set(
+                (order.partner_invoice_id or order.partner_id).id
+                for order in orders
+                if order.partner_invoice_id or order.partner_id
+            )),
+            'net_amount': sum(orders.mapped('mkp_wholesale_net_expected')),
+            'paid_amount': sum(orders.mapped('mkp_wholesale_paid')),
+            'amount_due': sum(orders.mapped('mkp_wholesale_amount_to_collect')),
+        }
 
     @api.constrains('mkp_wholesale_general_expense')
     def _check_mkp_wholesale_general_expense(self):

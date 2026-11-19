@@ -1,7 +1,7 @@
 {
     'name': 'Cobranza MKP - Control manual e historial',
     'summary': 'Historial de cobranza por línea de producto y revisiones inalterables',
-    'version': '18.0.1.0.22',
+    'version': '18.0.1.0.23',
     'category': 'Sales/Sales',
     'author': 'Desarrollo personalizado',
     'license': 'LGPL-3',
@@ -18,6 +18,7 @@
         'views/collection_line_import_views.xml',
         'views/collection_line_history_views.xml',
         'views/collection_dashboard_views.xml',
+        'views/wholesale_statement_views.xml',
         'views/sale_order_views.xml',
         'views/menus.xml',
     ],
