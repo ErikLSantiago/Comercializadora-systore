@@ -30,19 +30,45 @@ class SaleOrder(models.Model):
     )
     mkp_wholesale_net_expected = fields.Monetary(
         'Neto esperado', currency_field='currency_id',
-        compute='_compute_mkp_wholesale_totals'
+        compute='_compute_mkp_wholesale_totals', compute_sudo=True,
+        groups='mkp_collection_control.group_mkp_collection_operator'
     )
     mkp_wholesale_paid = fields.Monetary(
         'Importe pagado', currency_field='currency_id',
-        compute='_compute_mkp_wholesale_totals'
+        compute='_compute_mkp_wholesale_totals', compute_sudo=True,
+        groups='mkp_collection_control.group_mkp_collection_operator'
     )
     mkp_wholesale_pending = fields.Monetary(
         'Pagos pendientes o retenidos', currency_field='currency_id',
-        compute='_compute_mkp_wholesale_totals'
+        compute='_compute_mkp_wholesale_totals', compute_sudo=True,
+        groups='mkp_collection_control.group_mkp_collection_operator'
     )
     mkp_wholesale_amount_to_collect = fields.Monetary(
         'Por cobrar', currency_field='currency_id',
-        compute='_compute_mkp_wholesale_totals'
+        compute='_compute_mkp_wholesale_totals', compute_sudo=True,
+        groups='mkp_collection_control.group_mkp_collection_operator'
+    )
+    # Compatibility aliases retained because the database can still render the
+    # 18.0.1.0.20 inherited view before the module upgrade replaces that view.
+    mkp_wholesale_adjusted_total = fields.Monetary(
+        'Total ajustado', currency_field='currency_id',
+        compute='_compute_mkp_wholesale_totals', compute_sudo=True,
+        groups='mkp_collection_control.group_mkp_collection_operator'
+    )
+    mkp_wholesale_commissions = fields.Monetary(
+        'Comisiones totales', currency_field='currency_id',
+        compute='_compute_mkp_wholesale_totals', compute_sudo=True,
+        groups='mkp_collection_control.group_mkp_collection_operator'
+    )
+    mkp_wholesale_taxes = fields.Monetary(
+        'Impuestos', currency_field='currency_id',
+        compute='_compute_mkp_wholesale_totals', compute_sudo=True,
+        groups='mkp_collection_control.group_mkp_collection_operator'
+    )
+    mkp_wholesale_shipping = fields.Monetary(
+        'Envío', currency_field='currency_id',
+        compute='_compute_mkp_wholesale_totals', compute_sudo=True,
+        groups='mkp_collection_control.group_mkp_collection_operator'
     )
 
     @api.depends(
@@ -51,19 +77,67 @@ class SaleOrder(models.Model):
         'mkp_wholesale_payment_ids.payment_status',
     )
     def _compute_mkp_wholesale_totals(self):
+        self.env.cr.execute("""
+            SELECT
+                to_regclass('mkp_wholesale_payment') IS NOT NULL,
+                EXISTS (
+                    SELECT 1
+                      FROM information_schema.columns
+                     WHERE table_schema = current_schema()
+                       AND table_name = 'sale_order'
+                       AND column_name = 'mkp_wholesale_general_expense'
+                )
+        """)
+        payment_table_ready, expense_column_ready = self.env.cr.fetchone()
+        schema_ready = payment_table_ready and expense_column_ready
+
+        legacy_by_sale = {}
+        if not schema_ready and self.ids:
+            legacy_histories = self.env[
+                'mkp.collection.line.history'
+            ].sudo().search([
+                ('sale_order_id', 'in', self.ids),
+                ('is_active_revision', '=', True),
+                ('collection_type', '=', 'wholesale'),
+                ('sale_line_id', '=', False),
+            ], order='revision_no desc, id desc')
+            for history in legacy_histories:
+                legacy_by_sale.setdefault(history.sale_order_id.id, history)
+
         for sale in self:
-            net_expected, paid, pending, balance = wholesale_order_totals(
-                order_total=sale.amount_total,
-                general_expense=sale.mkp_wholesale_general_expense,
-                payments=[{
-                    'amount': payment.amount,
-                    'payment_status': payment.payment_status,
-                } for payment in sale.mkp_wholesale_payment_ids],
-            )
+            history = legacy_by_sale.get(sale.id)
+            if schema_ready:
+                net_expected, paid, pending, balance = wholesale_order_totals(
+                    order_total=sale.amount_total,
+                    general_expense=sale.mkp_wholesale_general_expense,
+                    payments=[{
+                        'amount': payment.amount,
+                        'payment_status': payment.payment_status,
+                    } for payment in sale.mkp_wholesale_payment_ids],
+                )
+                commissions = sale.mkp_wholesale_general_expense
+                taxes = 0
+                shipping = 0
+            else:
+                net_expected = history.adjusted_total if history else 0
+                paid = history.paid_amount if history else 0
+                pending = 0
+                balance = history.amount_to_collect if history else 0
+                commissions = (
+                    history.killer_commission_total
+                    + history.commission_total
+                    + history.other_commission_total
+                ) if history else 0
+                taxes = history.taxes if history else 0
+                shipping = history.shipping if history else 0
             sale.mkp_wholesale_net_expected = net_expected
             sale.mkp_wholesale_paid = paid
             sale.mkp_wholesale_pending = pending
             sale.mkp_wholesale_amount_to_collect = balance
+            sale.mkp_wholesale_adjusted_total = net_expected
+            sale.mkp_wholesale_commissions = commissions
+            sale.mkp_wholesale_taxes = taxes
+            sale.mkp_wholesale_shipping = shipping
 
     @api.constrains('mkp_wholesale_general_expense')
     def _check_mkp_wholesale_general_expense(self):

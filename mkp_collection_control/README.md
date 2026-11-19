@@ -1,6 +1,8 @@
-# Cobranza MKP — v18.0.1.0.21
+# Cobranza MKP — v18.0.1.0.22
 
 Módulo independiente para **Odoo 18 Enterprise / Odoo.sh**. Marketplace conserva su historial inalterable por línea de producto y Mayoreo utiliza una captura general separada dentro de la orden de venta.
+
+Esta revisión conserva campos técnicos de compatibilidad de `18.0.1.0.20` para que la vista de la orden de venta pueda abrirse mientras Odoo reemplaza la vista anterior durante la actualización del módulo.
 
 ## Instalación o actualización
 
