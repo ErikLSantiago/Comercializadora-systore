@@ -8,6 +8,7 @@
                   default_order="sale_order_id desc,sequence,sale_line_id,revision_no desc,id desc"
                   decoration-muted="not is_active_revision">
                 <field name="sale_order_id" optional="show"/>
+                <field name="collection_type" optional="show"/>
                 <field name="sku"/>
                 <field name="product_name" string="Producto"/>
                 <field name="quantity"/>
@@ -17,10 +18,13 @@
                 <field name="coupon_amount"/>
                 <field name="killer_amount"/>
                 <field name="killer_commission"/>
+                <field name="killer_commission_total" optional="show"/>
                 <field name="commission"/>
+                <field name="commission_total" optional="show"/>
                 <field name="taxes"/>
                 <field name="shipping"/>
                 <field name="other_commission"/>
+                <field name="other_commission_total" optional="show"/>
                 <field name="calculation_type"/>
                 <field name="subtotal"/>
                 <field name="amount_to_collect"/>
@@ -67,12 +71,13 @@
                 <sheet>
                     <field name="is_active_revision" invisible="1"/>
                     <field name="currency_id" invisible="1"/>
+                    <field name="collection_type" invisible="1"/>
                     <div class="oe_title">
                         <h1><field name="product_name"/></h1>
                         <h3><field name="sale_order_id"/> · <field name="sku"/></h3>
                     </div>
                     <group>
-                        <group string="Línea de venta">
+                        <group string="Línea de venta" invisible="collection_type == 'wholesale'">
                             <field name="sku"/>
                             <field name="product_name"/>
                             <field name="quantity"/>
@@ -80,16 +85,25 @@
                             <field name="price_unit"/>
                             <field name="amount"/>
                         </group>
+                        <group string="Total general de la orden"
+                               invisible="collection_type != 'wholesale'">
+                            <field name="sale_order_id"/>
+                            <field name="amount"/>
+                            <field name="adjusted_total"/>
+                        </group>
                         <group string="Promociones">
                             <field name="coupon_amount"/>
                             <field name="killer_amount"/>
                             <field name="killer_commission"/>
+                            <field name="killer_commission_total"/>
                         </group>
                         <group string="Comisiones y descuentos">
                             <field name="commission"/>
+                            <field name="commission_total"/>
                             <field name="taxes"/>
                             <field name="shipping"/>
                             <field name="other_commission"/>
+                            <field name="other_commission_total"/>
                             <field name="calculation_type"/>
                         </group>
                     </group>
@@ -113,7 +127,7 @@
                             </list>
                         </field>
                     </group>
-                    <group string="Devoluciones">
+                    <group string="Devoluciones" invisible="collection_type == 'wholesale'">
                         <field name="return_status"/>
                         <field name="return_quantity"/>
                         <field name="return_request_date"/>
@@ -146,6 +160,7 @@
                 <field name="sku"/>
                 <field name="product_name"/>
                 <field name="payment_status"/>
+                <field name="collection_type"/>
                 <field name="payment_date"/>
                 <field name="calculation_type"/>
                 <field name="return_status"/>
@@ -163,6 +178,8 @@
                         context="{'group_by':'history_status'}"/>
                 <filter name="group_payment_status" string="Estado de pago"
                         context="{'group_by':'payment_status'}"/>
+                <filter name="group_collection_type" string="Tipo de cobranza"
+                        context="{'group_by':'collection_type'}"/>
                 <filter name="group_payment_date" string="Fecha de pago"
                         context="{'group_by':'payment_date:month'}"/>
                 <filter name="group_calculation_type" string="Tipo de cálculo"
@@ -183,7 +200,11 @@
                 <sheet>
                     <field name="history_id" invisible="1"/>
                     <field name="currency_id" invisible="1"/>
-                    <group string="Línea de venta">
+                    <field name="collection_type" invisible="1"/>
+                    <group string="Configuración">
+                        <field name="collection_type" readonly="1"/>
+                    </group>
+                    <group string="Línea de venta" invisible="collection_type == 'wholesale'">
                         <group>
                             <field name="wizard_order_id"/>
                             <field name="sku"/>
@@ -195,6 +216,11 @@
                             <field name="price_unit"/>
                             <field name="amount"/>
                         </group>
+                    </group>
+                    <group string="Total general de la orden"
+                           invisible="collection_type != 'wholesale'">
+                        <field name="wizard_order_id"/>
+                        <field name="amount" readonly="1"/>
                     </group>
                     <group string="Promociones">
                         <group>
@@ -225,10 +251,11 @@
                         <field name="payment_date"/>
                         <field name="payment_reference"/>
                     </group>
-                    <group string="Devoluciones">
+                    <group string="Devoluciones" invisible="collection_type == 'wholesale'">
                         <field name="target_sale_line_id"
                                domain="[('order_id','=',wizard_order_id),('display_type','=',False)]"
-                               options="{'no_create': True, 'no_open': True}"/>
+                               options="{'no_create': True, 'no_open': True}"
+                               required="collection_type == 'marketplace'"/>
                         <field name="return_status"/>
                         <field name="return_quantity"/>
                         <field name="return_request_date"/>

@@ -1,15 +1,91 @@
 from odoo import api, fields, models, _
-from odoo.exceptions import AccessError
+from odoo.exceptions import AccessError, UserError
 
 
 class SaleOrder(models.Model):
     _inherit = 'sale.order'
+
+    mkp_collection_type = fields.Selection([
+        ('marketplace', 'Marketplace'),
+        ('wholesale', 'Mayoreo'),
+    ], string='Tipo de cobranza', required=True, default='marketplace', copy=False)
 
     mkp_collection_event_count = fields.Integer('Líneas de cobranza',
                                                  compute='_compute_mkp_collection_event_count')
     mkp_return_count = fields.Integer(
         'Devoluciones', compute='_compute_mkp_return_count'
     )
+    mkp_wholesale_adjusted_total = fields.Monetary(
+        'Total ajustado', currency_field='currency_id',
+        compute='_compute_mkp_wholesale_totals', compute_sudo=True,
+        groups='mkp_collection_control.group_mkp_collection_operator'
+    )
+    mkp_wholesale_commissions = fields.Monetary(
+        'Comisiones totales', currency_field='currency_id',
+        compute='_compute_mkp_wholesale_totals', compute_sudo=True,
+        groups='mkp_collection_control.group_mkp_collection_operator'
+    )
+    mkp_wholesale_taxes = fields.Monetary(
+        'Impuestos', currency_field='currency_id',
+        compute='_compute_mkp_wholesale_totals', compute_sudo=True,
+        groups='mkp_collection_control.group_mkp_collection_operator'
+    )
+    mkp_wholesale_shipping = fields.Monetary(
+        'Envío', currency_field='currency_id',
+        compute='_compute_mkp_wholesale_totals', compute_sudo=True,
+        groups='mkp_collection_control.group_mkp_collection_operator'
+    )
+    mkp_wholesale_paid = fields.Monetary(
+        'Importe pagado', currency_field='currency_id',
+        compute='_compute_mkp_wholesale_totals', compute_sudo=True,
+        groups='mkp_collection_control.group_mkp_collection_operator'
+    )
+    mkp_wholesale_amount_to_collect = fields.Monetary(
+        'Por cobrar', currency_field='currency_id',
+        compute='_compute_mkp_wholesale_totals', compute_sudo=True,
+        groups='mkp_collection_control.group_mkp_collection_operator'
+    )
+
+    def write(self, vals):
+        if 'mkp_collection_type' in vals:
+            new_type = vals['mkp_collection_type'] or 'marketplace'
+            changing_orders = self.filtered(
+                lambda sale: sale.mkp_collection_type != new_type
+            )
+            if changing_orders:
+                collections = self.env['mkp.collection.order'].search([
+                    ('sale_order_id', 'in', changing_orders.ids),
+                ])
+                if collections and self.env['mkp.collection.line.history'].search_count([
+                    ('order_id', 'in', collections.ids),
+                ]):
+                    raise UserError(_(
+                        'El Tipo de cobranza no puede cambiar después de generar '
+                        'el historial de la orden.'
+                    ))
+        return super().write(vals)
+
+    def _compute_mkp_wholesale_totals(self):
+        histories = self.env['mkp.collection.line.history'].sudo().search([
+            ('sale_order_id', 'in', self.ids),
+            ('is_active_revision', '=', True),
+            ('collection_type', '=', 'wholesale'),
+        ]) if self.ids else self.env['mkp.collection.line.history']
+        active_by_order = {
+            history.sale_order_id.id: history for history in histories
+        }
+        for sale in self:
+            history = active_by_order.get(sale.id)
+            sale.mkp_wholesale_adjusted_total = history.adjusted_total if history else 0
+            sale.mkp_wholesale_commissions = (
+                history.killer_commission_total
+                + history.commission_total
+                + history.other_commission_total
+            ) if history else 0
+            sale.mkp_wholesale_taxes = history.taxes if history else 0
+            sale.mkp_wholesale_shipping = history.shipping if history else 0
+            sale.mkp_wholesale_paid = history.paid_amount if history else 0
+            sale.mkp_wholesale_amount_to_collect = history.amount_to_collect if history else 0
 
     def _compute_mkp_collection_event_count(self):
         accessible = self.env.user.has_group('mkp_collection_control.group_mkp_collection_operator')
@@ -53,9 +129,20 @@ class SaleOrder(models.Model):
                 'sale_order_id': self.id,
                 'marketplace': marketplace,
                 'marketplace_reference': marketplace_reference,
+                'collection_type': self.mkp_collection_type or 'marketplace',
             })
         else:
             synchronization = {}
+            requested_type = self.mkp_collection_type or 'marketplace'
+            if collection.collection_type != requested_type:
+                if self.env['mkp.collection.line.history'].search_count([
+                    ('order_id', '=', collection.id),
+                ]):
+                    raise UserError(_(
+                        'El Tipo de cobranza no puede cambiar después de generar '
+                        'el historial. Cree la cobranza con el tipo correcto.'
+                    ))
+                synchronization['collection_type'] = requested_type
             if collection.marketplace != marketplace:
                 synchronization['marketplace'] = marketplace
             if collection.marketplace_reference != marketplace_reference:
@@ -140,7 +227,7 @@ class SaleOrderLine(models.Model):
         }
         for line in self:
             history = active_by_line.get(line.id)
-            line.mkp_commission = history.commission if history else 0
+            line.mkp_commission = history.commission_total if history else 0
             line.mkp_shipping = history.shipping if history else 0
             line.mkp_withholding = history.taxes if history else 0
-            line.mkp_other_commission = history.other_commission if history else 0
+            line.mkp_other_commission = history.other_commission_total if history else 0

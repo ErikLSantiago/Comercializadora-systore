@@ -18,11 +18,15 @@ class MkpCollectionLineImport(models.Model):
     line_sequence = fields.Integer('Secuencia de línea')
     coupon_amount = fields.Monetary('Cupón', currency_field='currency_id')
     killer_amount = fields.Monetary('Killer', currency_field='currency_id')
-    killer_commission = fields.Monetary('Comisión killer', currency_field='currency_id')
+    killer_commission = fields.Monetary(
+        'Comisión killer', currency_field='currency_id'
+    )
     commission = fields.Monetary('Comisiones', currency_field='currency_id')
     taxes = fields.Monetary('Impuestos', currency_field='currency_id')
     shipping = fields.Monetary('Envío', currency_field='currency_id')
-    other_commission = fields.Monetary('Otras comisiones', currency_field='currency_id')
+    other_commission = fields.Monetary(
+        'Otras comisiones', currency_field='currency_id'
+    )
     paid_amount = fields.Monetary('Importe pagado', currency_field='currency_id')
     calculation_type = fields.Selection([
         ('precalculation', 'Precalculo'),

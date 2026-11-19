@@ -12,19 +12,43 @@
                 </button>
                 <button name="action_open_mkp_returns" type="object"
                         class="oe_stat_button text-danger" icon="fa-undo"
-                        invisible="mkp_return_count == 0"
+                        invisible="mkp_return_count == 0 or mkp_collection_type == 'wholesale'"
                         groups="mkp_collection_control.group_mkp_collection_operator">
                     <field name="mkp_return_count" widget="statinfo" string="Devoluciones"/>
                 </button>
             </xpath>
+            <xpath expr="//group[@name='sale_header']/group[@name='order_details']" position="inside">
+                <field name="mkp_collection_type"
+                       groups="mkp_collection_control.group_mkp_collection_operator"/>
+            </xpath>
+            <xpath expr="//sheet/notebook" position="before">
+                <group string="Cobranza Mayoreo"
+                       invisible="mkp_collection_type != 'wholesale'"
+                       groups="mkp_collection_control.group_mkp_collection_operator">
+                    <group>
+                        <field name="mkp_wholesale_adjusted_total" readonly="1"/>
+                        <field name="mkp_wholesale_commissions" readonly="1"/>
+                        <field name="mkp_wholesale_taxes" readonly="1"/>
+                        <field name="mkp_wholesale_shipping" readonly="1"/>
+                    </group>
+                    <group>
+                        <field name="mkp_wholesale_paid" readonly="1"/>
+                        <field name="mkp_wholesale_amount_to_collect" readonly="1"/>
+                    </group>
+                </group>
+            </xpath>
             <xpath expr="//field[@name='order_line']/list" position="inside">
                 <field name="mkp_commission" readonly="1" optional="show" invisible="display_type"
+                       column_invisible="parent.mkp_collection_type == 'wholesale'"
                        groups="mkp_collection_control.group_mkp_collection_operator"/>
                 <field name="mkp_shipping" readonly="1" optional="show" invisible="display_type"
+                       column_invisible="parent.mkp_collection_type == 'wholesale'"
                        groups="mkp_collection_control.group_mkp_collection_operator"/>
                 <field name="mkp_withholding" readonly="1" optional="show" invisible="display_type"
+                       column_invisible="parent.mkp_collection_type == 'wholesale'"
                        groups="mkp_collection_control.group_mkp_collection_operator"/>
                 <field name="mkp_other_commission" readonly="1" optional="show" invisible="display_type"
+                       column_invisible="parent.mkp_collection_type == 'wholesale'"
                        groups="mkp_collection_control.group_mkp_collection_operator"/>
             </xpath>
         </field>

@@ -22,6 +22,7 @@
         <field name="model">mkp.collection.line.history</field>
         <field name="arch" type="xml">
             <pivot string="Análisis de cobranza">
+                <field name="collection_type" type="row"/>
                 <field name="marketplace" type="row"/>
                 <field name="payment_status" type="col"/>
                 <field name="amount" type="measure"/>
@@ -29,11 +30,11 @@
                 <field name="paid_amount" type="measure"/>
                 <field name="coupon_amount" type="measure"/>
                 <field name="killer_amount" type="measure"/>
-                <field name="killer_commission" type="measure"/>
-                <field name="commission" type="measure"/>
+                <field name="killer_commission_total" type="measure"/>
+                <field name="commission_total" type="measure"/>
                 <field name="taxes" type="measure"/>
                 <field name="shipping" type="measure"/>
-                <field name="other_commission" type="measure"/>
+                <field name="other_commission_total" type="measure"/>
                 <field name="return_quantity" type="measure"/>
             </pivot>
         </field>
@@ -50,6 +51,7 @@
                 <field name="sku"/>
                 <field name="product_name"/>
                 <field name="payment_status"/>
+                <field name="collection_type"/>
                 <field name="payment_date"/>
                 <field name="calculation_type"/>
                 <field name="return_status"/>
@@ -58,6 +60,8 @@
                 <separator/>
                 <filter name="group_payment" string="Estado de pago"
                         context="{'group_by':'payment_status'}"/>
+                <filter name="group_collection_type" string="Tipo de cobranza"
+                        context="{'group_by':'collection_type'}"/>
                 <filter name="group_payment_date" string="Fecha de pago"
                         context="{'group_by':'payment_date:month'}"/>
                 <filter name="group_marketplace" string="Marketplace"

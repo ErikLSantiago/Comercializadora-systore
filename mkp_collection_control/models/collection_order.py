@@ -17,6 +17,11 @@ class MkpCollectionOrder(models.Model):
     currency_id = fields.Many2one(related='sale_order_id.currency_id', store=True, readonly=True)
     marketplace = fields.Char('Marketplace', readonly=True)
     marketplace_reference = fields.Char('Número de orden MKP', readonly=True, index=True)
+    collection_type = fields.Selection([
+        ('marketplace', 'Marketplace'),
+        ('wholesale', 'Mayoreo'),
+    ], string='Tipo de cobranza', required=True, default='marketplace',
+       readonly=True, index=True)
     sale_amount = fields.Monetary(related='sale_order_id.amount_total', string='Importe de Odoo',
                                   currency_field='currency_id', readonly=True)
     initialized = fields.Boolean('Cobranza inicializada', default=False, readonly=True)
@@ -88,7 +93,7 @@ class MkpCollectionOrder(models.Model):
 
     def write(self, vals):
         locked_fields = set(KEYS) | {'net_expected', 'initialized', 'payment_state', 'sale_order_id',
-                                     'marketplace', 'marketplace_reference'}
+                                     'marketplace', 'marketplace_reference', 'collection_type'}
         if locked_fields.intersection(vals) and not self.env.su:
             raise AccessError(_('Los importes de cobranza solo pueden cambiar al confirmar eventos.'))
         return super().write(vals)

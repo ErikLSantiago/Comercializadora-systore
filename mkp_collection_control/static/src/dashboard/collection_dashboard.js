@@ -26,7 +26,7 @@ export class MkpCollectionDashboard extends Component {
                     order_ids: [],
                     next_date: false,
                 },
-                options: { months: [], clients: [], states: [] },
+                options: { months: [], clients: [], states: [], collection_types: [] },
                 currency: "MXN",
             },
         });
@@ -39,6 +39,7 @@ export class MkpCollectionDashboard extends Component {
             date_to: "",
             month: "",
             state: "",
+            collection_type: "",
             partner_id: "",
             has_killer: false,
             has_coupon: false,

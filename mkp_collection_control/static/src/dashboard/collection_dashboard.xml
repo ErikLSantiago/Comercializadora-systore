@@ -49,6 +49,15 @@
                             </t>
                         </select>
                     </label>
+                    <label class="o_mkp_filter">
+                        <span>Tipo de cobranza</span>
+                        <select class="form-select" t-model="state.filters.collection_type">
+                            <option value="">Todos</option>
+                            <t t-foreach="state.data.options.collection_types" t-as="type" t-key="type.key">
+                                <option t-att-value="type.key"><t t-esc="type.label"/></option>
+                            </t>
+                        </select>
+                    </label>
                     <label class="o_mkp_filter o_mkp_filter_wide">
                         <span>Cliente de facturación</span>
                         <select class="form-select" t-model="state.filters.partner_id">

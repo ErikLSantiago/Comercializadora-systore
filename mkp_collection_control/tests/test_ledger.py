@@ -2,7 +2,7 @@
 import unittest
 from ..models.ledger import (
     money, state, net, apply_event, event_deltas, snapshot_deltas, payment_deltas,
-    collection_line_balance, collection_line_totals,
+    collection_commission_totals, collection_line_balance, collection_line_totals,
     validate_return_quantity,
 )
 
@@ -164,6 +164,49 @@ class TestMkpCollectionLedger(unittest.TestCase):
         )
         self.assertEqual(subtotal, money(950))
         self.assertEqual(adjusted, money(695))
+
+    def test_commissions_are_extended_by_sold_pieces(self):
+        killer_total, commission_total, other_total = collection_commission_totals(
+            quantity=3,
+            killer_commission=20,
+            commission=80,
+            other_commission=5,
+        )
+        self.assertEqual(killer_total, money(60))
+        self.assertEqual(commission_total, money(240))
+        self.assertEqual(other_total, money(15))
+        subtotal, adjusted = collection_line_totals(
+            amount=1000,
+            quantity=3,
+            coupon_amount=100,
+            killer_amount=50,
+            killer_commission=20,
+            commission=80,
+            taxes=100,
+            shipping=50,
+            other_commission=5,
+        )
+        self.assertEqual(subtotal, money(950))
+        self.assertEqual(adjusted, money(485))
+
+    def test_commission_multiplier_uses_absolute_quantity(self):
+        self.assertEqual(
+            collection_commission_totals(quantity=-2, commission=25)[1],
+            money(50),
+        )
+
+    def test_wholesale_total_uses_single_general_quantity(self):
+        subtotal, adjusted = collection_line_totals(
+            amount=10000,
+            quantity=1,
+            killer_commission=100,
+            commission=500,
+            taxes=250,
+            shipping=150,
+            other_commission=75,
+        )
+        self.assertEqual(subtotal, money(10000))
+        self.assertEqual(adjusted, money(8925))
 
     def test_collection_line_balance_supports_partial_payments(self):
         self.assertEqual(collection_line_balance(695, 200), money(495))

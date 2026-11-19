@@ -15,13 +15,16 @@ class MkpCollectionLineWizard(models.TransientModel):
         'mkp.collection.line.history', string='Línea vigente', required=True, readonly=True
     )
     target_sale_line_id = fields.Many2one(
-        'sale.order.line', string='Línea de producto', required=True
+        'sale.order.line', string='Línea de producto'
     )
     wizard_order_id = fields.Many2one(
         'sale.order', string='Orden de venta', required=True, readonly=True
     )
     sale_order_id = fields.Many2one(
         related='history_id.sale_order_id', string='Orden de venta', readonly=True
+    )
+    collection_type = fields.Selection(
+        related='history_id.collection_type', string='Tipo de cobranza', readonly=True
     )
     sku = fields.Char(related='history_id.sku', string='SKU', readonly=True)
     product_name = fields.Char(
@@ -43,11 +46,15 @@ class MkpCollectionLineWizard(models.TransientModel):
 
     coupon_amount = fields.Monetary('Cupón', currency_field='currency_id')
     killer_amount = fields.Monetary('Killer', currency_field='currency_id')
-    killer_commission = fields.Monetary('Comisión killer', currency_field='currency_id')
+    killer_commission = fields.Monetary(
+        'Comisión killer', currency_field='currency_id'
+    )
     commission = fields.Monetary('Comisiones', currency_field='currency_id')
     taxes = fields.Monetary('Impuestos', currency_field='currency_id')
     shipping = fields.Monetary('Envío', currency_field='currency_id')
-    other_commission = fields.Monetary('Otras comisiones', currency_field='currency_id')
+    other_commission = fields.Monetary(
+        'Otras comisiones', currency_field='currency_id'
+    )
     calculation_type = fields.Selection([
         ('precalculation', 'Precalculo'),
         ('marketplace', 'Marketplace'),
@@ -99,13 +106,16 @@ class MkpCollectionLineWizard(models.TransientModel):
         history = self.env['mkp.collection.line.history'].browse(history_id).exists()
         if history:
             values['wizard_order_id'] = history.sale_order_id.id
-            values['target_sale_line_id'] = history.sale_line_id.id
+            values['target_sale_line_id'] = history.sale_line_id.id or False
             for field_name in REVISION_FIELDS:
                 values[field_name] = history[field_name]
         return values
 
     @api.onchange('target_sale_line_id')
     def _onchange_target_sale_line_id(self):
+        if self.collection_type == 'wholesale':
+            self.target_sale_line_id = False
+            return
         if not self.target_sale_line_id:
             return
         if self.wizard_order_id and self.target_sale_line_id.order_id != self.wizard_order_id:
@@ -139,6 +149,7 @@ class MkpCollectionLineWizard(models.TransientModel):
         for wizard in self:
             subtotal, final_total = collection_line_totals(
                 amount=wizard.amount,
+                quantity=wizard.quantity,
                 coupon_amount=wizard.coupon_amount,
                 killer_amount=wizard.killer_amount,
                 killer_commission=wizard.killer_commission,
@@ -160,11 +171,20 @@ class MkpCollectionLineWizard(models.TransientModel):
 
     def action_confirm(self):
         self.ensure_one()
-        history = self.env['mkp.collection.line.history'].search([
+        domain = [
             ('sale_order_id', '=', self.wizard_order_id.id),
-            ('sale_line_id', '=', self.target_sale_line_id.id),
             ('is_active_revision', '=', True),
-        ], limit=1)
+        ]
+        if self.collection_type == 'wholesale':
+            domain.extend([
+                ('collection_type', '=', 'wholesale'),
+                ('sale_line_id', '=', False),
+            ])
+        else:
+            if not self.target_sale_line_id:
+                raise ValidationError(_('Seleccione una Línea de producto.'))
+            domain.append(('sale_line_id', '=', self.target_sale_line_id.id))
+        history = self.env['mkp.collection.line.history'].search(domain, limit=1)
         if not history:
             raise ValidationError(_('La línea histórica ya no está disponible.'))
         changes = {}

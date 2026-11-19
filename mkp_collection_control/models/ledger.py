@@ -31,18 +31,35 @@ def net(values):
                  - values['other'] - values['refunded'])
 
 
-def collection_line_totals(*, amount=0, coupon_amount=0,
+def collection_commission_totals(*, quantity=1, killer_commission=0,
+                                 commission=0, other_commission=0):
+    """Extend per-piece commission values by the absolute sold quantity."""
+    pieces = abs(Decimal(str(quantity or 0)))
+    return (
+        money(money(killer_commission) * pieces),
+        money(money(commission) * pieces),
+        money(money(other_commission) * pieces),
+    )
+
+
+def collection_line_totals(*, amount=0, quantity=1, coupon_amount=0,
                            killer_amount=0, killer_commission=0, commission=0,
                            taxes=0, shipping=0, other_commission=0):
-    """Return the two deterministic totals shown on each collection line."""
+    """Return totals, extending only commission concepts by sold pieces."""
     subtotal = money(money(amount) - money(coupon_amount) + money(killer_amount))
+    killer_total, commission_total, other_total = collection_commission_totals(
+        quantity=quantity,
+        killer_commission=killer_commission,
+        commission=commission,
+        other_commission=other_commission,
+    )
     adjusted_total = money(
         subtotal
-        - money(killer_commission)
-        - money(commission)
+        - killer_total
+        - commission_total
         - money(taxes)
         - money(shipping)
-        - money(other_commission)
+        - other_total
     )
     return subtotal, adjusted_total
 
