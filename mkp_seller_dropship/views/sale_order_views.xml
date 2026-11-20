@@ -1,0 +1,41 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <record id="view_sale_order_form_mkp_seller" model="ir.ui.view">
+        <field name="name">sale.order.form.mkp.seller</field>
+        <field name="model">sale.order</field>
+        <field name="inherit_id" ref="sale.view_order_form"/>
+        <field name="arch" type="xml">
+            <xpath expr="//field[@name='partner_id']" position="after">
+                <field name="external_order_ref"/>
+                <field name="mkp_parent_order_ref"/>
+                <field name="order_status"/>
+                <field name="mkp_delivery_state" readonly="1"/>
+</xpath>
+
+            <xpath expr="//header" position="inside">
+                <button name="action_mkp_create_consolidated_invoice"
+                        type="object"
+                        string="Crear factura consolidada"
+                        class="oe_highlight"
+                        invisible="not mkp_parent_order_ref or state not in ('sale', 'done')"/>
+            </xpath>
+
+            <xpath expr="//sheet/notebook" position="inside">
+                <page string="Facturación consolidada" name="mkp_child_seller_orders"
+                      invisible="not mkp_parent_order_ref">
+                    <field name="mkp_consolidated_invoice_ids" readonly="1"/>
+                </page>
+            </xpath>
+        
+
+            <xpath expr="//field[@name='order_line']" position="after">
+                <group string="Documentos relacionados" col="2">
+                    <field name="mkp_purchase_order_id" options="{'no_create': True}"/>
+                    <field name="mkp_customer_invoice_id" options="{'no_create': True}" context="{'default_move_type': 'out_invoice'}"/>
+                    <field name="mkp_vendor_bill_id" options="{'no_create': True}" context="{'default_move_type': 'in_invoice'}"/>
+                </group>
+            </xpath>
+
+        </field>
+    </record>
+</odoo>
