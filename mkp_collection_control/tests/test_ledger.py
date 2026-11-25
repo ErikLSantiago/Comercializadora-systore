@@ -3,7 +3,8 @@ import unittest
 from ..models.ledger import (
     money, state, net, apply_event, event_deltas, snapshot_deltas, payment_deltas,
     collection_commission_totals, collection_line_balance, collection_line_totals,
-    validate_return_quantity, wholesale_order_totals,
+    validate_return_quantity, wholesale_customer_payment_state,
+    wholesale_order_totals,
 )
 
 
@@ -280,3 +281,9 @@ class TestMkpCollectionLedger(unittest.TestCase):
         )
         self.assertEqual(internal[3], money(650))
         self.assertEqual(customer[3], money(800))
+
+    def test_wholesale_customer_payment_state(self):
+        self.assertEqual(wholesale_customer_payment_state(100), 'pending')
+        self.assertEqual(wholesale_customer_payment_state('0.01'), 'pending')
+        self.assertEqual(wholesale_customer_payment_state(0), 'paid')
+        self.assertEqual(wholesale_customer_payment_state(-10), 'paid')

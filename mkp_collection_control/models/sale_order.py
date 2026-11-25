@@ -1,7 +1,7 @@
 from odoo import api, fields, models, _
 from odoo.exceptions import AccessError, UserError, ValidationError
 
-from .ledger import wholesale_order_totals
+from .ledger import wholesale_customer_payment_state, wholesale_order_totals
 
 
 class SaleOrder(models.Model):
@@ -64,6 +64,12 @@ class SaleOrder(models.Model):
         compute='_compute_mkp_wholesale_customer_totals', compute_sudo=True,
         groups='mkp_collection_control.group_mkp_collection_operator'
     )
+    mkp_wholesale_customer_payment_state = fields.Selection([
+        ('pending', 'Pendiente'),
+        ('paid', 'Pagado'),
+    ], string='Estado de cuenta', compute='_compute_mkp_wholesale_customer_payment_state',
+       store=True, compute_sudo=True, index=True,
+       groups='mkp_collection_control.group_mkp_collection_operator')
     # Compatibility aliases retained because the database can still render the
     # 18.0.1.0.20 inherited view before the module upgrade replaces that view.
     mkp_wholesale_adjusted_total = fields.Monetary(
@@ -176,6 +182,27 @@ class SaleOrder(models.Model):
             )
             sale.mkp_wholesale_customer_net = net_amount
             sale.mkp_wholesale_customer_amount_due = amount_due
+
+    @api.depends(
+        'amount_total',
+        'mkp_wholesale_payment_ids.amount',
+        'mkp_wholesale_payment_ids.operation_type',
+        'mkp_wholesale_payment_ids.payment_status',
+    )
+    def _compute_mkp_wholesale_customer_payment_state(self):
+        for sale in self:
+            _net, _paid, _pending, amount_due = wholesale_order_totals(
+                order_total=sale.amount_total,
+                general_expense=0,
+                payments=[{
+                    'amount': payment.amount,
+                    'operation_type': payment.operation_type,
+                    'payment_status': payment.payment_status,
+                } for payment in sale.mkp_wholesale_payment_ids],
+            )
+            sale.mkp_wholesale_customer_payment_state = (
+                wholesale_customer_payment_state(amount_due)
+            )
 
     @api.depends(
         'mkp_wholesale_payment_ids.payment_date',

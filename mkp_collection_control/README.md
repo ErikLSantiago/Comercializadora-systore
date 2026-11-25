@@ -1,10 +1,12 @@
-# Cobranza MKP — v18.0.1.0.26
+# Cobranza MKP — v18.0.1.0.27
 
 Módulo independiente para **Odoo 18 Enterprise / Odoo.sh**. Marketplace conserva su historial inalterable por línea de producto y Mayoreo utiliza una captura general separada dentro de la orden de venta.
 
 Esta revisión permite crear una línea de pago sin que el valor temporal cero del editor interrumpa el `onchange` de la orden. El importe definitivo continúa validándose al guardar y Estado de pago se presenta como un desplegable nativo.
 
-El Gasto general se mantiene como información interna de la orden, pero se excluye totalmente del listado, los indicadores y el PDF del estado de cuenta del cliente. El documento conserva formato A4 horizontal y únicamente las celdas del encabezado de la tabla llevan contorno y texto en negritas.
+El Gasto general se mantiene como información interna de la orden, pero se excluye totalmente del listado, los indicadores y el PDF del estado de cuenta del cliente. El documento utiliza formato A4 vertical y únicamente las celdas del encabezado de la tabla llevan contorno y texto en negritas.
+
+Cada pedido Mayoreo muestra el Estado de cuenta Pendiente mientras su adeudo sea mayor a cero, incluso cuando tenga pagos parciales, retenidos o pendientes. Cambia automáticamente a Pagado cuando el saldo queda totalmente cubierto o existe un saldo a favor. El listado abre con Pendiente aplicado como filtro predeterminado para generar estados de cuenta únicamente de pedidos con adeudo; el usuario puede retirar el filtro para consultar los Pagados.
 
 Esta revisión conserva campos técnicos de compatibilidad de `18.0.1.0.20` para que la vista de la orden de venta pueda abrirse mientras Odoo reemplaza la vista anterior durante la actualización del módulo.
 

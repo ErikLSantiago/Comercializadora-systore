@@ -10,17 +10,21 @@
                             .mkp-wholesale-statement-table {
                                 width: 100%;
                                 border-collapse: collapse;
+                                table-layout: fixed;
+                                font-size: 8.5px;
                             }
                             .mkp-wholesale-statement-table thead th {
                                 padding: 7px 6px;
                                 border: 1px solid #6b7280 !important;
                                 background: #f3f4f6;
                                 font-weight: 700 !important;
+                                white-space: normal;
                             }
                             .mkp-wholesale-statement-table tbody td,
                             .mkp-wholesale-statement-table tfoot td {
                                 padding: 7px 6px;
                                 border: 0 !important;
+                                overflow-wrap: anywhere;
                             }
                             .mkp-wholesale-statement-table tfoot td {
                                 padding-top: 12px;
@@ -73,6 +77,15 @@
                         </div>
 
                         <table class="mkp-wholesale-statement-table">
+                            <colgroup>
+                                <col style="width: 12%;"/>
+                                <col style="width: 15%;"/>
+                                <col style="width: 15%;"/>
+                                <col style="width: 15%;"/>
+                                <col style="width: 14%;"/>
+                                <col style="width: 15%;"/>
+                                <col style="width: 14%;"/>
+                            </colgroup>
                             <thead>
                                 <tr class="table-light">
                                     <th>Tipo</th>
@@ -129,10 +142,10 @@
     </template>
 
     <record id="paperformat_wholesale_statement" model="report.paperformat">
-        <field name="name">Estado de cuenta Mayoreo horizontal</field>
+        <field name="name">Estado de cuenta Mayoreo vertical</field>
         <field name="default" eval="False"/>
         <field name="format">A4</field>
-        <field name="orientation">Landscape</field>
+        <field name="orientation">Portrait</field>
         <field name="margin_top">32</field>
         <field name="margin_bottom">14</field>
         <field name="margin_left">8</field>
@@ -168,6 +181,10 @@
                 <field name="partner_invoice_id" string="Cliente"/>
                 <field name="name" string="Orden de venta"/>
                 <field name="client_order_ref" string="Referencia del cliente"/>
+                <field name="mkp_wholesale_customer_payment_state" string="Estado"
+                       widget="badge"
+                       decoration-warning="mkp_wholesale_customer_payment_state == 'pending'"
+                       decoration-success="mkp_wholesale_customer_payment_state == 'paid'"/>
                 <field name="amount_total" string="Total de la orden"
                        optional="hide" sum="Total de órdenes"/>
                 <field name="mkp_wholesale_customer_net" string="Monto neto"/>
@@ -189,6 +206,12 @@
                 <field name="name" string="Orden de venta"/>
                 <field name="client_order_ref"/>
                 <field name="user_id"/>
+                <field name="mkp_wholesale_customer_payment_state" string="Estado"/>
+                <filter name="pending_orders" string="Pendiente"
+                        domain="[('mkp_wholesale_customer_payment_state','=','pending')]"/>
+                <filter name="paid_orders" string="Pagado"
+                        domain="[('mkp_wholesale_customer_payment_state','=','paid')]"/>
+                <separator/>
                 <filter name="group_customer" string="Cliente"
                         context="{'group_by':'partner_invoice_id'}"/>
                 <filter name="group_salesperson" string="Vendedor"
@@ -206,7 +229,7 @@
         <field name="view_id" ref="view_sale_order_wholesale_statement_list"/>
         <field name="search_view_id" ref="view_sale_order_wholesale_statement_search"/>
         <field name="domain">[('mkp_collection_type','=','wholesale')]</field>
-        <field name="context">{'create': False}</field>
+        <field name="context">{'create': False, 'search_default_pending_orders': 1}</field>
         <field name="help" type="html">
             <p class="o_view_nocontent_smiling_face">No hay pedidos de Mayoreo.</p>
         </field>

@@ -110,6 +110,11 @@ def wholesale_order_totals(*, order_total=0, general_expense=0, payments=None):
     return net_expected, paid, pending, money(net_expected - paid)
 
 
+def wholesale_customer_payment_state(amount_due=0):
+    """Classify a wholesale order by its current customer-facing balance."""
+    return 'paid' if money(amount_due) <= 0 else 'pending'
+
+
 def validate_return_quantity(return_quantity, ordered_quantity, return_status='sale'):
     """Validate a product quantity without imposing monetary rounding."""
     quantity = Decimal(str(return_quantity or 0))
