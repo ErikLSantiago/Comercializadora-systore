@@ -224,3 +224,23 @@ class TestMkpCollectionLedger(unittest.TestCase):
         self.assertEqual(paid, money(2500))
         self.assertEqual(pending, money(1000))
         self.assertEqual(balance, money(6750))
+
+    def test_wholesale_signed_discounts_and_adjustments(self):
+        net_expected, paid, pending, balance = wholesale_order_totals(
+            order_total=10000,
+            general_expense=750,
+            payments=[
+                {'operation_type': 'payment', 'amount': 3000,
+                 'payment_status': 'paid'},
+                {'operation_type': 'discount', 'amount': -500,
+                 'payment_status': 'paid'},
+                {'operation_type': 'credit_note', 'amount': -250,
+                 'payment_status': 'paid'},
+                {'operation_type': 'adjustment', 'amount': 100,
+                 'payment_status': 'paid'},
+            ],
+        )
+        self.assertEqual(net_expected, money(8600))
+        self.assertEqual(paid, money(3000))
+        self.assertEqual(pending, money(0))
+        self.assertEqual(balance, money(5600))

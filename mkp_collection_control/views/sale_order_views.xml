@@ -48,6 +48,7 @@
                               decoration-muted="payment_status == 'cancelled'"
                               decoration-success="payment_status == 'paid'"
                               decoration-warning="payment_status in ('held', 'pending')">
+                            <field name="operation_type"/>
                             <field name="payment_date"/>
                             <field name="payment_reference"/>
                             <field name="amount" sum="Total"/>
@@ -69,6 +70,8 @@
                     </field>
                     <div class="text-muted mt-2">
                         Los pagos Pagados reducen el saldo; los Reembolsos lo incrementan.
+                        Las Notas de crédito y Descuentos se capturan con importe negativo;
+                        los Ajustes admiten valores positivos o negativos.
                         Los registros se cancelan mediante su Estado y no se eliminan.
                     </div>
                 </page>

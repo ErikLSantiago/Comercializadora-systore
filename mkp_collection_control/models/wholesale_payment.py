@@ -6,7 +6,7 @@ from odoo.exceptions import AccessError, UserError, ValidationError
 
 class MkpWholesalePayment(models.Model):
     _name = 'mkp.wholesale.payment'
-    _description = 'Pago general de orden de mayoreo'
+    _description = 'Movimiento general de orden de mayoreo'
     _order = 'payment_date desc, id desc'
     _rec_name = 'payment_reference'
 
@@ -21,12 +21,18 @@ class MkpWholesalePayment(models.Model):
         related='sale_order_id.currency_id', store=True, readonly=True
     )
     payment_date = fields.Date(
-        'Fecha de pago', required=True, default=fields.Date.context_today,
+        'Fecha', required=True, default=fields.Date.context_today,
         index=True
     )
     payment_reference = fields.Char(
-        'Referencia de pago', required=True, index=True
+        'Documento / referencia', required=True, index=True
     )
+    operation_type = fields.Selection([
+        ('payment', 'Pago'),
+        ('credit_note', 'Nota de crédito'),
+        ('discount', 'Descuento'),
+        ('adjustment', 'Ajuste'),
+    ], string='Tipo de operación', required=True, default='payment', index=True)
     amount = fields.Monetary(
         'Importe', required=True, currency_field='currency_id'
     )
@@ -36,16 +42,8 @@ class MkpWholesalePayment(models.Model):
         ('paid', 'Pagado'),
         ('cancelled', 'Cancelado'),
         ('refund', 'Reembolso'),
-    ], string='Estado', required=True, default='pending', index=True)
+    ], string='Estado de pago', required=True, default='pending', index=True)
     notes = fields.Char('Comentario')
-
-    _sql_constraints = [
-        (
-            'positive_wholesale_payment_amount',
-            'CHECK(amount > 0)',
-            'El importe del pago de mayoreo debe ser mayor a cero.',
-        ),
-    ]
 
     def _check_operator(self):
         if not self.env.su and not self.env.user.has_group(
@@ -62,18 +60,42 @@ class MkpWholesalePayment(models.Model):
                     'Los pagos generales solo se registran en órdenes de tipo Mayoreo.'
                 ))
 
+    @api.constrains('operation_type', 'amount')
+    def _check_operation_amount(self):
+        for payment in self:
+            if payment.operation_type == 'payment' and payment.amount <= 0:
+                raise ValidationError(_(
+                    'Los pagos deben capturarse con un importe mayor a cero.'
+                ))
+            if payment.operation_type in ('credit_note', 'discount') \
+                    and payment.amount >= 0:
+                raise ValidationError(_(
+                    'Las notas de crédito y descuentos deben capturarse con '
+                    'un importe negativo.'
+                ))
+            if payment.operation_type == 'adjustment' and not payment.amount:
+                raise ValidationError(_(
+                    'El importe de un ajuste no puede ser cero.'
+                ))
+
     @api.model_create_multi
     def create(self, vals_list):
         self._check_operator()
         payments = super().create(vals_list)
         if not self.env.context.get('mkp_skip_wholesale_log'):
             labels = dict(self._fields['payment_status']._description_selection(self.env))
+            operation_labels = dict(
+                self._fields['operation_type']._description_selection(self.env)
+            )
             for payment in payments:
                 payment.sale_order_id.message_post(body=Markup(
                     '<p><strong>%s</strong></p>'
-                    '<p>%s: %s · %s: %s · %s: %s</p>'
+                    '<p>%s: %s · %s: %s · %s: %s · %s: %s</p>'
                 ) % (
-                    escape(_('Pago de mayoreo registrado')),
+                    escape(_('Movimiento de mayoreo registrado')),
+                    escape(_('Tipo')), escape(operation_labels.get(
+                        payment.operation_type, payment.operation_type
+                    )),
                     escape(_('Referencia')), escape(payment.payment_reference),
                     escape(_('Importe')), escape(payment.amount),
                     escape(_('Estado')), escape(labels.get(
@@ -87,7 +109,8 @@ class MkpWholesalePayment(models.Model):
         if 'sale_order_id' in vals:
             raise UserError(_('La orden de un pago de mayoreo no puede cambiar.'))
         tracked_fields = {
-            'payment_date', 'payment_reference', 'amount', 'payment_status', 'notes'
+            'operation_type', 'payment_date', 'payment_reference', 'amount',
+            'payment_status', 'notes'
         }
         before = {
             payment.id: {
@@ -99,8 +122,12 @@ class MkpWholesalePayment(models.Model):
         result = super().write(vals)
         if not self.env.context.get('mkp_skip_wholesale_log'):
             labels = dict(self._fields['payment_status']._description_selection(self.env))
+            operation_labels = dict(
+                self._fields['operation_type']._description_selection(self.env)
+            )
             field_labels = {
-                'payment_date': _('Fecha de pago'),
+                'operation_type': _('Tipo de operación'),
+                'payment_date': _('Fecha'),
                 'payment_reference': _('Referencia'),
                 'amount': _('Importe'),
                 'payment_status': _('Estado'),
@@ -115,6 +142,9 @@ class MkpWholesalePayment(models.Model):
                     if field_name == 'payment_status':
                         old_value = labels.get(old_value, old_value or '')
                         new_value = labels.get(new_value, new_value or '')
+                    elif field_name == 'operation_type':
+                        old_value = operation_labels.get(old_value, old_value or '')
+                        new_value = operation_labels.get(new_value, new_value or '')
                     changes.append('%s: %s → %s' % (
                         field_labels[field_name], old_value or '-', new_value or '-'
                     ))
@@ -122,7 +152,7 @@ class MkpWholesalePayment(models.Model):
                     payment.sale_order_id.message_post(body=Markup(
                         '<p><strong>%s</strong> · %s</p><p>%s</p>'
                     ) % (
-                        escape(_('Pago de mayoreo modificado')),
+                        escape(_('Movimiento de mayoreo modificado')),
                         escape(payment.payment_reference),
                         escape(' · '.join(changes)),
                     ))

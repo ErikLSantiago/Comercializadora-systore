@@ -76,20 +76,36 @@ def wholesale_order_totals(*, order_total=0, general_expense=0, payments=None):
         raise ValueError('El gasto general no puede ser negativo.')
     paid = money(0)
     pending = money(0)
+    net_adjustments = money(0)
     for payment in payments or []:
         amount = money(payment.get('amount'))
-        if amount <= 0:
-            raise ValueError('El importe del pago de mayoreo debe ser mayor a cero.')
+        operation_type = payment.get('operation_type') or 'payment'
+        if operation_type == 'payment' and amount <= 0:
+            raise ValueError('El importe de un pago debe ser mayor a cero.')
+        if operation_type in ('credit_note', 'discount') and amount >= 0:
+            raise ValueError(
+                'Las notas de crédito y descuentos deben ser negativos.'
+            )
+        if operation_type == 'adjustment' and not amount:
+            raise ValueError('El importe de un ajuste no puede ser cero.')
+        if operation_type not in (
+                'payment', 'credit_note', 'discount', 'adjustment'):
+            raise ValueError('Tipo de operación de mayoreo desconocido.')
         status = payment.get('payment_status')
-        if status == 'paid':
+        if status == 'paid' and operation_type == 'payment':
             paid = money(paid + amount)
-        elif status == 'refund':
+        elif status == 'paid':
+            net_adjustments = money(net_adjustments + amount)
+        elif status == 'refund' and operation_type == 'payment':
             paid = money(paid - amount)
+        elif status == 'refund':
+            net_adjustments = money(net_adjustments - amount)
         elif status in ('held', 'pending'):
-            pending = money(pending + amount)
+            if operation_type == 'payment':
+                pending = money(pending + amount)
         elif status != 'cancelled':
             raise ValueError('Estado de pago de mayoreo desconocido.')
-    net_expected = money(money(order_total) - expense)
+    net_expected = money(money(order_total) - expense + net_adjustments)
     return net_expected, paid, pending, money(net_expected - paid)
 
 

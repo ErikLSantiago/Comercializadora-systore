@@ -80,6 +80,7 @@ class SaleOrder(models.Model):
     @api.depends(
         'amount_total', 'mkp_wholesale_general_expense',
         'mkp_wholesale_payment_ids.amount',
+        'mkp_wholesale_payment_ids.operation_type',
         'mkp_wholesale_payment_ids.payment_status',
     )
     def _compute_mkp_wholesale_totals(self):
@@ -118,6 +119,7 @@ class SaleOrder(models.Model):
                     general_expense=sale.mkp_wholesale_general_expense,
                     payments=[{
                         'amount': payment.amount,
+                    'operation_type': payment.operation_type,
                         'payment_status': payment.payment_status,
                     } for payment in sale.mkp_wholesale_payment_ids],
                 )

@@ -26,7 +26,7 @@
 
                         <div class="row mb-4">
                             <div class="col-4">
-                                <div class="border rounded p-3">
+                                <div class="px-2 py-1">
                                     <div class="text-muted">Monto neto</div>
                                     <strong class="fs-4"
                                             t-out="group['net_amount']"
@@ -34,7 +34,7 @@
                                 </div>
                             </div>
                             <div class="col-4">
-                                <div class="border rounded p-3">
+                                <div class="px-2 py-1">
                                     <div class="text-muted">Monto pagado</div>
                                     <strong class="fs-4 text-success"
                                             t-out="group['paid_amount']"
@@ -42,7 +42,7 @@
                                 </div>
                             </div>
                             <div class="col-4">
-                                <div class="border rounded p-3">
+                                <div class="px-2 py-1">
                                     <div class="text-muted">Monto adeudado</div>
                                     <strong class="fs-4"
                                             t-out="group['amount_due']"
@@ -51,71 +51,49 @@
                             </div>
                         </div>
 
-                        <table class="table table-sm table-bordered">
+                        <table class="table table-sm">
                             <thead>
                                 <tr class="table-light">
-                                    <th>Orden de venta</th>
-                                    <th>Referencia del cliente</th>
+                                    <th>Tipo</th>
+                                    <th>Documento</th>
+                                    <th>Referencia cliente</th>
                                     <th class="text-end">Monto neto</th>
                                     <th class="text-end">Monto pagado</th>
                                     <th class="text-end">Monto adeudado</th>
-                                    <th>Fechas de pago</th>
+                                    <th>Fecha</th>
                                 </tr>
                             </thead>
                             <tbody>
-                                <t t-foreach="group['orders']" t-as="order">
-                                    <tr>
-                                        <td><span t-field="order.name"/></td>
-                                        <td><span t-out="order.client_order_ref or '-'"/></td>
-                                        <td class="text-end">
-                                            <span t-field="order.mkp_wholesale_net_expected"/>
-                                        </td>
-                                        <td class="text-end">
-                                            <span t-field="order.mkp_wholesale_paid"/>
-                                        </td>
-                                        <td class="text-end">
-                                            <span t-field="order.mkp_wholesale_amount_to_collect"/>
-                                        </td>
-                                        <td><span t-out="order.mkp_wholesale_payment_dates or '-'"/></td>
-                                    </tr>
-                                    <tr t-if="order.mkp_wholesale_payment_ids">
-                                        <td colspan="6" class="p-0">
-                                            <table class="table table-sm mb-0">
-                                                <thead>
-                                                    <tr>
-                                                        <th class="ps-4">Fecha</th>
-                                                        <th>Referencia de pago</th>
-                                                        <th>Estado</th>
-                                                        <th class="text-end pe-4">Importe</th>
-                                                    </tr>
-                                                </thead>
-                                                <tbody>
-                                                    <tr t-foreach="order.mkp_wholesale_payment_ids"
-                                                        t-as="payment">
-                                                        <td class="ps-4">
-                                                            <span t-field="payment.payment_date"/>
-                                                        </td>
-                                                        <td t-out="payment.payment_reference"/>
-                                                        <td t-out="payment_labels.get(payment.payment_status, payment.payment_status)"/>
-                                                        <td class="text-end pe-4">
-                                                            <span t-field="payment.amount"/>
-                                                        </td>
-                                                    </tr>
-                                                </tbody>
-                                            </table>
-                                        </td>
-                                    </tr>
-                                </t>
+                                <tr t-foreach="group['statement_lines']" t-as="line">
+                                    <td>
+                                        <strong t-out="line['operation_type']"/>
+                                        <small class="d-block text-muted"
+                                               t-if="line['payment_status']"
+                                               t-out="line['payment_status']"/>
+                                    </td>
+                                    <td t-out="line['document'] or '-'"/>
+                                    <td t-out="line['customer_reference'] or '-'"/>
+                                    <td class="text-end">
+                                        <span t-if="line['net_amount']"
+                                              t-out="line['net_amount']"
+                                              t-options="{'widget': 'monetary', 'display_currency': group['currency']}"/>
+                                        <span t-else="">—</span>
+                                    </td>
+                                    <td class="text-end">
+                                        <span t-if="line['paid_amount']"
+                                              t-out="line['paid_amount']"
+                                              t-options="{'widget': 'monetary', 'display_currency': group['currency']}"/>
+                                        <span t-else="">—</span>
+                                    </td>
+                                    <td class="text-end"
+                                        t-out="line['amount_due']"
+                                        t-options="{'widget': 'monetary', 'display_currency': group['currency']}"/>
+                                    <td t-out="line['date_text'] or '-'"/>
+                                </tr>
                             </tbody>
                             <tfoot>
                                 <tr class="fw-bold">
-                                    <td colspan="2">Total del cliente</td>
-                                    <td class="text-end"
-                                        t-out="group['net_amount']"
-                                        t-options="{'widget': 'monetary', 'display_currency': group['currency']}"/>
-                                    <td class="text-end"
-                                        t-out="group['paid_amount']"
-                                        t-options="{'widget': 'monetary', 'display_currency': group['currency']}"/>
+                                    <td colspan="5">Importe total adeudado</td>
                                     <td class="text-end"
                                         t-out="group['amount_due']"
                                         t-options="{'widget': 'monetary', 'display_currency': group['currency']}"/>
@@ -129,12 +107,27 @@
         </t>
     </template>
 
+    <record id="paperformat_wholesale_statement" model="report.paperformat">
+        <field name="name">Estado de cuenta Mayoreo horizontal</field>
+        <field name="default" eval="False"/>
+        <field name="format">A4</field>
+        <field name="orientation">Landscape</field>
+        <field name="margin_top">32</field>
+        <field name="margin_bottom">14</field>
+        <field name="margin_left">8</field>
+        <field name="margin_right">8</field>
+        <field name="header_line" eval="False"/>
+        <field name="header_spacing">20</field>
+        <field name="dpi">90</field>
+    </record>
+
     <record id="action_report_wholesale_statement" model="ir.actions.report">
         <field name="name">Estado de cuenta Mayoreo</field>
         <field name="model">sale.order</field>
         <field name="report_type">qweb-pdf</field>
         <field name="report_name">mkp_collection_control.report_wholesale_statement</field>
         <field name="report_file">mkp_collection_control.report_wholesale_statement</field>
+        <field name="paperformat_id" ref="paperformat_wholesale_statement"/>
         <field name="print_report_name">'Estado_cuenta_Mayoreo_%s' % (object.partner_invoice_id.name or object.name)</field>
     </record>
 

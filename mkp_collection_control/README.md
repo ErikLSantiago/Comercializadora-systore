@@ -1,4 +1,4 @@
-# Cobranza MKP — v18.0.1.0.23
+# Cobranza MKP — v18.0.1.0.24
 
 Módulo independiente para **Odoo 18 Enterprise / Odoo.sh**. Marketplace conserva su historial inalterable por línea de producto y Mayoreo utiliza una captura general separada dentro de la orden de venta.
 
@@ -52,6 +52,12 @@ Esta revisión conserva campos técnicos de compatibilidad de `18.0.1.0.20` para
 - La lista permite agrupar por Cliente, Vendedor o Mes del pedido.
 - Para generar el documento, seleccione uno o varios pedidos y presione **Generar PDF**. El PDF crea un estado de cuenta separado por cliente y moneda, muestra totales y detalla Fecha, Referencia, Estado e Importe de cada pago.
 - Las fechas resumidas consideran pagos con estado Pagado o Reembolso. Los registros Pendientes, Retenidos y Cancelados permanecen visibles en el detalle del PDF.
+- El PDF presenta un estado de cuenta cronológico por eventos con las columnas Tipo, Documento, Referencia cliente, Monto neto, Monto pagado, Monto adeudado y Fecha.
+- Cada pedido genera una línea Factura con la fecha de la orden. Cada movimiento de Mayoreo genera otra línea en la fecha capturada y el Monto adeudado se recalcula secuencialmente.
+- Los tipos manuales son Pago, Nota de crédito, Descuento y Ajuste. Nota de crédito y Descuento requieren importes negativos; Ajuste admite valores positivos o negativos.
+- Los pagos efectivos reducen el adeudo. Notas de crédito, descuentos y ajustes Pagados modifican el Monto neto. Los movimientos Pendientes, Retenidos o Cancelados se muestran sin modificar el saldo hasta que correspondan.
+- El Gasto general se presenta como una línea Descuento ligada al pedido.
+- El resumen superior del PDF muestra Neto, Pagado y Adeudado sin recuadros y el pie muestra el Importe total adeudado del cliente.
 
 ## Dashboard
 
