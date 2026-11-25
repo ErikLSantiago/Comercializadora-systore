@@ -1,8 +1,10 @@
-# Cobranza MKP — v18.0.1.0.25
+# Cobranza MKP — v18.0.1.0.26
 
 Módulo independiente para **Odoo 18 Enterprise / Odoo.sh**. Marketplace conserva su historial inalterable por línea de producto y Mayoreo utiliza una captura general separada dentro de la orden de venta.
 
 Esta revisión permite crear una línea de pago sin que el valor temporal cero del editor interrumpa el `onchange` de la orden. El importe definitivo continúa validándose al guardar y Estado de pago se presenta como un desplegable nativo.
+
+El Gasto general se mantiene como información interna de la orden, pero se excluye totalmente del listado, los indicadores y el PDF del estado de cuenta del cliente. El documento conserva formato A4 horizontal y únicamente las celdas del encabezado de la tabla llevan contorno y texto en negritas.
 
 Esta revisión conserva campos técnicos de compatibilidad de `18.0.1.0.20` para que la vista de la orden de venta pueda abrirse mientras Odoo reemplaza la vista anterior durante la actualización del módulo.
 
@@ -58,7 +60,7 @@ Esta revisión conserva campos técnicos de compatibilidad de `18.0.1.0.20` para
 - Cada pedido genera una línea Factura con la fecha de la orden. Cada movimiento de Mayoreo genera otra línea en la fecha capturada y el Monto adeudado se recalcula secuencialmente.
 - Los tipos manuales son Pago, Nota de crédito, Descuento y Ajuste. Nota de crédito y Descuento requieren importes negativos; Ajuste admite valores positivos o negativos.
 - Los pagos efectivos reducen el adeudo. Notas de crédito, descuentos y ajustes Pagados modifican el Monto neto. Los movimientos Pendientes, Retenidos o Cancelados se muestran sin modificar el saldo hasta que correspondan.
-- El Gasto general se presenta como una línea Descuento ligada al pedido.
+- El Gasto general no participa ni se presenta en el estado de cuenta del cliente.
 - El resumen superior del PDF muestra Neto, Pagado y Adeudado sin recuadros y el pie muestra el Importe total adeudado del cliente.
 
 ## Dashboard

@@ -258,3 +258,25 @@ class TestMkpCollectionLedger(unittest.TestCase):
         self.assertEqual(paid, money(0))
         self.assertEqual(pending, money(0))
         self.assertEqual(balance, money(1000))
+
+    def test_customer_statement_can_exclude_internal_expense(self):
+        internal = wholesale_order_totals(
+            order_total=1000,
+            general_expense=150,
+            payments=[{
+                'operation_type': 'payment',
+                'amount': 200,
+                'payment_status': 'paid',
+            }],
+        )
+        customer = wholesale_order_totals(
+            order_total=1000,
+            general_expense=0,
+            payments=[{
+                'operation_type': 'payment',
+                'amount': 200,
+                'payment_status': 'paid',
+            }],
+        )
+        self.assertEqual(internal[3], money(650))
+        self.assertEqual(customer[3], money(800))

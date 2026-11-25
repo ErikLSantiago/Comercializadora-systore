@@ -69,20 +69,6 @@ class ReportMkpWholesaleStatement(models.AbstractModel):
                 'paid_amount': 0.0,
                 'date': order_date,
             })
-            if order.mkp_wholesale_general_expense:
-                group['statement_lines'].append({
-                    'sort_key': (order_date or date.max, 1, order.id, 0),
-                    'operation_type': _('Descuento'),
-                    'payment_status': _('Aplicado'),
-                    'document': (
-                        order.mkp_wholesale_expense_note
-                        or _('Gasto general de %s') % order.name
-                    ),
-                    'customer_reference': order.client_order_ref or '',
-                    'net_amount': -order.mkp_wholesale_general_expense,
-                    'paid_amount': 0.0,
-                    'date': order_date,
-                })
             for payment in order.mkp_wholesale_payment_ids:
                 net_amount = 0.0
                 paid_amount = 0.0

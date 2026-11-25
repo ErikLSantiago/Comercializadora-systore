@@ -6,6 +6,27 @@
                 <t t-set="o" t-value="group['orders'][0]"/>
                 <t t-call="web.external_layout">
                     <div class="page">
+                        <style>
+                            .mkp-wholesale-statement-table {
+                                width: 100%;
+                                border-collapse: collapse;
+                            }
+                            .mkp-wholesale-statement-table thead th {
+                                padding: 7px 6px;
+                                border: 1px solid #6b7280 !important;
+                                background: #f3f4f6;
+                                font-weight: 700 !important;
+                            }
+                            .mkp-wholesale-statement-table tbody td,
+                            .mkp-wholesale-statement-table tfoot td {
+                                padding: 7px 6px;
+                                border: 0 !important;
+                            }
+                            .mkp-wholesale-statement-table tfoot td {
+                                padding-top: 12px;
+                                font-weight: 700;
+                            }
+                        </style>
                         <div class="d-flex justify-content-between align-items-start mb-4">
                             <div>
                                 <h2 class="mb-1">Estado de cuenta Mayoreo</h2>
@@ -51,7 +72,7 @@
                             </div>
                         </div>
 
-                        <table class="table table-sm">
+                        <table class="mkp-wholesale-statement-table">
                             <thead>
                                 <tr class="table-light">
                                     <th>Tipo</th>
@@ -137,8 +158,8 @@
         <field name="arch" type="xml">
             <list string="Estado de clientes Mayoreo" create="0" delete="0"
                   default_order="partner_invoice_id,name desc"
-                  decoration-danger="mkp_wholesale_amount_to_collect &gt; 0"
-                  decoration-success="mkp_wholesale_amount_to_collect &lt;= 0">
+                  decoration-danger="mkp_wholesale_customer_amount_due &gt; 0"
+                  decoration-success="mkp_wholesale_customer_amount_due &lt;= 0">
                 <header>
                     <button name="%(action_report_wholesale_statement)d"
                             type="action" string="Generar PDF"
@@ -149,11 +170,9 @@
                 <field name="client_order_ref" string="Referencia del cliente"/>
                 <field name="amount_total" string="Total de la orden"
                        optional="hide" sum="Total de órdenes"/>
-                <field name="mkp_wholesale_general_expense" optional="hide"
-                       sum="Gasto general"/>
-                <field name="mkp_wholesale_net_expected" string="Monto neto"/>
+                <field name="mkp_wholesale_customer_net" string="Monto neto"/>
                 <field name="mkp_wholesale_paid" string="Monto pagado"/>
-                <field name="mkp_wholesale_amount_to_collect" string="Monto adeudado"/>
+                <field name="mkp_wholesale_customer_amount_due" string="Monto adeudado"/>
                 <field name="mkp_wholesale_payment_dates" string="Fechas de pago"/>
                 <field name="mkp_wholesale_last_payment_date" optional="hide"/>
                 <field name="currency_id" column_invisible="True"/>

@@ -54,6 +54,16 @@ class SaleOrder(models.Model):
         compute='_compute_mkp_wholesale_totals', compute_sudo=True,
         groups='mkp_collection_control.group_mkp_collection_operator'
     )
+    mkp_wholesale_customer_net = fields.Monetary(
+        'Monto neto cliente', currency_field='currency_id',
+        compute='_compute_mkp_wholesale_customer_totals', compute_sudo=True,
+        groups='mkp_collection_control.group_mkp_collection_operator'
+    )
+    mkp_wholesale_customer_amount_due = fields.Monetary(
+        'Monto adeudado cliente', currency_field='currency_id',
+        compute='_compute_mkp_wholesale_customer_totals', compute_sudo=True,
+        groups='mkp_collection_control.group_mkp_collection_operator'
+    )
     # Compatibility aliases retained because the database can still render the
     # 18.0.1.0.20 inherited view before the module upgrade replaces that view.
     mkp_wholesale_adjusted_total = fields.Monetary(
@@ -148,6 +158,26 @@ class SaleOrder(models.Model):
             sale.mkp_wholesale_shipping = shipping
 
     @api.depends(
+        'amount_total',
+        'mkp_wholesale_payment_ids.amount',
+        'mkp_wholesale_payment_ids.operation_type',
+        'mkp_wholesale_payment_ids.payment_status',
+    )
+    def _compute_mkp_wholesale_customer_totals(self):
+        for sale in self:
+            net_amount, _paid, _pending, amount_due = wholesale_order_totals(
+                order_total=sale.amount_total,
+                general_expense=0,
+                payments=[{
+                    'amount': payment.amount,
+                    'operation_type': payment.operation_type,
+                    'payment_status': payment.payment_status,
+                } for payment in sale.mkp_wholesale_payment_ids],
+            )
+            sale.mkp_wholesale_customer_net = net_amount
+            sale.mkp_wholesale_customer_amount_due = amount_due
+
+    @api.depends(
         'mkp_wholesale_payment_ids.payment_date',
         'mkp_wholesale_payment_ids.payment_status',
     )
@@ -180,9 +210,11 @@ class SaleOrder(models.Model):
                 for order in orders
                 if order.partner_invoice_id or order.partner_id
             )),
-            'net_amount': sum(orders.mapped('mkp_wholesale_net_expected')),
+            'net_amount': sum(orders.mapped('mkp_wholesale_customer_net')),
             'paid_amount': sum(orders.mapped('mkp_wholesale_paid')),
-            'amount_due': sum(orders.mapped('mkp_wholesale_amount_to_collect')),
+            'amount_due': sum(
+                orders.mapped('mkp_wholesale_customer_amount_due')
+            ),
         }
 
     @api.constrains('mkp_wholesale_general_expense')
