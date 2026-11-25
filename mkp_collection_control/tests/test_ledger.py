@@ -244,3 +244,17 @@ class TestMkpCollectionLedger(unittest.TestCase):
         self.assertEqual(paid, money(3000))
         self.assertEqual(pending, money(0))
         self.assertEqual(balance, money(5600))
+
+    def test_wholesale_ignores_incomplete_inline_payment(self):
+        net_expected, paid, pending, balance = wholesale_order_totals(
+            order_total=1000,
+            payments=[{
+                'operation_type': 'payment',
+                'amount': 0,
+                'payment_status': 'pending',
+            }],
+        )
+        self.assertEqual(net_expected, money(1000))
+        self.assertEqual(paid, money(0))
+        self.assertEqual(pending, money(0))
+        self.assertEqual(balance, money(1000))

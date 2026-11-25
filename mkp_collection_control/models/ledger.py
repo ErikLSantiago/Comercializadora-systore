@@ -80,17 +80,18 @@ def wholesale_order_totals(*, order_total=0, general_expense=0, payments=None):
     for payment in payments or []:
         amount = money(payment.get('amount'))
         operation_type = payment.get('operation_type') or 'payment'
+        # An inline One2many row exists transiently with amount 0 while the
+        # user is still editing it. It must not break the sale order onchange;
+        # the model constraint validates the final value when the row is saved.
+        if not amount:
+            continue
         if operation_type == 'payment' and amount <= 0:
-            raise ValueError('El importe de un pago debe ser mayor a cero.')
+            continue
         if operation_type in ('credit_note', 'discount') and amount >= 0:
-            raise ValueError(
-                'Las notas de crédito y descuentos deben ser negativos.'
-            )
-        if operation_type == 'adjustment' and not amount:
-            raise ValueError('El importe de un ajuste no puede ser cero.')
+            continue
         if operation_type not in (
                 'payment', 'credit_note', 'discount', 'adjustment'):
-            raise ValueError('Tipo de operación de mayoreo desconocido.')
+            continue
         status = payment.get('payment_status')
         if status == 'paid' and operation_type == 'payment':
             paid = money(paid + amount)
