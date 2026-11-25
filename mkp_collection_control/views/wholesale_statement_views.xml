@@ -9,22 +9,64 @@
                         <style>
                             .mkp-wholesale-statement-table {
                                 width: 100%;
-                                border-collapse: collapse;
+                                border: 0 !important;
+                                border-collapse: separate;
+                                border-spacing: 0 3px;
                                 table-layout: fixed;
                                 font-size: 9px;
+                                -webkit-print-color-adjust: exact;
+                            }
+                            .mkp-wholesale-statement-table,
+                            .mkp-wholesale-statement-table thead,
+                            .mkp-wholesale-statement-table tbody,
+                            .mkp-wholesale-statement-table tfoot,
+                            .mkp-wholesale-statement-table tr,
+                            .mkp-wholesale-statement-table th,
+                            .mkp-wholesale-statement-table td {
+                                border: 0 !important;
+                                outline: 0 !important;
+                                box-shadow: none !important;
                             }
                             .mkp-wholesale-statement-table thead th {
-                                padding: 5px 3px;
-                                border: 1px solid #6b7280 !important;
-                                background: #f3f4f6;
+                                padding: 7px 4px;
+                                background: #17384d !important;
+                                color: #ffffff !important;
+                                font-size: 8px;
                                 font-weight: 700 !important;
+                                letter-spacing: 0.2px;
+                                text-transform: uppercase;
                                 white-space: normal;
+                            }
+                            .mkp-wholesale-statement-table thead th:first-child {
+                                border-radius: 5px 0 0 5px;
+                            }
+                            .mkp-wholesale-statement-table thead th:last-child {
+                                border-radius: 0 5px 5px 0;
                             }
                             .mkp-wholesale-statement-table tbody td,
                             .mkp-wholesale-statement-table tfoot td {
-                                padding: 5px 3px;
+                                padding: 7px 4px;
                                 border: 0 !important;
                                 overflow-wrap: anywhere;
+                            }
+                            .mkp-wholesale-statement-table tbody tr {
+                                page-break-inside: avoid;
+                            }
+                            .mkp-wholesale-statement-table tbody tr:nth-child(odd) td {
+                                background: #f4f7f9 !important;
+                            }
+                            .mkp-wholesale-statement-table tbody tr:nth-child(even) td {
+                                background: #ffffff !important;
+                            }
+                            .mkp-wholesale-statement-table tbody tr td:first-child {
+                                border-radius: 4px 0 0 4px;
+                            }
+                            .mkp-wholesale-statement-table tbody tr td:last-child {
+                                border-radius: 0 4px 4px 0;
+                            }
+                            .mkp-wholesale-statement-table .mkp-type {
+                                color: #17384d;
+                                font-weight: 700;
                             }
                             .mkp-wholesale-statement-table .mkp-amount,
                             .mkp-wholesale-statement-table .mkp-date {
@@ -32,8 +74,16 @@
                                 overflow-wrap: normal;
                             }
                             .mkp-wholesale-statement-table tfoot td {
-                                padding-top: 12px;
+                                padding: 9px 4px;
+                                background: #e7eef2 !important;
+                                color: #17384d;
                                 font-weight: 700;
+                            }
+                            .mkp-wholesale-statement-table tfoot td:first-child {
+                                border-radius: 5px 0 0 5px;
+                            }
+                            .mkp-wholesale-statement-table tfoot td:last-child {
+                                border-radius: 0 5px 5px 0;
                             }
                         </style>
                         <div class="d-flex justify-content-between align-items-start mb-4">
@@ -45,9 +95,31 @@
                                 </div>
                             </div>
                             <div class="text-end">
+                                <div class="text-muted">Contacto de facturación</div>
                                 <strong t-out="group['partner'].display_name"/>
+                                <div t-if="group['partner'].street"
+                                     t-out="group['partner'].street"/>
+                                <div t-if="group['partner'].street2"
+                                     t-out="group['partner'].street2"/>
+                                <div t-if="group['partner'].city or group['partner'].state_id or group['partner'].zip">
+                                    <span t-if="group['partner'].zip"
+                                          t-out="group['partner'].zip"/>
+                                    <span t-if="group['partner'].city">
+                                        <t t-if="group['partner'].zip"> </t>
+                                        <t t-out="group['partner'].city"/>
+                                    </span>
+                                    <span t-if="group['partner'].state_id">
+                                        <t t-if="group['partner'].city">, </t>
+                                        <t t-out="group['partner'].state_id.name"/>
+                                    </span>
+                                </div>
+                                <div t-if="group['partner'].country_id"
+                                     t-out="group['partner'].country_id.name"/>
                                 <div t-if="group['partner'].vat">
                                     RFC: <span t-out="group['partner'].vat"/>
+                                </div>
+                                <div t-if="group['partner'].phone">
+                                    Tel: <span t-out="group['partner'].phone"/>
                                 </div>
                                 <div t-if="group['partner'].email"
                                      t-out="group['partner'].email"/>
@@ -93,7 +165,7 @@
                                 <col style="width: 12%;"/>
                             </colgroup>
                             <thead>
-                                <tr class="table-light">
+                                <tr>
                                     <th>Tipo</th>
                                     <th>Orden de venta</th>
                                     <th>Documento</th>
@@ -106,7 +178,7 @@
                             </thead>
                             <tbody>
                                 <tr t-foreach="group['statement_lines']" t-as="line">
-                                    <td>
+                                    <td class="mkp-type">
                                         <strong t-out="line['operation_type']"/>
                                     </td>
                                     <td t-out="line['sale_order'] or '-'"/>

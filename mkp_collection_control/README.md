@@ -1,4 +1,4 @@
-# Cobranza MKP — v18.0.1.0.28
+# Cobranza MKP — v18.0.1.0.29
 
 Módulo independiente para **Odoo 18 Enterprise / Odoo.sh**. Marketplace conserva su historial inalterable por línea de producto y Mayoreo utiliza una captura general separada dentro de la orden de venta.
 
@@ -9,6 +9,10 @@ El Gasto general se mantiene como información interna de la orden, pero se excl
 Cada pedido Mayoreo muestra el Estado de cuenta Pendiente mientras su adeudo sea mayor a cero, incluso cuando tenga pagos parciales, retenidos o pendientes. Cambia automáticamente a Pagado cuando el saldo queda totalmente cubierto o existe un saldo a favor. El listado abre con Pendiente aplicado como filtro predeterminado para generar estados de cuenta únicamente de pedidos con adeudo; el usuario puede retirar el filtro para consultar los Pagados.
 
 El PDF incorpora la columna **Orden de venta** y repite su número en cada evento, junto con la Referencia cliente. La columna Documento se conserva para mostrar la orden en la factura o la referencia capturada en cada movimiento. Tipo muestra únicamente Factura, Pago, Nota de crédito, Descuento o Ajuste, sin agregar debajo el estado de pago. La tabla redistribuye sus ocho columnas, reduce espacios internos y aumenta la tipografía para aprovechar mejor la hoja A4 vertical.
+
+La tabla del PDF elimina por completo la cuadrícula y el contorno exterior. El encabezado utiliza un fondo azul institucional sin bordes, las filas alternan fondos claros para guiar la lectura y el total adeudado se presenta en una banda discreta. Se conservan la alineación numérica, los espacios entre movimientos y la hoja A4 vertical.
+
+El encabezado muestra el Contacto de facturación (`partner_invoice_id`) con nombre, dirección, RFC, teléfono y correo disponibles. La exportación valida que todas las órdenes seleccionadas pertenezcan al mismo Cliente de facturación; si la selección mezcla clientes, Odoo muestra un mensaje y no genera el PDF.
 
 Esta revisión conserva campos técnicos de compatibilidad de `18.0.1.0.20` para que la vista de la orden de venta pueda abrirse mientras Odoo reemplaza la vista anterior durante la actualización del módulo.
 

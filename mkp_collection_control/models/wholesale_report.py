@@ -26,6 +26,13 @@ class ReportMkpWholesaleStatement(models.AbstractModel):
             raise UserError(_(
                 'El PDF solo admite pedidos de Mayoreo. Retire de la selección: %s'
             ) % ', '.join(invalid_orders.mapped('name')))
+        billing_partners = orders.mapped('partner_invoice_id')
+        if len(billing_partners) != 1:
+            raise UserError(_(
+                'El estado de cuenta solo puede generarse con órdenes de un '
+                'mismo Cliente de facturación. Ajuste la selección e inténtelo '
+                'nuevamente.'
+            ))
 
         grouped = OrderedDict()
         payment_model = self.env['mkp.wholesale.payment']
@@ -35,12 +42,12 @@ class ReportMkpWholesaleStatement(models.AbstractModel):
             ]._description_selection(self.env)
         )
         sorted_orders = orders.sorted(key=lambda order: (
-            (order.partner_invoice_id or order.partner_id).display_name or '',
+            order.partner_invoice_id.display_name or '',
             order.currency_id.name or '',
             order.name or '',
         ))
         for order in sorted_orders:
-            partner = order.partner_invoice_id or order.partner_id
+            partner = order.partner_invoice_id
             key = (partner.id, order.currency_id.id)
             if key not in grouped:
                 grouped[key] = {
