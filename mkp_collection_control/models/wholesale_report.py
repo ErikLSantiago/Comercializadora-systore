@@ -29,11 +29,6 @@ class ReportMkpWholesaleStatement(models.AbstractModel):
 
         grouped = OrderedDict()
         payment_model = self.env['mkp.wholesale.payment']
-        payment_labels = dict(
-            payment_model._fields[
-                'payment_status'
-            ]._description_selection(self.env)
-        )
         operation_labels = dict(
             payment_model._fields[
                 'operation_type'
@@ -62,7 +57,7 @@ class ReportMkpWholesaleStatement(models.AbstractModel):
             group['statement_lines'].append({
                 'sort_key': (order_date or date.max, 0, order.id, 0),
                 'operation_type': _('Factura'),
-                'payment_status': False,
+                'sale_order': order.name,
                 'document': order.name,
                 'customer_reference': order.client_order_ref or '',
                 'net_amount': order.amount_total,
@@ -94,9 +89,7 @@ class ReportMkpWholesaleStatement(models.AbstractModel):
                     'operation_type': operation_labels.get(
                         payment.operation_type, payment.operation_type
                     ),
-                    'payment_status': payment_labels.get(
-                        payment.payment_status, payment.payment_status
-                    ),
+                    'sale_order': order.name,
                     'document': payment.payment_reference,
                     'customer_reference': order.client_order_ref or '',
                     'net_amount': net_amount,

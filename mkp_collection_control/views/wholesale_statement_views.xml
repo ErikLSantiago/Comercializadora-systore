@@ -11,10 +11,10 @@
                                 width: 100%;
                                 border-collapse: collapse;
                                 table-layout: fixed;
-                                font-size: 8.5px;
+                                font-size: 9px;
                             }
                             .mkp-wholesale-statement-table thead th {
-                                padding: 7px 6px;
+                                padding: 5px 3px;
                                 border: 1px solid #6b7280 !important;
                                 background: #f3f4f6;
                                 font-weight: 700 !important;
@@ -22,9 +22,14 @@
                             }
                             .mkp-wholesale-statement-table tbody td,
                             .mkp-wholesale-statement-table tfoot td {
-                                padding: 7px 6px;
+                                padding: 5px 3px;
                                 border: 0 !important;
                                 overflow-wrap: anywhere;
+                            }
+                            .mkp-wholesale-statement-table .mkp-amount,
+                            .mkp-wholesale-statement-table .mkp-date {
+                                white-space: nowrap;
+                                overflow-wrap: normal;
                             }
                             .mkp-wholesale-statement-table tfoot td {
                                 padding-top: 12px;
@@ -78,17 +83,19 @@
 
                         <table class="mkp-wholesale-statement-table">
                             <colgroup>
+                                <col style="width: 10%;"/>
                                 <col style="width: 12%;"/>
-                                <col style="width: 15%;"/>
-                                <col style="width: 15%;"/>
-                                <col style="width: 15%;"/>
                                 <col style="width: 14%;"/>
-                                <col style="width: 15%;"/>
                                 <col style="width: 14%;"/>
+                                <col style="width: 12%;"/>
+                                <col style="width: 12%;"/>
+                                <col style="width: 14%;"/>
+                                <col style="width: 12%;"/>
                             </colgroup>
                             <thead>
                                 <tr class="table-light">
                                     <th>Tipo</th>
+                                    <th>Orden de venta</th>
                                     <th>Documento</th>
                                     <th>Referencia cliente</th>
                                     <th class="text-end">Monto neto</th>
@@ -101,34 +108,32 @@
                                 <tr t-foreach="group['statement_lines']" t-as="line">
                                     <td>
                                         <strong t-out="line['operation_type']"/>
-                                        <small class="d-block text-muted"
-                                               t-if="line['payment_status']"
-                                               t-out="line['payment_status']"/>
                                     </td>
+                                    <td t-out="line['sale_order'] or '-'"/>
                                     <td t-out="line['document'] or '-'"/>
                                     <td t-out="line['customer_reference'] or '-'"/>
-                                    <td class="text-end">
+                                    <td class="text-end mkp-amount">
                                         <span t-if="line['net_amount']"
                                               t-out="line['net_amount']"
                                               t-options="{'widget': 'monetary', 'display_currency': group['currency']}"/>
                                         <span t-else="">—</span>
                                     </td>
-                                    <td class="text-end">
+                                    <td class="text-end mkp-amount">
                                         <span t-if="line['paid_amount']"
                                               t-out="line['paid_amount']"
                                               t-options="{'widget': 'monetary', 'display_currency': group['currency']}"/>
                                         <span t-else="">—</span>
                                     </td>
-                                    <td class="text-end"
+                                    <td class="text-end mkp-amount"
                                         t-out="line['amount_due']"
                                         t-options="{'widget': 'monetary', 'display_currency': group['currency']}"/>
-                                    <td t-out="line['date_text'] or '-'"/>
+                                    <td class="mkp-date" t-out="line['date_text'] or '-'"/>
                                 </tr>
                             </tbody>
                             <tfoot>
                                 <tr class="fw-bold">
-                                    <td colspan="5">Importe total adeudado</td>
-                                    <td class="text-end"
+                                    <td colspan="6">Importe total adeudado</td>
+                                    <td class="text-end mkp-amount"
                                         t-out="group['amount_due']"
                                         t-options="{'widget': 'monetary', 'display_currency': group['currency']}"/>
                                     <td/>
