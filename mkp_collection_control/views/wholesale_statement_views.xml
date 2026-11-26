@@ -85,44 +85,57 @@
                             .mkp-wholesale-statement-table tfoot td:last-child {
                                 border-radius: 0 5px 5px 0;
                             }
+                            .mkp-billing-contact {
+                                max-width: 100%;
+                                padding-left: 8px;
+                                text-align: left !important;
+                                line-height: 1.4;
+                            }
+                            .mkp-billing-contact .mkp-contact-line {
+                                overflow-wrap: anywhere;
+                            }
                         </style>
-                        <div class="d-flex justify-content-between align-items-start mb-4">
-                            <div>
-                                <h2 class="mb-1">Estado de cuenta Mayoreo</h2>
-                                <div class="text-muted">
-                                    Generado el
-                                    <span t-out="generated_at_text"/>
-                                </div>
+                        <div class="mb-3">
+                            <h2 class="mb-1">Estado de cuenta Mayoreo</h2>
+                            <div class="text-muted">
+                                Generado el
+                                <span t-out="generated_at_text"/>
                             </div>
-                            <div class="text-end">
-                                <div class="text-muted">Contacto de facturación</div>
-                                <strong t-out="group['partner'].display_name"/>
-                                <div t-if="group['partner'].street"
-                                     t-out="group['partner'].street"/>
-                                <div t-if="group['partner'].street2"
-                                     t-out="group['partner'].street2"/>
-                                <div t-if="group['partner'].city or group['partner'].state_id or group['partner'].zip">
-                                    <span t-if="group['partner'].zip"
-                                          t-out="group['partner'].zip"/>
-                                    <span t-if="group['partner'].city">
-                                        <t t-if="group['partner'].zip"> </t>
-                                        <t t-out="group['partner'].city"/>
-                                    </span>
-                                    <span t-if="group['partner'].state_id">
-                                        <t t-if="group['partner'].city">, </t>
-                                        <t t-out="group['partner'].state_id.name"/>
-                                    </span>
-                                </div>
-                                <div t-if="group['partner'].country_id"
-                                     t-out="group['partner'].country_id.name"/>
-                                <div t-if="group['partner'].vat">
+                        </div>
+                        <div class="mkp-billing-contact mb-4">
+                            <div class="text-muted">Contacto de facturación</div>
+                            <strong t-out="group['partner'].display_name"/>
+                            <div class="mkp-contact-line"
+                                 t-if="group['partner'].street"
+                                 t-out="group['partner'].street"/>
+                            <div class="mkp-contact-line"
+                                 t-if="group['partner'].street2"
+                                 t-out="group['partner'].street2"/>
+                            <div class="mkp-contact-line"
+                                 t-if="group['partner'].city or group['partner'].state_id or group['partner'].zip">
+                                <span t-if="group['partner'].zip"
+                                      t-out="group['partner'].zip"/>
+                                <span t-if="group['partner'].city">
+                                    <t t-if="group['partner'].zip"> </t>
+                                    <t t-out="group['partner'].city"/>
+                                </span>
+                                <span t-if="group['partner'].state_id">
+                                    <t t-if="group['partner'].city">, </t>
+                                    <t t-out="group['partner'].state_id.name"/>
+                                </span>
+                            </div>
+                            <div class="mkp-contact-line"
+                                 t-if="group['partner'].country_id"
+                                 t-out="group['partner'].country_id.name"/>
+                            <div class="mkp-contact-line">
+                                <span t-if="group['partner'].vat">
                                     RFC: <span t-out="group['partner'].vat"/>
-                                </div>
-                                <div t-if="group['partner'].phone">
+                                </span>
+                                <span class="ms-3" t-if="group['partner'].phone">
                                     Tel: <span t-out="group['partner'].phone"/>
-                                </div>
-                                <div t-if="group['partner'].email"
-                                     t-out="group['partner'].email"/>
+                                </span>
+                                <span class="ms-3" t-if="group['partner'].email"
+                                      t-out="group['partner'].email"/>
                             </div>
                         </div>
 
@@ -155,35 +168,33 @@
 
                         <table class="mkp-wholesale-statement-table">
                             <colgroup>
-                                <col style="width: 10%;"/>
                                 <col style="width: 12%;"/>
-                                <col style="width: 14%;"/>
-                                <col style="width: 14%;"/>
+                                <col style="width: 13%;"/>
+                                <col style="width: 18%;"/>
                                 <col style="width: 12%;"/>
-                                <col style="width: 12%;"/>
-                                <col style="width: 14%;"/>
-                                <col style="width: 12%;"/>
+                                <col style="width: 15%;"/>
+                                <col style="width: 15%;"/>
+                                <col style="width: 15%;"/>
                             </colgroup>
                             <thead>
                                 <tr>
+                                    <th>Fecha</th>
                                     <th>Tipo</th>
-                                    <th>Orden de venta</th>
-                                    <th>Documento</th>
                                     <th>Referencia cliente</th>
+                                    <th>Orden</th>
                                     <th class="text-end">Monto neto</th>
                                     <th class="text-end">Monto pagado</th>
                                     <th class="text-end">Monto adeudado</th>
-                                    <th>Fecha</th>
                                 </tr>
                             </thead>
                             <tbody>
                                 <tr t-foreach="group['statement_lines']" t-as="line">
+                                    <td class="mkp-date" t-out="line['date_text'] or '-'"/>
                                     <td class="mkp-type">
                                         <strong t-out="line['operation_type']"/>
                                     </td>
-                                    <td t-out="line['sale_order'] or '-'"/>
-                                    <td t-out="line['document'] or '-'"/>
                                     <td t-out="line['customer_reference'] or '-'"/>
+                                    <td t-out="line['sale_order'] or '-'"/>
                                     <td class="text-end mkp-amount">
                                         <span t-if="line['net_amount']"
                                               t-out="line['net_amount']"
@@ -199,7 +210,6 @@
                                     <td class="text-end mkp-amount"
                                         t-out="line['amount_due']"
                                         t-options="{'widget': 'monetary', 'display_currency': group['currency']}"/>
-                                    <td class="mkp-date" t-out="line['date_text'] or '-'"/>
                                 </tr>
                             </tbody>
                             <tfoot>
@@ -208,7 +218,6 @@
                                     <td class="text-end mkp-amount"
                                         t-out="group['amount_due']"
                                         t-options="{'widget': 'monetary', 'display_currency': group['currency']}"/>
-                                    <td/>
                                 </tr>
                             </tfoot>
                         </table>
@@ -223,7 +232,7 @@
         <field name="default" eval="False"/>
         <field name="format">A4</field>
         <field name="orientation">Portrait</field>
-        <field name="margin_top">32</field>
+        <field name="margin_top">68</field>
         <field name="margin_bottom">14</field>
         <field name="margin_left">8</field>
         <field name="margin_right">8</field>

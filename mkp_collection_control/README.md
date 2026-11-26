@@ -1,4 +1,4 @@
-# Cobranza MKP — v18.0.1.0.29
+# Cobranza MKP — v18.0.1.0.30
 
 Módulo independiente para **Odoo 18 Enterprise / Odoo.sh**. Marketplace conserva su historial inalterable por línea de producto y Mayoreo utiliza una captura general separada dentro de la orden de venta.
 
@@ -8,11 +8,13 @@ El Gasto general se mantiene como información interna de la orden, pero se excl
 
 Cada pedido Mayoreo muestra el Estado de cuenta Pendiente mientras su adeudo sea mayor a cero, incluso cuando tenga pagos parciales, retenidos o pendientes. Cambia automáticamente a Pagado cuando el saldo queda totalmente cubierto o existe un saldo a favor. El listado abre con Pendiente aplicado como filtro predeterminado para generar estados de cuenta únicamente de pedidos con adeudo; el usuario puede retirar el filtro para consultar los Pagados.
 
-El PDF incorpora la columna **Orden de venta** y repite su número en cada evento, junto con la Referencia cliente. La columna Documento se conserva para mostrar la orden en la factura o la referencia capturada en cada movimiento. Tipo muestra únicamente Factura, Pago, Nota de crédito, Descuento o Ajuste, sin agregar debajo el estado de pago. La tabla redistribuye sus ocho columnas, reduce espacios internos y aumenta la tipografía para aprovechar mejor la hoja A4 vertical.
+El PDF incorpora la columna **Orden** y repite su número en cada evento, junto con la Referencia cliente. Tipo muestra únicamente Factura, Pago, Nota de crédito, Descuento o Ajuste, sin agregar debajo el estado de pago. La tabla utiliza siete columnas y aprovecha el espacio de la hoja A4 vertical sin mostrar Documento.
 
 La tabla del PDF elimina por completo la cuadrícula y el contorno exterior. El encabezado utiliza un fondo azul institucional sin bordes, las filas alternan fondos claros para guiar la lectura y el total adeudado se presenta en una banda discreta. Se conservan la alineación numérica, los espacios entre movimientos y la hoja A4 vertical.
 
 El encabezado muestra el Contacto de facturación (`partner_invoice_id`) con nombre, dirección, RFC, teléfono y correo disponibles. La exportación valida que todas las órdenes seleccionadas pertenezcan al mismo Cliente de facturación; si la selección mezcla clientes, Odoo muestra un mensaje y no genera el PDF.
+
+El estado de cuenta presenta las columnas en este orden: **Fecha, Tipo, Referencia cliente, Orden, Monto neto, Monto pagado y Monto adeudado**. Documento ya no se muestra en la tabla. El Contacto de facturación se alinea a la izquierda y el margen superior del reporte reserva el espacio necesario para que el membrete de la compañía no lo recorte.
 
 Esta revisión conserva campos técnicos de compatibilidad de `18.0.1.0.20` para que la vista de la orden de venta pueda abrirse mientras Odoo reemplaza la vista anterior durante la actualización del módulo.
 
@@ -53,7 +55,7 @@ Esta revisión conserva campos técnicos de compatibilidad de `18.0.1.0.20` para
 - Los estados disponibles son Retenido, Pendiente, Pagado, Cancelado y Reembolso.
 - Pueden agregarse varios pagos para soportar pagos parciales. Solo los registros Pagados reducen el saldo; los Reembolsos lo incrementan, y Pendientes o Retenidos se muestran por separado.
 - Los pagos no se eliminan: si dejan de aplicar deben marcarse como Cancelados. Las modificaciones se registran en el chatter de la orden con sus valores anterior y nuevo.
-- `Neto esperado = Total de la orden - Gasto general`.
+- `Neto esperado = Total de la orden + Gasto general`.
 - `Por cobrar = Neto esperado - Pagos pagados + Reembolsos`.
 - Al actualizar desde `18.0.1.0.20`, las capturas generales experimentales de Mayoreo se trasladan a esta pestaña cuando es posible; el historial anterior se conserva sin aparecer en los reportes Marketplace.
 
@@ -64,7 +66,7 @@ Esta revisión conserva campos técnicos de compatibilidad de `18.0.1.0.20` para
 - La lista permite agrupar por Cliente, Vendedor o Mes del pedido.
 - Para generar el documento, seleccione uno o varios pedidos y presione **Generar PDF**. El PDF crea un estado de cuenta separado por cliente y moneda, muestra totales y detalla Fecha, Referencia, Estado e Importe de cada pago.
 - Las fechas resumidas consideran pagos con estado Pagado o Reembolso. Los registros Pendientes, Retenidos y Cancelados permanecen visibles en el detalle del PDF.
-- El PDF presenta un estado de cuenta cronológico por eventos con las columnas Tipo, Documento, Referencia cliente, Monto neto, Monto pagado, Monto adeudado y Fecha.
+- El PDF presenta un estado de cuenta cronológico por eventos con las columnas Fecha, Tipo, Referencia cliente, Orden, Monto neto, Monto pagado y Monto adeudado.
 - Cada pedido genera una línea Factura con la fecha de la orden. Cada movimiento de Mayoreo genera otra línea en la fecha capturada y el Monto adeudado se recalcula secuencialmente.
 - Los tipos manuales son Pago, Nota de crédito, Descuento y Ajuste. Nota de crédito y Descuento requieren importes negativos; Ajuste admite valores positivos o negativos.
 - Los pagos efectivos reducen el adeudo. Notas de crédito, descuentos y ajustes Pagados modifican el Monto neto. Los movimientos Pendientes, Retenidos o Cancelados se muestran sin modificar el saldo hasta que correspondan.
