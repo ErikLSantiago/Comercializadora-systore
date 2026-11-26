@@ -1,9 +1,21 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <odoo>
+    <template id="external_layout_wave_mkp_wholesale_company_name"
+              inherit_id="web.external_layout_wave">
+        <xpath expr="//div[@name='company_address']/ul[@name='company_address_list']"
+               position="before">
+            <div t-if="o and o.env.context.get('mkp_wholesale_statement_header')"
+                 class="fw-bold mb-1">
+                Comercializadora Systore S. A. de C. V.
+            </div>
+        </xpath>
+    </template>
+
     <template id="report_wholesale_statement">
         <t t-call="web.html_container">
             <t t-foreach="customer_groups" t-as="group">
-                <t t-set="o" t-value="group['orders'][0]"/>
+                <t t-set="o"
+                   t-value="group['orders'][0].with_context(mkp_wholesale_statement_header=True)"/>
                 <t t-call="web.external_layout">
                     <div class="page">
                         <style>
@@ -89,7 +101,8 @@
                                 max-width: 100%;
                                 padding-left: 8px;
                                 position: relative;
-                                top: 8mm;
+                                top: 12mm;
+                                margin-bottom: 10mm !important;
                                 text-align: left !important;
                                 line-height: 1.4;
                             }
@@ -99,7 +112,7 @@
                             .mkp-billing-contact .mkp-customer-name {
                                 margin-bottom: 2px;
                                 color: #17384d;
-                                font-size: 11px;
+                                font-size: 13px;
                             }
                         </style>
                         <div class="mb-3">
