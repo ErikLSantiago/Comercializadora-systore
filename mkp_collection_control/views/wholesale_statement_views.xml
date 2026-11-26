@@ -11,6 +11,17 @@
         </xpath>
     </template>
 
+    <template id="external_layout_folder_mkp_wholesale_company_name"
+              inherit_id="web.external_layout_folder">
+        <xpath expr="//div[@name='company_address']/ul[@name='company_address_list']"
+               position="before">
+            <div t-if="o and o.env.context.get('mkp_wholesale_statement_header')"
+                 class="fw-bold mb-1">
+                Comercializadora Systore S. A. de C. V.
+            </div>
+        </xpath>
+    </template>
+
     <template id="report_wholesale_statement">
         <t t-call="web.html_container">
             <t t-foreach="customer_groups" t-as="group">
@@ -101,10 +112,15 @@
                                 max-width: 100%;
                                 padding-left: 8px;
                                 position: relative;
-                                top: 12mm;
+                                top: 6mm;
+                                z-index: 5;
                                 margin-bottom: 10mm !important;
                                 text-align: left !important;
                                 line-height: 1.4;
+                            }
+                            .mkp-billing-contact > .text-muted {
+                                color: #17384d !important;
+                                font-weight: 600;
                             }
                             .mkp-billing-contact .mkp-contact-line {
                                 overflow-wrap: anywhere;
@@ -113,6 +129,9 @@
                                 margin-bottom: 2px;
                                 color: #17384d;
                                 font-size: 13px;
+                            }
+                            .mkp-wholesale-summary {
+                                margin-top: 4mm !important;
                             }
                         </style>
                         <div class="mb-3">
@@ -161,7 +180,7 @@
                             </div>
                         </div>
 
-                        <div class="row mb-4">
+                        <div class="row mb-4 mkp-wholesale-summary">
                             <div class="col-4">
                                 <div class="px-2 py-1">
                                     <div class="text-muted">Monto neto</div>

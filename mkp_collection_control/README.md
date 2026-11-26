@@ -1,4 +1,4 @@
-# Cobranza MKP — v18.0.1.0.34
+# Cobranza MKP — v18.0.1.0.35
 
 Módulo independiente para **Odoo 18 Enterprise / Odoo.sh**. Marketplace conserva su historial inalterable por línea de producto y Mayoreo utiliza una captura general separada dentro de la orden de venta.
 
@@ -19,6 +19,8 @@ El estado de cuenta presenta las columnas en este orden: **Fecha, Tipo, Referenc
 El PDF identifica expresamente al **Cliente de facturación** con el nombre de `partner_invoice_id` antes de su dirección. El margen superior del formato se reduce para eliminar el espacio vacío sobre el membrete, mientras el ajuste local del bloque del cliente mantiene su nombre y dirección visibles debajo del fondo corporativo.
 
 El encabezado ondulado del estado de cuenta muestra **Comercializadora Systore S. A. de C. V.** sobre la dirección corporativa sin alterar los demás reportes de Odoo. El bloque del cliente baja ligeramente, reserva ese espacio antes de los totales y aumenta únicamente el tamaño del nombre del Cliente de facturación.
+
+La razón social también se integra al diseño de encabezado tipo Carpeta utilizado por la compañía. El rótulo **Cliente de facturación** se coloca visualmente por delante del borde azul y usa un tono de mayor contraste. La fila de Monto neto, Monto pagado y Monto adeudado incorpora una separación adicional respecto de los datos del cliente.
 
 Esta revisión conserva campos técnicos de compatibilidad de `18.0.1.0.20` para que la vista de la orden de venta pueda abrirse mientras Odoo reemplaza la vista anterior durante la actualización del módulo.
 
