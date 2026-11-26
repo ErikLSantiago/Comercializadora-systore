@@ -50,4 +50,16 @@
         <field name="groups" eval="[(4, ref('group_mkp_collection_operator'))]"/>
         <field name="domain_force">[('company_id', 'in', company_ids)]</field>
     </record>
+    <record id="rule_mkp_collection_line_payment_detail_company" model="ir.rule">
+        <field name="name">Pagos parciales por línea: empresas permitidas</field>
+        <field name="model_id" ref="model_mkp_collection_line_payment_detail"/>
+        <field name="groups" eval="[(4, ref('group_mkp_collection_operator'))]"/>
+        <field name="domain_force">[('company_id', 'in', company_ids)]</field>
+    </record>
+    <record id="rule_mkp_wholesale_payment_company" model="ir.rule">
+        <field name="name">Pagos de mayoreo: empresas permitidas</field>
+        <field name="model_id" ref="model_mkp_wholesale_payment"/>
+        <field name="groups" eval="[(4, ref('group_mkp_collection_operator'))]"/>
+        <field name="domain_force">[('company_id', 'in', company_ids)]</field>
+    </record>
 </odoo>

@@ -11,7 +11,8 @@ class SaleOrder(models.Model):
         ('marketplace', 'Marketplace'),
         ('wholesale', 'Mayoreo'),
     ], string='Tipo de venta', required=True, default='marketplace', copy=False,
-       tracking=True)
+       tracking=True,
+       groups='mkp_collection_control.group_mkp_collection_operator')
     mkp_collection_event_count = fields.Integer('Líneas de cobranza',
                                                  compute='_compute_mkp_collection_event_count')
     mkp_return_count = fields.Integer(
@@ -23,19 +24,24 @@ class SaleOrder(models.Model):
         help=(
             'Gasto informativo de la orden de mayoreo. No modifica el Neto '
             'esperado ni el saldo Por cobrar.'
-        )
+        ),
+        groups='mkp_collection_control.group_mkp_collection_operator'
     )
     mkp_wholesale_expense_note = fields.Char(
-        'Referencia del gasto', copy=False, tracking=True
+        'Referencia del gasto', copy=False, tracking=True,
+        groups='mkp_collection_control.group_mkp_collection_operator'
     )
     mkp_wholesale_payment_ids = fields.One2many(
-        'mkp.wholesale.payment', 'sale_order_id', string='Pagos mayoreo', copy=False
+        'mkp.wholesale.payment', 'sale_order_id', string='Pagos mayoreo', copy=False,
+        groups='mkp_collection_control.group_mkp_collection_operator'
     )
     mkp_wholesale_payment_dates = fields.Char(
-        'Fechas de pago', compute='_compute_mkp_wholesale_payment_dates'
+        'Fechas de pago', compute='_compute_mkp_wholesale_payment_dates',
+        groups='mkp_collection_control.group_mkp_collection_operator'
     )
     mkp_wholesale_last_payment_date = fields.Date(
-        'Última fecha de pago', compute='_compute_mkp_wholesale_payment_dates'
+        'Última fecha de pago', compute='_compute_mkp_wholesale_payment_dates',
+        groups='mkp_collection_control.group_mkp_collection_operator'
     )
     mkp_wholesale_net_expected = fields.Monetary(
         'Neto esperado', currency_field='currency_id',
@@ -229,6 +235,11 @@ class SaleOrder(models.Model):
 
     @api.model
     def get_mkp_wholesale_dashboard_summary(self):
+        if not self.env.user.has_group(
+                'mkp_collection_control.group_mkp_collection_operator'):
+            raise AccessError(_(
+                'Se requiere el permiso Operador de Cobranza MKP.'
+            ))
         orders = self.sudo().search([
             ('company_id', '=', self.env.company.id),
             ('mkp_collection_type', '=', 'wholesale'),
@@ -253,6 +264,23 @@ class SaleOrder(models.Model):
             raise ValidationError(_('El Gasto general no puede ser negativo.'))
 
     def write(self, vals):
+        protected_fields = {
+            'mkp_collection_type',
+            'mkp_wholesale_general_expense',
+            'mkp_wholesale_expense_note',
+            'mkp_wholesale_payment_ids',
+        }
+        if (
+            not self.env.su
+            and protected_fields.intersection(vals)
+            and not self.env.user.has_group(
+                'mkp_collection_control.group_mkp_collection_operator'
+            )
+        ):
+            raise AccessError(_(
+                'Se requiere el permiso Operador de Cobranza MKP para '
+                'modificar datos de cobranza.'
+            ))
         if 'mkp_collection_type' in vals:
             new_type = vals['mkp_collection_type'] or 'marketplace'
             changing_orders = self.filtered(

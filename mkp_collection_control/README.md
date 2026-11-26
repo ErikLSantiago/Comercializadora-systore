@@ -1,4 +1,4 @@
-# Cobranza MKP — v18.0.1.0.38
+# Cobranza MKP — v18.0.1.0.39
 
 Módulo independiente para **Odoo 18 Enterprise / Odoo.sh**. Marketplace conserva su historial inalterable por línea de producto y Mayoreo utiliza una captura general separada dentro de la orden de venta.
 
@@ -23,6 +23,8 @@ La razón social **Comercializadora Systore S. A. de C. V.** se integra de forma
 El estado de cuenta vuelve a utilizar el formato de papel y los márgenes configurados en la compañía, igual que los reportes nativos de Ventas y como ocurría en `18.0.1.0.23`. Se retira el formato A4 particular y todos los desplazamientos manuales del encabezado. Cliente y Estado de cuenta se organizan en las dos columnas nativas inmediatamente debajo del membrete; la tabla cronológica y los cálculos actuales se conservan.
 
 Esta revisión conserva campos técnicos de compatibilidad de `18.0.1.0.20` para que la vista de la orden de venta pueda abrirse mientras Odoo reemplaza la vista anterior durante la actualización del módulo.
+
+Esta revisión también refuerza el aislamiento multiempresa de los pagos, protege en el modelo los campos exclusivos del perfil Operador y elimina datos temporales que ya no participaban en la interfaz ni en el PDF.
 
 ## Instalación o actualización
 

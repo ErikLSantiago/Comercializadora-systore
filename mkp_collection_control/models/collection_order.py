@@ -203,12 +203,6 @@ class MkpCollectionOrder(models.Model):
         )
         self.sudo().write(vals)
 
-        labels = {
-            'draft': _('Borrador'),
-            'confirmed': _('Confirmado'),
-            'recalculated': _('Recalculado'),
-            'refund': _('Devolución'),
-        }
         if reversal_of:
             primary_amount = -money(reversal_of.event_amount)
         elif target_payment_state == 'refund':

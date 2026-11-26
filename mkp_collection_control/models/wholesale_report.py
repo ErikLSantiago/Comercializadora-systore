@@ -65,7 +65,6 @@ class ReportMkpWholesaleStatement(models.AbstractModel):
                 'sort_key': (order_date or date.max, 0, order.id, 0),
                 'operation_type': _('Factura'),
                 'sale_order': order.name,
-                'document': order.name,
                 'customer_reference': order.client_order_ref or '',
                 'net_amount': order.amount_total,
                 'paid_amount': 0.0,
@@ -97,7 +96,6 @@ class ReportMkpWholesaleStatement(models.AbstractModel):
                         payment.operation_type, payment.operation_type
                     ),
                     'sale_order': order.name,
-                    'document': payment.payment_reference,
                     'customer_reference': order.client_order_ref or '',
                     'net_amount': net_amount,
                     'paid_amount': paid_amount,

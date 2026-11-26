@@ -71,7 +71,7 @@ class MkpCollectionLineImport(models.Model):
             cleaned.pop('generated_history_id', None)
             clean_values.append(cleaned)
         rows = super().create(clean_values)
-        for row, fields_present in zip(rows, provided_fields):
+        for row, fields_present in zip(rows, provided_fields, strict=True):
             revision = row._apply_import(fields_present)
             row.sudo().with_context(mkp_internal_import=True).write({
                 'generated_history_id': revision.id,
