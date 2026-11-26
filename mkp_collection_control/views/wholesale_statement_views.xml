@@ -123,12 +123,13 @@
                             .mkp-billing-contact .mkp-customer-name {
                                 margin-bottom: 2px;
                                 color: #17384d;
-                                font-size: 13px;
+                                font-size: 15px;
+                                font-weight: 700;
                             }
                         </style>
                         <div class="row align-items-start mb-4">
                             <div class="col-6 mkp-billing-contact">
-                                <div class="text-muted">Cliente de facturación</div>
+                                <div class="text-muted">Cliente</div>
                                 <div class="mkp-customer-name">
                                     <strong t-out="group['partner'].name or group['partner'].display_name"/>
                                 </div>
@@ -166,7 +167,7 @@
                                 </div>
                             </div>
                             <div class="col-6 text-end">
-                                <h2 class="mb-1">Estado de cuenta Mayoreo</h2>
+                                <h2 class="mb-1">Estado de cuenta</h2>
                                 <div class="text-muted">
                                     Generado el
                                     <span t-out="generated_at_text"/>
@@ -263,12 +264,12 @@
     </template>
 
     <record id="action_report_wholesale_statement" model="ir.actions.report">
-        <field name="name">Estado de cuenta Mayoreo</field>
+        <field name="name">Estado de cuenta</field>
         <field name="model">sale.order</field>
         <field name="report_type">qweb-pdf</field>
         <field name="report_name">mkp_collection_control.report_wholesale_statement</field>
         <field name="report_file">mkp_collection_control.report_wholesale_statement</field>
-        <field name="print_report_name">'Estado_cuenta_Mayoreo_%s' % (object.partner_invoice_id.name or object.name)</field>
+        <field name="print_report_name">'Estado_cuenta_%s' % (object.partner_invoice_id.name or object.name)</field>
     </record>
 
     <record id="view_sale_order_wholesale_statement_list" model="ir.ui.view">

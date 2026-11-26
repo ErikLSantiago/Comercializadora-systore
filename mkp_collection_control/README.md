@@ -1,4 +1,4 @@
-# Cobranza MKP — v18.0.1.0.36
+# Cobranza MKP — v18.0.1.0.37
 
 Módulo independiente para **Odoo 18 Enterprise / Odoo.sh**. Marketplace conserva su historial inalterable por línea de producto y Mayoreo utiliza una captura general separada dentro de la orden de venta.
 
@@ -14,11 +14,11 @@ La tabla del PDF elimina por completo la cuadrícula y el contorno exterior. El 
 
 El encabezado muestra el Contacto de facturación (`partner_invoice_id`) con nombre, dirección, RFC, teléfono y correo disponibles. La exportación valida que todas las órdenes seleccionadas pertenezcan al mismo Cliente de facturación; si la selección mezcla clientes, Odoo muestra un mensaje y no genera el PDF.
 
-El estado de cuenta presenta las columnas en este orden: **Fecha, Tipo, Referencia cliente, Orden, Monto neto, Monto pagado y Monto adeudado**. Documento ya no se muestra en la tabla. El bloque **Cliente de facturación** utiliza `partner_invoice_id` y muestra nombre, dirección, RFC, teléfono y correo disponibles.
+El estado de cuenta presenta las columnas en este orden: **Fecha, Tipo, Referencia cliente, Orden, Monto neto, Monto pagado y Monto adeudado**. Documento ya no se muestra en la tabla. El bloque **Cliente** utiliza `partner_invoice_id` y muestra el nombre en negritas y con mayor tamaño, seguido de dirección, RFC, teléfono y correo disponibles.
 
 La razón social **Comercializadora Systore S. A. de C. V.** se integra de forma condicional a los encabezados Ondulado y Carpeta exclusivamente para este estado de cuenta.
 
-El estado de cuenta vuelve a utilizar el formato de papel y los márgenes configurados en la compañía, igual que los reportes nativos de Ventas y como ocurría en `18.0.1.0.23`. Se retira el formato A4 particular y todos los desplazamientos manuales del encabezado. Cliente de facturación y Estado de cuenta se organizan en las dos columnas nativas inmediatamente debajo del membrete; la tabla cronológica y los cálculos actuales se conservan.
+El estado de cuenta vuelve a utilizar el formato de papel y los márgenes configurados en la compañía, igual que los reportes nativos de Ventas y como ocurría en `18.0.1.0.23`. Se retira el formato A4 particular y todos los desplazamientos manuales del encabezado. Cliente y Estado de cuenta se organizan en las dos columnas nativas inmediatamente debajo del membrete; la tabla cronológica y los cálculos actuales se conservan.
 
 Esta revisión conserva campos técnicos de compatibilidad de `18.0.1.0.20` para que la vista de la orden de venta pueda abrirse mientras Odoo reemplaza la vista anterior durante la actualización del módulo.
 
