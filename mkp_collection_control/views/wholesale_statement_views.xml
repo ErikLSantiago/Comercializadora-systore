@@ -88,6 +88,8 @@
                             .mkp-billing-contact {
                                 max-width: 100%;
                                 padding-left: 8px;
+                                position: relative;
+                                top: 8mm;
                                 text-align: left !important;
                                 line-height: 1.4;
                             }
@@ -239,7 +241,7 @@
         <field name="default" eval="False"/>
         <field name="format">A4</field>
         <field name="orientation">Portrait</field>
-        <field name="margin_top">85</field>
+        <field name="margin_top">68</field>
         <field name="margin_bottom">14</field>
         <field name="margin_left">8</field>
         <field name="margin_right">8</field>
