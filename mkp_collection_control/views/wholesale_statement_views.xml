@@ -110,13 +110,8 @@
                             }
                             .mkp-billing-contact {
                                 max-width: 100%;
-                                padding-left: 8px;
-                                position: relative;
-                                top: 6mm;
-                                z-index: 5;
-                                margin-bottom: 10mm !important;
                                 text-align: left !important;
-                                line-height: 1.4;
+                                line-height: 1.35;
                             }
                             .mkp-billing-contact > .text-muted {
                                 color: #17384d !important;
@@ -130,57 +125,56 @@
                                 color: #17384d;
                                 font-size: 13px;
                             }
-                            .mkp-wholesale-summary {
-                                margin-top: 4mm !important;
-                            }
                         </style>
-                        <div class="mb-3">
-                            <h2 class="mb-1">Estado de cuenta Mayoreo</h2>
-                            <div class="text-muted">
-                                Generado el
-                                <span t-out="generated_at_text"/>
+                        <div class="row align-items-start mb-4">
+                            <div class="col-6 mkp-billing-contact">
+                                <div class="text-muted">Cliente de facturación</div>
+                                <div class="mkp-customer-name">
+                                    <strong t-out="group['partner'].name or group['partner'].display_name"/>
+                                </div>
+                                <div class="mkp-contact-line"
+                                     t-if="group['partner'].street"
+                                     t-out="group['partner'].street"/>
+                                <div class="mkp-contact-line"
+                                     t-if="group['partner'].street2"
+                                     t-out="group['partner'].street2"/>
+                                <div class="mkp-contact-line"
+                                     t-if="group['partner'].city or group['partner'].state_id or group['partner'].zip">
+                                    <span t-if="group['partner'].zip"
+                                          t-out="group['partner'].zip"/>
+                                    <span t-if="group['partner'].city">
+                                        <t t-if="group['partner'].zip"> </t>
+                                        <t t-out="group['partner'].city"/>
+                                    </span>
+                                    <span t-if="group['partner'].state_id">
+                                        <t t-if="group['partner'].city">, </t>
+                                        <t t-out="group['partner'].state_id.name"/>
+                                    </span>
+                                </div>
+                                <div class="mkp-contact-line"
+                                     t-if="group['partner'].country_id"
+                                     t-out="group['partner'].country_id.name"/>
+                                <div class="mkp-contact-line">
+                                    <span t-if="group['partner'].vat">
+                                        RFC: <span t-out="group['partner'].vat"/>
+                                    </span>
+                                    <span class="ms-3" t-if="group['partner'].phone">
+                                        Tel: <span t-out="group['partner'].phone"/>
+                                    </span>
+                                    <span class="ms-3" t-if="group['partner'].email"
+                                          t-out="group['partner'].email"/>
+                                </div>
                             </div>
-                        </div>
-                        <div class="mkp-billing-contact mb-4">
-                            <div class="text-muted">Cliente de facturación</div>
-                            <div class="mkp-customer-name">
-                                <strong t-out="group['partner'].name or group['partner'].display_name"/>
-                            </div>
-                            <div class="mkp-contact-line"
-                                 t-if="group['partner'].street"
-                                 t-out="group['partner'].street"/>
-                            <div class="mkp-contact-line"
-                                 t-if="group['partner'].street2"
-                                 t-out="group['partner'].street2"/>
-                            <div class="mkp-contact-line"
-                                 t-if="group['partner'].city or group['partner'].state_id or group['partner'].zip">
-                                <span t-if="group['partner'].zip"
-                                      t-out="group['partner'].zip"/>
-                                <span t-if="group['partner'].city">
-                                    <t t-if="group['partner'].zip"> </t>
-                                    <t t-out="group['partner'].city"/>
-                                </span>
-                                <span t-if="group['partner'].state_id">
-                                    <t t-if="group['partner'].city">, </t>
-                                    <t t-out="group['partner'].state_id.name"/>
-                                </span>
-                            </div>
-                            <div class="mkp-contact-line"
-                                 t-if="group['partner'].country_id"
-                                 t-out="group['partner'].country_id.name"/>
-                            <div class="mkp-contact-line">
-                                <span t-if="group['partner'].vat">
-                                    RFC: <span t-out="group['partner'].vat"/>
-                                </span>
-                                <span class="ms-3" t-if="group['partner'].phone">
-                                    Tel: <span t-out="group['partner'].phone"/>
-                                </span>
-                                <span class="ms-3" t-if="group['partner'].email"
-                                      t-out="group['partner'].email"/>
+                            <div class="col-6 text-end">
+                                <h2 class="mb-1">Estado de cuenta Mayoreo</h2>
+                                <div class="text-muted">
+                                    Generado el
+                                    <span t-out="generated_at_text"/>
+                                </div>
                             </div>
                         </div>
 
-                        <div class="row mb-4 mkp-wholesale-summary">
+                        <div class="row mb-4">
                             <div class="col-4">
                                 <div class="px-2 py-1">
                                     <div class="text-muted">Monto neto</div>
@@ -268,27 +262,12 @@
         </t>
     </template>
 
-    <record id="paperformat_wholesale_statement" model="report.paperformat">
-        <field name="name">Estado de cuenta Mayoreo vertical</field>
-        <field name="default" eval="False"/>
-        <field name="format">A4</field>
-        <field name="orientation">Portrait</field>
-        <field name="margin_top">32</field>
-        <field name="margin_bottom">14</field>
-        <field name="margin_left">8</field>
-        <field name="margin_right">8</field>
-        <field name="header_line" eval="False"/>
-        <field name="header_spacing">20</field>
-        <field name="dpi">90</field>
-    </record>
-
     <record id="action_report_wholesale_statement" model="ir.actions.report">
         <field name="name">Estado de cuenta Mayoreo</field>
         <field name="model">sale.order</field>
         <field name="report_type">qweb-pdf</field>
         <field name="report_name">mkp_collection_control.report_wholesale_statement</field>
         <field name="report_file">mkp_collection_control.report_wholesale_statement</field>
-        <field name="paperformat_id" ref="paperformat_wholesale_statement"/>
         <field name="print_report_name">'Estado_cuenta_Mayoreo_%s' % (object.partner_invoice_id.name or object.name)</field>
     </record>
 

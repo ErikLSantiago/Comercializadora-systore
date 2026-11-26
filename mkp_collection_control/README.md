@@ -1,26 +1,24 @@
-# Cobranza MKP — v18.0.1.0.35
+# Cobranza MKP — v18.0.1.0.36
 
 Módulo independiente para **Odoo 18 Enterprise / Odoo.sh**. Marketplace conserva su historial inalterable por línea de producto y Mayoreo utiliza una captura general separada dentro de la orden de venta.
 
 Esta revisión permite crear una línea de pago sin que el valor temporal cero del editor interrumpa el `onchange` de la orden. El importe definitivo continúa validándose al guardar y Estado de pago se presenta como un desplegable nativo.
 
-El Gasto general se mantiene como información interna de la orden, pero se excluye totalmente del listado, los indicadores y el PDF del estado de cuenta del cliente. El documento utiliza formato A4 vertical y únicamente las celdas del encabezado de la tabla llevan contorno y texto en negritas.
+El Gasto general se mantiene como información interna de la orden, pero se excluye totalmente del listado, los indicadores y el PDF del estado de cuenta del cliente. El documento utiliza el formato de papel configurado en la compañía, igual que los reportes nativos de Ventas.
 
 Cada pedido Mayoreo muestra el Estado de cuenta Pendiente mientras su adeudo sea mayor a cero, incluso cuando tenga pagos parciales, retenidos o pendientes. Cambia automáticamente a Pagado cuando el saldo queda totalmente cubierto o existe un saldo a favor. El listado abre con Pendiente aplicado como filtro predeterminado para generar estados de cuenta únicamente de pedidos con adeudo; el usuario puede retirar el filtro para consultar los Pagados.
 
-El PDF incorpora la columna **Orden** y repite su número en cada evento, junto con la Referencia cliente. Tipo muestra únicamente Factura, Pago, Nota de crédito, Descuento o Ajuste, sin agregar debajo el estado de pago. La tabla utiliza siete columnas y aprovecha el espacio de la hoja A4 vertical sin mostrar Documento.
+El PDF incorpora la columna **Orden** y repite su número en cada evento, junto con la Referencia cliente. Tipo muestra únicamente Factura, Pago, Nota de crédito, Descuento o Ajuste, sin agregar debajo el estado de pago. La tabla utiliza siete columnas y aprovecha el ancho disponible sin mostrar Documento.
 
-La tabla del PDF elimina por completo la cuadrícula y el contorno exterior. El encabezado utiliza un fondo azul institucional sin bordes, las filas alternan fondos claros para guiar la lectura y el total adeudado se presenta en una banda discreta. Se conservan la alineación numérica, los espacios entre movimientos y la hoja A4 vertical.
+La tabla del PDF elimina por completo la cuadrícula y el contorno exterior. El encabezado utiliza un fondo azul institucional sin bordes, las filas alternan fondos claros para guiar la lectura y el total adeudado se presenta en una banda discreta.
 
 El encabezado muestra el Contacto de facturación (`partner_invoice_id`) con nombre, dirección, RFC, teléfono y correo disponibles. La exportación valida que todas las órdenes seleccionadas pertenezcan al mismo Cliente de facturación; si la selección mezcla clientes, Odoo muestra un mensaje y no genera el PDF.
 
-El estado de cuenta presenta las columnas en este orden: **Fecha, Tipo, Referencia cliente, Orden, Monto neto, Monto pagado y Monto adeudado**. Documento ya no se muestra en la tabla. El Contacto de facturación se alinea a la izquierda y el margen superior del reporte reserva el espacio necesario para que el membrete de la compañía no lo recorte.
+El estado de cuenta presenta las columnas en este orden: **Fecha, Tipo, Referencia cliente, Orden, Monto neto, Monto pagado y Monto adeudado**. Documento ya no se muestra en la tabla. El bloque **Cliente de facturación** utiliza `partner_invoice_id` y muestra nombre, dirección, RFC, teléfono y correo disponibles.
 
-El PDF identifica expresamente al **Cliente de facturación** con el nombre de `partner_invoice_id` antes de su dirección. El margen superior del formato se reduce para eliminar el espacio vacío sobre el membrete, mientras el ajuste local del bloque del cliente mantiene su nombre y dirección visibles debajo del fondo corporativo.
+La razón social **Comercializadora Systore S. A. de C. V.** se integra de forma condicional a los encabezados Ondulado y Carpeta exclusivamente para este estado de cuenta.
 
-El encabezado ondulado del estado de cuenta muestra **Comercializadora Systore S. A. de C. V.** sobre la dirección corporativa sin alterar los demás reportes de Odoo. El bloque del cliente baja ligeramente, reserva ese espacio antes de los totales y aumenta únicamente el tamaño del nombre del Cliente de facturación.
-
-La razón social también se integra al diseño de encabezado tipo Carpeta utilizado por la compañía. El rótulo **Cliente de facturación** se coloca visualmente por delante del borde azul y usa un tono de mayor contraste. La fila de Monto neto, Monto pagado y Monto adeudado incorpora una separación adicional respecto de los datos del cliente.
+El estado de cuenta vuelve a utilizar el formato de papel y los márgenes configurados en la compañía, igual que los reportes nativos de Ventas y como ocurría en `18.0.1.0.23`. Se retira el formato A4 particular y todos los desplazamientos manuales del encabezado. Cliente de facturación y Estado de cuenta se organizan en las dos columnas nativas inmediatamente debajo del membrete; la tabla cronológica y los cálculos actuales se conservan.
 
 Esta revisión conserva campos técnicos de compatibilidad de `18.0.1.0.20` para que la vista de la orden de venta pueda abrirse mientras Odoo reemplaza la vista anterior durante la actualización del módulo.
 
