@@ -42,7 +42,7 @@ class MkpWholesalePayment(models.Model):
         ('paid', 'Pagado'),
         ('cancelled', 'Cancelado'),
         ('refund', 'Reembolso'),
-    ], string='Estado de pago', required=True, default='pending', index=True)
+    ], string='Estado de pago', required=True, default='paid', index=True)
     notes = fields.Char('Comentario')
 
     def _check_operator(self):
