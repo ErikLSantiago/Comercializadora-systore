@@ -36,7 +36,7 @@
                                 border-collapse: separate;
                                 border-spacing: 0 3px;
                                 table-layout: fixed;
-                                font-size: 9px;
+                                font-size: 10px;
                                 -webkit-print-color-adjust: exact;
                             }
                             .mkp-wholesale-statement-table,
@@ -54,7 +54,7 @@
                                 padding: 7px 4px;
                                 background: #17384d !important;
                                 color: #ffffff !important;
-                                font-size: 8px;
+                                font-size: 9px;
                                 font-weight: 700 !important;
                                 letter-spacing: 0.2px;
                                 text-transform: uppercase;

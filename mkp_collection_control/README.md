@@ -1,4 +1,4 @@
-# Cobranza MKP — v18.0.1.0.37
+# Cobranza MKP — v18.0.1.0.38
 
 Módulo independiente para **Odoo 18 Enterprise / Odoo.sh**. Marketplace conserva su historial inalterable por línea de producto y Mayoreo utiliza una captura general separada dentro de la orden de venta.
 
@@ -11,6 +11,8 @@ Cada pedido Mayoreo muestra el Estado de cuenta Pendiente mientras su adeudo sea
 El PDF incorpora la columna **Orden** y repite su número en cada evento, junto con la Referencia cliente. Tipo muestra únicamente Factura, Pago, Nota de crédito, Descuento o Ajuste, sin agregar debajo el estado de pago. La tabla utiliza siete columnas y aprovecha el ancho disponible sin mostrar Documento.
 
 La tabla del PDF elimina por completo la cuadrícula y el contorno exterior. El encabezado utiliza un fondo azul institucional sin bordes, las filas alternan fondos claros para guiar la lectura y el total adeudado se presenta en una banda discreta.
+
+La tipografía de la tabla aumenta a 10 px en el cuerpo y 9 px en los encabezados para mejorar la lectura sin modificar los anchos ni el orden de las columnas.
 
 El encabezado muestra el Contacto de facturación (`partner_invoice_id`) con nombre, dirección, RFC, teléfono y correo disponibles. La exportación valida que todas las órdenes seleccionadas pertenezcan al mismo Cliente de facturación; si la selección mezcla clientes, Odoo muestra un mensaje y no genera el PDF.
 
