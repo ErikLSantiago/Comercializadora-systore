@@ -221,10 +221,10 @@ class TestMkpCollectionLedger(unittest.TestCase):
                 {'amount': 200, 'payment_status': 'cancelled'},
             ],
         )
-        self.assertEqual(net_expected, money(10750))
+        self.assertEqual(net_expected, money(10000))
         self.assertEqual(paid, money(2500))
         self.assertEqual(pending, money(1000))
-        self.assertEqual(balance, money(8250))
+        self.assertEqual(balance, money(7500))
 
     def test_wholesale_signed_discounts_and_adjustments(self):
         net_expected, paid, pending, balance = wholesale_order_totals(
@@ -241,10 +241,10 @@ class TestMkpCollectionLedger(unittest.TestCase):
                  'payment_status': 'paid'},
             ],
         )
-        self.assertEqual(net_expected, money(10100))
+        self.assertEqual(net_expected, money(9350))
         self.assertEqual(paid, money(3000))
         self.assertEqual(pending, money(0))
-        self.assertEqual(balance, money(7100))
+        self.assertEqual(balance, money(6350))
 
     def test_wholesale_ignores_incomplete_inline_payment(self):
         net_expected, paid, pending, balance = wholesale_order_totals(
@@ -260,7 +260,7 @@ class TestMkpCollectionLedger(unittest.TestCase):
         self.assertEqual(pending, money(0))
         self.assertEqual(balance, money(1000))
 
-    def test_customer_statement_can_exclude_internal_expense(self):
+    def test_general_expense_is_informational_for_totals(self):
         internal = wholesale_order_totals(
             order_total=1000,
             general_expense=150,
@@ -279,7 +279,7 @@ class TestMkpCollectionLedger(unittest.TestCase):
                 'payment_status': 'paid',
             }],
         )
-        self.assertEqual(internal[3], money(950))
+        self.assertEqual(internal[3], money(800))
         self.assertEqual(customer[3], money(800))
 
     def test_wholesale_customer_payment_state(self):

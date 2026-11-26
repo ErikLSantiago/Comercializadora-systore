@@ -20,7 +20,10 @@ class SaleOrder(models.Model):
     mkp_wholesale_general_expense = fields.Monetary(
         'Gasto general', currency_field='currency_id', default=0, copy=False,
         tracking=True,
-        help='Cargo general adicional que se suma al total de la orden de mayoreo.'
+        help=(
+            'Gasto informativo de la orden de mayoreo. No modifica el Neto '
+            'esperado ni el saldo Por cobrar.'
+        )
     )
     mkp_wholesale_expense_note = fields.Char(
         'Referencia del gasto', copy=False, tracking=True

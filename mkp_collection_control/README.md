@@ -1,4 +1,4 @@
-# Cobranza MKP — v18.0.1.0.30
+# Cobranza MKP — v18.0.1.0.31
 
 Módulo independiente para **Odoo 18 Enterprise / Odoo.sh**. Marketplace conserva su historial inalterable por línea de producto y Mayoreo utiliza una captura general separada dentro de la orden de venta.
 
@@ -15,6 +15,8 @@ La tabla del PDF elimina por completo la cuadrícula y el contorno exterior. El 
 El encabezado muestra el Contacto de facturación (`partner_invoice_id`) con nombre, dirección, RFC, teléfono y correo disponibles. La exportación valida que todas las órdenes seleccionadas pertenezcan al mismo Cliente de facturación; si la selección mezcla clientes, Odoo muestra un mensaje y no genera el PDF.
 
 El estado de cuenta presenta las columnas en este orden: **Fecha, Tipo, Referencia cliente, Orden, Monto neto, Monto pagado y Monto adeudado**. Documento ya no se muestra en la tabla. El Contacto de facturación se alinea a la izquierda y el margen superior del reporte reserva el espacio necesario para que el membrete de la compañía no lo recorte.
+
+El PDF identifica expresamente al **Cliente de facturación** con el nombre de `partner_invoice_id` antes de su dirección. El margen superior aumenta para mantener visibles tanto el nombre como los datos del cliente debajo del membrete corporativo.
 
 Esta revisión conserva campos técnicos de compatibilidad de `18.0.1.0.20` para que la vista de la orden de venta pueda abrirse mientras Odoo reemplaza la vista anterior durante la actualización del módulo.
 
@@ -50,12 +52,12 @@ Esta revisión conserva campos técnicos de compatibilidad de `18.0.1.0.20` para
 
 - En órdenes con Tipo de venta **Mayoreo**, el botón Cobranza y las columnas de comisiones por línea se ocultan.
 - La pestaña **Pagos mayoreo** trabaja a nivel general de la orden y no crea registros en el historial de Cobranza Marketplace.
-- **Gasto general** es un importe positivo que se descuenta del total de la orden. Puede acompañarse de una referencia o concepto.
+- **Gasto general** es un dato informativo positivo de la orden. Puede acompañarse de una referencia o concepto, pero no modifica el Neto esperado ni el saldo Por cobrar.
 - La tabla de pagos permite capturar Fecha de pago, Referencia, Importe, Estado y Comentario.
 - Los estados disponibles son Retenido, Pendiente, Pagado, Cancelado y Reembolso.
 - Pueden agregarse varios pagos para soportar pagos parciales. Solo los registros Pagados reducen el saldo; los Reembolsos lo incrementan, y Pendientes o Retenidos se muestran por separado.
 - Los pagos no se eliminan: si dejan de aplicar deben marcarse como Cancelados. Las modificaciones se registran en el chatter de la orden con sus valores anterior y nuevo.
-- `Neto esperado = Total de la orden + Gasto general`.
+- `Neto esperado = Total de la orden`, antes de notas de crédito, descuentos o ajustes.
 - `Por cobrar = Neto esperado - Pagos pagados + Reembolsos`.
 - Al actualizar desde `18.0.1.0.20`, las capturas generales experimentales de Mayoreo se trasladan a esta pestaña cuando es posible; el historial anterior se conserva sin aparecer en los reportes Marketplace.
 

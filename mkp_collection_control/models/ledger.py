@@ -72,8 +72,8 @@ def collection_line_balance(adjusted_total=0, paid_amount=0):
 def wholesale_order_totals(*, order_total=0, general_expense=0, payments=None):
     """Return net, paid, pending and balance for the order-level wholesale flow.
 
-    The general expense is an additional charge on the wholesale order, not a
-    deduction from its sale total.
+    The general expense is informational and does not modify the expected net
+    amount or the outstanding balance.
     """
     expense = money(general_expense)
     if expense < 0:
@@ -110,7 +110,7 @@ def wholesale_order_totals(*, order_total=0, general_expense=0, payments=None):
                 pending = money(pending + amount)
         elif status != 'cancelled':
             raise ValueError('Estado de pago de mayoreo desconocido.')
-    net_expected = money(money(order_total) + expense + net_adjustments)
+    net_expected = money(money(order_total) + net_adjustments)
     return net_expected, paid, pending, money(net_expected - paid)
 
 
