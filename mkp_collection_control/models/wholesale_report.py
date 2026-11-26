@@ -68,11 +68,13 @@ class ReportMkpWholesaleStatement(models.AbstractModel):
                 'customer_reference': order.client_order_ref or '',
                 'net_amount': order.amount_total,
                 'paid_amount': 0.0,
+                    'pending_amount': 0.0,
                 'date': order_date,
             })
             for payment in order.mkp_wholesale_payment_ids:
                 net_amount = 0.0
                 paid_amount = 0.0
+                pending_amount = 0.0
                 if payment.payment_status == 'paid':
                     if payment.operation_type == 'payment':
                         paid_amount = payment.amount
@@ -83,6 +85,11 @@ class ReportMkpWholesaleStatement(models.AbstractModel):
                         paid_amount = -payment.amount
                     else:
                         net_amount = -payment.amount
+                elif (
+                    payment.payment_status == 'pending'
+                    and payment.operation_type == 'payment'
+                ):
+                    pending_amount = payment.amount
                 payment_date = payment.payment_date
                 if not payment_date and payment.create_date:
                     payment_date = fields.Datetime.context_timestamp(
@@ -99,6 +106,7 @@ class ReportMkpWholesaleStatement(models.AbstractModel):
                     'customer_reference': order.client_order_ref or '',
                     'net_amount': net_amount,
                     'paid_amount': paid_amount,
+                    'pending_amount': pending_amount,
                     'date': payment_date,
                 })
 
@@ -106,12 +114,14 @@ class ReportMkpWholesaleStatement(models.AbstractModel):
             running_balance = 0.0
             net_amount = 0.0
             paid_amount = 0.0
+            pending_amount = 0.0
             lines = sorted(
                 group['statement_lines'], key=lambda line: line['sort_key']
             )
             for line in lines:
                 net_amount += line['net_amount']
                 paid_amount += line['paid_amount']
+                pending_amount += line['pending_amount']
                 running_balance += line['net_amount'] - line['paid_amount']
                 line['amount_due'] = running_balance
                 line['date_text'] = (
@@ -120,6 +130,7 @@ class ReportMkpWholesaleStatement(models.AbstractModel):
             group['statement_lines'] = lines
             group['net_amount'] = net_amount
             group['paid_amount'] = paid_amount
+            group['pending_amount'] = pending_amount
             group['amount_due'] = running_balance
 
         generated_at = fields.Datetime.context_timestamp(
