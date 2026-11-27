@@ -85,7 +85,12 @@
                 <field name="vendor_id"/>
                 <field name="cost_source" optional="hide"/>
                 <field name="unit_cost_company"/>
-                <field name="total_cost" sum="Costo total"/>
+                <field name="total_cost" sum="Costo mercancía"/>
+                <field name="commission_total" sum="Comisiones"/>
+                <field name="commercial_cost" sum="Costo con comisiones"/>
+                <field name="commercial_profit" sum="Utilidad comercial"/>
+                <field name="commercial_margin" widget="percentage"/>
+                <field name="commission_status" optional="hide"/>
                 <field name="unit_sale_price"/>
                 <field name="allocated_sale_amount" sum="Venta total"/>
                 <field name="gross_profit"/>
@@ -112,6 +117,9 @@
                 <field name="sku" type="row"/>
                 <field name="allocated_sale_amount" type="measure"/>
                 <field name="total_cost" type="measure"/>
+                <field name="commission_total" type="measure"/>
+                <field name="commercial_cost" type="measure"/>
+                <field name="commercial_profit" type="measure"/>
                 <field name="total_profit" type="measure"/>
                 <field name="matched_quantity" type="measure"/>
             </pivot>
@@ -181,6 +189,15 @@
                             <field name="unit_sale_price"/>
                             <field name="allocated_sale_amount"/>
                             <field name="total_cost"/>
+                            <field name="commission_amount"/>
+                            <field name="other_commission_amount"/>
+                            <field name="commission_unit"/>
+                            <field name="commission_total"/>
+                            <field name="commercial_unit_cost"/>
+                            <field name="commercial_cost"/>
+                            <field name="commercial_profit"/>
+                            <field name="commercial_margin" widget="percentage"/>
+                            <field name="commission_status"/>
                             <field name="gross_profit"/>
                             <field name="total_profit"/>
                             <field name="gross_margin" widget="percentage"/>

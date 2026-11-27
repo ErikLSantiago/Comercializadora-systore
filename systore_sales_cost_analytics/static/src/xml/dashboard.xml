@@ -110,7 +110,7 @@
                         <span>Venta bruta</span><strong t-esc="money(state.data.kpis.gross_sales)"/><small>Antes de devoluciones</small>
                     </div>
                     <div class="o_systore_kpi">
-                        <span>Costo bruto</span><strong t-esc="money(state.data.kpis.sale_cost)"/><small>Costo antes de devoluciones</small>
+                        <span>Costo bruto</span><strong t-esc="money(state.data.kpis.sale_cost)"/><small t-esc="'Comisiones: ' + money(state.data.kpis.commission_total)"/>
                     </div>
                     <div class="o_systore_kpi">
                         <span>Utilidad bruta</span><strong t-esc="money(state.data.kpis.gross_profit)"/><small>Venta bruta − costo bruto</small>
@@ -122,7 +122,7 @@
                         <span>Venta neta</span><strong t-esc="money(state.data.kpis.net_sales)"/><small>Venta bruta − devoluciones</small>
                     </div>
                     <div class="o_systore_kpi">
-                        <span>Costo neto</span><strong t-esc="money(state.data.kpis.net_cost)"/><small>Costo bruto − costo devolución</small>
+                        <span>Costo neto</span><strong t-esc="money(state.data.kpis.net_cost)"/><small>Mercancía neta + comisiones</small>
                     </div>
                     <div class="o_systore_kpi">
                         <span>Utilidad neta</span><strong t-esc="money(state.data.kpis.net_profit)"/><small>Venta neta − costo neto</small>

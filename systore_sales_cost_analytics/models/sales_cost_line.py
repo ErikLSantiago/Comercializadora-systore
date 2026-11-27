@@ -97,6 +97,50 @@ class SystoreSalesCostLine(models.Model):
     total_profit = fields.Monetary(string='Utilidad total', currency_field='company_currency_id', compute='_compute_profit', store=True)
     gross_margin = fields.Float(string='Margen %', compute='_compute_profit', store=True, group_operator='avg')
 
+    commission_amount = fields.Monetary(string='Comisiones', currency_field='company_currency_id', readonly=True)
+    other_commission_amount = fields.Monetary(string='Otras comisiones', currency_field='company_currency_id', readonly=True)
+    commission_total = fields.Monetary(string='Comisión total', currency_field='company_currency_id', compute='_compute_commercial', store=True)
+    commission_unit = fields.Monetary(string='Comisión unitaria', currency_field='company_currency_id', compute='_compute_commercial', store=True)
+    commercial_unit_cost = fields.Monetary(string='Costo unitario con comisión', currency_field='company_currency_id', compute='_compute_commercial', store=True)
+    commercial_cost = fields.Monetary(string='Costo total con comisiones', currency_field='company_currency_id', compute='_compute_commercial', store=True)
+    commercial_profit = fields.Monetary(string='Utilidad comercial', currency_field='company_currency_id', compute='_compute_commercial', store=True)
+    commercial_margin = fields.Float(string='Margen comercial', compute='_compute_commercial', store=True)
+    commission_status = fields.Selection([('linked','Línea vinculada'),('missing','Sin línea de venta'),('return','No aplica a devolución'),('pending','Pendiente de actualizar')], default='pending', string='Origen de comisión', readonly=True)
+
+    @api.depends('commission_amount', 'other_commission_amount', 'matched_quantity', 'invoice_quantity', 'total_cost', 'allocated_sale_amount', 'analytic_role', 'unit_cost_company')
+    def _compute_commercial(self):
+        for rec in self:
+            fee = rec.commission_amount + rec.other_commission_amount
+            qty = abs(rec.matched_quantity or rec.invoice_quantity or 0)
+            rec.commission_total = fee
+            rec.commission_unit = fee / qty if qty else 0
+            rec.commercial_unit_cost = rec.unit_cost_company + rec.commission_unit
+            rec.commercial_cost = (-rec.total_cost if rec.analytic_role == 'transit_return' else rec.total_cost) + fee
+            rec.commercial_profit = rec.allocated_sale_amount - rec.commercial_cost
+            rec.commercial_margin = rec.commercial_profit / rec.allocated_sale_amount if rec.allocated_sale_amount else 0
+
+    @api.model
+    def _commission_values(self, vals):
+        if vals.get('analytic_role') == 'transit_return':
+            return {'commission_status': 'return'}
+        aml = self.env['account.move.line'].sudo().browse(vals.get('invoice_line_id')).exists()
+        if not aml or aml.move_id.move_type != 'out_invoice':
+            return {'commission_status': 'return'}
+        line = self.env['sale.order.line'].sudo().browse(vals.get('sale_order_line_id')).exists()
+        if not line or line.company_id != aml.company_id or line.product_id != aml.product_id or not line.product_uom_qty:
+            return {'commission_status': 'missing'}
+        qty = abs(vals.get('matched_quantity') or vals.get('invoice_quantity') or 0)
+        # Stock allocations use product UoM; unmatched invoice quantities use invoice UoM.
+        uom = aml.product_id.uom_id if vals.get('matched_quantity') else aml.product_uom_id
+        qty = uom._compute_quantity(qty, line.product_uom, round=False) if uom else qty
+        ratio = qty / abs(line.product_uom_qty)
+        currency = line.currency_id
+        company = aml.company_id
+        date = aml.move_id.invoice_date or aml.move_id.date
+        return {'commission_status': 'linked',
+                'commission_amount': currency._convert(line.mkp_commission * ratio, company.currency_id, company, date),
+                'other_commission_amount': currency._convert(line.mkp_other_commission * ratio, company.currency_id, company, date)}
+
     reconciliation_state = fields.Selection([
         ('ok', 'Cuadre correcto'),
         ('no_stock', 'Sin movimiento/lote'),
@@ -707,6 +751,8 @@ class SystoreSalesCostLine(models.Model):
                 'No se pueden crear líneas nuevas en el Reporte consolidado. '
                 'Para importar costos, actualiza registros existentes usando su ID/ID externo y el campo Costo unitario.'
             ))
+        for vals in vals_list:
+            vals.update(self._commission_values(vals))
         return super().create(vals_list)
 
     def write(self, vals):
@@ -850,7 +896,7 @@ class SystoreSalesCostLine(models.Model):
 
         metrics = {
             'gross_sales': 0.0, 'returns': 0.0, 'sale_cost': 0.0, 'return_cost': 0.0,
-            'sale_pieces': 0.0, 'return_pieces': 0.0, 'issues': 0, 'total_lines': len(records),
+            'commission_total': 0.0, 'merchandise_sale_cost': 0.0, 'sale_pieces': 0.0, 'return_pieces': 0.0, 'issues': 0, 'total_lines': len(records),
         }
         trend = defaultdict(lambda: {'sales': 0.0, 'returns': 0.0, 'sale_cost': 0.0, 'return_cost': 0.0})
         channels = defaultdict(lambda: self._systore_dashboard_bucket())
@@ -866,6 +912,10 @@ class SystoreSalesCostLine(models.Model):
             cost = abs(rec.total_cost or 0.0)
             pieces = abs(rec.matched_quantity or 0.0)
             is_return = rec.sale_state == 'return'
+            if not is_return:
+                metrics['merchandise_sale_cost'] += cost
+                metrics['commission_total'] += rec.commission_total
+                cost += rec.commission_total
             if is_return:
                 metrics['returns'] += amount
                 metrics['return_cost'] += cost
